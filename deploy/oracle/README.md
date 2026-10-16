@@ -4,8 +4,12 @@ Status on 2026-10-16: API and worker run on Oracle and pass readiness.
 Vercel proxies the production UI to `https://api.152-70-22-84.sslip.io`.
 Both Render services remain suspended. The legacy Render production release
 workflow is disabled, with an additional `RENDER_ROLLBACK_ENABLED=true` gate;
-standard quality CI stays enabled. Production image updates currently use the
-manual procedure below; Oracle deployment automation has not been configured.
+standard quality CI stays enabled. After a successful push-triggered main CI run,
+`deploy-vercel-oracle.yml` builds and deploys that exact current main revision to
+Vercel with the Oracle API rewrite. It also supports manual dispatch from main,
+requiring successful main CI for the same revision. Production backend image
+updates currently use the manual procedure below; Oracle backend image deployment
+automation has not been configured.
 The ARM64 image passed the six-service acceptance suite and a vulnerability
 scan with zero high/critical findings. Live acceptance verified login, secure
 session cookies, identity delegation, protected dashboard reads, logout and all
@@ -13,8 +17,13 @@ six authenticated BaSyx description endpoints.
 
 The worker recovered its persistent MQTT session after initial acknowledgement
 errors during backlog replay. Mixed QoS 0/1 persistence passed local acceptance.
-Physical equipment was not exercised; the most recent stored dashboard sample
-predates this migration. Monitor fresh samples when the gateway is online.
+Physical Pi and WROVER checks subsequently passed: fresh DHT11 readings reached
+the application through Oracle, both devices stayed online, and the Pi delivery
+queue drained. The telemetry-efficiency release measured 75.3% fewer forwarded
+sensor payload bytes over four minutes while preserving every value/status/button
+change. Five-second sensor sampling remains local; repeated live readings are
+coalesced with roughly one-minute snapshots and Pi heartbeats. No numeric deadband
+is enabled. Outage, queue-full redelivery and durable-reopen probes passed on the Pi.
 
 The existing Oracle ARM64 VM at `152.70.22.84` hosts BaSyx and Caddy in
 `/opt/smart-factory-basyx`. This stack adds the existing combined backend image

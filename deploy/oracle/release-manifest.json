@@ -18,12 +18,25 @@
     "all six production processes running as non-root",
     "Vercel login, secure session cookies, identity delegation, protected reads and logout",
     "six authenticated BaSyx description endpoints",
-    "runtime environment files have mode 0600"
+    "runtime environment files have mode 0600",
+    "live Pi and WROVER telemetry through Oracle to the production application",
+    "Pi real-broker outage buffering, queue-full redelivery and durable reopen"
   ],
   "limitations": [
-    "Fresh physical equipment telemetry has not been verified; last stored dashboard sample is 2026-10-13T17:05:09.385+02:00.",
     "Initial MQTT acknowledgement errors during broker-session recovery stopped after reconnection; runtime source was retained.",
     "Legacy Render release workflow is disabled; Oracle production image updates are currently manual."
   ],
-  "rollback": "Render services remain suspended, preserving their settings and previous images."
+  "rollback": "Render services remain suspended, preserving their settings and previous images.",
+  "edgeRelease": {
+    "sourceCommit": "5b8f3d179ec398a816878ef1ab34c9a5f1c2c815",
+    "path": "/opt/smart-factory-iot-edge/raspberry-pi/releases/telemetry-20261016T131325Z",
+    "snapshotsSeconds": 60,
+    "piHeartbeatSeconds": 60,
+    "sensorPayloadByteReductionPercent": 75.3,
+    "sensorMessageReductionPercent": 81.82,
+    "measurementSeconds": 249.7,
+    "measurementScope": "Forwarded sensor MQTT payloads; transport headers and Pi heartbeats excluded",
+    "physicalTelemetryVerified": true
+  },
+  "frontendDeployment": "GitHub Actions deploy-vercel-oracle.yml deploys the exact current main revision after its push CI succeeds; backend image updates remain manual."
 }
