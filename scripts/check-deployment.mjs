@@ -32,6 +32,9 @@ if (renderPosition < 0 || vercelPosition < 0 || renderPosition >= vercelPosition
 }
 
 const vercel = JSON.parse(vercelText);
+if (vercel.git?.deploymentEnabled?.main !== false) {
+  failures.push('independent Vercel main deployments must be disabled so production waits for CI');
+}
 if (vercel.outputDirectory !== 'dist/public') failures.push('Vercel outputDirectory must be dist/public');
 const productionApiOrigin = 'https://api.152-70-22-84.sslip.io';
 const apiRewrite = vercel.rewrites?.find(item => item.source === '/api/:path*');

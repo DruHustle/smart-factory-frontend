@@ -7,7 +7,9 @@ workflow is disabled, with an additional `RENDER_ROLLBACK_ENABLED=true` gate;
 standard quality CI stays enabled. After a successful push-triggered main CI run,
 `deploy-vercel-oracle.yml` builds and deploys that exact current main revision to
 Vercel with the Oracle API rewrite. It also supports manual dispatch from main,
-requiring successful main CI for the same revision. Production backend image
+requiring successful main CI for the same revision. The committed Vercel Git
+configuration disables independent Git deployments for main so production waits
+for this checked workflow; other branches retain preview deployments. Production backend image
 updates currently use the manual procedure below; Oracle backend image deployment
 automation has not been configured.
 The ARM64 image passed the six-service acceptance suite and a vulnerability
