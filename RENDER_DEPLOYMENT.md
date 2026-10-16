@@ -1,3 +1,5 @@
+> Oracle migration: the API and worker deployment and cutover procedure now lives in [deploy/oracle/README.md](deploy/oracle/README.md). The Render release below remains active until cutover is verified.
+
 # Vercel frontend and split Render backend
 
 This is the canonical deployment guide for all three repositories. Production runs the React UI on Vercel and uses **one non-root backend image with separate Render `web` and `worker` roles**. Six BaSyx services run separately on one Oracle Cloud VM behind Caddy and use an Aiven PostgreSQL database. Kubernetes is unnecessary. Managed databases, messaging and Redis remain external; Pi/ESP32/ADA031 equipment stays on the OT network.

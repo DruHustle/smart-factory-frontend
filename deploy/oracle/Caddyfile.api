@@ -1,0 +1,5 @@
+# Append to /opt/smart-factory-basyx/Caddyfile; preserve the BaSyx site block.
+api.152-70-22-84.sslip.io {
+  encode zstd gzip
+  reverse_proxy factory-api:10000
+}

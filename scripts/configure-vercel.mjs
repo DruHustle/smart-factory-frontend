@@ -1,9 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
-const configured = process.env.RENDER_API_ORIGIN;
-if (!configured) throw new Error('RENDER_API_ORIGIN must be set before Vercel pull/build/deploy');
+const configured = process.env.API_ORIGIN ?? process.env.RENDER_API_ORIGIN;
+if (!configured) throw new Error('API_ORIGIN (or legacy RENDER_API_ORIGIN) must be set before Vercel pull/build/deploy');
 const origin = new URL(configured);
 if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash || origin.hostname.endsWith('.invalid')) {
-  throw new Error('RENDER_API_ORIGIN must be a real HTTPS origin without credentials, path, query, or fragment');
+  throw new Error('API_ORIGIN (or legacy RENDER_API_ORIGIN) must be a real HTTPS origin without credentials, path, query, or fragment');
 }
 const config = JSON.parse(await readFile('vercel.json', 'utf8'));
 config.rewrites = [
