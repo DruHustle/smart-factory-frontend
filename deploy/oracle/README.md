@@ -1,10 +1,20 @@
 # Oracle API and singleton worker
 
-Status on 2026-10-16: ARM64 image built, acceptance suite passed, vulnerability
-scan returned zero high/critical findings, and image loaded on the VM. The API
-and worker have not been started. Credential transfer, live configuration
-reconciliation, worker ownership and Vercel cutover are pending explicit
-credential-transfer approval. The existing Render deployment is still active.
+Status on 2026-10-16: API and worker run on Oracle and pass readiness.
+Vercel proxies the production UI to `https://api.152-70-22-84.sslip.io`.
+Both Render services remain suspended. The legacy Render production release
+workflow is disabled, with an additional `RENDER_ROLLBACK_ENABLED=true` gate;
+standard quality CI stays enabled. Production image updates currently use the
+manual procedure below; Oracle deployment automation has not been configured.
+The ARM64 image passed the six-service acceptance suite and a vulnerability
+scan with zero high/critical findings. Live acceptance verified login, secure
+session cookies, identity delegation, protected dashboard reads, logout and all
+six authenticated BaSyx description endpoints.
+
+The worker recovered its persistent MQTT session after initial acknowledgement
+errors during backlog replay. Mixed QoS 0/1 persistence passed local acceptance.
+Physical equipment was not exercised; the most recent stored dashboard sample
+predates this migration. Monitor fresh samples when the gateway is online.
 
 The existing Oracle ARM64 VM at `152.70.22.84` hosts BaSyx and Caddy in
 `/opt/smart-factory-basyx`. This stack adds the existing combined backend image
@@ -41,18 +51,30 @@ For cutover, suspend the Render worker and confirm its state before starting
 `docker compose --profile worker up -d worker`. Retain the exact MQTT client ID,
 tokens, verified database connections and email settings. Check worker readiness
 at `http://127.0.0.1:10001/health/ready`, both Supervisor processes, and MQTT
-delivery. Do not run the two production workers together. A blank local
-`SMTP_PASSWORD` must be reconciled against the live worker configuration.
+delivery. Do not run the two production workers together. Use the live worker configuration; the initial local export lacked the SMTP
+password. The completed migration preserved the live SMTP credential.
 
 Set `API_ORIGIN=https://api.152-70-22-84.sslip.io` and run
 `pnpm vercel:configure` before building and deploying the Vercel artifact.
 Verify login/session cookies, authorization, queries, AAS access and health
 through the actual Vercel domain. Suspend the old Render API only after these
-checks pass. Disable the old Render release path before merging this migration;
-it otherwise resumes deploying the old host on a main-branch push.
+checks pass. The old Render release workflow is disabled in GitHub and additionally requires
+`RENDER_ROLLBACK_ENABLED=true` before its verification/release jobs can run.
+Keep it disabled while Oracle image updates use the manual deployment procedure.
 
 For rollback, stop the Oracle worker first, resume the Render worker, and deploy
 the previous Vercel artifact pointing to the old API. Keep the previous image,
 Caddyfile and environment files until acceptance is complete. Database migrations
 run at container startup; restore database backups separately if a future release
 introduces an incompatible schema change.
+
+## Updating the Oracle image
+
+Transfer the tested ARM64 image with `docker save`, compression and `scp`, then
+load it with `docker load -i <archive>` in `/opt/smart-factory-backend`. Keep the
+old image and save the current `.env` as an owner-only rollback file. Stop the
+worker with `docker compose --profile worker stop worker`, update `BACKEND_IMAGE`
+in `.env`, and run `docker compose up -d api`. Wait for API readiness, then run
+`docker compose --profile worker up -d worker` and check its readiness and MQTT
+session. The worker container must remain single-instance throughout. Do not
+replace the environment files during routine image updates.

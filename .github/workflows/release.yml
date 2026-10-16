@@ -1,15 +1,11 @@
+# Legacy Render workflow: disabled in GitHub after the Oracle migration.
+# Keep disabled until replaced with Oracle deployment automation.
 name: Release Vercel UI and six-service Render bundle
 on:
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
-      migration_action:
-        description: One-time Oracle cutover operation (migration branch only)
-        required: false
-        type: choice
-        options: [none, snapshot, suspend-worker, resume-worker, suspend-api, resume-api, deploy-ui]
-        default: none
       backend_sha:
         description: Optional full backend commit SHA; empty uses backend main
         required: false
@@ -25,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.RENDER_ROLLBACK_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
@@ -212,50 +208,6 @@ jobs:
       - name: Configure and deploy Vercel UI
         working-directory: smart-factory-iot
         run: |
-          pnpm install --frozen-lockfile
-          pnpm vercel:configure
-          pnpm dlx vercel@62.2.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
-          pnpm dlx vercel@62.2.0 build --prod --token="$VERCEL_TOKEN"
-          pnpm dlx vercel@62.2.0 deploy --prebuilt --archive=tgz --prod --yes --token="$VERCEL_TOKEN"
-
-  oracle-migration:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/oracle-backend-migration' && inputs.migration_action != 'none'
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 20
-    env:
-      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-      RENDER_WEB_SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
-      RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
-      MIGRATION_ACTION: ${{ inputs.migration_action }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      RENDER_API_ORIGIN: https://api.152-70-22-84.sslip.io
-      VITE_API_URL: /api
-      VITE_ENABLE_DEMO_ACCOUNTS: 'true'
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with: { persist-credentials: false }
-      - name: Perform controlled Render operation
-        if: inputs.migration_action != 'deploy-ui'
-        run: python3 scripts/render-migration.py "$MIGRATION_ACTION"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: inputs.migration_action == 'snapshot'
-        with:
-          name: encrypted-oracle-runtime
-          path: oracle-runtime.enc
-          retention-days: 1
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
-        if: inputs.migration_action == 'deploy-ui'
-        with: { package_json_file: package.json }
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        if: inputs.migration_action == 'deploy-ui'
-        with: { node-version: 22, cache: pnpm }
-      - name: Deploy Vercel proxy to ready Oracle API
-        if: inputs.migration_action == 'deploy-ui'
-        run: |
-          curl --fail --silent --show-error "$RENDER_API_ORIGIN/health/ready"
           pnpm install --frozen-lockfile
           pnpm vercel:configure
           pnpm dlx vercel@62.2.0 pull --yes --environment=production --token="$VERCEL_TOKEN"

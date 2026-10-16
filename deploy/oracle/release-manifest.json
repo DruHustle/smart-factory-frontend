@@ -1,0 +1,29 @@
+{
+  "deployed": "2026-10-16",
+  "host": "152.70.22.84",
+  "platform": "linux/arm64",
+  "image": "smart-factory-backend:oracle-20261016",
+  "imageId": "sha256:42ba2cc68e74f4372f7993308887dc6c92b5ff304a42ba757852408d649c63f2",
+  "runtimeSources": {
+    "frontend": "5cb664a77a1cfa1434ecabaa2cadf6b8b4174760",
+    "backend": "6afbebb32b241bad27469b303c807e82af6f1770"
+  },
+  "apiOrigin": "https://api.152-70-22-84.sslip.io",
+  "frontendOrigin": "https://smart-factory-iot-app.vercel.app",
+  "verification": [
+    "ARM64 six-service acceptance suite",
+    "QoS 0 and QoS 1 MQTT persistence on disposable dependencies",
+    "zero high/critical vulnerability findings",
+    "Oracle API and worker readiness",
+    "all six production processes running as non-root",
+    "Vercel login, secure session cookies, identity delegation, protected reads and logout",
+    "six authenticated BaSyx description endpoints",
+    "runtime environment files have mode 0600"
+  ],
+  "limitations": [
+    "Fresh physical equipment telemetry has not been verified; last stored dashboard sample is 2026-10-13T17:05:09.385+02:00.",
+    "Initial MQTT acknowledgement errors during broker-session recovery stopped after reconnection; runtime source was retained.",
+    "Legacy Render release workflow is disabled; Oracle production image updates are currently manual."
+  ],
+  "rollback": "Render services remain suspended, preserving their settings and previous images."
+}

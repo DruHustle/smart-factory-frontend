@@ -1,4 +1,4 @@
-> Oracle migration: the API and worker deployment and cutover procedure now lives in [deploy/oracle/README.md](deploy/oracle/README.md). The Render release below remains active until cutover is verified.
+> Historical Render deployment guide. Production API and worker now run on Oracle alongside BaSyx. Use [deploy/oracle/README.md](deploy/oracle/README.md) for the current deployment. Both Render services remain suspended and the old Render release workflow is disabled. Local development and shared image details below still apply.
 
 # Vercel frontend and split Render backend
 

@@ -100,6 +100,40 @@ try:
     assert coverage['metrics'][0]['samples']==2 and coverage['metrics'][0]['average']==20
     assert coverage['metrics'][1]['samples']==0 and coverage['metrics'][1]['average'] is None
     print('PASS: AnalyticsService calculates stored sample coverage, gaps and null-safe aggregates.')
+    # A QoS 1 subscription also receives QoS 0 publications. QoS 0 has no
+    # packet identifier, so manually acknowledging it would disconnect MQTTnet.
+    publisher = '''
+import json, socket, struct, time
+def field(value):
+    value=value.encode(); return struct.pack('!H',len(value))+value
+def send(sock,kind,payload):
+    size=len(payload); encoded=b''
+    while True:
+        byte=size%128; size//=128; encoded+=bytes([byte | (128 if size else 0)])
+        if not size: break
+    sock.sendall(bytes([kind])+encoded+payload)
+with socket.create_connection(('broker',1883),timeout=10) as sock:
+    send(sock,0x10,field('MQTT')+bytes([4,0xc2])+struct.pack('!H',30)+field('bundle-qos-publisher')+field('review')+field('isolated-review-broker'))
+    assert sock.recv(4)==bytes([0x20,2,0,0])
+    for qos in [0,1]:
+        message=json.dumps({'deviceId':'bundle-qos'+str(qos),'timestamp':int(time.time()*1000),'temperature':42}).encode()
+        send(sock,0x30 | (qos << 1),field('factory/test/test/bundle-qos'+str(qos)+'/telemetry')+(struct.pack('!H',1) if qos else b'')+message)
+        if qos: assert sock.recv(4)==bytes([0x40,2,0,1])
+    send(sock,0xe0,b'')
+'''
+    wait(lambda: 'Connected to MQTT' in run(COMPOSE+['logs','bundle'], True))
+    connections_before=run(COMPOSE+['logs','bundle'], True).count('Connected to MQTT')
+    run(COMPOSE+['exec','-T','bundle','python3','-c',publisher])
+    def mqtt_records_saved():
+        count=run(COMPOSE+['exec','-T','backend-database','psql','-U','postgres','-d','telemetry','-qAtc',
+            '''SELECT count(DISTINCT "DeviceId") FROM "TelemetryRecords" WHERE "DeviceId" IN ('bundle-qos0','bundle-qos1')'''], True)
+        return count.strip()=='2'
+    wait(mqtt_records_saved)
+    time.sleep(1)  # Allow asynchronous acknowledgement logging/reconnects to complete.
+    mqtt_logs=run(COMPOSE+['logs','bundle'], True)
+    assert 'PubAck packet has no packet identifier' not in mqtt_logs
+    assert mqtt_logs.count('Connected to MQTT') == connections_before
+    print('PASS: QoS 0 and QoS 1 MQTT messages persist without invalid acknowledgements or reconnects.')
     run(COMPOSE+['stop','database'])
     wait(lambda: http(plain,'/health/ready')[0]==503, timeout=30)
     assert http(plain,'/health/live')[0]==200
