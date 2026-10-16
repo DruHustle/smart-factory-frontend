@@ -40,7 +40,7 @@ jobs:
             echo 'deploy=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=20" --jq '.workflow_runs[].head_sha' | rg --fixed-strings --line-regexp "$RELEASE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=20" --jq '.workflow_runs[].head_sha' | python3 -c 'import os,sys; sys.exit(0 if os.environ["RELEASE_SHA"] in sys.stdin.read().splitlines() else "No successful push CI for this main revision")'
           echo "sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
           echo 'deploy=true' >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
