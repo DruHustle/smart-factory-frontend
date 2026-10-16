@@ -1,3 +1,5 @@
+> Historical Render deployment guide. Production API and worker now run on Oracle alongside BaSyx. Use [deploy/oracle/README.md](deploy/oracle/README.md) for the current deployment. Both Render services remain suspended and the old Render release workflow is disabled. Local development and shared image details below still apply.
+
 # Vercel frontend and split Render backend
 
 This is the canonical deployment guide for all three repositories. Production runs the React UI on Vercel and uses **one non-root backend image with separate Render `web` and `worker` roles**. Six BaSyx services run separately on one Oracle Cloud VM behind Caddy and use an Aiven PostgreSQL database. Kubernetes is unnecessary. Managed databases, messaging and Redis remain external; Pi/ESP32/ADA031 equipment stays on the OT network.

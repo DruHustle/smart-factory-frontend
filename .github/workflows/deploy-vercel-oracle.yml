@@ -1,0 +1,84 @@
+name: Deploy Vercel UI with Oracle API
+
+on:
+  workflow_run:
+    workflows: [Dashboard quality checks]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: factory-oracle-ui-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ steps.release.outputs.url }}
+    steps:
+      - name: Require the current main revision and successful CI
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          current=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [[ "$RELEASE_SHA" != "$current" ]]; then
+            echo 'A newer main revision exists; its CI run will handle deployment.'
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=20" --jq '.workflow_runs[].head_sha' | python3 -c 'import os,sys; sys.exit(0 if os.environ["RELEASE_SHA"] in sys.stdin.read().splitlines() else "No successful push CI for this main revision")'
+          echo "sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+          echo 'deploy=true' >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.source.outputs.deploy == 'true'
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        if: steps.source.outputs.deploy == 'true'
+        with: { version: 10.34.5 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.source.outputs.deploy == 'true'
+        with: { node-version: 22, cache: pnpm }
+      - name: Build and deploy the production frontend
+        id: release
+        if: steps.source.outputs.deploy == 'true'
+        env:
+          API_ORIGIN: https://api.152-70-22-84.sslip.io
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VITE_API_URL: /api
+          VITE_ENABLE_DEMO_ACCOUNTS: 'true'
+          RELEASE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          for key in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            [[ -n "${!key}" ]] || { echo "Missing release configuration: $key"; exit 1; }
+          done
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 "$API_ORIGIN/health/ready"
+          pnpm install --frozen-lockfile
+          pnpm vercel:configure
+          pnpm dlx vercel@62.2.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+          pnpm dlx vercel@62.2.0 build --prod --token="$VERCEL_TOKEN"
+          pnpm dlx vercel@62.2.0 deploy --prebuilt --archive=tgz --prod --yes --token="$VERCEL_TOKEN" --meta "githubCommitSha=$RELEASE_SHA" --meta githubCommitRef=main > "$RUNNER_TEMP/vercel-deployment-url.txt"
+          deployment_url=$(tail -n 1 "$RUNNER_TEMP/vercel-deployment-url.txt")
+          [[ "$deployment_url" =~ ^https://[^[:space:]]+\.vercel\.app$ ]]
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "Production deployment: $deployment_url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source revision: $RELEASE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 https://smart-factory-iot-app.vercel.app/health/ready
+          curl --fail --silent --show-error --output /dev/null https://smart-factory-iot-app.vercel.app/

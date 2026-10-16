@@ -1,0 +1,53 @@
+name: smart-factory-backend
+
+x-runtime: &runtime
+  image: ${BACKEND_IMAGE:?Set BACKEND_IMAGE to the reviewed ARM64 image}
+  platform: linux/arm64
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 60s
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  api:
+    <<: *runtime
+    env_file:
+      - path: .env.api
+        format: raw
+    environment:
+      RENDER_SERVICE_ROLE: web
+      PORT: "10000"
+      # Only Caddy can reach the API on this private network. Caddy overwrites
+      # untrusted incoming forwarding headers before sending the client address.
+      TRUST_PROXY: "1"
+    mem_limit: 1536m
+    ports: ["127.0.0.1:10000:10000"]
+    networks:
+      default:
+      basyx:
+        aliases: [factory-api]
+
+  worker:
+    <<: *runtime
+    # Start only after the previous Render worker is confirmed suspended.
+    profiles: [worker]
+    env_file:
+      - path: .env.worker
+        format: raw
+    environment:
+      RENDER_SERVICE_ROLE: worker
+      PORT: "10000"
+      DASHBOARD_API_ORIGIN: https://api.152-70-22-84.sslip.io
+    mem_limit: 1024m
+    ports: ["127.0.0.1:10001:10000"]
+    depends_on:
+      api: { condition: service_healthy }
+
+networks:
+  basyx:
+    external: true
+    name: smart-factory-basyx_default

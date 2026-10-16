@@ -2,6 +2,10 @@
 
 Full-stack IoT dashboard with React + Express + tRPC + Drizzle ORM.
 
+Production uses Vercel for the React UI and the existing Oracle ARM64 VM for the
+API, singleton worker and BaSyx. See [Oracle deployment](deploy/oracle/README.md).
+The legacy Render release workflow is disabled; standard quality CI remains active.
+
 ## Stack
 
 - Frontend: React, Vite, TailwindCSS

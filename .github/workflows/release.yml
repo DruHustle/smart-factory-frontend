@@ -1,3 +1,5 @@
+# Legacy Render workflow: disabled in GitHub after the Oracle migration.
+# Keep disabled until replaced with Oracle deployment automation.
 name: Release Vercel UI and six-service Render bundle
 on:
   push:
@@ -19,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.RENDER_ROLLBACK_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:

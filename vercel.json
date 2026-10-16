@@ -3,26 +3,64 @@
   "buildCommand": "pnpm build",
   "outputDirectory": "dist/public",
   "rewrites": [
-    { "source": "/health/live", "destination": "https://smart-factory-iot-backend-api.onrender.com/health/live" },
-    { "source": "/health/ready", "destination": "https://smart-factory-iot-backend-api.onrender.com/health/ready" },
-    { "source": "/api/health/live", "destination": "https://smart-factory-iot-backend-api.onrender.com/health/live" },
-    { "source": "/api/health/ready", "destination": "https://smart-factory-iot-backend-api.onrender.com/health/ready" },
-    { "source": "/api/:path*", "destination": "https://smart-factory-iot-backend-api.onrender.com/api/:path*" },
-    { "source": "/:path*", "destination": "/index.html" }
+    {
+      "source": "/health/live",
+      "destination": "https://api.152-70-22-84.sslip.io/health/live"
+    },
+    {
+      "source": "/health/ready",
+      "destination": "https://api.152-70-22-84.sslip.io/health/ready"
+    },
+    {
+      "source": "/api/health/live",
+      "destination": "https://api.152-70-22-84.sslip.io/health/live"
+    },
+    {
+      "source": "/api/health/ready",
+      "destination": "https://api.152-70-22-84.sslip.io/health/ready"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.152-70-22-84.sslip.io/api/:path*"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/api/:path*",
-      "headers": [{ "key": "Cache-Control", "value": "private, no-store" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
     },
     {
       "source": "/:path*",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; base-uri 'self'; connect-src 'self' https://*.googleapis.com https://*.gstatic.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com; object-src 'none'; script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; upgrade-insecure-requests" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Permissions-Policy", "value": "camera=(), geolocation=(), microphone=(), payment=(), usb=()" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; connect-src 'self' https://*.googleapis.com https://*.gstatic.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com; object-src 'none'; script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; upgrade-insecure-requests"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+        }
       ]
     }
   ]
