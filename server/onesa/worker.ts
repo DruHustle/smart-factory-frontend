@@ -49,11 +49,13 @@ async function limitedReceipt(response: Response) {
 export function classify(status: number) {
   return status === 401 || status === 403
     ? "credentials"
-    : status === 408 || status === 425 || status === 429 || status >= 500
+    : [404, 408, 409, 423, 425, 428, 429].includes(status) || status >= 500
       ? "transient"
       : status >= 200 && status < 300
         ? "receipt"
-        : "permanent";
+        : [400, 413, 415, 422].includes(status)
+          ? "permanent"
+          : "configuration";
 }
 export async function drain(fetcher: typeof fetch = fetch) {
   const c = integrationConfig();
@@ -183,7 +185,10 @@ export async function drain(fetcher: typeof fetch = fetch) {
       );
       const attempts = Number(r.attempts) + 1;
       const permanent =
-        rejected || responseClass === "permanent" || attempts >= c.maxAttempts;
+        rejected ||
+        responseClass === "permanent" ||
+        responseClass === "configuration" ||
+        attempts >= c.maxAttempts;
       const nextState = !remaining.length
         ? "acknowledged"
         : permanent

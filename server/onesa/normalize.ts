@@ -1,54 +1,12 @@
 import { createHash } from "node:crypto";
-import { z } from "zod";
+import { provenanceSchema } from "../telemetryProvenance";
+export { provenanceSchema } from "../telemetryProvenance";
 import {
   eventSchema,
   type Registration,
   type Mapping,
   type IntegrationEvent,
 } from "./contract";
-export const provenanceSchema = z
-  .object({
-    mode: z.enum(["live", "simulated", "replay"]),
-    scenarioRunId: z.string().min(1).max(128).optional(),
-    replayRunId: z.string().min(1).max(128).optional(),
-    sessionId: z.string().min(1).max(128).optional(),
-    sequence: z
-      .number()
-      .int()
-      .nonnegative()
-      .max(Number.MAX_SAFE_INTEGER)
-      .optional(),
-    sourceQuality: z
-      .enum(["good", "bad", "uncertain", "unknown"])
-      .default("unknown"),
-    sourceConnection: z
-      .enum(["online", "offline", "unknown"])
-      .default("unknown"),
-    timestampOrigin: z.enum(["device", "gateway"]).default("device"),
-    retained: z.boolean().default(false),
-    gatewayReceivedAt: z.iso
-      .datetime({ offset: true })
-      .refine(
-        (value) => value.endsWith("Z") || value.endsWith("+00:00"),
-        "Gateway receipt must be UTC",
-      )
-      .transform((value) => new Date(value).toISOString()),
-    sourceEvents: z
-      .array(
-        z
-          .object({
-            id: z.string().max(128),
-            origin: z.literal("source"),
-            code: z.string().max(128),
-            state: z.enum(["active", "cleared"]),
-            componentId: z.uuid(),
-          })
-          .strict(),
-      )
-      .max(20)
-      .default([]),
-  })
-  .strict();
 export type SourceSample = {
   deviceId: string;
   assetId?: string | null;
@@ -169,7 +127,9 @@ export function normalize(
     events.push(
       eventSchema.parse({
         ...common,
-        eventId: eventId("alarm:" + alarm.componentId + ":" + alarm.id + ":" + alarm.state),
+        eventId: eventId(
+          "alarm:" + alarm.componentId + ":" + alarm.id + ":" + alarm.state,
+        ),
         componentId: alarm.componentId,
         target: target(alarm.componentId),
         kind: "source_alarm",

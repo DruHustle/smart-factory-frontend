@@ -1,0 +1,1862 @@
+{
+  "policy": "smart-factory-provenance-1",
+  "cases": [
+    {
+      "name": "legacy null",
+      "integration": null,
+      "valid": true,
+      "normalized": null
+    },
+    {
+      "name": "valid live",
+      "integration": {
+        "mode": "live",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z"
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "live",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+        "sourceEvents": []
+      }
+    },
+    {
+      "name": "valid simulated",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": "scenario-01"
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+        "sourceEvents": []
+      }
+    },
+    {
+      "name": "valid replay",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": "scenario-01"
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "replay",
+        "replayRunId": "scenario-01",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+        "sourceEvents": []
+      }
+    },
+    {
+      "name": "simulated bad id None",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": null
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id None",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": null
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated bad id 0",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id 0",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated bad id 1",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id 1",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated bad id True",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": true
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id True",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": true
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated bad id ''",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id ''",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated bad id ' '",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": " "
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id ' '",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": " "
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated bad id '\\t\\n'",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": "\t\n"
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id '\\t\\n'",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": "\t\n"
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated bad id 'xxxxxxxxxxxxxxxxxxxxx",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id 'xxxxxxxxxxxxxxxxxxxxx",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated bad id 'not allowed'",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": "not allowed"
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id 'not allowed'",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": "not allowed"
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated bad id '\u2603'",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "scenarioRunId": "\u2603"
+      },
+      "valid": false
+    },
+    {
+      "name": "replay bad id '\u2603'",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": "\u2603"
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated missing id",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "simulated maximum id and UTC offset",
+      "integration": {
+        "mode": "simulated",
+        "gatewayReceivedAt": "2026-10-20T09:00:00+00:00",
+        "scenarioRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "simulated",
+        "scenarioRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+        "sourceEvents": []
+      }
+    },
+    {
+      "name": "replay missing id",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "replay maximum id and UTC offset",
+      "integration": {
+        "mode": "replay",
+        "gatewayReceivedAt": "2026-10-20T09:00:00+00:00",
+        "replayRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "replay",
+        "replayRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+        "sourceEvents": []
+      }
+    },
+    {
+      "name": "mode invalid 0",
+      "integration": {
+        "mode": null,
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "mode invalid 1",
+      "integration": {
+        "mode": 3,
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "mode invalid 2",
+      "integration": {
+        "mode": "unknown",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "mode invalid 3",
+      "integration": {
+        "mode": "",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 0",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": null
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 1",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": 3
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 2",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 3",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-02-29T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 4",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-04-31T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 5",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T24:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 6",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:60Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 7",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 8",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20 09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 9",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 10",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00+01:00"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 11",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00-00:00"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 12",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "0000-10-20T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gatewayReceivedAt invalid 13",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00.1234567890Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "sourceQuality invalid 0",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceQuality": null
+      },
+      "valid": false
+    },
+    {
+      "name": "sourceQuality invalid 1",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceQuality": 3
+      },
+      "valid": false
+    },
+    {
+      "name": "sourceQuality invalid 2",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceQuality": "healthy"
+      },
+      "valid": false
+    },
+    {
+      "name": "sourceConnection invalid 0",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceConnection": null
+      },
+      "valid": false
+    },
+    {
+      "name": "sourceConnection invalid 1",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceConnection": false
+      },
+      "valid": false
+    },
+    {
+      "name": "sourceConnection invalid 2",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceConnection": "connected"
+      },
+      "valid": false
+    },
+    {
+      "name": "timestampOrigin invalid 0",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "timestampOrigin": null
+      },
+      "valid": false
+    },
+    {
+      "name": "timestampOrigin invalid 1",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "timestampOrigin": 3
+      },
+      "valid": false
+    },
+    {
+      "name": "timestampOrigin invalid 2",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "timestampOrigin": "server"
+      },
+      "valid": false
+    },
+    {
+      "name": "retained invalid 0",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "retained": null
+      },
+      "valid": false
+    },
+    {
+      "name": "retained invalid 1",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "retained": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "retained invalid 2",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "retained": "false"
+      },
+      "valid": false
+    },
+    {
+      "name": "sequence invalid 0",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sequence": null
+      },
+      "valid": false
+    },
+    {
+      "name": "sequence invalid 1",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sequence": true
+      },
+      "valid": false
+    },
+    {
+      "name": "sequence invalid 2",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sequence": -1
+      },
+      "valid": false
+    },
+    {
+      "name": "sequence invalid 3",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sequence": 1.5
+      },
+      "valid": false
+    },
+    {
+      "name": "sequence invalid 4",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sequence": 9007199254740992
+      },
+      "valid": false
+    },
+    {
+      "name": "sequence invalid 5",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sequence": "1"
+      },
+      "valid": false
+    },
+    {
+      "name": "sessionId invalid 0",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sessionId": null
+      },
+      "valid": false
+    },
+    {
+      "name": "sessionId invalid 1",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sessionId": 3
+      },
+      "valid": false
+    },
+    {
+      "name": "sessionId invalid 2",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sessionId": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "sessionId invalid 3",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sessionId": " "
+      },
+      "valid": false
+    },
+    {
+      "name": "sessionId invalid 4",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sessionId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "valid": false
+    },
+    {
+      "name": "sourceEvents invalid 0",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": null
+      },
+      "valid": false
+    },
+    {
+      "name": "sourceEvents invalid 1",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": {}
+      },
+      "valid": false
+    },
+    {
+      "name": "sourceEvents invalid 2",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": "oops"
+      },
+      "valid": false
+    },
+    {
+      "name": "missing mode",
+      "integration": {
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "missing gatewayReceivedAt",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01"
+      },
+      "valid": false
+    },
+    {
+      "name": "unknown field",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "unknownField": "reject"
+      },
+      "valid": false
+    },
+    {
+      "name": "replay identity on non replay",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": "forbidden-on-simulated"
+      },
+      "valid": false
+    },
+    {
+      "name": "excessive events",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "event invalid id",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "event invalid id0",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": 0,
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "event invalid code ",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": " ",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "event invalid codexxxxxxxxxxxxxx",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "event invalid originderived",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing-01",
+            "origin": "derived",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "event invalid stateunknown",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "unknown",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "event invalid componentIdnot-a-uuid",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "not-a-uuid"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "event invalid unknownreject",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5",
+            "unknown": "reject"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "full supported fields",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ],
+        "sequence": 9007199254740991,
+        "retained": true,
+        "sourceConnection": "offline",
+        "timestampOrigin": "gateway",
+        "sourceQuality": "bad",
+        "sessionId": "session-01"
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "sessionId": "session-01",
+        "sequence": 9007199254740991,
+        "sourceQuality": "bad",
+        "sourceConnection": "offline",
+        "timestampOrigin": "gateway",
+        "retained": true,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+        "sourceEvents": [
+          {
+            "id": "bearing-01",
+            "origin": "source",
+            "code": "bearing-temperature",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      }
+    },
+    {
+      "name": "valid precision 2024-02-29T23:59:59.123456789+00:00",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2024-02-29T23:59:59.123456789+00:00"
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2024-02-29T23:59:59.123Z",
+        "sourceEvents": []
+      }
+    },
+    {
+      "name": "valid precision 2026-10-20T09:00:00.1Z",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00.1Z"
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.100Z",
+        "sourceEvents": []
+      }
+    },
+    {
+      "name": "valid precision 0001-01-01T00:00:00Z",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "0001-01-01T00:00:00Z"
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "0001-01-01T00:00:00.000Z",
+        "sourceEvents": []
+      }
+    },
+    {
+      "name": "invalid integration root 0",
+      "integration": 0,
+      "valid": false
+    },
+    {
+      "name": "invalid integration root True",
+      "integration": true,
+      "valid": false
+    },
+    {
+      "name": "invalid integration root ''",
+      "integration": "",
+      "valid": false
+    },
+    {
+      "name": "invalid integration root []",
+      "integration": [],
+      "valid": false
+    },
+    {
+      "name": "trailing newline scenarioRunId",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01\n",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "trailing newline gatewayReceivedAt",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z\n"
+      },
+      "valid": false
+    },
+    {
+      "name": "maximum event count",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+        "sourceEvents": [
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      }
+    },
+    {
+      "name": "uppercase component UUID",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          }
+        ]
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+        "sourceEvents": [
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UUID trailing newline",
+      "integration": {
+        "mode": "simulated",
+        "scenarioRunId": "scenario-01",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "sourceEvents": [
+          {
+            "id": "bearing",
+            "origin": "source",
+            "code": "high-temp",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5\n"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "maximum bounded metadata",
+      "integration": {
+        "mode": "replay",
+        "scenarioRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "gatewayReceivedAt": "2026-10-20T09:00:00Z",
+        "replayRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "sessionId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "sourceEvents": [
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6D5A0E0F-AA5F-5646-87C9-45748EC2CAD5"
+          }
+        ]
+      },
+      "valid": true,
+      "normalized": {
+        "mode": "replay",
+        "scenarioRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "sourceQuality": "unknown",
+        "sourceConnection": "unknown",
+        "timestampOrigin": "device",
+        "retained": false,
+        "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+        "sourceEvents": [
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          },
+          {
+            "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "origin": "source",
+            "code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "state": "active",
+            "componentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+          }
+        ],
+        "replayRunId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "sessionId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    }
+  ]
+}
