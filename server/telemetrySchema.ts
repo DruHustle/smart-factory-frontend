@@ -1,6 +1,9 @@
 import { z } from "zod";
 
+import { provenanceSchema } from "./onesa/normalize";
+
 export const edgeTelemetrySchema = z.object({
+  integration: provenanceSchema.nullish().transform(value => value ?? undefined),
   deviceId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/),
   gatewayId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/).optional(),
   assetId: z.string().min(1).max(128).refine((id) => !/[\u0000-\u001f\u007f]/.test(id)).nullable().optional(),

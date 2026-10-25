@@ -1,0 +1,8 @@
+Smart Factory pump/motor demonstrator — revision 3
+Original synthetic reference, authored for integration testing. Not an equipment service manual.
+Applicable components: Pump and Motor in model revision illustrative-3.
+Illustrative technical properties: pump pressure 5 bar; motor power 1.5 kW; speed 1450 1/min.
+Scenario thresholds are test inputs, not approved operating limits.
+For a simulated temperature or vibration threshold crossing, inspect the matching component's time, quality and scenario run before comparing recovery samples.
+Disconnected/unknown data is not proof of safe operation. Obtain the actual manufacturer's manual and approved isolation procedure before any real maintenance.
+The visualization mesh is not dimensional CAD, robot collision geometry or kinematic data.

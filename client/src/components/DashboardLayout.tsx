@@ -35,6 +35,7 @@ import {
   Layers,
   Users,
   Bell,
+  Plug,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -48,11 +49,13 @@ const menuItems = [
   { icon: Activity, label: "Monitoring", path: "/monitoring" },
   { icon: Cpu, label: "Devices", path: "/devices" },
   { icon: Layers, label: "Assets", path: "/assets" },
+  { icon: Factory, label: "Equipment view", path: "/equipment" },
   { icon: AlertTriangle, label: "Alerts", path: "/alerts" },
   { icon: Bell, label: "Notifications", path: "/notifications" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
   { icon: Bot, label: "Assistant", path: "/assistant" },
   { icon: Download, label: "OTA Updates", path: "/ota", minRole: "engineer" as const },
+  { icon: Plug, label: "Onesa integration", path: "/integrations/onesa", minRole: "engineer" as const },
   { icon: Users, label: "User Access", path: "/users", minRole: "admin" as const },
 ];
 

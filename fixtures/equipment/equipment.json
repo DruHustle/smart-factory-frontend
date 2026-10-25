@@ -1,0 +1,152 @@
+[
+  {
+    "equipmentId": "7e7ae5f7-b919-59a4-8231-9f6dd25cc658",
+    "externalAssetId": "urn:smart-factory:demo:pump-set-01",
+    "deviceId": "onesa-demo-gateway",
+    "name": "Illustrative pump set 01",
+    "assetTypeId": "urn:smart-factory:type:pump-motor-v1",
+    "serialNumber": "SIM-PM-001",
+    "components": [
+      {
+        "componentId": "b82c5e5e-59ba-59a3-8b24-38d130c33379",
+        "name": "Assembly",
+        "parentComponentId": null
+      },
+      {
+        "componentId": "76fbbfe4-7bc9-55f7-a42f-a2c9ea3f235f",
+        "name": "Pump",
+        "parentComponentId": "b82c5e5e-59ba-59a3-8b24-38d130c33379"
+      },
+      {
+        "componentId": "f16d305e-0ba1-5a26-8810-22105c569644",
+        "name": "Motor",
+        "parentComponentId": "b82c5e5e-59ba-59a3-8b24-38d130c33379"
+      }
+    ],
+    "bindings": [
+      {
+        "sourceKey": "pressure",
+        "componentId": "76fbbfe4-7bc9-55f7-a42f-a2c9ea3f235f",
+        "metric": {
+          "metricId": "pressure",
+          "meaning": "pressure",
+          "valueType": "number",
+          "unit": "bar",
+          "expectedIntervalMs": 1000
+        },
+        "sourceUnit": "bar"
+      },
+      {
+        "sourceKey": "temperature",
+        "componentId": "f16d305e-0ba1-5a26-8810-22105c569644",
+        "metric": {
+          "metricId": "temperature",
+          "meaning": "temperature",
+          "valueType": "number",
+          "unit": "Cel",
+          "expectedIntervalMs": 1000
+        },
+        "sourceUnit": "Cel"
+      },
+      {
+        "sourceKey": "rpm",
+        "componentId": "f16d305e-0ba1-5a26-8810-22105c569644",
+        "metric": {
+          "metricId": "rotational_speed",
+          "meaning": "rotational_speed",
+          "valueType": "number",
+          "unit": "1/min",
+          "expectedIntervalMs": 1000
+        },
+        "sourceUnit": "1/min"
+      },
+      {
+        "sourceKey": "vibration",
+        "componentId": "76fbbfe4-7bc9-55f7-a42f-a2c9ea3f235f",
+        "metric": {
+          "metricId": "vibration_velocity",
+          "meaning": "vibration_velocity",
+          "valueType": "number",
+          "unit": "mm/s",
+          "expectedIntervalMs": 1000
+        },
+        "sourceUnit": "mm/s"
+      }
+    ]
+  },
+  {
+    "equipmentId": "d3a9a9cc-034e-5a4c-91f3-fee6c219b06e",
+    "externalAssetId": "urn:smart-factory:demo:pump-set-02",
+    "deviceId": "onesa-demo-gateway",
+    "name": "Illustrative pump set 02",
+    "assetTypeId": "urn:smart-factory:type:pump-motor-v1",
+    "serialNumber": "SIM-PM-002",
+    "components": [
+      {
+        "componentId": "4d168303-3dda-5b08-ab0a-122eaa6ce351",
+        "name": "Assembly",
+        "parentComponentId": null
+      },
+      {
+        "componentId": "8035fced-570c-5d81-a62b-c0509d7e0da6",
+        "name": "Pump",
+        "parentComponentId": "4d168303-3dda-5b08-ab0a-122eaa6ce351"
+      },
+      {
+        "componentId": "7debc774-6c49-5ce1-9e88-c27082026849",
+        "name": "Motor",
+        "parentComponentId": "4d168303-3dda-5b08-ab0a-122eaa6ce351"
+      }
+    ],
+    "bindings": [
+      {
+        "sourceKey": "pressure",
+        "componentId": "8035fced-570c-5d81-a62b-c0509d7e0da6",
+        "metric": {
+          "metricId": "pressure",
+          "meaning": "pressure",
+          "valueType": "number",
+          "unit": "bar",
+          "expectedIntervalMs": 1000
+        },
+        "sourceUnit": "bar"
+      },
+      {
+        "sourceKey": "temperature",
+        "componentId": "7debc774-6c49-5ce1-9e88-c27082026849",
+        "metric": {
+          "metricId": "temperature",
+          "meaning": "temperature",
+          "valueType": "number",
+          "unit": "Cel",
+          "expectedIntervalMs": 1000
+        },
+        "sourceUnit": "Cel"
+      },
+      {
+        "sourceKey": "rpm",
+        "componentId": "7debc774-6c49-5ce1-9e88-c27082026849",
+        "metric": {
+          "metricId": "rotational_speed",
+          "meaning": "rotational_speed",
+          "valueType": "number",
+          "unit": "1/min",
+          "expectedIntervalMs": 1000
+        },
+        "sourceUnit": "1/min"
+      },
+      {
+        "sourceKey": "vibration",
+        "componentId": "8035fced-570c-5d81-a62b-c0509d7e0da6",
+        "metric": {
+          "metricId": "vibration_velocity",
+          "meaning": "vibration_velocity",
+          "valueType": "number",
+          "unit": "mm/s",
+          "expectedIntervalMs": 1000
+        },
+        "sourceUnit": "mm/s"
+      }
+    ]
+  }
+]

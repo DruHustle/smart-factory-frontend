@@ -11,6 +11,8 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import DashboardLayout from "./components/DashboardLayout";
 import { canAdministerUsers, canViewEngineering } from "@/lib/access";
 
+const EquipmentView = lazy(() => import("./pages/EquipmentView"));
+const OnesaIntegration = lazy(() => import("./pages/OnesaIntegration"));
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
@@ -78,8 +80,10 @@ function AppRouter() {
                 <Route path="/monitoring" component={Monitoring} />
                 <Route path="/devices" component={Devices} />
                 <Route path="/devices/:id" component={DeviceDetail} />
+                <Route path="/equipment" component={EquipmentView} />
                 <Route path="/assets" component={Assets} />
                 <Route path="/assets/:id/aas" component={AssetAdministrationShell} />
+                <Route path="/integrations/onesa">{canViewEngineering(user.role) ? <OnesaIntegration /> : <NotFound />}</Route>
                 <Route path="/users">{canAdministerUsers(user.role) ? <UserAccess /> : <NotFound />}</Route>
                 <Route path="/alerts" component={Alerts} />
                 <Route path="/alerts/:eventId" component={Alerts} />
@@ -103,7 +107,7 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <ThemeProvider defaultTheme="dark">
+        <ThemeProvider defaultTheme="dark" switchable>
           <TooltipProvider>
             <Toaster />
             <AppRouter />

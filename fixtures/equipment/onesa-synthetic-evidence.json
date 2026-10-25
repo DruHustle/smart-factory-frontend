@@ -1,0 +1,118 @@
+{
+  "format_version": "onesa-industrial-evidence-v1",
+  "classification": "synthetic",
+  "source_id": "7769590f-e430-5b31-8599-5946899371a5",
+  "source_timezone": "UTC",
+  "asset": {
+    "id": "urn:smart-factory:demo:pump-set-01",
+    "metadata_version": "1",
+    "name": "Illustrative pump set 01",
+    "equipment_type": "illustrative pump and motor",
+    "provenance": "Original Smart Factory deterministic simulator; no real equipment"
+  },
+  "window": {
+    "start": "2026-10-20T09:00:00Z",
+    "end": "2026-10-20T09:00:04Z"
+  },
+  "evidence": {
+    "fixture_version": "onesa-industrial-import-v1",
+    "asset_id": "urn:smart-factory:demo:pump-set-01",
+    "metadata_version": "1",
+    "events": [],
+    "signals": [
+      {
+        "id": "sim-pressure-0",
+        "asset_id": "urn:smart-factory:demo:pump-set-01",
+        "signal": "pressure",
+        "unit": "bar",
+        "timestamp": "2026-10-20T09:00:00Z",
+        "value": 2.0,
+        "sample_seconds": 1,
+        "freshness_seconds": 3,
+        "quality": "good",
+        "source": "smart-factory-simulated-scenario-v1",
+        "version": "1"
+      },
+      {
+        "id": "sim-temperature-0",
+        "asset_id": "urn:smart-factory:demo:pump-set-01",
+        "signal": "temperature",
+        "unit": "degC",
+        "timestamp": "2026-10-20T09:00:00Z",
+        "value": 45.0,
+        "sample_seconds": 1,
+        "freshness_seconds": 3,
+        "quality": "good",
+        "source": "smart-factory-simulated-scenario-v1",
+        "version": "1"
+      },
+      {
+        "id": "sim-pressure-1",
+        "asset_id": "urn:smart-factory:demo:pump-set-01",
+        "signal": "pressure",
+        "unit": "bar",
+        "timestamp": "2026-10-20T09:00:01Z",
+        "value": 7.0,
+        "sample_seconds": 1,
+        "freshness_seconds": 3,
+        "quality": "good",
+        "source": "smart-factory-simulated-scenario-v1",
+        "version": "1"
+      },
+      {
+        "id": "sim-temperature-1",
+        "asset_id": "urn:smart-factory:demo:pump-set-01",
+        "signal": "temperature",
+        "unit": "degC",
+        "timestamp": "2026-10-20T09:00:01Z",
+        "value": 90.0,
+        "sample_seconds": 1,
+        "freshness_seconds": 3,
+        "quality": "good",
+        "source": "smart-factory-simulated-scenario-v1",
+        "version": "1"
+      },
+      {
+        "id": "sim-pressure-2",
+        "asset_id": "urn:smart-factory:demo:pump-set-01",
+        "signal": "pressure",
+        "unit": "bar",
+        "timestamp": "2026-10-20T09:00:02Z",
+        "value": 2.0,
+        "sample_seconds": 1,
+        "freshness_seconds": 3,
+        "quality": "good",
+        "source": "smart-factory-simulated-scenario-v1",
+        "version": "1"
+      },
+      {
+        "id": "sim-temperature-2",
+        "asset_id": "urn:smart-factory:demo:pump-set-01",
+        "signal": "temperature",
+        "unit": "degC",
+        "timestamp": "2026-10-20T09:00:02Z",
+        "value": 46.0,
+        "sample_seconds": 1,
+        "freshness_seconds": 3,
+        "quality": "good",
+        "source": "smart-factory-simulated-scenario-v1",
+        "version": "1"
+      }
+    ],
+    "references": [
+      {
+        "id": "maintenance",
+        "version": "1",
+        "asset_id": "urn:smart-factory:demo:pump-set-01",
+        "anchor": "pump-motor",
+        "title": "Illustrative maintenance reference",
+        "text": "Smart Factory pump/motor demonstrator \u2014 revision 3\nOriginal synthetic reference, authored for integration testing. Not an equipment service manual.\nApplicable components: Pump and Motor in model revision illustrative-3.\nIllustrative technical properties: pump pressure 5 bar; motor power 1.5 kW; speed 1450 1/min.\nScenario thresholds are test inputs, not approved operating limits.\nFor a simulated temperature or vibration threshold crossing, inspect the matching component's time, quality and scenario run before comparing recovery samples.\nDisconnected/unknown data is not proof of safe operation. Obtain the actual manufacturer's manual and approved isolation procedure before any real maintenance.\nThe visualization mesh is not dimensional CAD, robot collision geometry or kinematic data.\n",
+        "rights": "Original Smart Factory synthetic reference; MIT",
+        "effective_start": "2026-01-01T00:00:00Z",
+        "effective_end": "2027-01-01T00:00:00Z",
+        "superseded": false,
+        "sha256": "d8eb729b65c5c2de3e5e9b634fac4ca7e0b173d4979b14b3bc8dc8b854aaf469"
+      }
+    ]
+  }
+}

@@ -1,0 +1,264 @@
+{
+  "description": "PROPOSED receiver examples only; no hosted ingestion claim",
+  "successful": {
+    "request": {
+      "schema": "urn:smart-factory:onesa-proposed:1.0.0",
+      "installationId": "53ded05b-c1aa-4faa-aa65-4747637baac0",
+      "workspaceId": "proposed-test-workspace",
+      "items": [
+        {
+          "eventId": "a082b4c3eecba344aa95ea419fc18bffca9683717ee1d4ff7da38ab1c72c3341",
+          "installationId": "53ded05b-c1aa-4faa-aa65-4747637baac0",
+          "equipmentId": "7e7ae5f7-b919-59a4-8231-9f6dd25cc658",
+          "componentId": "76fbbfe4-7bc9-55f7-a42f-a2c9ea3f235f",
+          "assetTypeId": "urn:smart-factory:type:pump-motor-v1",
+          "externalAssetId": "urn:smart-factory:demo:pump-set-01",
+          "target": {
+            "workspaceId": "proposed-test-workspace",
+            "equipmentId": "proposed-pump-set-01",
+            "componentId": "proposed-pump-set-01-pump",
+            "mappingVersion": 2
+          },
+          "observedAt": "2026-10-20T09:00:00.000Z",
+          "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+          "mode": "simulated",
+          "scenarioRunId": "representative-example",
+          "replayRunId": null,
+          "sessionId": null,
+          "sequence": null,
+          "sourceQuality": "good",
+          "sourceConnection": "online",
+          "clockSkew": "within_tolerance",
+          "kind": "observation",
+          "metric": {
+            "metricId": "pressure",
+            "meaning": "pressure",
+            "valueType": "number",
+            "unit": "bar",
+            "expectedIntervalMs": 1000
+          },
+          "value": 2,
+          "sourceEvent": null,
+          "provenance": {
+            "deviceId": "onesa-demo-gateway",
+            "sourceKey": "pressure",
+            "rawValue": 2,
+            "rawUnit": "bar",
+            "conversion": null,
+            "aggregation": null,
+            "timestampOrigin": "device",
+            "retained": false
+          }
+        },
+        {
+          "eventId": "331be18fd517ef9f4de9c32286af787885d6bb9e978235532a9996c709dbd977",
+          "installationId": "53ded05b-c1aa-4faa-aa65-4747637baac0",
+          "equipmentId": "7e7ae5f7-b919-59a4-8231-9f6dd25cc658",
+          "componentId": "f16d305e-0ba1-5a26-8810-22105c569644",
+          "assetTypeId": "urn:smart-factory:type:pump-motor-v1",
+          "externalAssetId": "urn:smart-factory:demo:pump-set-01",
+          "target": {
+            "workspaceId": "proposed-test-workspace",
+            "equipmentId": "proposed-pump-set-01",
+            "componentId": "proposed-pump-set-01-motor",
+            "mappingVersion": 2
+          },
+          "observedAt": "2026-10-20T09:00:00.000Z",
+          "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+          "mode": "simulated",
+          "scenarioRunId": "representative-example",
+          "replayRunId": null,
+          "sessionId": null,
+          "sequence": null,
+          "sourceQuality": "good",
+          "sourceConnection": "online",
+          "clockSkew": "within_tolerance",
+          "kind": "observation",
+          "metric": {
+            "metricId": "temperature",
+            "meaning": "temperature",
+            "valueType": "number",
+            "unit": "Cel",
+            "expectedIntervalMs": 1000
+          },
+          "value": 45,
+          "sourceEvent": null,
+          "provenance": {
+            "deviceId": "onesa-demo-gateway",
+            "sourceKey": "temperature",
+            "rawValue": 45,
+            "rawUnit": "Cel",
+            "conversion": null,
+            "aggregation": null,
+            "timestampOrigin": "device",
+            "retained": false
+          }
+        }
+      ]
+    },
+    "receipt": {
+      "schema": "urn:smart-factory:onesa-proposed:1.0.0",
+      "workspaceId": "proposed-test-workspace",
+      "results": [
+        {
+          "eventId": "a082b4c3eecba344aa95ea419fc18bffca9683717ee1d4ff7da38ab1c72c3341",
+          "status": "accepted",
+          "ingestedAt": "2026-10-20T09:00:01Z",
+          "code": "ok"
+        },
+        {
+          "eventId": "331be18fd517ef9f4de9c32286af787885d6bb9e978235532a9996c709dbd977",
+          "status": "accepted",
+          "ingestedAt": "2026-10-20T09:00:01Z",
+          "code": "ok"
+        }
+      ]
+    }
+  },
+  "invalidVersion": {
+    "request": {
+      "schema": "unsupported-v9",
+      "installationId": "53ded05b-c1aa-4faa-aa65-4747637baac0",
+      "workspaceId": "proposed-test-workspace",
+      "items": [
+        {
+          "eventId": "a082b4c3eecba344aa95ea419fc18bffca9683717ee1d4ff7da38ab1c72c3341",
+          "installationId": "53ded05b-c1aa-4faa-aa65-4747637baac0",
+          "equipmentId": "7e7ae5f7-b919-59a4-8231-9f6dd25cc658",
+          "componentId": "76fbbfe4-7bc9-55f7-a42f-a2c9ea3f235f",
+          "assetTypeId": "urn:smart-factory:type:pump-motor-v1",
+          "externalAssetId": "urn:smart-factory:demo:pump-set-01",
+          "target": {
+            "workspaceId": "proposed-test-workspace",
+            "equipmentId": "proposed-pump-set-01",
+            "componentId": "proposed-pump-set-01-pump",
+            "mappingVersion": 2
+          },
+          "observedAt": "2026-10-20T09:00:00.000Z",
+          "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+          "mode": "simulated",
+          "scenarioRunId": "representative-example",
+          "replayRunId": null,
+          "sessionId": null,
+          "sequence": null,
+          "sourceQuality": "good",
+          "sourceConnection": "online",
+          "clockSkew": "within_tolerance",
+          "kind": "observation",
+          "metric": {
+            "metricId": "pressure",
+            "meaning": "pressure",
+            "valueType": "number",
+            "unit": "bar",
+            "expectedIntervalMs": 1000
+          },
+          "value": 2,
+          "sourceEvent": null,
+          "provenance": {
+            "deviceId": "onesa-demo-gateway",
+            "sourceKey": "pressure",
+            "rawValue": 2,
+            "rawUnit": "bar",
+            "conversion": null,
+            "aggregation": null,
+            "timestampOrigin": "device",
+            "retained": false
+          }
+        },
+        {
+          "eventId": "331be18fd517ef9f4de9c32286af787885d6bb9e978235532a9996c709dbd977",
+          "installationId": "53ded05b-c1aa-4faa-aa65-4747637baac0",
+          "equipmentId": "7e7ae5f7-b919-59a4-8231-9f6dd25cc658",
+          "componentId": "f16d305e-0ba1-5a26-8810-22105c569644",
+          "assetTypeId": "urn:smart-factory:type:pump-motor-v1",
+          "externalAssetId": "urn:smart-factory:demo:pump-set-01",
+          "target": {
+            "workspaceId": "proposed-test-workspace",
+            "equipmentId": "proposed-pump-set-01",
+            "componentId": "proposed-pump-set-01-motor",
+            "mappingVersion": 2
+          },
+          "observedAt": "2026-10-20T09:00:00.000Z",
+          "gatewayReceivedAt": "2026-10-20T09:00:00.000Z",
+          "mode": "simulated",
+          "scenarioRunId": "representative-example",
+          "replayRunId": null,
+          "sessionId": null,
+          "sequence": null,
+          "sourceQuality": "good",
+          "sourceConnection": "online",
+          "clockSkew": "within_tolerance",
+          "kind": "observation",
+          "metric": {
+            "metricId": "temperature",
+            "meaning": "temperature",
+            "valueType": "number",
+            "unit": "Cel",
+            "expectedIntervalMs": 1000
+          },
+          "value": 45,
+          "sourceEvent": null,
+          "provenance": {
+            "deviceId": "onesa-demo-gateway",
+            "sourceKey": "temperature",
+            "rawValue": 45,
+            "rawUnit": "Cel",
+            "conversion": null,
+            "aggregation": null,
+            "timestampOrigin": "device",
+            "retained": false
+          }
+        }
+      ]
+    },
+    "status": 422
+  },
+  "unauthorized": {
+    "authorization": "omitted",
+    "status": 401
+  },
+  "invalidValue": {
+    "description": "Nonfinite numbers, invalid units or missing run IDs fail validation",
+    "status": 422
+  },
+  "missingMapping": {
+    "receipt": {
+      "schema": "urn:smart-factory:onesa-proposed:1.0.0",
+      "workspaceId": "proposed-test-workspace",
+      "results": [
+        {
+          "eventId": "a082b4c3eecba344aa95ea419fc18bffca9683717ee1d4ff7da38ab1c72c3341",
+          "status": "rejected",
+          "ingestedAt": null,
+          "code": "missing_mapping"
+        },
+        {
+          "eventId": "331be18fd517ef9f4de9c32286af787885d6bb9e978235532a9996c709dbd977",
+          "status": "rejected",
+          "ingestedAt": null,
+          "code": "missing_mapping"
+        }
+      ]
+    }
+  },
+  "partial": {
+    "receipt": {
+      "schema": "urn:smart-factory:onesa-proposed:1.0.0",
+      "workspaceId": "proposed-test-workspace",
+      "results": [
+        {
+          "eventId": "a082b4c3eecba344aa95ea419fc18bffca9683717ee1d4ff7da38ab1c72c3341",
+          "status": "accepted",
+          "ingestedAt": "2026-10-20T09:00:01Z",
+          "code": "ok"
+        },
+        {
+          "eventId": "331be18fd517ef9f4de9c32286af787885d6bb9e978235532a9996c709dbd977",
+          "status": "retry",
+          "ingestedAt": null,
+          "code": "busy"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "equipmentId": "7e7ae5f7-b919-59a4-8231-9f6dd25cc658",
+    "expectedVersion": 1,
+    "retired": false,
+    "targets": [
+      {
+        "componentId": "b82c5e5e-59ba-59a3-8b24-38d130c33379",
+        "equipmentId": "proposed-pump-set-01",
+        "targetComponentId": "proposed-pump-set-01-assembly"
+      },
+      {
+        "componentId": "76fbbfe4-7bc9-55f7-a42f-a2c9ea3f235f",
+        "equipmentId": "proposed-pump-set-01",
+        "targetComponentId": "proposed-pump-set-01-pump"
+      },
+      {
+        "componentId": "f16d305e-0ba1-5a26-8810-22105c569644",
+        "equipmentId": "proposed-pump-set-01",
+        "targetComponentId": "proposed-pump-set-01-motor"
+      }
+    ]
+  },
+  {
+    "equipmentId": "d3a9a9cc-034e-5a4c-91f3-fee6c219b06e",
+    "expectedVersion": 1,
+    "retired": false,
+    "targets": [
+      {
+        "componentId": "4d168303-3dda-5b08-ab0a-122eaa6ce351",
+        "equipmentId": "proposed-pump-set-02",
+        "targetComponentId": "proposed-pump-set-02-assembly"
+      },
+      {
+        "componentId": "8035fced-570c-5d81-a62b-c0509d7e0da6",
+        "equipmentId": "proposed-pump-set-02",
+        "targetComponentId": "proposed-pump-set-02-pump"
+      },
+      {
+        "componentId": "7debc774-6c49-5ce1-9e88-c27082026849",
+        "equipmentId": "proposed-pump-set-02",
+        "targetComponentId": "proposed-pump-set-02-motor"
+      }
+    ]
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "schema": "urn:smart-factory:onesa-proposed:1.0.0",
+  "status": "proposed",
+  "consumer": {
+    "repository": "DruHustle/onesa-ai-platform",
+    "main": "65d9346f297ee8869595b38634fda020bf9607f9",
+    "dev": "4e434433b415315ce00b5c2e577492dd605ee7de",
+    "staging": "b4a453bdc8dc3c8e95a9253adfe9b5b5d387941b",
+    "files": [
+      "onesa-ai-platform-backend/app/industrial.py",
+      "onesa-ai-platform-backend/app/industrial_evidence.py",
+      "docs/api/openapi.json"
+    ],
+    "finding": "No Digital Twin ingestion/registration/AAS/3D contract. Existing importer is synthetic evidence only."
+  },
+  "hashes": {
+    "contracts/onesa/batch.schema.json": "c21300faeb4acdc21816d4a078b4df8083d134aefb7a92c39757513b3a643be8",
+    "contracts/onesa/receipt.schema.json": "82638f50f824e0b990404cd6963732640fc23cfc44bd40a5f51ec5c030155027",
+    "contracts/onesa/registration.schema.json": "8dce33a1dc1855d475f351558bee6c6ef18824803043e1155f22b5988266ee31",
+    "contracts/onesa/openapi.json": "8c819ae34aae1578508bbbc538bb521588371250afe3c91610d33ef2c593c383"
+  }
+}

@@ -127,6 +127,34 @@
       "when": 1791399000000,
       "tag": "0017_system_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792936800000,
+      "tag": "0018_onesa_producer",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792936801000,
+      "tag": "0019_local_equipment",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792936802000,
+      "tag": "0020_equipment_model_packages",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792936803000,
+      "tag": "0021_equipment_bindings",
+      "breakpoints": true
     }
   ]
 }

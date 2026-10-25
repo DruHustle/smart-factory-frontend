@@ -1,0 +1,97 @@
+{
+  "status": "proposed mappings; no consumer model contract",
+  "revision": "illustrative-3",
+  "file": "pump-motor.glb",
+  "sha256": "bf93cc0217df96d77e5fda0cef6635c21e8e7223b628d5418b6ae5fde76624a8",
+  "provenance": "Self-authored by Smart Factory integration fixture generator; repository MIT license",
+  "units": "m",
+  "handedness": "right",
+  "upAxis": "+Y",
+  "forwardAxis": "+Z",
+  "modelToEquipmentTransform": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1
+  ],
+  "purpose": "Illustration only; not CAD, collision or kinematics",
+  "equipment": [
+    {
+      "equipmentId": "7e7ae5f7-b919-59a4-8231-9f6dd25cc658",
+      "modelRevision": "illustrative-3",
+      "nodes": [
+        {
+          "componentId": "b82c5e5e-59ba-59a3-8b24-38d130c33379",
+          "scene": 0,
+          "nodeIndex": 0,
+          "nodePath": "/Assembly"
+        },
+        {
+          "componentId": "76fbbfe4-7bc9-55f7-a42f-a2c9ea3f235f",
+          "scene": 0,
+          "nodeIndex": 1,
+          "nodePath": "/Assembly/Pump"
+        },
+        {
+          "componentId": "f16d305e-0ba1-5a26-8810-22105c569644",
+          "scene": 0,
+          "nodeIndex": 2,
+          "nodePath": "/Assembly/Motor"
+        }
+      ],
+      "documentComponents": [
+        "76fbbfe4-7bc9-55f7-a42f-a2c9ea3f235f",
+        "f16d305e-0ba1-5a26-8810-22105c569644"
+      ]
+    },
+    {
+      "equipmentId": "d3a9a9cc-034e-5a4c-91f3-fee6c219b06e",
+      "modelRevision": "illustrative-3",
+      "nodes": [
+        {
+          "componentId": "4d168303-3dda-5b08-ab0a-122eaa6ce351",
+          "scene": 0,
+          "nodeIndex": 0,
+          "nodePath": "/Assembly"
+        },
+        {
+          "componentId": "8035fced-570c-5d81-a62b-c0509d7e0da6",
+          "scene": 0,
+          "nodeIndex": 1,
+          "nodePath": "/Assembly/Pump"
+        },
+        {
+          "componentId": "7debc774-6c49-5ce1-9e88-c27082026849",
+          "scene": 0,
+          "nodeIndex": 2,
+          "nodePath": "/Assembly/Motor"
+        }
+      ],
+      "documentComponents": [
+        "8035fced-570c-5d81-a62b-c0509d7e0da6",
+        "7debc774-6c49-5ce1-9e88-c27082026849"
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "file": "maintenance.txt",
+      "revision": "1",
+      "sha256": "d8eb729b65c5c2de3e5e9b634fac4ca7e0b173d4979b14b3bc8dc8b854aaf469",
+      "rights": "Original synthetic reference; repository MIT license"
+    }
+  ],
+  "modelProvisionReference": "IDTA 02026-1-0 Provision of 3D Models; custom application submodel, no template conformance claimed"
+}

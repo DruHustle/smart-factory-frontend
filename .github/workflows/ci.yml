@@ -59,6 +59,19 @@ jobs:
           DATABASE_SSL_MODE: disable
         run: pnpm exec drizzle-kit migrate
 
+      - name: Verify proposed Onesa contract snapshots
+        run: |
+          node --import tsx scripts/onesa/generate-contract.ts --check
+          node --import tsx scripts/equipment/generate-schemas.ts --check
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.11" }
+      - name: Validate AAS 3.0 and packaged model/document fixtures
+        run: |
+          python -m venv "$RUNNER_TEMP/onesa-aas"
+          "$RUNNER_TEMP/onesa-aas/bin/pip" install -r scripts/equipment/requirements-aas.txt
+          "$RUNNER_TEMP/onesa-aas/bin/python" scripts/equipment/validate-artifacts.py
+
       - name: Type Check
         run: pnpm check
 
@@ -73,8 +86,11 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run E2E Smoke Tests
-        env: { E2E_PORT: '3100' }
+        env: { E2E_PORT: "3100" }
         run: pnpm e2e
+
+      - name: Verify independent native equipment view
+        run: pnpm e2e:equipment
 
       - name: Build Frontend
         run: pnpm build
@@ -96,7 +112,6 @@ jobs:
           fi
           echo "Build verification passed"
           ls -lah dist/public/
-
 
       - name: Dependency security audit
         run: pnpm audit --audit-level=moderate

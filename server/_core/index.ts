@@ -1,4 +1,8 @@
 import "dotenv/config";
+import { installEquipmentFiles } from "../equipment/files";
+import { initializeLocalEquipmentDemos } from "../equipment/local";
+import { startOnesaWorker } from "../onesa/worker";
+import { installArtifactRoutes } from "../onesa/artifacts";
 import express from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -138,6 +142,8 @@ async function startServer() {
     next();
   });
 
+  installArtifactRoutes(app);
+
   // Export only to engineers and admins; the generated file contains the
   // asset hierarchy and identity fields already visible in the dashboard.
   app.get("/api/assets/export/automationml", async (req, res) => {
@@ -177,6 +183,8 @@ async function startServer() {
     if (sameOrigin || allowedOrigins.has(origin)) return next();
     return res.status(403).json({ error: "Request origin is not allowed" });
   });
+
+  installEquipmentFiles(app);
 
   // Shared PostgreSQL counters enforce the same login limits across replicas.
   app.use("/api/trpc", (req, res, next) => {
@@ -389,6 +397,7 @@ async function startServer() {
             ? "[Bootstrap] Windformer demo asset added without replacing existing records"
             : "[Bootstrap] Live or demo scenario data already exists"))
         .catch((error) => console.warn("[Bootstrap] Demo scenario was not initialized:", error));
+      await initializeLocalEquipmentDemos().catch(() => console.warn("[Equipment] Local demonstrator preparation unavailable"));
     }
 
     await wsManager.initialize(server, "/ws", async (request) => {
@@ -403,6 +412,7 @@ async function startServer() {
     });
 
     bootstrapReady = true;
+    if (process.env.ONESA_ENABLED === "true") startOnesaWorker();
   }
 
   /**

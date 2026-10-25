@@ -1,4 +1,4 @@
-import { bigint, boolean, index, integer, json, jsonb, pgEnum, pgTable, real, serial, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
+import { customType, uuid, bigint, boolean, index, integer, json, jsonb, pgEnum, pgTable, real, serial, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // `user` remains temporarily for rows created by older releases. Authorization
@@ -155,6 +155,7 @@ export const sensorReadings = pgTable("sensor_readings", {
   assetSignals: jsonb("assetSignals").$type<Record<string, number>>(),
   /** Stable digest supplied by the ingestion service; retries must not inflate analytics. */
   ingestionId: varchar("ingestionId", { length: 64 }),
+  integration: jsonb("integration").$type<Record<string, unknown>>(),
   temperature: real("temperature"),
   humidity: real("humidity"),
   vibration: real("vibration"),
@@ -281,3 +282,117 @@ export const otaDeployments = pgTable("ota_deployments", {
 
 export type OtaDeployment = typeof otaDeployments.$inferSelect;
 export type InsertOtaDeployment = typeof otaDeployments.$inferInsert;
+
+/** Optional Onesa adapter; credentials remain exclusively in deployment secrets. */
+export const onesaInstallation = pgTable("onesa_installation", {
+  singleton: boolean("singleton").primaryKey().default(true),
+  installationId: uuid("installation_id").notNull(),
+  workspaceId: varchar("workspace_id", { length: 128 }).notNull(),
+  destinationFingerprint: text("destination_fingerprint").notNull(),
+  suspended: boolean("suspended").notNull().default(false),
+  lastAck: timestamp("last_ack", { withTimezone: true }),
+  lastTransport: timestamp("last_transport", { withTimezone: true }),
+  lastError: varchar("last_error", { length: 80 }),
+  discarded: bigint("discarded", { mode: "number" }).notNull().default(0),
+  captured: bigint("captured", { mode: "number" }).notNull().default(0),
+  acknowledged: bigint("acknowledged", { mode: "number" }).notNull().default(0),
+  quarantined: bigint("quarantined", { mode: "number" }).notNull().default(0),
+});
+export const onesaEquipment = pgTable("onesa_equipment", {
+  equipmentId: uuid("equipment_id").primaryKey(),
+  externalAssetId: varchar("external_asset_id", { length: 128 })
+    .unique()
+    .notNull(),
+  deviceId: varchar("device_id", { length: 128 }).notNull(),
+  registration: jsonb("registration").notNull(),
+  mapping: jsonb("mapping"),
+  version: integer("version").notNull().default(0),
+  retired: boolean("retired").notNull().default(false),
+  updatedBy: integer("updated_by").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+export const onesaOutbox = pgTable(
+  "onesa_outbox",
+  {
+    id: bigint("id", { mode: "number" })
+      .primaryKey()
+      .generatedByDefaultAsIdentity(),
+    sourceId: varchar("source_id", { length: 64 }).unique().notNull(),
+    equipmentId: uuid("equipment_id"),
+    payload: jsonb("payload").notNull(),
+    state: varchar("state", { length: 24 }).notNull().default("captured"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttempt: timestamp("next_attempt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    errorCode: varchar("error_code", { length: 80 }),
+    receipt: jsonb("receipt"),
+    normalized: boolean("normalized").notNull().default(false),
+  },
+  (t) => [index("onesa_outbox_pending_idx").on(t.state, t.nextAttempt, t.id)],
+);
+export const onesaAudit = pgTable("onesa_audit", {
+  id: bigint("id", { mode: "number" })
+    .primaryKey()
+    .generatedByDefaultAsIdentity(),
+  actor: integer("actor").notNull(),
+  action: varchar("action", { length: 40 }).notNull(),
+  equipmentId: uuid("equipment_id"),
+  version: integer("version"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/** App-owned equipment work; no Onesa configuration or account is required. */
+export const equipmentWorkspaces = pgTable("equipment_workspaces", {
+  bindings: jsonb("bindings"),
+  sourceDeviceId: varchar("source_device_id", { length: 64 }),
+  id: uuid("id").primaryKey(),
+  assetId: integer("asset_id").notNull().unique(),
+  templateRevision: text("template_revision").notNull(),
+  components: jsonb("components").notNull(),
+  kind: varchar("kind", { length: 16 }).notNull(),
+  isDemo: boolean("is_demo").notNull().default(false),
+  selectedComponent: uuid("selected_component"),
+  annotations: jsonb("annotations").notNull().default([]),
+  viewpoints: jsonb("viewpoints").notNull().default([]),
+  version: integer("version").notNull().default(1),
+  updatedBy: integer("updated_by"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+export const equipmentScenarioRuns = pgTable("equipment_scenario_runs", {
+  id: uuid("id").primaryKey(),
+  equipmentId: uuid("equipment_id")
+    .notNull()
+    .references(() => equipmentWorkspaces.id),
+  scenario: varchar("scenario", { length: 16 }).notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+const bytea = customType<{ data: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
+export const equipmentModelPackages = pgTable("equipment_model_packages", {
+  id: text("id").primaryKey(),
+  manifest: jsonb("manifest").notNull(),
+  glb: bytea("glb").notNull(),
+  sha256: varchar("sha256", { length: 64 }).notNull(),
+  bytes: integer("bytes").notNull(),
+  createdBy: integer("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

@@ -19,7 +19,14 @@
     "docs:check": "node scripts/check-docs.mjs",
     "deployment:check": "node scripts/check-deployment.mjs",
     "e2e:system": "python3 scripts/cross-repo-smoke.py",
-    "vercel:configure": "node scripts/configure-vercel.mjs"
+    "vercel:configure": "node scripts/configure-vercel.mjs",
+    "onesa:contract:check": "node --import tsx scripts/onesa/generate-contract.ts --check",
+    "onesa:contract:generate": "node --import tsx scripts/onesa/generate-contract.ts",
+    "onesa:seed": "node --import tsx scripts/onesa/seed-fixture.ts",
+    "onesa:receiver": "node --import tsx scripts/onesa/run-receiver.ts",
+    "onesa:verify": "node --import tsx scripts/onesa/verify-walkthrough.ts",
+    "e2e:equipment": "bash scripts/equipment/e2e.sh",
+    "equipment:schemas:check": "node --import tsx scripts/equipment/generate-schemas.ts --check"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -85,6 +92,7 @@
     "superjson": "^1.13.3",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "three": "0.186.1",
     "tsx": "^4.19.1",
     "vaul": "^1.1.2",
     "vite": "^7.3.5",
@@ -101,6 +109,7 @@
     "@types/node": "^24.7.0",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
+    "@types/three": "0.186.0",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.0.4",
     "add": "^2.0.6",

@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "smart-factory-model-1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "provenance": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "units": {
+      "type": "string",
+      "const": "m"
+    },
+    "handedness": {
+      "type": "string",
+      "const": "right"
+    },
+    "upAxis": {
+      "type": "string",
+      "const": "+Y"
+    },
+    "components": {
+      "minItems": 1,
+      "maxItems": 128,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "templateComponentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "parentTemplateComponentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "designation": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "material": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "group",
+              "housing",
+              "cover",
+              "internal",
+              "structural"
+            ]
+          },
+          "solid": {
+            "type": "boolean"
+          },
+          "explode": {
+            "type": "object",
+            "properties": {
+              "translation": {
+                "minItems": 3,
+                "maxItems": 3,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": -10,
+                  "maximum": 10
+                }
+              },
+              "rotation": {
+                "minItems": 3,
+                "maxItems": 3,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": -6.29,
+                  "maximum": 6.29
+                }
+              },
+              "pivot": {
+                "minItems": 3,
+                "maxItems": 3,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": -10,
+                  "maximum": 10
+                }
+              }
+            },
+            "required": [
+              "translation",
+              "rotation",
+              "pivot"
+            ],
+            "additionalProperties": false
+          },
+          "nodeIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1999
+          },
+          "nodePath": {
+            "type": "string",
+            "maxLength": 500,
+            "pattern": "^\\/[A-Za-z0-9 _.-]+(?:\\/[A-Za-z0-9 _.-]+)*$"
+          }
+        },
+        "required": [
+          "templateComponentId",
+          "name",
+          "parentTemplateComponentId",
+          "nodeIndex",
+          "nodePath"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "bindings": {
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sourceKey": {
+            "type": "string",
+            "enum": [
+              "temperature",
+              "pressure",
+              "rpm",
+              "vibration"
+            ]
+          },
+          "templateComponentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "meaning": {
+            "type": "string",
+            "enum": [
+              "temperature",
+              "pressure",
+              "rotational_speed",
+              "vibration_velocity"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "Cel",
+              "bar",
+              "1/min",
+              "mm/s"
+            ]
+          },
+          "sourceUnit": {
+            "type": "string",
+            "enum": [
+              "Cel",
+              "bar",
+              "Pa",
+              "1/min",
+              "mm/s",
+              "m/s2"
+            ]
+          },
+          "expectedIntervalMs": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 86400000
+          }
+        },
+        "required": [
+          "sourceKey",
+          "templateComponentId",
+          "meaning",
+          "unit",
+          "expectedIntervalMs"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "maintenanceText": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 4000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "name",
+    "provenance",
+    "license",
+    "units",
+    "handedness",
+    "upAxis",
+    "components",
+    "bindings",
+    "maintenanceText"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:smart-factory:equipment:model-package:1"
+}

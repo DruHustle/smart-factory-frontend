@@ -1,3 +1,5 @@
+import { equipmentRouter } from "./equipment/router";
+import { onesaRouter } from "./onesa/router";
 import { COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -128,6 +130,8 @@ const thresholdInputSchema = z.object({
 });
 
 export const appRouter = router({
+  equipment: equipmentRouter,
+  onesa: onesaRouter,
   system: systemRouter,
   auth: router({
     registrationPolicy: publicProcedure.query(() => ({ enabled: process.env.NODE_ENV !== "production" })),
