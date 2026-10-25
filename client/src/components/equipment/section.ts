@@ -91,19 +91,19 @@ function capIsland(
   const va = new T.Vector3(),
     vb = new T.Vector3();
   for (let i = 0; i < count; i += 3) {
-    const a = index ? index.getX(i) : i,
-      b = index ? index.getX(i + 1) : i + 1,
-      c = index ? index.getX(i + 2) : i + 2;
-    const da = distances[a],
-      db = distances[b],
-      dc = distances[c];
+    const triA = index ? index.getX(i) : i,
+      triB = index ? index.getX(i + 1) : i + 1,
+      triC = index ? index.getX(i + 2) : i + 2;
+    const da = distances[triA],
+      db = distances[triB],
+      dc = distances[triC];
     if (
       (da > 0 && db > 0 && dc > 0) ||
       (da < 0 && db < 0 && dc < 0) ||
       (da === 0 && db === 0 && dc === 0)
     )
       continue;
-    const ids = [a, b, c],
+    const ids = [triA, triB, triC],
       d = [da, db, dc];
     const hits: number[] = [];
     for (let k = 0; k < 3; k++) {
