@@ -106,12 +106,12 @@
         "asset_id": "urn:smart-factory:demo:pump-set-01",
         "anchor": "pump-motor",
         "title": "Illustrative maintenance reference",
-        "text": "Smart Factory pump/motor demonstrator \u2014 revision 3\nOriginal synthetic reference, authored for integration testing. Not an equipment service manual.\nApplicable components: Pump and Motor in model revision illustrative-3.\nIllustrative technical properties: pump pressure 5 bar; motor power 1.5 kW; speed 1450 1/min.\nScenario thresholds are test inputs, not approved operating limits.\nFor a simulated temperature or vibration threshold crossing, inspect the matching component's time, quality and scenario run before comparing recovery samples.\nDisconnected/unknown data is not proof of safe operation. Obtain the actual manufacturer's manual and approved isolation procedure before any real maintenance.\nThe visualization mesh is not dimensional CAD, robot collision geometry or kinematic data.\n",
+        "text": "Smart Factory pump/motor demonstrator \u2014 revision 4\nOriginal synthetic reference, authored for integration testing. Not an equipment service manual.\nApplicable components: Pump and Motor in model revision illustrative-4.\nIllustrative technical properties: pump pressure 5 bar; motor power 1.5 kW; speed 1450 1/min.\nScenario thresholds are test inputs, not approved operating limits.\nFor a simulated temperature or vibration threshold crossing, inspect the matching component's time, quality and scenario run before comparing recovery samples.\nDisconnected/unknown data is not proof of safe operation. Obtain the actual manufacturer's manual and approved isolation procedure before any real maintenance.\nThe visualization mesh is not dimensional CAD, robot collision geometry or kinematic data.\n",
         "rights": "Original Smart Factory synthetic reference; MIT",
         "effective_start": "2026-01-01T00:00:00Z",
         "effective_end": "2027-01-01T00:00:00Z",
         "superseded": false,
-        "sha256": "d8eb729b65c5c2de3e5e9b634fac4ca7e0b173d4979b14b3bc8dc8b854aaf469"
+        "sha256": "47187a7d50b80408459ba32a71ee86edb3ce8b323fa556c4e0619a6c7dbe5f4d"
       }
     ]
   }

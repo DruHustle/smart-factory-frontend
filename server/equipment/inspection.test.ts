@@ -74,7 +74,18 @@ test("detailed local inventory is mapped, bounded and includes the required inte
   const m = JSON.parse(
     readFileSync("fixtures/equipment/local-template.json", "utf8"),
   );
-  expect(m.components).toHaveLength(76);
+  const previous = JSON.parse(
+    readFileSync("fixtures/equipment/revisions/3/template.json", "utf8"),
+  );
+  expect(m.components.length).toBeGreaterThanOrEqual(
+    previous.components.length,
+  );
+  for (const p of previous.components)
+    expect(
+      m.components.find(
+        (n: any) => n.templateComponentId === p.templateComponentId,
+      )?.name,
+    ).toBe(p.name);
   const names = m.components.map((c: any) => c.name).join(";");
   for (const term of [
     "Volute casing",
@@ -91,5 +102,113 @@ test("detailed local inventory is mapped, bounded and includes the required inte
     expect(names).toContain(term);
   expect(
     new Set(m.components.map((c: any) => c.templateComponentId)).size,
-  ).toBe(76);
+  ).toBe(m.components.length);
 });
+
+import {
+  InspectionScene,
+  defaultInspection,
+} from "../../client/src/components/equipment/inspection";
+import {
+  visibleBounds,
+  frameBounds,
+} from "../../client/src/components/equipment/framing";
+import { vi } from "vitest";
+test("ghosting shared painted materials does not make internals transparent; opacity restores", () => {
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const model = new T.Group(),
+    scene = new T.Scene(),
+    shared = new T.MeshStandardMaterial(),
+    housing = new T.Mesh(new T.BoxGeometry(), shared),
+    internal = new T.Mesh(new T.BoxGeometry(), shared);
+  housing.userData.installedComponentId = "housing";
+  internal.userData.installedComponentId = "internal";
+  model.add(housing, internal);
+  const inspector = new InspectionScene(
+    model,
+    scene,
+    new Map([
+      ["housing", housing],
+      ["internal", internal],
+    ]),
+    [
+      { name: "housing", installedComponentId: "housing", role: "housing" },
+      { name: "internal", installedComponentId: "internal", role: "internal" },
+    ],
+    () => {},
+  );
+  inspector.set({ ...defaultInspection, ghost: true });
+  expect((housing.material as T.Material).opacity).toBe(0.15);
+  expect((internal.material as T.Material).opacity).toBe(1);
+  inspector.set({ ...defaultInspection, opacity: 0.32 });
+  expect(housing.material.opacity).toBe(0.32);
+  expect(internal.material.opacity).toBe(0.32);
+  inspector.set({ ...defaultInspection });
+  expect(housing.material.opacity).toBe(1);
+  expect(internal.material.opacity).toBe(1);
+  inspector.dispose();
+  vi.unstubAllGlobals();
+});
+test("tangent faces and edges produce no fabricated cap or open-mesh warning", () => {
+  for (const plane of [
+    new T.Plane(new T.Vector3(1, 0, 0), -0.5),
+    new T.Plane(new T.Vector3(1, 1, 0).normalize(), -Math.sqrt(0.5)),
+  ]) {
+    const r = sectionCap(new T.BoxGeometry(), new T.Matrix4(), plane);
+    expect(r.open).toBe(false);
+    expect(r.geometry).toBeNull();
+    expect(r.tangent).toBe(true);
+  }
+});
+test("focus bounds exclude hidden and discarded material and fit every retained corner", () => {
+  const g = new T.Group(),
+    shown = new T.Mesh(new T.BoxGeometry(2, 1, 1)),
+    hidden = new T.Mesh(new T.BoxGeometry());
+  hidden.position.x = 100;
+  hidden.visible = false;
+  g.add(shown, hidden);
+  const b = visibleBounds(g, new T.Plane(new T.Vector3(1, 0, 0), 0));
+  expect(b.min.x).toBe(0);
+  expect(b.max.x).toBe(1);
+  for (const aspect of [0.45, 1.7]) {
+    const c = new T.PerspectiveCamera(42, aspect, 0.01, 100),
+      target = new T.Vector3();
+    frameBounds(c, target, b);
+    c.lookAt(target);
+    c.updateMatrixWorld();
+    for (const x of [b.min.x, b.max.x])
+      for (const y of [b.min.y, b.max.y])
+        for (const z of [b.min.z, b.max.z]) {
+          const p = new T.Vector3(x, y, z).project(c);
+          expect(Math.abs(p.x)).toBeLessThan(1);
+          expect(Math.abs(p.y)).toBeLessThan(1);
+        }
+  }
+});
+
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+test("shipped constructive solids section without false open-surface diagnostics", async () => {
+  const b = readFileSync("fixtures/equipment/pump-motor.glb");
+  const gltf = await new GLTFLoader().parseAsync(
+    b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength),
+    "",
+  );
+  gltf.scene.updateMatrixWorld(true);
+  for (const plane of [
+    new T.Plane(new T.Vector3(0, 0, 1), 0),
+    new T.Plane(new T.Vector3(0, 1, 0), -0.25),
+    new T.Plane(new T.Vector3(1, 0, 0), -0.42),
+  ])
+    gltf.scene.traverse((o) => {
+      const mesh = o as T.Mesh;
+      if (!mesh.isMesh) return;
+      const r = sectionCap(mesh.geometry, mesh.matrixWorld, plane);
+      expect(
+        r.open,
+        `${o.name}: genuine closed source was classified open`,
+      ).toBe(false);
+      expect(r.degenerate, `${o.name}: ambiguous cut`).toBe(false);
+      r.geometry?.dispose();
+    });
+}, 10000);

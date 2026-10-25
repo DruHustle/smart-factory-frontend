@@ -19,3 +19,14 @@ for name in ['pump-motor.glb','maintenance.txt']:
 assert len(v['assetAdministrationShells'])==2
 assert all(s['assetInformation']['assetKind']=='Instance' for s in v['assetAdministrationShells'])
 print('PASS: independent AAS 3.0 verification, two instance identities, AASX references and embedded artifact bytes')
+
+local=json.loads((root/'local-template.json').read_text())
+bom=json.loads((root/'reference-bom.json').read_text())
+audit=json.loads((root/'geometry-audit.json').read_text())
+assert local['sha256']==audit['sha256']==manifest['sha256']
+assert local['components']==bom['parts']
+assert all(c['passed'] for c in audit['checks'])
+previous=json.loads((root/'revisions/3/template.json').read_text())
+assert {p['templateComponentId'] for p in previous['components']} <= {p['templateComponentId'] for p in local['components']}
+assert audit['bytes']==(root/'pump-motor.glb').stat().st_size
+print(f"PASS: v4 BOM/hash consistency, stable v3 identities, {len(audit['checks'])} authored clearance/continuity checks")

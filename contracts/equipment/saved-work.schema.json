@@ -73,6 +73,14 @@
           "viewer": {
             "type": "object",
             "properties": {
+              "opacity": {
+                "type": "number",
+                "minimum": 0.05,
+                "maximum": 1
+              },
+              "immediate": {
+                "type": "boolean"
+              },
               "explode": {
                 "type": "number",
                 "minimum": 0,

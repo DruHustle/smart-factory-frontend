@@ -8,6 +8,8 @@ export type InspectionPart = {
   explode?: { translation: number[]; rotation: number[]; pivot: number[] };
 };
 export type InspectionState = {
+  opacity?: number;
+  immediate?: boolean;
   explode: number;
   scope: string | null;
   section: "off" | "X" | "Y" | "Z";
@@ -28,7 +30,8 @@ export const defaultInspection: InspectionState = {
   flip: false,
   ghost: false,
   covers: false,
-  guides: true,
+  guides: false,
+  opacity: 1,
   hidden: [],
   isolated: null,
   selected: null,
@@ -69,9 +72,21 @@ export class InspectionScene {
   private amount = 0;
   private caps = new T.Group();
   private guides = new T.Group();
+  private guideLine = new T.LineSegments(
+    new T.BufferGeometry(),
+    new T.LineBasicMaterial({
+      color: 0x829ab1,
+      transparent: true,
+      opacity: 0.28,
+    }),
+  );
+  private owners = new Map<T.Mesh, InspectionPart | undefined>();
+  private capKey = "";
   private state = { ...defaultInspection };
   readonly plane = new T.Plane();
   openContours = 0;
+  tangentContacts = 0;
+  degenerateContours = 0;
   constructor(
     private model: T.Group,
     private scene: T.Scene,
@@ -85,6 +100,34 @@ export class InspectionScene {
       n.updateMatrix();
       this.baseline.set(n, n.matrix.clone());
     });
+    const partsById = new Map(parts.map((p) => [p.installedComponentId, p]));
+    const materials = new Map<string, Map<T.Material, T.Material>>();
+    model.traverse((o) => {
+      const mesh = o as T.Mesh;
+      if (!mesh.isMesh) return;
+      let n: T.Object3D | null = o,
+        owner: InspectionPart | undefined;
+      while (n && !owner) {
+        owner = partsById.get(n.userData.installedComponentId);
+        n = n.parent;
+      }
+      this.owners.set(mesh, owner);
+      const key = owner?.installedComponentId ?? "unmapped";
+      if (!materials.has(key)) materials.set(key, new Map());
+      const cache = materials.get(key)!;
+      const clone = (m: T.Material) => {
+        if (!cache.has(m)) cache.set(m, m.clone());
+        return cache.get(m)!;
+      };
+      mesh.material = Array.isArray(mesh.material)
+        ? mesh.material.map(clone)
+        : clone(mesh.material);
+    });
+    this.guideLine.geometry.setAttribute(
+      "position",
+      new T.BufferAttribute(new Float32Array(parts.length * 6), 3),
+    );
+    this.guides.add(this.guideLine);
     scene.add(this.caps, this.guides);
   }
   private clear(group: T.Group) {
@@ -131,32 +174,31 @@ export class InspectionScene {
       }
     }
     this.model.updateMatrixWorld(true);
-    this.clear(this.guides);
+    const positions = this.guideLine.geometry.getAttribute(
+      "position",
+    ) as T.BufferAttribute;
+    let count = 0;
     if (this.state.guides && amount > 0.001)
       for (const p of this.parts) {
         const n = this.nodes.get(p.installedComponentId);
-        if (
-          !n ||
-          !this.visible(n) ||
-          (!p.solid && p.role !== "group") ||
-          !p.explode
-        )
+        if (!n || !this.visible(n) || !p.explode || p.role !== "group")
           continue;
-        const end = new T.Box3().setFromObject(n).getCenter(new T.Vector3());
-        const offset = new T.Vector3()
-          .fromArray(p.explode.translation)
-          .multiplyScalar(amount);
+        const end = new T.Box3().setFromObject(n).getCenter(new T.Vector3()),
+          offset = new T.Vector3()
+            .fromArray(p.explode.translation)
+            .multiplyScalar(amount);
         if (offset.length() < 0.025) continue;
-        const line = new T.Line(
-          new T.BufferGeometry().setFromPoints([end.clone().sub(offset), end]),
-          new T.LineBasicMaterial({
-            color: 0x829ab1,
-            transparent: true,
-            opacity: 0.4,
-          }),
+        positions.setXYZ(
+          count++,
+          end.x - offset.x,
+          end.y - offset.y,
+          end.z - offset.z,
         );
-        this.guides.add(line);
+        positions.setXYZ(count++, end.x, end.y, end.z);
       }
+    positions.needsUpdate = true;
+    this.guideLine.geometry.setDrawRange(0, count);
+    this.guideLine.visible = count > 0;
     this.render();
   }
   set(state: InspectionState) {
@@ -164,34 +206,70 @@ export class InspectionScene {
       state.explode !== this.state.explode || state.scope !== this.state.scope;
     this.state = state;
     cancelAnimationFrame(this.animation);
-    clearTimeout(this.timer);
-    this.clear(this.caps);
+    const capKey = JSON.stringify([
+      state.explode,
+      state.scope,
+      state.section,
+      state.cut,
+      state.flip,
+      state.ghost,
+      state.covers,
+      state.hidden,
+      state.isolated,
+    ]);
+    const recut = capKey !== this.capKey;
+    this.capKey = capKey;
+    if (recut) this.clear(this.caps);
     this.model.traverse((o) => {
       const m = o as T.Mesh;
       if (!m.material) return;
-      let parent: T.Object3D | null = o;
-      let owner: InspectionPart | undefined;
-      while (parent && !owner) {
-        owner = this.parts.find(
-          (p) =>
-            p.installedComponentId === parent!.userData.installedComponentId,
-        );
-        parent = parent.parent;
-      }
+      const owner = this.owners.get(m);
       const ghost =
         state.ghost && (owner?.role === "housing" || owner?.role === "cover");
       if (state.covers && owner?.role === "cover") o.visible = false;
       for (const material of Array.isArray(m.material)
         ? m.material
         : [m.material]) {
-        material.opacity = ghost ? 0.15 : 1;
-        material.transparent = ghost;
-        material.depthWrite = !ghost;
-        material.clippingPlanes = state.section === "off" ? [] : [this.plane];
+        const opacity = ghost ? 0.15 : (state.opacity ?? 1),
+          transparent = opacity < 1,
+          clipped = state.section !== "off";
+        const update =
+          material.transparent !== transparent ||
+          !!material.clippingPlanes?.length !== clipped;
+        material.opacity = opacity;
+        material.transparent = transparent;
+        material.depthWrite = !transparent;
+        material.clippingPlanes = clipped ? [this.plane] : [];
         material.clipShadows = true;
-        material.needsUpdate = true;
+        const standard = material as T.MeshStandardMaterial;
+        if (standard.emissive) {
+          const selected = state.selected
+            ? this.nodes.get(state.selected)
+            : null;
+          const emphasis =
+            selected &&
+            selected !== this.model.children[0] &&
+            selected.parent !== null &&
+            owner &&
+            descends(m, selected);
+          standard.emissive.setHex(emphasis ? 0x153749 : 0);
+          standard.emissiveIntensity = emphasis ? 0.22 : 0;
+        }
+        if (update) material.needsUpdate = true;
       }
     });
+    const starts = new Map(
+      [...this.nodes.values()].map((n) => [
+        n,
+        {
+          position: n.position.clone(),
+          quaternion: n.quaternion.clone(),
+          scale: n.scale.clone(),
+        },
+      ]),
+    );
+    this.pose(state.explode / 100);
+    this.bounds = new T.Box3().setFromObject(this.model);
     const axis = state.section === "X" ? 0 : state.section === "Y" ? 1 : 2;
     const value =
       this.bounds.min.getComponent(axis) +
@@ -200,19 +278,9 @@ export class InspectionScene {
         state.cut) /
         100;
     this.plane.normal.set(0, 0, 0).setComponent(axis, state.flip ? -1 : 1);
-    this.plane.constant = -value * (state.flip ? -1 : 1) + 1e-7;
+    this.plane.constant = -value * (state.flip ? -1 : 1);
     const target = state.explode / 100;
-    if (changed) {
-      const starts = new Map(
-        [...this.nodes.values()].map((n) => [
-          n,
-          {
-            position: n.position.clone(),
-            quaternion: n.quaternion.clone(),
-            scale: n.scale.clone(),
-          },
-        ]),
-      );
+    if (changed && !state.immediate) {
       const start = this.amount,
         time = performance.now();
       const step = () => {
@@ -227,12 +295,18 @@ export class InspectionScene {
     } else {
       this.amount = target;
       this.pose(target);
-      this.timer = setTimeout(() => this.cap(), 100);
+      if (recut && !this.timer)
+        this.timer = setTimeout(() => {
+          this.timer = undefined;
+          this.cap();
+        }, 80);
     }
   }
   private cap() {
     this.clear(this.caps);
     this.openContours = 0;
+    this.tangentContacts = 0;
+    this.degenerateContours = 0;
     if (this.state.section === "off") return;
     this.model.updateMatrixWorld(true);
     this.model.traverse((o) => {
@@ -251,6 +325,8 @@ export class InspectionScene {
         return;
       const result = sectionCap(mesh.geometry, mesh.matrixWorld, this.plane);
       if (result.open) this.openContours++;
+      if (result.tangent) this.tangentContacts++;
+      if (result.degenerate) this.degenerateContours++;
       if (result.geometry) {
         const cap = new T.Mesh(
           result.geometry,
@@ -296,6 +372,8 @@ export class InspectionScene {
       section: this.state.section,
       caps: this.caps.children.length,
       openContours: this.openContours,
+      tangentContacts: this.tangentContacts,
+      degenerateContours: this.degenerateContours,
       ghost: this.state.ghost,
       covers: this.state.covers,
       isolated: !!this.state.isolated,

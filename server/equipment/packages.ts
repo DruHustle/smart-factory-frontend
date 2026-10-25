@@ -18,6 +18,10 @@ export const component = z
       .enum(["group", "housing", "cover", "internal", "structural"])
       .optional(),
     solid: z.boolean().optional(),
+    inventoryKind: z
+      .enum(["assembly", "individual part", "repeated part set"])
+      .optional(),
+    source: z.string().max(160).optional(),
     explode: z
       .object({
         translation: z.array(z.number().finite().min(-10).max(10)).length(3),

@@ -383,7 +383,35 @@ for (const viewport of [
       ).toBeEnabled({ timeout: 60000 });
       const output = page.getByLabel("Render measurement");
       await expect(output).not.toBeEmpty({ timeout: 60000 });
-      stats[name] = JSON.parse((await output.textContent())!);
+      stats[name] = {
+        ...JSON.parse((await output.textContent())!),
+        viewpoint: JSON.parse(
+          (await page
+            .locator("[data-state=ready]")
+            .getAttribute("data-viewpoint"))!,
+        ),
+        asset: JSON.parse(
+          await (
+            await import("node:fs/promises")
+          ).readFile("fixtures/equipment/geometry-audit.json", "utf8"),
+        ),
+      };
+      await page.evaluate(() =>
+        document.querySelectorAll("details").forEach((d) => {
+          d.open = false;
+        }),
+      );
+      console.log(
+        "workspace dimensions",
+        await page.evaluate(() => ({
+          width: document.documentElement.scrollWidth,
+          height: document.documentElement.scrollHeight,
+        })),
+      );
+      await page.screenshot({
+        path: testInfo.outputPath(`${name}-workspace-${viewport.width}.png`),
+        fullPage: true,
+      });
       await page.locator("[data-state=ready]").screenshot({
         path: testInfo.outputPath(`${name}-${viewport.width}.png`),
       });
@@ -466,6 +494,9 @@ for (const viewport of [
       .getByRole("button", { name: "Focus selected", exact: true })
       .click();
     await evidence("internal-closeup");
+    await page
+      .getByRole("button", { name: "Transparency", exact: true })
+      .click();
     await page.getByLabel("Viewpoint name").fill("Internal inspection");
     await page
       .getByRole("button", { name: "Save viewpoint", exact: true })
@@ -492,6 +523,9 @@ for (const viewport of [
     await expect(
       page.getByLabel("Ghost housings", { exact: true }),
     ).toBeChecked();
+    await expect(
+      page.getByRole("button", { name: "Transparency", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
     await page
       .getByRole("button", { name: "Restore assembly", exact: true })
       .click();
@@ -519,6 +553,51 @@ for (const viewport of [
           document.documentElement.clientWidth,
       ),
     ).toBeLessThanOrEqual(1);
+    for (const [name, part] of [
+      ["coupling-closeup", "Flexible coupling"],
+      ["bearing-closeup", "Motor DE bearing"],
+      ["pump-closeup", "Wet end"],
+      ["motor-closeup", "Motor"],
+    ]) {
+      await page
+        .getByRole("button", { name: "Restore assembly", exact: true })
+        .click();
+      await select(part);
+      await page
+        .getByRole("button", { name: "Isolate selected", exact: true })
+        .click();
+      await page
+        .getByLabel("Explosion scope", { exact: true })
+        .selectOption({ label: part });
+      await page.getByLabel("Explosion percentage", { exact: true }).fill("70");
+      await page.waitForTimeout(700);
+      await page
+        .getByRole("button", { name: "Focus selected", exact: true })
+        .click();
+      await evidence(name);
+    }
+    await page
+      .getByRole("button", { name: "Restore assembly", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Run inspection benchmark", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Run inspection benchmark",
+        exact: true,
+      }),
+    ).toBeEnabled({ timeout: 150000 });
+    const sustained = JSON.parse(
+      (await page.getByLabel("Render measurement").textContent())!,
+    );
+    expect(sustained.stages).toHaveLength(7);
+    for (const stage of sustained.stages) {
+      expect(stage.durationMs).toBe(8000);
+      expect(stage.warmupMs).toBe(1500);
+      expect(stage.frames).toBeGreaterThan(5);
+    }
+    stats.sustained = sustained;
     expect(errors).toEqual([]);
     await writeFile(
       testInfo.outputPath("reference-performance.json"),

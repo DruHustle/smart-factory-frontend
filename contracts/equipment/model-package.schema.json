@@ -92,6 +92,18 @@
           "solid": {
             "type": "boolean"
           },
+          "inventoryKind": {
+            "type": "string",
+            "enum": [
+              "assembly",
+              "individual part",
+              "repeated part set"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 160
+          },
           "explode": {
             "type": "object",
             "properties": {

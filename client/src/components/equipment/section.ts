@@ -3,13 +3,19 @@ import * as T from "three";
  * and triangulate only solid regions. Ambiguous/open contours produce no cap.
  * Geometry is returned in world coordinates; original meshes remain unchanged.
  */
+const capBuffers = new WeakMap<
+  T.BufferGeometry,
+  { vertices: Uint32Array; distances: Float64Array }
+>();
 function capIsland(
   geometry: T.BufferGeometry,
   matrix: T.Matrix4,
   plane: T.Plane,
 ) {
   const pos = geometry.getAttribute("position"),
-    index = geometry.index;
+    index = geometry.index,
+    count = index?.count ?? pos.count;
+  const local = plane.clone().applyMatrix4(matrix.clone().invert());
   const u = new T.Vector3()
     .crossVectors(
       plane.normal,
@@ -20,46 +26,137 @@ function capIsland(
     .normalize();
   const v = new T.Vector3().crossVectors(plane.normal, u),
     origin = plane.coplanarPoint(new T.Vector3());
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  if (!geometry.boundingBox!.intersectsPlane(local))
+    return {
+      geometry: null,
+      open: false,
+      loops: 0,
+      tangent: false,
+      degenerate: false,
+    };
+  const scale = geometry.boundingBox!.getSize(new T.Vector3()).length() || 1,
+    eps = Math.max(1e-10, scale * 1e-8),
+    weld = Math.max(1e-9, scale * 2e-7);
+  let buffers = capBuffers.get(geometry);
+  if (!buffers) {
+    buffers = {
+      vertices: Uint32Array.from(
+        new Set(
+          Array.from({ length: count }, (_, j) => (index ? index.getX(j) : j)),
+        ),
+      ),
+      distances: new Float64Array(pos.count),
+    };
+    capBuffers.set(geometry, buffers);
+  }
+  const distances = buffers.distances;
+  let positive = false,
+    negative = false;
+  for (const i of buffers.vertices) {
+    const d =
+      local.normal.x * pos.getX(i) +
+      local.normal.y * pos.getY(i) +
+      local.normal.z * pos.getZ(i) +
+      local.constant;
+    distances[i] = Math.abs(d) <= eps ? 0 : d;
+    positive ||= d > eps;
+    negative ||= d < -eps;
+  }
+  // Contact on a vertex/edge/face without volume on both sides has zero cut area.
+  if (!positive || !negative)
+    return {
+      geometry: null,
+      open: false,
+      loops: 0,
+      tangent: true,
+      degenerate: false,
+    };
   const points: T.Vector3[] = [],
-    links = new Map<number, Set<number>>(),
-    keys = new Map<string, number>();
+    keys = new Map<string, number>(),
+    edges = new Map<string, { a: number; b: number; n: number }>();
   const vertex = (p: T.Vector3) => {
     const key = p
       .toArray()
-      .map((n) => Math.round(n * 1e6))
+      .map((n) => Math.round(n / weld))
       .join(",");
-    if (keys.has(key)) return keys.get(key)!;
-    const i = points.length;
-    keys.set(key, i);
-    points.push(p);
-    links.set(i, new Set());
-    return i;
+    let id = keys.get(key);
+    if (id === undefined) {
+      id = points.length;
+      keys.set(key, id);
+      points.push(p);
+    }
+    return id;
   };
-  const count = index?.count ?? pos.count;
+  const va = new T.Vector3(),
+    vb = new T.Vector3();
   for (let i = 0; i < count; i += 3) {
-    const tri = [0, 1, 2].map((k) =>
-      new T.Vector3()
-        .fromBufferAttribute(pos, index ? index.getX(i + k) : i + k)
-        .applyMatrix4(matrix),
-    );
-    const d = tri.map((p) => plane.distanceToPoint(p));
-    const hits: T.Vector3[] = [];
+    const a = index ? index.getX(i) : i,
+      b = index ? index.getX(i + 1) : i + 1,
+      c = index ? index.getX(i + 2) : i + 2;
+    const da = distances[a],
+      db = distances[b],
+      dc = distances[c];
+    if (
+      (da > 0 && db > 0 && dc > 0) ||
+      (da < 0 && db < 0 && dc < 0) ||
+      (da === 0 && db === 0 && dc === 0)
+    )
+      continue;
+    const ids = [a, b, c],
+      d = [da, db, dc];
+    const hits: number[] = [];
     for (let k = 0; k < 3; k++) {
       const j = (k + 1) % 3;
-      if (d[k] < 0 !== d[j] < 0)
-        hits.push(tri[k].clone().lerp(tri[j], d[k] / (d[k] - d[j])));
-    }
-    if (hits.length === 2 && hits[0].distanceToSquared(hits[1]) > 1e-16) {
-      const a = vertex(hits[0]),
-        b = vertex(hits[1]);
-      if (a !== b) {
-        links.get(a)!.add(b);
-        links.get(b)!.add(a);
+      if (d[k] === 0)
+        hits.push(
+          vertex(
+            new T.Vector3()
+              .fromBufferAttribute(pos, ids[k])
+              .applyMatrix4(matrix),
+          ),
+        );
+      if (d[k] * d[j] < 0) {
+        va.fromBufferAttribute(pos, ids[k]);
+        vb.fromBufferAttribute(pos, ids[j]);
+        hits.push(
+          vertex(
+            va
+              .clone()
+              .lerp(vb, d[k] / (d[k] - d[j]))
+              .applyMatrix4(matrix),
+          ),
+        );
       }
     }
+    const unique = [...new Set(hits)];
+    if (unique.length !== 2 || d.every((x) => x === 0)) continue;
+    // For an on-plane edge, only the removed-side triangle supplies its boundary.
+    if (d.filter((x) => x === 0).length === 2 && !d.some((x) => x < 0))
+      continue;
+    const [a, b] = unique,
+      key = a < b ? `${a}:${b}` : `${b}:${a}`,
+      edge = edges.get(key);
+    if (edge) edge.n++;
+    else edges.set(key, { a, b, n: 1 });
   }
-  if ([...links.values()].some((n) => n.size !== 2))
-    return { geometry: null, open: true, loops: 0 };
+  const links = new Map<number, Set<number>>();
+  for (const { a, b, n } of edges.values())
+    if (n % 2) {
+      if (!links.has(a)) links.set(a, new Set());
+      if (!links.has(b)) links.set(b, new Set());
+      links.get(a)!.add(b);
+      links.get(b)!.add(a);
+    }
+  const closed = geometry.userData.sectionClosed !== false;
+  if (!closed || [...links.values()].some((n) => n.size !== 2))
+    return {
+      geometry: null,
+      open: !closed,
+      loops: 0,
+      tangent: false,
+      degenerate: closed,
+    };
   const used = new Set<number>(),
     contours: T.Vector2[][] = [];
   for (const start of links.keys()) {
@@ -68,7 +165,14 @@ function capIsland(
       cur = start;
     const loop: T.Vector2[] = [];
     do {
-      if (used.has(cur)) return { geometry: null, open: true, loops: 0 };
+      if (used.has(cur))
+        return {
+          geometry: null,
+          open: false,
+          loops: 0,
+          tangent: false,
+          degenerate: true,
+        };
       used.add(cur);
       const p = points[cur].clone().sub(origin);
       loop.push(new T.Vector2(p.dot(u), p.dot(v)));
@@ -76,7 +180,8 @@ function capIsland(
       prev = cur;
       cur = next;
     } while (cur !== start);
-    if (loop.length >= 3) contours.push(loop);
+    if (loop.length >= 3 && Math.abs(T.ShapeUtils.area(loop)) > weld * weld)
+      contours.push(loop);
   }
   const inside = (p: T.Vector2, poly: T.Vector2[]) => {
     let yes = false;
@@ -118,13 +223,25 @@ function capIsland(
       }
   });
   if (!output.length)
-    return { geometry: null, open: false, loops: contours.length };
+    return {
+      geometry: null,
+      open: false,
+      loops: contours.length,
+      tangent: false,
+      degenerate: false,
+    };
   const cap = new T.BufferGeometry().setAttribute(
     "position",
     new T.Float32BufferAttribute(output, 3),
   );
   cap.computeVertexNormals();
-  return { geometry: cap, open: false, loops: contours.length };
+  return {
+    geometry: cap,
+    open: false,
+    loops: contours.length,
+    tangent: false,
+    degenerate: false,
+  };
 }
 
 // A combined BOM set may contain many intersecting or nested closed objects.
@@ -147,7 +264,7 @@ export function sectionCap(
       parent[a] === a ? a : (parent[a] = find(parent[a]));
     for (let i = 0; i < p.count; i++) {
       const key = [p.getX(i), p.getY(i), p.getZ(i)]
-        .map((n) => Math.round(n * 1e6))
+        .map((n) => Math.round(n * 1e9))
         .join(",");
       let id = keys.get(key);
       if (id === undefined) {
@@ -168,21 +285,43 @@ export function sectionCap(
     const faces = new Map<number, number[]>();
     for (let i = 0; i < count; i += 3) {
       const indices = [0, 1, 2].map((k) => (ix ? ix.getX(i + k) : i + k));
+      if (new Set(indices.map((i) => vertex[i])).size < 3) continue;
       const key = find(vertex[indices[0]]);
       if (!faces.has(key)) faces.set(key, []);
       faces.get(key)!.push(...indices);
     }
-    groups = [...faces.values()].map((indices) =>
-      new T.BufferGeometry().setAttribute("position", p).setIndex(indices),
-    );
+    groups = [...faces.values()].map((indices) => {
+      const edgeCounts = new Map<string, number>();
+      for (let i = 0; i < indices.length; i += 3)
+        for (let k = 0; k < 3; k++) {
+          const a = vertex[indices[i + k]],
+            b = vertex[indices[i + ((k + 1) % 3)]],
+            key = a < b ? `${a}:${b}` : `${b}:${a}`;
+          if (a !== b) edgeCounts.set(key, (edgeCounts.get(key) ?? 0) + 1);
+        }
+      const g = new T.BufferGeometry()
+        .setAttribute("position", p)
+        .setIndex(indices);
+      const bounds = new T.Box3(),
+        point = new T.Vector3();
+      for (const i of new Set(indices))
+        bounds.expandByPoint(point.fromBufferAttribute(p, i));
+      g.boundingBox = bounds;
+      g.userData.sectionClosed = [...edgeCounts.values()].every((n) => n === 2);
+      return g;
+    });
     islands.set(geometry, groups);
   }
   const output: number[] = [];
   let open = false,
+    tangent = false,
+    degenerate = false,
     loops = 0;
   for (const g of groups) {
     const result = capIsland(g, matrix, plane);
     open ||= result.open;
+    tangent ||= !!result.tangent;
+    degenerate ||= !!result.degenerate;
     loops += result.loops;
     if (result.geometry) {
       const p = result.geometry.getAttribute("position");
@@ -191,11 +330,12 @@ export function sectionCap(
       result.geometry.dispose();
     }
   }
-  if (!output.length) return { geometry: null, open, loops };
+  if (!output.length)
+    return { geometry: null, open, loops, tangent, degenerate };
   const cap = new T.BufferGeometry().setAttribute(
     "position",
     new T.Float32BufferAttribute(output, 3),
   );
   cap.computeVertexNormals();
-  return { geometry: cap, open, loops };
+  return { geometry: cap, open, loops, tangent, degenerate };
 }

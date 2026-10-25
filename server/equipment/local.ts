@@ -17,6 +17,8 @@ const root = new URL("../../fixtures/equipment/", import.meta.url);
 const componentSchema = component.extend({ installedComponentId: z.uuid() });
 const viewerStateSchema = z
   .object({
+    opacity: z.number().min(0.05).max(1).optional(),
+    immediate: z.boolean().optional(),
     explode: z.number().min(0).max(100),
     scope: z.uuid().nullable(),
     section: z.enum(["off", "X", "Y", "Z"]),
@@ -83,14 +85,12 @@ export async function template(revision?: string) {
     [
       "smart-factory-illustrative-pump-motor-1",
       "smart-factory-illustrative-pump-motor-2",
+      "smart-factory-illustrative-pump-motor-3",
     ].includes(revision ?? "")
   )
     return JSON.parse(
       await readFile(
-        new URL(
-          `revisions/${revision!.endsWith("-1") ? "1" : "2"}/template.json`,
-          root,
-        ),
+        new URL(`revisions/${revision!.split("-").at(-1)}/template.json`, root),
         "utf8",
       ),
     ) as LocalTemplate;
@@ -507,8 +507,9 @@ export async function modelBytes(revision: string) {
           [
             "smart-factory-illustrative-pump-motor-1",
             "smart-factory-illustrative-pump-motor-2",
+            "smart-factory-illustrative-pump-motor-3",
           ].includes(revision)
-            ? `revisions/${revision.endsWith("-1") ? "1" : "2"}/model.glb`
+            ? `revisions/${revision.split("-").at(-1)}/model.glb`
             : "pump-motor.glb",
           root,
         ),

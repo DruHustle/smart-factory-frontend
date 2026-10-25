@@ -1,193 +1,337 @@
-"""Original MIT illustrative overhung pump / TEFC induction motor. Reproducible GLB.
-No manufacturer CAD or dimensions. X shaft axis, metres, +Y up. Every surface
-is a closed oriented solid; hollow profiles retain their bores under section.
-Run via generate-artifacts.py to rebuild the GLB, BOM, mappings and AASX.
+"""MIT original illustrative PM-ILL-4, metres, X shaft, +Y up.
+Constructive solids, connected fluid voids, declared running clearances. Not
+manufacturer CAD or a pressure/electrical/mechanical certification. Generate via
+pinned requirements-geometry.txt and generate-artifacts.py. All v3 IDs retained.
 """
-import math, struct, json, hashlib
+import sys
 from pathlib import Path
-from uuid import UUID, uuid5
-ROOT=Path(__file__).resolve().parents[2]/'fixtures/equipment'
-TAU=2*math.pi
-NS=UUID('5760d716-6140-47a2-a911-fcb3dc244c85')
-def ident(s): return str(uuid5(NS,'reference-3:'+s))
-nodes=[{'name':'Assembly','children':[1,2]}, {'name':'Pump','children':[]}, {'name':'Motor','children':[]}]
-components=[]; meshes=[]; views=[]; accessors=[]; binary=bytearray()
-palette=[('Ceramic blue',[.035,.23,.40,1],.55,.29),('Machined steel',[.55,.62,.69,1],.88,.25),('Cast iron',[.105,.135,.16,1],.7,.46),('Copper',[.67,.255,.075,1],.86,.28),('Elastomer',[.022,.028,.032,1],.05,.72),('Brass cage',[.63,.43,.13,1],.8,.32),('Seal ceramic',[.78,.80,.76,1],.1,.24),('Rotor laminations',[.29,.33,.37,1],.8,.4)]
-materials=[{'name':n,'pbrMetallicRoughness':{'baseColorFactor':c,'metallicFactor':m,'roughnessFactor':r}} for n,c,m,r in palette]
-rootids=['96dbea7b-a855-5257-9e54-657bf7c6bf62','9eb83ff8-7434-5b9f-b283-7e3be67d7ad7','6d5a0e0f-aa5f-5646-87c9-45748ec2cad5']
-for i,n in enumerate(nodes):
- components.append({'templateComponentId':rootids[i],'name':n['name'],'nodeIndex':i,'nodePath':'/Assembly'+('/'+n['name'] if i else ''),'parentTemplateComponentId':rootids[0] if i else None,'designation':'PM-ILL-3' if i==0 else n['name']+' subassembly','quantity':1,'material':'Assembly','role':'group','solid':False,'explode':{'translation':([0,0,0] if i==0 else [-.22,0,0] if i==1 else [.22,0,0]),'rotation':[0,0,0],'pivot':[0,.25,0]}})
-def add(name,parent,geo=None,mat=1,move=(0,0,0),qty=1,role='internal',detail='',rot=(0,0,0),pivot=(0,.25,0)):
- idx=len(nodes); p=components[parent]; node={'name':name.replace(' ','_'),'children':[]}
- if geo:
-  pos,nor,ind=geo; attrs={}
-  for key,vals,fmt,ctype,kind in [('POSITION',pos,'3f',5126,'VEC3'),('NORMAL',nor,'3f',5126,'VEC3'),('indices',ind,'I',5125,'SCALAR')]:
-   data=b''.join(struct.pack('<'+fmt,*(v if isinstance(v,(tuple,list)) else (v,))) for v in vals)
-   views.append({'buffer':0,'byteOffset':len(binary),'byteLength':len(data)});binary.extend(data);binary.extend(b'\0'*((-len(binary))%4))
-   a={'bufferView':len(views)-1,'componentType':ctype,'count':len(vals),'type':kind}
-   if key=='POSITION': a.update(min=[min(v[k] for v in vals) for k in range(3)],max=[max(v[k] for v in vals) for k in range(3)])
-   attrs[key]=len(accessors);accessors.append(a)
-  node['mesh']=len(meshes);meshes.append({'name':name,'primitives':[{'attributes':{k:v for k,v in attrs.items() if k!='indices'},'indices':attrs['indices'],'material':mat}]})
- nodes.append(node);nodes[parent]['children'].append(idx)
- components.append({'templateComponentId':ident(name),'name':name,'nodeIndex':idx,'nodePath':p['nodePath']+'/'+node['name'],'parentTemplateComponentId':p['templateComponentId'],'designation':f'ILL-{idx:03d}','quantity':qty,'material':palette[mat][0] if geo else 'Assembly','role':role if geo else 'group','solid':bool(geo),'description':detail or ('Combined repeated parts; select as one set.' if qty>1 else 'Illustrative reference geometry.'),'explode':{'translation':list(move),'rotation':list(rot),'pivot':list(pivot)}})
- return idx
-def combine(*gs):
- p=[];n=[];ix=[]
- for a,b,c in gs:
-  ix.extend(i+len(p) for i in c);p.extend(a);n.extend(b)
- return p,n,ix
-def transform(g,offset=(0,0,0),axis='x'):
- def orient(v): return v if axis=='x' else (-v[1],v[0],v[2]) if axis=='y' else (-v[2],v[1],v[0])
- return ([tuple(a+b for a,b in zip(orient(v),offset)) for v in g[0]],[orient(v) for v in g[1]],g[2])
-def lathe(profile,center=(0,.25,0),n=64,radial=None):
- # Closed polygon in axial/radial plane, counter-clockwise seen from +theta.
- p=[];norm=[];ix=[]
- # Reverse polygon if needed so outer profile faces outward.
- area=sum(profile[i][0]*profile[(i+1)%len(profile)][1]-profile[(i+1)%len(profile)][0]*profile[i][1] for i in range(len(profile)))
- if area>0: profile=list(reversed(profile))
- for j,(x,r) in enumerate(profile):
-  xx,rr=profile[(j+1)%len(profile)];dx=xx-x;dr=rr-r;ln=math.hypot(dx,dr) or 1
-  for i in range(n+1):
-   t=TAU*i/n;c=math.cos(t);s=math.sin(t)
-   for ax,ra in [(x,r),(xx,rr)]:
-    rad=radial(ra,t) if radial else ra;p.append((center[0]+ax,center[1]+rad*c,center[2]+rad*s));norm.append((-dr/ln,dx*c/ln,dx*s/ln))
-  base=j*(n+1)*2
-  for i in range(n):
-   a=base+i*2;ix.extend([a,a+2,a+1,a+1,a+2,a+3])
- return p,norm,ix
-def ring(x,l,ro,ri,mat=None,n=64,bevel=.0015):
- b=min(bevel,l/4,(ro-ri)/4);h=l/2
- return lathe([(-h,ri+b),(-h+b,ri),(h-b,ri),(h,ri+b),(h,ro-b),(h-b,ro),(-h+b,ro),(-h,ro-b)],(x,.25,0),n)
-def box(center,size):
- p=[];n=[];ind=[]
+sys.path.insert(0,str(Path(__file__).parent))
+from geometry_export import *
+import manifold3d as md
+import numpy as np
+M=md.Manifold; C=md.CrossSection
+solids={}; checks=[]
+old_add=add
+
+def unite(*objects): return M.batch_boolean(list(objects),md.OpType.Add)
+def cyl(x,l,r,n=64): return M.cylinder(l,r,circular_segments=n,center=True).rotate((0,90,0)).translate((x,.25,0))
+def rev(profile,x=0,n=64):
+ points=[(r,a) for a,r in profile]
+ if sum(points[i][0]*points[(i+1)%len(points)][1]-points[(i+1)%len(points)][0]*points[i][1] for i in range(len(points)))<0:points.reverse()
+ return M.revolve(C([points],md.FillRule.NonZero),n).rotate((0,90,0)).translate((x,.25,0))
+def ann(x,l,ro,ri,n=64,b=.001):
+ b=min(b,l/4,(ro-ri)/4);h=l/2
+ return rev([(-h,ri+b),(-h+b,ri),(h-b,ri),(h,ri+b),(h,ro-b),(h-b,ro),(-h+b,ro),(-h,ro-b)],x,n)
+def cube(p,s,b=.001):
+ # Chamfered box via convex hull of inset corners, no global tessellation inflation.
+ h=np.array(s)/2;pts=[]
  for axis in range(3):
   for sign in [-1,1]:
-   a=(axis+1)%3;b=(axis+2)%3;base=len(p)
-   for u,v in [(-1,-1),(1,-1),(1,1),(-1,1)]:
-    q=list(center);q[axis]+=sign*size[axis]/2;q[a]+=u*size[a]/2;q[b]+=v*size[b]/2;p.append(tuple(q));nn=[0,0,0];nn[axis]=sign;n.append(tuple(nn))
-   ind.extend([base,base+1,base+2,base,base+2,base+3] if sign==1 else [base,base+2,base+1,base,base+3,base+2])
- return p,n,ind
-def sweep(points,r,sides=8):
- # Parallel-ish frame sufficient for authored smooth planar and helical tubes.
- p=[];norm=[];ix=[]
- for i,c in enumerate(points):
-  a=points[max(0,i-1)];b=points[min(len(points)-1,i+1)];d=[b[k]-a[k] for k in range(3)];ln=math.sqrt(sum(x*x for x in d));d=[x/ln for x in d]
-  ref=[1,0,0] if abs(d[0])<.9 else [0,1,0]
-  v=[d[1]*ref[2]-d[2]*ref[1],d[2]*ref[0]-d[0]*ref[2],d[0]*ref[1]-d[1]*ref[0]];ln=math.sqrt(sum(x*x for x in v));v=[x/ln for x in v];w=[d[1]*v[2]-d[2]*v[1],d[2]*v[0]-d[0]*v[2],d[0]*v[1]-d[1]*v[0]]
-  for j in range(sides):
-   t=TAU*j/sides;nn=tuple(math.cos(t)*v[k]+math.sin(t)*w[k] for k in range(3));p.append(tuple(c[k]+r*nn[k] for k in range(3)));norm.append(nn)
- for i in range(len(points)-1):
-  for j in range(sides):
-   a=i*sides+j;b=i*sides+(j+1)%sides;c=a+sides;dd=b+sides;ix.extend([a,b,c,b,dd,c])
- for off,rev in [(0,True),((len(points)-1)*sides,False)]:
-  for j in range(1,sides-1): ix.extend([off,off+j+1,off+j] if rev else [off,off+j,off+j+1])
- return p,norm,ix
-def orbitboxes(x,r,count,size):
- return combine(*[box((x,.25+r*math.cos(TAU*i/count),r*math.sin(TAU*i/count)),size) for i in range(count)])
-def bearing(name,parent,x,move):
- g=add(name,parent,move=move)
- # Grooves remove real annular volume, rather than painting raceways.
- add(name+' inner race',g,lathe([(-.012,.022),(.012,.022),(.012,.035),(.006,.035),(0,.032),(-.006,.035),(-.012,.035)],(x,.25,0)),1,(-.045,0,0))
- add(name+' outer race',g,lathe([(-.012,.047),(-.006,.047),(0,.050),(.006,.047),(.012,.047),(.012,.061),(-.012,.061)],(x,.25,0)),1,(.045,0,0))
- balls=[]
- for i in range(10):
-  t=TAU*i/10
-  # sphere as a closed swept meridian, no degenerate pole triangles
-  profile=[(.008*math.cos(math.pi*j/12),max(.00001,.008*math.sin(math.pi*j/12))) for j in range(13)]
-  balls.append(lathe(profile,(x,.25+.041*math.cos(t),.041*math.sin(t)),24))
- add(name+' rolling elements',g,combine(*balls),1,(0,.055,0),10,detail='Ten balls intentionally combined, with individual race and cage selection.')
- cage=combine(ring(x-.006,.003,.045,.038,n=48),ring(x+.006,.003,.045,.038,n=48),orbitboxes(x,.041,10,(.012,.003,.003)))
- add(name+' cage',g,cage,5,(0,-.065,0))
- return g
+   for a in [-1,1]:
+    for c in [-1,1]:
+     q=h-np.array([b,b,b]);q[axis]=h[axis];q[(axis+1)%3]*=a;q[(axis+2)%3]*=c;q[axis]*=sign;pts.append((q+np.array(p)).tolist())
+ return M.hull_points(pts)
+def shift(s,y=0,z=0): return s.translate((0,y,z))
+def around(s,count): return [s.translate((0,-.25,0)).rotate((i*360/count,0,0)).translate((0,.25,0)) for i in range(count)]
+def holes(s,x,l,pitch,count,r,phase=0):
+ for i in range(count):
+  t=TAU*i/count+phase;s=s-shift(cyl(x,l,r,24),pitch*math.cos(t),pitch*math.sin(t))
+ return s
 
-# Wet end: spiralling annular fluid passage with true inner/outer surfaces.
-wet=add('Wet end',1,move=(-.12,0,0))
-profile=[(-.085,.105),(-.061,.105),(-.061,.163),(.061,.163),(.061,.033),(.085,.033),(.085,.18),(-.085,.18)]
-volute=lathe(profile,(-.58,.25,0),96,lambda r,t:r+(max(0,r-.10)/.08)*(.012*(1+math.sin(t))+.006*math.sin(t/2)**2))
-add('Volute casing',wet,volute,0,(0,0,-.42),role='housing',detail='Hollow spiral annular passage; illustrative non-hydraulic profile.')
-add('Suction cover',wet,ring(-.68,.027,.184,.058),0,(-.25,0,0),role='cover',rot=(0,0,.18),pivot=(-.68,.25,0))
-add('Suction nozzle flange',wet,ring(-.75,.11,.081,.052),0,(-.36,0,0),role='housing')
-discharge=transform(ring(0,.13,.058,.038),(-.55,.43,0),'y')
-# ring() defaults to Y=.25, compensate before orientation to keep nozzle above casing.
-discharge=transform(ring(0,.13,.058,.038),( -.30,.455,0),'y')
-add('Discharge neck and flange',wet,discharge,0,(0,.25,0),role='housing')
-add('Back plate',wet,ring(-.475,.024,.18,.031),0,(.15,0,0),role='cover')
-add('Casing gasket',wet,ring(-.666,.003,.176,.163),4,(-.18,0,0))
-imp=add('Impeller',wet,move=(-.12,0,0))
-add('Impeller rear shroud',imp,ring(-.535,.008,.145,.027),1,(.035,0,0))
-add('Impeller front shroud',imp,ring(-.59,.008,.145,.060),1,(-.07,0,0))
-vanes=[]
+def rounded(points,radius=.004):
+ out=[];count=len(points)
+ for i,p in enumerate(points):
+  p=np.array(p);a=np.array(points[(i-1)%count])-p;b=np.array(points[(i+1)%count])-p
+  la=np.linalg.norm(a);lb=np.linalg.norm(b);a/=la;b/=lb
+  if np.dot(a,b)<-.98:out.append(p);continue
+  distance=min(radius,la*.4,lb*.4);start=p+a*distance;end=p+b*distance
+  for t in np.linspace(0,1,5):out.append((1-t)**2*start+2*(1-t)*t*p+t*t*end)
+ return out
+
+def tube(points,r=.002,sides=8,closed=False):
+ # Parallel-transport frame, with periodic seam and no duplicate closing caps.
+ pts=np.array(points,dtype=float);n=len(pts)
+ tang=np.roll(pts,-1,axis=0)-np.roll(pts,1,axis=0)
+ if not closed: tang[0]=pts[1]-pts[0];tang[-1]=pts[-1]-pts[-2]
+ tang/=np.linalg.norm(tang,axis=1)[:,None];frames=[]
+ ref=np.array([1.,0,0]) if abs(tang[0,0])<.9 else np.array([0.,1,0]);v=np.cross(tang[0],ref);v/=np.linalg.norm(v)
+ for i,d in enumerate(tang):
+  if i:
+   a=tang[i-1];axis=np.cross(a,d);sn=np.linalg.norm(axis);co=np.dot(a,d)
+   if sn>1e-10:
+    axis/=sn;v=v*co+np.cross(axis,v)*sn+axis*np.dot(axis,v)*(1-co)
+  v-=d*np.dot(v,d);v/=np.linalg.norm(v);frames.append(v.copy())
+ if closed:
+  d=tang[0];a=tang[-1];axis=np.cross(a,d);sn=np.linalg.norm(axis);co=np.dot(a,d);v=frames[-1]
+  if sn>1e-10:
+   axis/=sn;v=v*co+np.cross(axis,v)*sn+axis*np.dot(axis,v)*(1-co)
+  correction=math.atan2(np.dot(d,np.cross(v,frames[0])),np.dot(v,frames[0]))
+  for i,d in enumerate(tang):
+   angle=correction*i/n;v=frames[i];frames[i]=v*math.cos(angle)+np.cross(d,v)*math.sin(angle)
+ vertices=[];faces=[]
+ for i,p in enumerate(pts):
+  v=frames[i];w=np.cross(tang[i],v)
+  vertices.extend(p+r*(math.cos(TAU*j/sides)*v+math.sin(TAU*j/sides)*w) for j in range(sides))
+ for i in range(n if closed else n-1):
+  for j in range(sides):
+   a=i*sides+j;b=i*sides+(j+1)%sides;c=((i+1)%n)*sides+j;d=((i+1)%n)*sides+(j+1)%sides
+   faces.extend([(a,b,c),(b,d,c)])
+ if not closed:
+  for j in range(1,sides-1): faces.extend([(0,j+1,j),((n-1)*sides,(n-1)*sides+j,(n-1)*sides+j+1)])
+ result=M(md.Mesh(np.asarray(vertices,dtype=np.float32),np.asarray(faces,dtype=np.uint32)))
+ if result.status()!=md.Error.NoError: raise ValueError(('invalid tube',result.status()))
+ return result
+
+def add(name,parent,geo=None,mat=1,move=(0,0,0),qty=1,role='internal',detail='',**kwargs):
+ if geo is not None:
+  assert geo.status()==md.Error.NoError and geo.volume()>0,(name,geo.status())
+  solids[name]=geo
+  m=geo.calculate_normals(0,40).to_mesh();v=m.vert_properties
+  geo=(v[:,:3].tolist(),v[:,3:6].tolist(),m.tri_verts.flatten().tolist())
+ idx=old_add(name,parent,geo,mat,move,qty,role,detail,**kwargs)
+ components[idx]['inventoryKind']='assembly' if geo is None else 'repeated part set' if qty>1 else 'individual part'
+ components[idx]['source']='scripts/equipment/reference_geometry.py'
+ return idx
+
+def bolt(x,length,r=.004):
+ # Shaft, chamfered hex head, socket recess, and separate through-bore washer.
+ head=ann(x-length/2-.004,.008,r*1.9,.0004,n=6,b=.0006)-cyl(x-length/2-.006,.007,r*.9,6)
+ return unite(cyl(x,length,r,16),head)
+def fasteners(x,length,pitch,count,r=.004):
+ return unite(*around(shift(bolt(x,length,r),pitch),count),*around(shift(ann(x-length/2+.001,.002,r*2.25,r*1.08,24,b=.0003),pitch),count))
+def gap(a,b,minimum,label):
+ d=solids[a].min_gap(solids[b],minimum+.002);overlap=(solids[a]^solids[b]).volume()
+ checks.append(dict(check=label,minimumMetres=minimum,measuredMetres=d,intersectionCubicMetres=overlap,passed=d>=minimum-1e-6 and overlap<1e-11))
+
+# Pump: a single connected suction/volute/discharge void cut out of a solid casing.
+wet=add('Wet end',1,move=(-.16,0,0))
+outer=rev([(-.085,0),(.085,0),(.085,.18),(-.085,.18)],-.58,96)
+# Spiral radial profile, asymmetry increases the collecting passage toward top outlet.
+# The offset outer shell/void preserves >= 10 mm illustrative wall thickness.
+fluid_outline=[((.152+.014*i/96)*math.cos(TAU*i/96),(.152+.014*i/96)*math.sin(TAU*i/96)) for i in range(97)]
+void=M.extrude(C([fluid_outline],md.FillRule.NonZero),.126).rotate((0,90,0)).translate((-.643,.25,0))
+outer=unite(outer,shift(cyl(-.58,.17,.187,96),.009))
+neck=M.cylinder(.15,.05,circular_segments=64,center=True).rotate((90,0,0)).translate((-.55,.47,0))
+port=M.cylinder(.19,.035,circular_segments=64,center=True).rotate((90,0,0)).translate((-.55,.46,0))
+outer=unite(outer,neck)
+void=unite(void,port,cyl(-.66,.13,.058),cyl(-.49,.11,.033))
+casing=outer-void
+casing=holes(casing,-.58,.25,.166,8,.0045,TAU/16)
+add('Volute casing',wet,casing,0,(0,0,-.37),role='housing',detail='Connected spiral collecting passage with eccentric shell and discharge cut; 10 mm minimum wall, illustrative volute approximation, not hydraulic design.')
+cover=holes(ann(-.681,.03,.19,.058,96),-.681,.08,.166,8,.0045,TAU/16)
+add('Suction cover',wet,cover,0,(-.23,0,0),role='cover',rot=(0,0,.12),pivot=(-.68,.25,0))
+suction=unite(ann(-.751,.11,.070,.052),ann(-.806,.014,.102,.052))
+suction=holes(suction,-.806,.06,.085,4,.006,math.pi/4)
+add('Suction nozzle flange',wet,suction,0,(-.35,0,0),role='housing',detail='52 mm bore; drilled 4 x 12 mm on 170 mm bolt circle. Field mating flange not supplied.')
+dis=unite(ann(0,.02,.08,.035),ann(-.038,.055,.05,.035)).translate((0,-.25,0)).rotate((0,0,90)).translate((-.55,.553,0))
+# Drilling is performed before orienting so the flange normal and hole axes agree.
+dis=holes(unite(ann(0,.02,.08,.035),ann(-.038,.055,.05,.035)),0,.06,.064,4,.0055,math.pi/4).translate((0,-.25,0)).rotate((0,0,90)).translate((-.55,.553,0))
+add('Discharge neck and flange',wet,dis,0,(0,.22,0),role='housing')
+back=holes(ann(-.485,.02,.19,.031),-.485,.05,.166,8,.0045,TAU/16)
+add('Back plate',wet,back,0,(.12,0,0),role='cover')
+add('Casing gasket',wet,holes(ann(-.6655,.001,.183,.157,b=.0001),-.6655,.01,.166,8,.005,TAU/16),4,(-.17,0,0))
+imp=add('Impeller',wet,move=(-.1,0,0))
+add('Impeller rear shroud',imp,ann(-.535,.008,.145,.027,96),1,(.035,0,0))
+add('Impeller front shroud',imp,ann(-.59,.008,.145,.060,96),1,(-.07,0,0))
+blades=[]
 for i in range(7):
  points=[]
- for j in range(24):
-  u=j/23;r=.045+.097*u;t=TAU*i/7-.85*u;points.append((-.563,.25+r*math.cos(t),r*math.sin(t)))
- # wide axial dimension via closed swept blade sections
- geo=sweep(points,.004,8);pp=[(-.563+(v[0]+.563)*5,v[1],v[2]) for v in geo[0]];vanes.append((pp,geo[1],geo[2]))
-add('Backward swept impeller vanes',imp,combine(*vanes),1,(0,0,.16),7,detail='Seven shaped vanes, grouped; illustrative impeller passages.')
-add('Impeller hub and lock nut',imp,combine(ring(-.55,.075,.045,.022),ring(-.614,.018,.034,.022,n=6)),1,(-.1,0,0))
-train=add('Pump rotating train',1,move=(.07,0,.19))
-add('Pump stepped shaft',train,lathe([(-.29,.001),(-.29,.021),(-.20,.021),(-.20,.025),(.04,.025),(.04,.022),(.17,.022),(.17,.001)],(-.29,.25,0)),1,(.14,0,0))
-add('Shaft sleeve',train,ring(-.46,.085,.029,.0255),1,(.06,.11,0))
-seal=add('Mechanical seal',1,move=(0,.23,.10))
-add('Seal gland',seal,ring(-.434,.014,.066,.034),1,(.08,0,0))
-add('Stationary ceramic seat',seal,ring(-.45,.009,.043,.030),6,(-.03,0,0))
-add('Rotating carbon face',seal,ring(-.459,.009,.041,.0295),4,(-.07,0,0))
-add('Seal elastomer bellows',seal,lathe([(-.018,.029),(.018,.029),(.018,.035),(.013,.037),(.008,.034),(.003,.037),(-.003,.034),(-.008,.037),(-.013,.034),(-.018,.037)],(-.406,.25,0)),4,(.1,0,0))
-add('Seal compression spring',seal,sweep([(-.424+.037*i/180,.25+.04*math.cos(TAU*5*i/180),.04*math.sin(TAU*5*i/180)) for i in range(181)],.0015,8),1,(.16,0,0))
-add('Seal O rings',seal,combine(ring(-.443,.004,.046,.042),ring(-.465,.004,.032,.029)),4,(0,.075,0),2)
-carrier=add('Pump bearing carrier',1,ring(-.295,.22,.082,.062),0,(0,0,-.28),role='housing')
+ for side in [1,-1]:
+  js=range(25) if side==1 else range(24,-1,-1)
+  for j in js:
+   u=j/24;r=.045+.098*u;t=TAU*i/7-.85*u+side*.0025/r;points.append((r*math.cos(t),r*math.sin(t)))
+ blade=M.extrude(C([points],md.FillRule.NonZero),.047).rotate((0,90,0)).translate((-.586,.25,0));blades.append(blade)
+add('Backward swept impeller vanes',imp,unite(*blades),1,(0,0,.17),7,detail='Seven 5 mm curved blades bridge shrouds; 11 mm radial collecting clearance.')
+add('Impeller hub and lock nut',imp,unite(ann(-.55325,.0675,.045,.022),ann(-.614,.018,.034,.022,n=6)),1,(-.1,0,0))
+train=add('Pump rotating train',1,move=(.07,0,.22))
+# Shaft journal radii agree with 44 mm bearing bores; centre shoulder 50 mm.
+shaft=rev([(-.614,0),(-.614,.022),(-.512,.022),(-.512,.025),(-.395,.025),(-.395,.022),(-.351,.022),(-.351,.025),(-.232,.025),(-.232,.022),(-.05,.022),(-.05,0)])
+shaft=shaft-cube((-.08,.272,0),(.05,.008,.008),.0004)
+add('Pump stepped shaft',train,shaft,1,(.14,0,0))
+add('Shaft sleeve',train,ann(-.46,.085,.029,.0252),1,(.06,.11,0))
+seal=add('Mechanical seal',1,move=(0,.22,.1))
+add('Seal gland',seal,holes(ann(-.395,.014,.080,.038),-.395,.025,.053,4,.0035),1,(.08,0,0))
+add('Stationary ceramic seat',seal,ann(-.45,.009,.043,.030),6,(-.03,0,0))
+add('Rotating carbon face',seal,ann(-.459,.009,.041,.0295),4,(-.07,0,0))
+add('Seal elastomer bellows',seal,rev([(-.018,.029),(.018,.029),(.018,.035),(.013,.037),(.008,.034),(.003,.037),(-.003,.034),(-.008,.037),(-.013,.034),(-.018,.037)],-.435),4,(.1,0,0))
+add('Seal compression spring',seal,tube([(-.454+.037*i/100,.25+.04*math.cos(TAU*5*i/100),.04*math.sin(TAU*5*i/100)) for i in range(101)],.0015),1,(.16,0,0))
+add('Seal O rings',seal,unite(ann(-.443,.004,.046,.042),ann(-.465,.004,.032,.029)),4,(0,.075,0),2)
+carrier=ann(-.295,.22,.082,.06115)
+add('Pump bearing carrier',1,carrier,0,(0,0,-.28),role='housing')
+def bearing(name,parent,x,move):
+ g=add(name,parent,move=move)
+ # Circular race grooves, 300 micron ball clearance, never toroidal false balls.
+ xs=np.linspace(-.008,.008,17)
+ inner=[(-.012,.0221),(.012,.0221),(.012,.037)]+[(float(a),min(.037,.041-math.sqrt(max(0,.0083**2-a*a)))) for a in reversed(xs)]+[(-.012,.037)]
+ outer=[(-.012,.045)]+[(float(a),max(.045,.041+math.sqrt(max(0,.0083**2-a*a)))) for a in xs]+[(.012,.045),(.012,.061),(-.012,.061)]
+ add(name+' inner race',g,rev(inner,x,64),1,(-.045,0,0))
+ add(name+' outer race',g,rev(outer,x,64),1,(.045,0,0))
+ balls=unite(*[M.sphere(.008,32).translate((x,.25+.041*math.cos(TAU*i/10),.041*math.sin(TAU*i/10))) for i in range(10)])
+ add(name+' rolling elements',g,balls,1,(0,.055,0),10,detail='Ten solid balls; no pole bore. 300 micrometre radial groove allowance.')
+ cage=unite(ann(x-.010,.002,.045,.037,48,b=.00025),ann(x+.010,.002,.045,.037,48,b=.00025),*[cube((x,.25+.041*math.cos(TAU*(i+.5)/10),.041*math.sin(TAU*(i+.5)/10)),(.018,.003,.003),.0003) for i in range(10)])
+ add(name+' cage',g,cage,5,(0,-.065,0),detail='Two bands and ten bridges located between balls, not through their centres.')
+ gap(name+' rolling elements',name+' inner race',.00002,name+' ball/inner groove')
+ gap(name+' rolling elements',name+' outer race',.00002,name+' ball/outer groove')
+ gap(name+' rolling elements',name+' cage',.0001,name+' cage clearance')
+ return g
 bearing('Pump DE bearing',1,-.365,(.02,.17,.18));bearing('Pump NDE bearing',1,-.218,(.13,.17,.18))
-add('Pump bearing spacers',1,combine(ring(-.325,.045,.032,.025),ring(-.25,.025,.033,.025)),1,(.15,-.08,.05),2)
-add('Pump bearing end covers',1,combine(ring(-.415,.014,.083,.03),ring(-.176,.014,.083,.024)),0,(.10,-.16,0),2,'cover')
-add('Pump casing bolt and washer set',wet,combine(orbitboxes(-.704,.153,8,(.025,.014,.014)),orbitboxes(-.69,.153,8,(.003,.023,.023))),1,(-.38,0,0),16,detail='Eight hex-size bolts and eight washers represented as one selectable set; threads omitted.')
+add('Pump bearing spacers',1,unite(ann(-.325,.045,.032,.0251),ann(-.25,.025,.033,.0251)),1,(.15,-.08,.05),2)
+add('Pump bearing end covers',1,unite(holes(ann(-.412,.014,.083,.03),-.412,.03,.071,4,.0035),holes(ann(-.178,.014,.083,.024),-.178,.03,.071,4,.0035)),0,(.1,-.16,0),2,'cover')
+# Eight through bolts hold the cover/casing/backplate; head and washer touch the face.
+fas=unite(fasteners(-.5795,.235,.166,8),*around(shift(ann(-.469,.008,.0075,.0042,n=6,b=.0005),.166),8),*around(shift(ann(-.474,.002,.009,.0043,24,b=.0002),.166),8)).translate((0,-.25,0)).rotate((22.5,0,0)).translate((0,.25,0))
+add('Pump casing bolt and washer set',wet,fas,1,(-.38,0,0),32,detail='Eight M8 illustrative through bolts, eight nuts and sixteen washers, matched drilled circle; threads omitted.')
 coupling=add('Flexible coupling',0,move=(0,0,.34))
-add('Pump coupling hub',coupling,ring(-.087,.075,.067,.022),1,(-.09,0,0))
-add('Motor coupling hub',coupling,ring(.018,.075,.067,.022),1,(.09,0,0))
-add('Elastomer coupling spider',coupling,combine(ring(-.034,.023,.041,.023),orbitboxes(-.034,.046,6,(.023,.026,.026))),4,(0,.12,0))
-add('Coupling safety guard',coupling,lathe([(-.12,.096),(.12,.096),(.12,.100),(-.12,.100)],(-.035,.25,0)),5,(0,0,-.40),role='cover')
-# Motor actual internals; the windings are solid copper bundles, not a texture.
-housing=add('Motor finned housing',2,combine(ring(.42,.43,.145,.127),*[ring(.42+(i-7)*.027,.005,.162,.143) for i in range(15)]),0,(0,0,-.38),role='housing')
+def jaw_sector(x,length,ri,ro,angle,width):
+ pts=[(r*math.cos(t),r*math.sin(t)) for r,ts in [(ro,np.linspace(angle-width/2,angle+width/2,7)),(ri,np.linspace(angle+width/2,angle-width/2,7))] for t in ts]
+ return M.extrude(C([pts],md.FillRule.NonZero),length).rotate((0,90,0)).translate((x-length/2,.25,0))
+def hub(x,left):
+ body=ann(x,.055,.052,.0221)
+ jaws=[jaw_sector(-.0425 if left else -.0275,.065,.035,.060,TAU*i/3+(0 if left else math.pi/3),math.radians(26)) for i in range(3)]
+ body=unite(body,*jaws)-cube((x,.273,0),(.08,.007,.008),.0003)
+ bore=M.cylinder(.04,.0031,circular_segments=20,center=True).rotate((90,0,0)).translate((x,.29,0))
+ return body-bore
+add('Pump coupling hub',coupling,hub(-.097,True),1,(-.09,0,0))
+add('Motor coupling hub',coupling,hub(.027,False),1,(.09,0,0))
+spider=unite(ann(-.035,.022,.035,.023),*[jaw_sector(-.035,.022,.035,.057,TAU*(i+.5)/6,math.radians(34)) for i in range(6)])
+add('Elastomer coupling spider',coupling,spider,4,(0,.12,0))
+# Open bottom guard with integral drilled mounting flanges.
+guard=ann(-.035,.24,.100,.096)-cube((-.035,.15,0),(.3,.17,.3),.0001)
+for z in [-.105,.105]:
+ foot=cube((-.035,.172,z),(.26,.006,.027))
+ for x in [-.13,.06]:foot=foot-M.cylinder(.03,.0035, circular_segments=20,center=True).rotate((90,0,0)).translate((x,.172,z))
+ guard=unite(guard,foot)
+add('Coupling safety guard',coupling,guard,5,(0,0,-.4),role='cover',detail='4 mm open-bottom shell, removable on four drilled flange mounts and brackets.')
+add('Shaft keys and retention',coupling,unite(cube((-.08,.273,0),(.045,.006,.008),.0004),cube((.038,.273,0),(.04,.006,.008),.0004),*[M.cylinder(.027,.003,circular_segments=16,center=True).rotate((90,0,0)).translate((x,.2895,0)) for x in [-.097,.027]]),1,(0,.09,0),4,detail='Two fitted keys and two radial set screws in matching hub bores; thread helices omitted.')
+# Motor: 0.8 mm minimum rotor/stator running gap, 24 slots, 12 full-pitch equivalent bundles.
+housing=unite(ann(.42,.43,.145,.129),*[ann(.42+(i-7)*.027,.005,.162,.143) for i in range(15)])
+add('Motor finned housing',2,housing,0,(0,0,-.38),role='housing')
 stator=add('Stator assembly',2,move=(0,.24,0))
-add('Stator laminated core',stator,ring(.42,.36,.125,.095),7,(0,.1,0))
-teeth=[]
-for i in range(24):
- t=TAU*i/24;teeth.append(sweep([(.245,.25+.088*math.cos(t),.088*math.sin(t)),(.595,.25+.088*math.cos(t),.088*math.sin(t))],.007,6))
-add('Stator teeth',stator,combine(*teeth),7,(0,.16,0),24)
+add('Stator laminated core',stator,ann(.42,.34,.127,.108,144,b=.0003),7,(0,.1,0))
+def sector(ri,ro,a,width):
+ pts=[(r*math.cos(t),r*math.sin(t)) for r,ts in [(ro,np.linspace(a-width/2,a+width/2,7)),(ri,np.linspace(a+width/2,a-width/2,7))] for t in ts]
+ return M.extrude(C([pts],md.FillRule.NonZero),.34).rotate((0,90,0)).translate((.25,.25,0))
+add('Stator teeth',stator,unite(*[sector(.0813,.1084,TAU*i/24,math.radians(10)) for i in range(24)]),7,(0,.16,0),24)
 for phase in range(3):
  coils=[]
- for j in range(8):
-  t=TAU*(j*3+phase)/24;dt=.085
-  for strand in range(3):
-   r=.104+strand*.0037;points=[]
-   for k in range(65):
-    a=TAU*k/64;x=.42+.205*math.cos(a);ang=t+dt*math.sin(a);points.append((x,.25+r*math.cos(ang),r*math.sin(ang)))
-   coils.append(sweep(points,.00165,6))
- add('Winding phase '+str(phase+1),stator,combine(*coils),3,(0,.22+phase*.055,0),8,detail='Eight coil bundles with three visible conductor paths each; illustrative insulation omitted.')
+ for j in range(4):
+  k=j*3+phase;t=TAU*(k+.5)/24;r=.100;re=.114+phase*.002
+  left=.243-k*.0054;right=.608+k*.0054
+  # Each closed path has two straight slot legs and end turns outside the stack.
+  points=[(left,.25+r*math.cos(t),r*math.sin(t)),(right,.25+r*math.cos(t),r*math.sin(t))]
+  points.extend((right,.25+rr*math.cos(t),rr*math.sin(t)) for rr in [re])
+  points.extend((right,.25+re*math.cos(a),re*math.sin(a)) for a in np.linspace(t,t+math.pi,37)[1:])
+  points.extend((right,.25+rr*math.cos(t+math.pi),rr*math.sin(t+math.pi)) for rr in [r])
+  points.append((left,.25+r*math.cos(t+math.pi),r*math.sin(t+math.pi)))
+  points.extend((left,.25+rr*math.cos(t+math.pi),rr*math.sin(t+math.pi)) for rr in [re])
+  points.extend((left,.25+re*math.cos(a),re*math.sin(a)) for a in np.linspace(t+math.pi,t+TAU,37)[1:])
+  points.extend((left,.25+rr*math.cos(t),rr*math.sin(t)) for rr in [])
+  coils.append(tube(rounded(points),.0023,8,True))
+ add('Winding phase '+str(phase+1),stator,unite(*coils),3,(0,.22+phase*.055,0),4,detail='Four closed full-pitch equivalent conductor bundles per phase; 24 occupied slots. End turns lie outside lamination stack on separated axial planes. Individual wire turns and insulating varnish not resolved.')
 rotor=add('Rotor assembly',2,move=(.1,0,.2))
-add('Motor shaft',rotor,lathe([(-.40,.001),(-.40,.022),(-.20,.022),(-.20,.025),(.20,.025),(.20,.022),(.35,.022),(.35,.001)],(.42,.25,0)),1,(.22,0,0))
-add('Rotor laminated core',rotor,ring(.42,.345,.075,.0255),7,(0,0,.11))
+ms=rev([(.002,0),(.002,.022),(.20,.022),(.20,.025),(.64,.025),(.64,.022),(.78,.022),(.78,0)])-cube((.038,.272,0),(.045,.008,.008),.0004)
+add('Motor shaft',rotor,ms,1,(.22,0,0))
+core=ann(.42,.34,.079,.0251,96)
 bars=[]
 for i in range(28):
- bars.append(sweep([(.25+.34*j/12,.25+.076*math.cos(TAU*i/28+.10*j/12),.076*math.sin(TAU*i/28+.10*j/12)) for j in range(13)],.003,8))
-add('Squirrel cage rotor bars',rotor,combine(*bars),1,(0,0,.17),28)
-add('Rotor end rings',rotor,combine(ring(.244,.012,.080,.063),ring(.596,.012,.080,.063)),1,(.06,0,.17),2)
-bearing('Motor DE bearing',2,.19,(-.12,.12,.14));bearing('Motor NDE bearing',2,.66,(.17,.12,.14))
-add('Motor DE end shield',2,lathe([(-.027,.023),(.027,.023),(.027,.063),(.012,.063),(.012,.144),(-.002,.15),(-.014,.144),(-.014,.07),(-.027,.065)],(.19,.25,0)),0,(-.24,0,0),role='cover')
-add('Motor NDE end shield',2,ring(.66,.03,.145,.023),0,(.24,0,0),role='cover')
-fan=add('Cooling fan',2,combine(ring(.725,.018,.047,.022),orbitboxes(.724,.074,12,(.018,.04,.014))),4,(.33,0,0),13,detail='Hub and twelve fan paddles grouped.')
-add('Fan cover',2,combine(ring(.752,.075,.16,.153),ring(.795,.005,.153,.03),orbitboxes(.80,.094,16,(.005,.105,.003))),0,(.44,0,0),role='cover',detail='Illustrative closed annular cover and radial grille members; ventilation opening represented by central bore.')
-add('Motor tie bolts',2,orbitboxes(.43,.133,4,(.52,.009,.009)),1,(.32,-.14,0),4)
-add('Motor terminal box',2,combine(box((.43,.435,0),(.19,.09,.17)),box((.43,.484,0),(.205,.008,.185))),0,(0,.34,0),2,'cover')
-add('Motor mounting feet',2,combine(box((.29,.079,.12),(.12,.065,.07)),box((.55,.079,.12),(.12,.065,.07)),box((.29,.079,-.12),(.12,.065,.07)),box((.55,.079,-.12),(.12,.065,.07))),0,(0,-.08,0),4)
-add('Pump support pedestal',1,combine(box((-.295,.09,0),(.19,.11,.18)),box((-.58,.08,0),(.10,.10,.19))),0,(0,-.09,0),2)
-add('Machined baseplate',0,box((0,.025,0),(1.88,.04,.51)),2,(0,-.19,0),role='structural')
-add('Mounting fasteners',0,combine(*[box((x,.060,z),(.026,.025,.026)) for x in [-.6,-.29,.29,.55] for z in [-.15,.15]]),1,(0,-.10,.1),8)
+ pts=[(.25+.34*j/12,.25+.075*math.cos(TAU*i/28+.10*j/12),.075*math.sin(TAU*i/28+.10*j/12)) for j in range(13)]
+ bars.append(tube(pts,.0028,8));core=core-tube(pts,.003,8)
+add('Rotor laminated core',rotor,core,7,(0,0,.11))
+add('Squirrel cage rotor bars',rotor,unite(*bars),1,(0,0,.17),28,detail='28 skewed conductor bars in matching core openings, joined to two end rings.')
+add('Rotor end rings',rotor,unite(ann(.244,.012,.0805,.063),ann(.596,.012,.0805,.063)),1,(.06,0,.17),2)
+bearing('Motor DE bearing',2,.158,(-.12,.12,.14));bearing('Motor NDE bearing',2,.711,(.17,.12,.14))
+def shield(x,reverse=False):
+ shell=ann(x,.010,.145,.023)
+ boss=ann(x+(-.021 if reverse else .022),.034,.070,.06115)
+ end=.635 if reverse else .205
+ cup=ann((x+end)/2,abs(end-x),.145,.129)
+ return holes(unite(shell,boss,cup),x,.12,.136,4,.0048,math.pi/4)
+add('Motor DE end shield',2,shield(.132),0,(-.24,0,0),role='cover')
+add('Motor NDE end shield',2,shield(.741,True),0,(.24,0,0),role='cover')
+fan=unite(ann(.766,.015,.041,.0221),*around(cube((.766,.328,0),(.017,.073,.008)),12))
+add('Cooling fan',2,fan,4,(.33,0,0),13,detail='Hub plus 12 radial paddles, inside ventilated cover.')
+fc=unite(ann(.784,.082,.16,.153),ann(.827,.005,.153,.027))
+# Sixteen radial through slots leave a ring at centre and outer rim.
+for i in range(16):
+ slot=cube((.828,.344,0),(.02,.092,.013),.0015).translate((0,-.25,0)).rotate((i*22.5,0,0)).translate((0,.25,0));fc=fc-slot
+# Sidewall ventilation around the shell, distinct from front grille.
+for i in range(12):
+ slot=cube((.785,.405,0),(.037,.03,.018),.002).translate((0,-.25,0)).rotate((i*30,0,0)).translate((0,.25,0));fc=fc-slot
+add('Fan cover',2,fc,0,(.44,0,0),role='cover',detail='7 mm shell; sixteen true front grille slots and twelve side ventilation openings.')
+add('Motor tie bolts',2,unite(*[b.translate((0,-.25,0)).rotate((45,0,0)).translate((0,.25,0)) for b in around(shift(bolt(.435,.59),.136),4)]),1,(.32,-.14,0),4)
+# Preserve terminal-box ID while separating cover, hollow body and terminal hardware.
+terminal=add('Motor terminal box',2,move=(0,.34,0))
+body=cube((.43,.448,0),(.19,.086,.17),.003)-cube((.43,.455,0),(.178,.084,.158),.001)
+# Cable entry through side wall.
+body=body-M.cylinder(.03,.014,circular_segments=32,center=True).translate((.43,.444,.082))
+add('Terminal box body',terminal,body,0,(0,.03,0),role='housing')
+cover=cube((.43,.495,0),(.204,.008,.184),.002)
+for x in [.346,.514]:
+ for z in [-.074,.074]:cover=cover-M.cylinder(.02,.0035,circular_segments=20,center=True).rotate((90,0,0)).translate((x,.495,z))
+add('Terminal box cover',terminal,cover,0,(0,.13,0),role='cover')
+add('Terminal board',terminal,cube((.43,.423,0),(.13,.009,.10)),6,(0,.045,0))
+add('Terminal studs and links',terminal,unite(*[M.cylinder(.021,.004,circular_segments=12,center=True).rotate((90,0,0)).translate((x,.439,z)) for x in [.385,.43,.475] for z in [-.027,.027]],*[cube((x,.444,0),(.013,.003,.061),.0005) for x in [.385,.43,.475]]),5,(0,.075,0),9)
+feet=[]
+for x in [.29,.55]:
+ for z in [-.12,.12]:
+  f=cube((x,.077,z),(.12,.064,.078),.003)
+  web=cube((x,.132,z),(.085,.08,.040),.002)-cyl(x,.2,.145)
+  f=unite(f,web)
+  f=f-M.cylinder(.10,.0065,circular_segments=24,center=True).rotate((90,0,0)).translate((x,.077,z));feet.append(f-solids['Motor finned housing'])
+add('Motor mounting feet',2,unite(*feet),0,(0,-.08,0),4)
+ped=[]
+for x,w,top in [(-.295,.19,.185),(-.58,.10,.095)]:
+ p=cube((x,(top+.045)/2,0),(w,top-.045,.31),.002)
+ p=p-(solids['Pump bearing carrier'] if x==-.295 else solids['Volute casing'])
+ for z in [-.12,.12]:p=p-M.cylinder(.15,.0065,circular_segments=24,center=True).rotate((90,0,0)).translate((x,.096,z))
+ ped.append(p)
+add('Pump support pedestal',1,unite(*ped),0,(0,-.09,0),2)
+base=cube((0,.025,0),(1.88,.04,.51),.006)
+for x in [-.58,-.295,.29,.55]:
+ for z in [-.12,.12]:base=base-M.cylinder(.1,.0065,circular_segments=24,center=True).rotate((90,0,0)).translate((x,.025,z))
+add('Machined baseplate',0,base,2,(0,-.19,0),role='structural')
+mount=[]
+for x,top in [(-.58,.095),(-.295,.185),(.29,.109),(.55,.109)]:
+ for z in [-.12,.12]:
+  # Vertical bolt from plate underside to upper pad; head at upper face.
+  b=bolt(0,top-.025,.006).translate((0,-.25,0)).rotate((0,0,-90)).translate((x,(top+.025)/2+.002,z))
+  w=M.cylinder(.002,.012,circular_segments=24,center=True).rotate((90,0,0)).translate((x,top+.001,z))-M.cylinder(.01,.0065,circular_segments=24,center=True).rotate((90,0,0)).translate((x,top+.001,z))
+  mount.extend([b,w])
+add('Mounting fasteners',0,unite(*mount),1,(0,-.10,.1),16)
+# Add matching gland/end-cover retention screws and actual guard brackets.
+add('Seal gland screws',seal,fasteners(-.401,.024,.053,4,.003),1,(.18,0,0),8)
+add('Guard mounting brackets',coupling,unite(*[cube((x,.107,z),(.03,.124,.03)) for x in [-.13,.06] for z in [-.105,.105]]),2,(0,-.08,0),4)
 
-gltf={'asset':{'version':'2.0','generator':'Smart Factory original reference 3; MIT'},'scene':0,'scenes':[{'nodes':[0]}],'nodes':nodes,'meshes':meshes,'materials':materials,'buffers':[{'byteLength':len(binary)}],'bufferViews':views,'accessors':accessors}
+add('Seal chamber and seat support',1,unite(ann(-.443,.082,.080,.047),ann(-.444,.013,.048,.0431)),0,(0,0,-.24),role='housing',detail='Hollow chamber connects the back plate and gland; ceramic seat retained at the bore shoulder.')
+add('Seal shaft retaining collar',seal,ann(-.414,.006,.042,.0291),1,(.2,0,0))
+add('Coupling guard screws',coupling,unite(*[bolt(0,.019,.003).translate((0,-.25,0)).rotate((0,0,-90)).translate((x,.1665,z)) for x in [-.13,.06] for z in [-.105,.105]]),1,(0,.10,0),4)
+add('Terminal cover screws',terminal,unite(*[bolt(0,.02,.003).translate((0,-.25,0)).rotate((0,0,-90)).translate((x,.489,z)) for x in [.346,.514] for z in [-.074,.074]]),1,(0,.16,0),4)
+gap('Pump stepped shaft','Pump DE bearing inner race',.00009,'Pump DE journal/bore')
+gap('Pump stepped shaft','Pump NDE bearing inner race',.00009,'Pump NDE journal/bore')
+gap('Pump support pedestal','Volute casing',0,'Front saddle/casing contact')
+gap('Pump support pedestal','Pump bearing carrier',0,'Rear saddle/carrier contact')
+gap('Motor mounting feet','Motor finned housing',0,'Motor feet/housing contact')
+# Mechanical checks use authored solids, not assertions on labels or triangle count.
+for phase in range(1,4):
+ for part in ['Motor finned housing','Stator laminated core','Stator teeth','Rotor laminated core','Rotor end rings','Motor DE end shield','Motor NDE end shield']:
+  gap('Winding phase '+str(phase),part,.0001,f'Phase {phase} / {part}')
+for i in [1,2]:
+ for j in range(i+1,4):gap('Winding phase '+str(i),'Winding phase '+str(j),.0001,f'Phase {i}/{j} bundle separation')
+gap('Rotor end rings','Stator teeth',.0007,'Minimum end-ring air gap')
+gap('Impeller front shroud','Volute casing',.005,'Impeller/casing running clearance')
+checks.append(dict(check='Connected wet-end void including discharge',passed=len(void.decompose())==1,connectedVolumes=len(void.decompose())))
+previous=json.loads((ROOT/'revisions/3/template.json').read_text())
+assert {p['templateComponentId'] for p in previous['components']} <= {p['templateComponentId'] for p in components}, 'lost v3 IDs'
+for c in components[:3]:c['inventoryKind']='assembly';c['designation']='PM-ILL-4' if c['name']=='Assembly' else c['designation']
+assert all(c['passed'] for c in checks),[c for c in checks if not c['passed']]
+# Fine geometry is exported once per selectable set; no external URI or texture.
+gltf={'asset':{'version':'2.0','generator':'Smart Factory original constructive reference 4; MIT'},'scene':0,'scenes':[{'nodes':[0]}],'nodes':nodes,'meshes':meshes,'materials':materials,'buffers':[{'byteLength':len(binary)}],'bufferViews':views,'accessors':accessors}
 js=json.dumps(gltf,separators=(',',':')).encode();js+=b' '*((-len(js))%4)
 glb=struct.pack('<4sII',b'glTF',2,28+len(js)+len(binary))+struct.pack('<I4s',len(js),b'JSON')+js+struct.pack('<I4s',len(binary),b'BIN\0')+binary
 (ROOT/'pump-motor.glb').write_bytes(glb)
-local=json.loads((ROOT/'local-template.json').read_text());local.update(revision='smart-factory-illustrative-pump-motor-3',name='Detailed illustrative overhung pump and TEFC motor',components=components,sha256=hashlib.sha256(glb).hexdigest(),status='Detailed illustrative reference; no manufacturer or service-sequence claim',provenance='Original parametric Smart Factory geometry; scripts/equipment/reference_geometry.py; MIT. General construction references in docs/equipment-reference.md.');(ROOT/'local-template.json').write_text(json.dumps(local,indent=2)+'\n')
-bom={'design':'Illustrative single-stage overhung end-suction pump, flexible coupling, TEFC squirrel-cage induction motor','rights':'Original geometry MIT; reference articles not redistributed','parts':components,'unavailable':['Manufacturer-specific tolerances, fits, fastener threads, insulation films, lubrication channels and electrical connection detail.'], 'inapplicable':['No gearbox, reciprocating parts, packed gland or external seal-flush system in this illustrative design.']}
+local=json.loads((ROOT/'local-template.json').read_text());local.update(revision='smart-factory-illustrative-pump-motor-4',name='Detailed illustrative overhung pump and TEFC motor',components=components,sha256=hashlib.sha256(glb).hexdigest(),status='Original illustrative constructive reference; no manufacturer verification',provenance='Original Smart Factory parametric constructive solids; MIT; scripts/equipment/reference_geometry.py.');(ROOT/'local-template.json').write_text(json.dumps(local,indent=2)+'\n')
+bom={'design':'Illustrative overhung end-suction pump / jaw coupling / TEFC induction motor','rights':'Original MIT geometry; ordinary Manifold3D authoring dependency, no supplier CAD','units':'m','shaftAxis':'+X','upAxis':'+Y','parts':components,'simplifications':['Collecting chamber uses a stepped spiral approximation with eccentric shell; no hydraulic performance claim.','Equivalent 12 closed copper bundles, not turn-by-turn electrical winding; slot liner films and phase lead routing unresolved.','Fastener thread helices omitted; shaft and coupling keys representative, no fit class or torque rating.','No manufacturer dimensional, strength, thermal, electrical or pressure verification.','Seals/bearing interference and preload not certified; numerical checks cover stated illustrative clearances only.']}
 (ROOT/'reference-bom.json').write_text(json.dumps(bom,indent=2)+'\n')
-print(f'Reference 3: {len(components)} selectable BOM entries, {sum(a["count"]//3 for a in accessors if a["type"]=="SCALAR")} triangles, {len(glb)} bytes')
+audit={'revision':local['revision'],'sha256':local['sha256'],'triangles':sum(a['count']//3 for a in accessors if a['type']=='SCALAR'),'bytes':len(glb),'inventory':{'selectableEntries':len(components),'assemblies':sum(c['inventoryKind']=='assembly' for c in components),'individualParts':sum(c['inventoryKind']=='individual part' for c in components),'repeatedSets':sum(c['inventoryKind']=='repeated part set' for c in components)},'solidValidation':{'method':'Manifold3D status and positive volume for every exported solid','solids':len(solids),'passed':True},'checks':checks,'limitations':bom['simplifications']}
+(ROOT/'geometry-audit.json').write_text(json.dumps(audit,indent=2)+'\n')
+assert all(c['passed'] for c in checks),[c for c in checks if not c['passed']]
+print(f'Reference 4: {audit["inventory"]}, {audit["triangles"]} triangles, {len(glb)} bytes; {sum(c["passed"] for c in checks)}/{len(checks)} clearance/continuity checks')

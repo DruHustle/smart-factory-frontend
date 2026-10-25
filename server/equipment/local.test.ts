@@ -57,7 +57,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         expect(preview.reviewToken).toBe(
           (await modelChange(created.id, t.revision, 1)).reviewToken,
         );
-        expect(preview.components).toHaveLength(76);
+        expect(preview.components).toHaveLength(t.components.length);
         await replaceModel(created.id, t.revision, 1, preview.reviewToken, 5);
         const after = await workspace(created.id);
         for (const c of before.components)
@@ -68,7 +68,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           ).toBe(c.installedComponentId);
         expect(
           new Set(after.components.map((c) => c.installedComponentId)).size,
-        ).toBe(76);
+        ).toBe(t.components.length);
       } finally {
         const db = await database();
         await db.execute(

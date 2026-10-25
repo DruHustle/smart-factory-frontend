@@ -97,7 +97,7 @@ export default function ModelImport() {
         <label className="block text-sm">
           Mapping manifest JSON
           <Textarea
-            className="mt-1 min-h-64 font-mono text-xs"
+            className="mt-1 h-72 max-h-96 field-sizing-fixed overflow-y-auto font-mono text-xs"
             required
             value={text}
             onChange={(e) => setText(e.target.value)}

@@ -1,8 +1,8 @@
 {
   "status": "proposed mappings; no consumer model contract",
-  "revision": "illustrative-3",
+  "revision": "illustrative-4",
   "file": "pump-motor.glb",
-  "sha256": "bf93cc0217df96d77e5fda0cef6635c21e8e7223b628d5418b6ae5fde76624a8",
+  "sha256": "b01095ebbe7c0cd221466840ced69666391f6e5c0bd88ad9dc6b8195fec15291",
   "provenance": "Self-authored by Smart Factory integration fixture generator; repository MIT license",
   "units": "m",
   "handedness": "right",
@@ -30,7 +30,7 @@
   "equipment": [
     {
       "equipmentId": "7e7ae5f7-b919-59a4-8231-9f6dd25cc658",
-      "modelRevision": "illustrative-3",
+      "modelRevision": "illustrative-4",
       "nodes": [
         {
           "componentId": "b82c5e5e-59ba-59a3-8b24-38d130c33379",
@@ -58,7 +58,7 @@
     },
     {
       "equipmentId": "d3a9a9cc-034e-5a4c-91f3-fee6c219b06e",
-      "modelRevision": "illustrative-3",
+      "modelRevision": "illustrative-4",
       "nodes": [
         {
           "componentId": "4d168303-3dda-5b08-ab0a-122eaa6ce351",
@@ -89,7 +89,7 @@
     {
       "file": "maintenance.txt",
       "revision": "1",
-      "sha256": "d8eb729b65c5c2de3e5e9b634fac4ca7e0b173d4979b14b3bc8dc8b854aaf469",
+      "sha256": "47187a7d50b80408459ba32a71ee86edb3ce8b323fa556c4e0619a6c7dbe5f4d",
       "rights": "Original synthetic reference; repository MIT license"
     }
   ],

@@ -1,0 +1,332 @@
+{
+  "revision": "smart-factory-illustrative-pump-motor-4",
+  "sha256": "b01095ebbe7c0cd221466840ced69666391f6e5c0bd88ad9dc6b8195fec15291",
+  "triangles": 181594,
+  "bytes": 6252324,
+  "inventory": {
+    "selectableEntries": 87,
+    "assemblies": 15,
+    "individualParts": 46,
+    "repeatedSets": 26
+  },
+  "solidValidation": {
+    "method": "Manifold3D status and positive volume for every exported solid",
+    "solids": 72,
+    "passed": true
+  },
+  "checks": [
+    {
+      "check": "Pump DE bearing ball/inner groove",
+      "minimumMetres": 2e-05,
+      "measuredMetres": 0.00027942027823288254,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Pump DE bearing ball/outer groove",
+      "minimumMetres": 2e-05,
+      "measuredMetres": 0.0002351505894822583,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Pump DE bearing cage clearance",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0009999979734420794,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Pump NDE bearing ball/inner groove",
+      "minimumMetres": 2e-05,
+      "measuredMetres": 0.0002794202782328976,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Pump NDE bearing ball/outer groove",
+      "minimumMetres": 2e-05,
+      "measuredMetres": 0.00023515058948226332,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Pump NDE bearing cage clearance",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0009999979734420794,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Motor DE bearing ball/inner groove",
+      "minimumMetres": 2e-05,
+      "measuredMetres": 0.0002794202782328976,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Motor DE bearing ball/outer groove",
+      "minimumMetres": 2e-05,
+      "measuredMetres": 0.00023515058948226332,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Motor DE bearing cage clearance",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0009999979734420794,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Motor NDE bearing ball/inner groove",
+      "minimumMetres": 2e-05,
+      "measuredMetres": 0.00027942027823288254,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Motor NDE bearing ball/outer groove",
+      "minimumMetres": 2e-05,
+      "measuredMetres": 0.0002351505894822583,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Motor NDE bearing cage clearance",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0009999979734420794,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Pump DE journal/bore",
+      "minimumMetres": 9e-05,
+      "measuredMetres": 9.988123635336514e-05,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Pump NDE journal/bore",
+      "minimumMetres": 9e-05,
+      "measuredMetres": 9.988123635336463e-05,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Front saddle/casing contact",
+      "minimumMetres": 0,
+      "measuredMetres": 0.0,
+      "intersectionCubicMetres": -6.1740760920957986e-21,
+      "passed": true
+    },
+    {
+      "check": "Rear saddle/carrier contact",
+      "minimumMetres": 0,
+      "measuredMetres": 0.0,
+      "intersectionCubicMetres": 1.1514354126738145e-21,
+      "passed": true
+    },
+    {
+      "check": "Motor feet/housing contact",
+      "minimumMetres": 0,
+      "measuredMetres": 0.0,
+      "intersectionCubicMetres": 5.1736011412129116e-21,
+      "passed": true
+    },
+    {
+      "check": "Phase 1 / Motor finned housing",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 1 / Stator laminated core",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 1 / Stator teeth",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0020641204456074624,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 1 / Rotor laminated core",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 1 / Rotor end rings",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 1 / Motor DE end shield",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 1 / Motor NDE end shield",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 2 / Motor finned housing",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 2 / Stator laminated core",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 2 / Stator teeth",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.00206412425155184,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 2 / Rotor laminated core",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 2 / Rotor end rings",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 2 / Motor DE end shield",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 2 / Motor NDE end shield",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 3 / Motor finned housing",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 3 / Stator laminated core",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 3 / Stator teeth",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.002064120445607473,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 3 / Rotor laminated core",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 3 / Rotor end rings",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 3 / Motor DE end shield",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 3 / Motor NDE end shield",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0021,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 1/2 bundle separation",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0007999539375305176,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 1/3 bundle separation",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0007999539375305176,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Phase 2/3 bundle separation",
+      "minimumMetres": 0.0001,
+      "measuredMetres": 0.0007999539375305176,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Minimum end-ring air gap",
+      "minimumMetres": 0.0007,
+      "measuredMetres": 0.001268213452661875,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Impeller/casing running clearance",
+      "minimumMetres": 0.005,
+      "measuredMetres": 0.006998855293720217,
+      "intersectionCubicMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Connected wet-end void including discharge",
+      "passed": true,
+      "connectedVolumes": 1
+    }
+  ],
+  "limitations": [
+    "Collecting chamber uses a stepped spiral approximation with eccentric shell; no hydraulic performance claim.",
+    "Equivalent 12 closed copper bundles, not turn-by-turn electrical winding; slot liner films and phase lead routing unresolved.",
+    "Fastener thread helices omitted; shaft and coupling keys representative, no fit class or torque rating.",
+    "No manufacturer dimensional, strength, thermal, electrical or pressure verification.",
+    "Seals/bearing interference and preload not certified; numerical checks cover stated illustrative clearances only."
+  ]
+}

@@ -8,6 +8,8 @@ import {
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { measureOrbit } from "./benchmark";
+import { frameBounds, visibleBounds } from "./framing";
 import { Button } from "@/components/ui/button";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
@@ -83,7 +85,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         nodes: Map<string, THREE.Object3D>;
         scene: THREE.Scene;
         model: THREE.Group;
-        selection: THREE.BoxHelper;
+        focus: (node: THREE.Object3D) => void;
         markers: THREE.Group;
         inspector: InspectionScene;
         renderer: THREE.WebGLRenderer;
@@ -92,6 +94,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
     const [inspection, setInspection] = useState<InspectionState>({
       ...defaultInspection,
     });
+    const [labels, setLabels] = useState(false);
     const [performanceReport, setPerformanceReport] = useState("");
     const [measuring, setMeasuring] = useState(false);
     const inspectionRef = useRef(inspection);
@@ -107,6 +110,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       [hidden, setHidden] = useState<string[]>([]),
       [isolated, setIsolated] = useState<string | null>(null),
       [transparent, setTransparent] = useState(false);
+    const transparentRef = useRef(transparent);
+    transparentRef.current = transparent;
     const hiddenRef = useRef(hidden);
     hiddenRef.current = hidden;
     const isolatedRef = useRef(isolated);
@@ -122,6 +127,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                 target: r.controls.target.toArray(),
                 viewer: {
                   ...inspectionRef.current,
+                  opacity: transparentRef.current ? 0.32 : 1,
                   selected: latest.current.selected,
                   hidden: hiddenRef.current,
                   isolated: isolatedRef.current,
@@ -138,7 +144,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             [...v.eye, ...v.target].every(Number.isFinite)
           ) {
             if (v.viewer) {
-              setInspection(v.viewer);
+              setInspection({ ...defaultInspection, ...v.viewer });
+              setTransparent((v.viewer.opacity ?? 1) < 1);
               setHidden(v.viewer.hidden);
               setIsolated(v.viewer.isolated);
               if (v.viewer.selected) latest.current.onSelect(v.viewer.selected);
@@ -162,6 +169,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         scene: THREE.Scene | undefined,
         observer: ResizeObserver | undefined,
         loaded: THREE.Group | undefined;
+      const loadStarted = performance.now();
       const abort = new AbortController();
       const timeout = setTimeout(() => abort.abort(), 20000);
       const cleanupCallbacks: Array<() => void> = [];
@@ -186,7 +194,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         clearTimeout(timeout);
         return;
       }
-      const gl = renderer.getContext(),
+      const gl = renderer.getContext() as WebGL2RenderingContext,
         debug = gl.getExtension("WEBGL_debug_renderer_info");
       const graphics = debug
         ? String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL))
@@ -213,9 +221,19 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       const currentRenderer = renderer,
         currentScene = scene,
         currentControls = controls;
+      let gpuFence: WebGLSync | null = null;
       const render = () => {
         if (disposed || frame) return;
-        frame = requestAnimationFrame(() => {
+        const draw = () => {
+          if (gpuFence && !gl.isContextLost()) {
+            const status = gl.clientWaitSync(gpuFence, 0, 0);
+            if (status === gl.TIMEOUT_EXPIRED) {
+              frame = requestAnimationFrame(draw);
+              return;
+            }
+            gl.deleteSync(gpuFence);
+            gpuFence = null;
+          }
           frame = 0;
           if (!disposed) {
             const r = runtime.current;
@@ -223,7 +241,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
               const selected = latest.current.selected
                 ? r.nodes.get(latest.current.selected)
                 : null;
-              if (selected) r.selection.setFromObject(selected);
+
               for (const marker of r.markers.children) {
                 const node = r.nodes.get(marker.userData.installedComponentId);
                 if (node) {
@@ -246,14 +264,26 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                   label.current.style.top = `${Math.max(3, Math.min(90, (-point.y + 1) * 50))}%`;
                 }
               }
+              container.dataset.viewpoint = JSON.stringify({
+                eye: camera.position.toArray(),
+                target: currentControls.target.toArray(),
+              });
               container.dataset.inspection = JSON.stringify(
                 r.inspector.diagnostics(),
               );
             }
             currentRenderer.render(currentScene, camera);
+            if (software && !gl.isContextLost()) {
+              gpuFence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+              gl.flush();
+            }
           }
-        });
+        };
+        frame = requestAnimationFrame(draw);
       };
+      cleanupCallbacks.push(() => {
+        if (gpuFence && !gl.isContextLost()) gl.deleteSync(gpuFence);
+      });
       const theme = () => {
         const light = !document.documentElement.classList.contains("dark");
         currentScene.background = new THREE.Color(
@@ -295,9 +325,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       ground.position.y = 0.003;
       ground.receiveShadow = true;
       scene.add(ground);
-      const selection = new THREE.BoxHelper(new THREE.Object3D(), 0x8b5cf6);
-      selection.visible = false;
-      scene.add(selection);
+
       const markers = new THREE.Group();
       scene.add(markers);
       const resize = () => {
@@ -415,6 +443,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                   : 5,
               );
           }
+          container.dataset.modelBytes = String(received);
           const bytes = new Uint8Array(received);
           let offset = 0;
           chunks.forEach((c) => {
@@ -460,30 +489,34 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             }
           });
           currentScene.add(loaded);
-          const fitBox = (box: THREE.Box3) => {
-            const size = box.getSize(new THREE.Vector3()).length() || 1,
-              center = box.getCenter(new THREE.Vector3()),
-              distance =
-                (size /
-                  (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)))) *
-                1.25;
-            camera.near = Math.max(0.001, size / 1000);
-            camera.far = Math.max(100, size * 100);
-            camera.updateProjectionMatrix();
-            camera.position
-              .copy(center)
-              .add(
-                new THREE.Vector3(1, 0.7, 1.4)
-                  .normalize()
-                  .multiplyScalar(distance),
-              );
-            currentControls.target.copy(center);
-            currentControls.minDistance = size * 0.05;
-            currentControls.maxDistance = size * 20;
+          const fitBox = (box: THREE.Box3, direction?: THREE.Vector3) => {
+            if (!frameBounds(camera, currentControls.target, box, direction))
+              return;
+            const size = box.getSize(new THREE.Vector3()).length();
+            currentControls.minDistance = Math.max(0.005, size * 0.025);
+            currentControls.maxDistance = size * 30;
             currentControls.update();
             render();
           };
-          const fit = () => fitBox(new THREE.Box3().setFromObject(loaded!));
+          const fit = () =>
+            fitBox(
+              visibleBounds(
+                loaded!,
+                inspectionRef.current.section !== "off"
+                  ? runtime.current?.inspector.plane
+                  : undefined,
+              ),
+            );
+          const focus = (node: THREE.Object3D) =>
+            fitBox(
+              visibleBounds(
+                node,
+                inspectionRef.current.section !== "off"
+                  ? runtime.current?.inspector.plane
+                  : undefined,
+              ),
+              camera.position.clone().sub(currentControls.target),
+            );
           const inspector = new InspectionScene(
             loaded,
             currentScene,
@@ -503,12 +536,15 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             nodes,
             scene: currentScene,
             model: loaded,
-            selection,
+            focus,
             markers,
             inspector,
             renderer: currentRenderer,
           };
           fit();
+          container.dataset.loadInteractiveMs = String(
+            performance.now() - loadStarted,
+          );
           setProgress(100);
           setState("ready");
         } catch (error) {
@@ -562,53 +598,17 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       if (isolated) {
         const selected = r.nodes.get(isolated);
         r.model.traverse((o) => {
-          if ((o as THREE.Mesh).isMesh) {
-            let current: THREE.Object3D | null = o,
-              allowed = false;
-            while (current) {
-              if (current === selected) {
-                allowed = true;
-                break;
-              }
-              current = current.parent;
-            }
-            o.visible = o.visible && allowed;
-          }
+          if ((o as THREE.Mesh).isMesh)
+            o.visible = o.visible && !!selected && descends(o, selected);
         });
       }
-      r.model.traverse((o) => {
-        const mesh = o as THREE.Mesh;
-        if (mesh.material)
-          for (const m of Array.isArray(mesh.material)
-            ? mesh.material
-            : [mesh.material]) {
-            m.transparent = transparent;
-            m.opacity = transparent ? 0.32 : 1;
-            m.depthWrite = !transparent;
-            m.needsUpdate = true;
-          }
-      });
       r.inspector.set({
         ...inspection,
+        opacity: transparent ? 0.32 : 1,
         selected: props.selected,
         hidden,
         isolated,
       });
-      if (transparent)
-        r.model.traverse((o) => {
-          const m = o as THREE.Mesh;
-          if (m.material)
-            for (const mat of Array.isArray(m.material)
-              ? m.material
-              : [m.material]) {
-              mat.transparent = true;
-              mat.opacity = 0.32;
-              mat.depthWrite = false;
-            }
-        });
-      const selected = props.selected ? r.nodes.get(props.selected) : null;
-      r.selection.visible = Boolean(selected);
-      if (selected) r.selection.setFromObject(selected!);
       for (const child of [...r.markers.children]) {
         r.markers.remove(child);
         disposeObject(child);
@@ -670,21 +670,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
     const focus = () => {
       const r = runtime.current,
         node = props.selected ? r?.nodes.get(props.selected) : null;
-      if (!r || !node) return;
-      const box = new THREE.Box3().setFromObject(node),
-        center = box.getCenter(new THREE.Vector3()),
-        distance = Math.max(
-          0.2,
-          box.getSize(new THREE.Vector3()).length() * 2.2,
-        );
-      const direction = r.camera.position
-        .clone()
-        .sub(r.controls.target)
-        .normalize();
-      r.camera.position.copy(center).add(direction.multiplyScalar(distance));
-      r.controls.target.copy(center);
-      r.controls.update();
-      r.render();
+      if (r && node) r.focus(node);
     };
     return (
       <div className="space-y-3">
@@ -695,6 +681,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         >
           <div
             ref={label}
+            hidden={!labels}
             className="pointer-events-none absolute z-[1] max-w-[75%] rounded bg-background/90 px-2 py-1 text-xs shadow"
             aria-hidden="true"
           />
@@ -797,6 +784,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                     setInspection((v) => ({
                       ...v,
                       explode: v.explode ? 0 : 100,
+                      immediate: false,
                     }))
                   }
                 >
@@ -812,7 +800,11 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                     max="100"
                     value={inspection.explode}
                     onChange={(e) =>
-                      setInspection((v) => ({ ...v, explode: +e.target.value }))
+                      setInspection((v) => ({
+                        ...v,
+                        explode: +e.target.value,
+                        immediate: true,
+                      }))
                     }
                   />
                 </label>
@@ -963,58 +955,194 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                 block: "center",
                 behavior: "instant",
               });
-              await new Promise<void>((resolve) =>
-                requestAnimationFrame(() =>
-                  requestAnimationFrame(() => resolve()),
-                ),
-              );
-              const samples: number[] = [];
-              let previous = performance.now();
-              for (let i = 0; i < 30 && runtime.current === r; i++)
-                await new Promise<void>((resolve) =>
-                  requestAnimationFrame((now) => {
-                    r.renderer.render(r.scene, r.camera);
-                    samples.push(now - previous);
-                    previous = now;
-                    resolve();
-                  }),
+              try {
+                const result = await measureOrbit(
+                  r,
+                  () => runtime.current === r,
+                  500,
+                  2500,
                 );
-              samples.sort((a, b) => a - b);
-              if (runtime.current === r)
-                setPerformanceReport(
-                  JSON.stringify({
-                    frames: samples.length,
-                    medianFrameMs:
-                      Math.round(samples[Math.floor(samples.length / 2)] * 10) /
-                      10,
-                    p95FrameMs:
-                      Math.round(
-                        samples[Math.floor(samples.length * 0.95)] * 10,
-                      ) / 10,
-                    drawCalls: r.renderer.info.render.calls,
-                    triangles: r.renderer.info.render.triangles,
-                    geometries: r.renderer.info.memory.geometries,
-                    textures: r.renderer.info.memory.textures,
-                    pixelRatio: r.renderer.getPixelRatio(),
-                    graphics: String(
-                      r.renderer
-                        .getContext()
-                        .getParameter(r.renderer.getContext().RENDERER),
-                    ),
-                    ...r.inspector.diagnostics(),
-                  }),
-                );
-              setMeasuring(false);
+                if (runtime.current === r)
+                  setPerformanceReport(
+                    JSON.stringify({
+                      ...result,
+                      ...r.inspector.diagnostics(),
+                      modelBytes: Number(host.current?.dataset.modelBytes),
+                      externalModelTextureBytes: 0,
+                      generatedEnvironmentTextureBytes: null,
+                      loadInteractiveMs: Number(
+                        host.current?.dataset.loadInteractiveMs,
+                      ),
+                    }),
+                  );
+              } finally {
+                setMeasuring(false);
+              }
             }}
           >
             {measuring ? "Measuring…" : "Measure render"}
           </Button>
-          <output
-            className="break-all text-xs sm:col-span-2"
-            aria-label="Render measurement"
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={labels}
+              onChange={(e) => setLabels(e.target.checked)}
+            />
+            Selection label
+          </label>
+          <Button
+            variant="outline"
+            disabled={measuring || state !== "ready"}
+            onClick={async () => {
+              const r = runtime.current;
+              if (!r) return;
+              const original = {
+                  ...inspection,
+                  hidden: [...hidden],
+                  isolated,
+                  selected: props.selected,
+                  opacity: transparent ? 0.32 : 1,
+                },
+                eye = r.camera.position.clone(),
+                target = r.controls.target.clone();
+              setMeasuring(true);
+              setPerformanceReport("");
+              host.current?.scrollIntoView({
+                block: "center",
+                behavior: "instant",
+              });
+              const part = (name: string) =>
+                props.components.find((p) => p.name === name)
+                  ?.installedComponentId ?? null;
+              const base = {
+                ...defaultInspection,
+                hidden: [] as string[],
+                selected: null,
+              };
+              const stages = [
+                { name: "assembled orbit", state: base },
+                {
+                  name: "whole assembly explosion and immediate scrub",
+                  state: { ...base, explode: 100 },
+                },
+                {
+                  name: "motor subassembly inspection",
+                  state: {
+                    ...base,
+                    explode: 65,
+                    scope: part("Motor"),
+                    isolated: part("Motor"),
+                  },
+                },
+                {
+                  name: "moving hollow section",
+                  state: { ...base, section: "Y" as const, cut: 50 },
+                },
+                {
+                  name: "transparent housings",
+                  state: { ...base, ghost: true },
+                },
+                {
+                  name: "focused winding bundles",
+                  state: {
+                    ...base,
+                    isolated: part("Stator assembly"),
+                    hidden: [
+                      part("Stator laminated core"),
+                      part("Stator teeth"),
+                    ].filter(Boolean) as string[],
+                  },
+                },
+                { name: "exact restoration", state: base },
+              ];
+              const results = [];
+              try {
+                for (const stage of stages) {
+                  if (runtime.current !== r) break;
+                  const apply = (state: InspectionState) => {
+                    setHidden(state.hidden);
+                    setIsolated(state.isolated);
+                    setTransparent(false);
+                    setInspection(state);
+                  };
+                  apply(stage.state);
+                  await new Promise((resolve) => setTimeout(resolve, 600));
+                  if (stage.name === "focused winding bundles") {
+                    const node = r.nodes.get(part("Stator assembly") ?? "");
+                    if (node) r.focus(node);
+                  } else r.fit();
+                  let last = 0;
+                  const result = await measureOrbit(
+                    r,
+                    () => runtime.current === r,
+                    1500,
+                    8000,
+                    (elapsed) => {
+                      if (elapsed - last < 120) return;
+                      last = elapsed;
+                      if (stage.name === "moving hollow section")
+                        apply({
+                          ...stage.state,
+                          cut: 50 + 25 * Math.sin(elapsed / 1800),
+                        });
+                      if (
+                        stage.name ===
+                        "whole assembly explosion and immediate scrub"
+                      )
+                        apply({
+                          ...stage.state,
+                          explode: 50 + 50 * Math.cos(elapsed / 1500),
+                          immediate: true,
+                        });
+                    },
+                  );
+                  results.push({
+                    stage: stage.name,
+                    ...result,
+                    ...r.inspector.diagnostics(),
+                  });
+                }
+                if (runtime.current === r)
+                  setPerformanceReport(
+                    JSON.stringify({
+                      protocol: "smart-factory-inspection-v2",
+                      modelBytes: Number(host.current?.dataset.modelBytes),
+                      externalModelTextureBytes: 0,
+                      generatedEnvironmentTextureBytes: null,
+                      loadInteractiveMs: Number(
+                        host.current?.dataset.loadInteractiveMs,
+                      ),
+                      stages: results,
+                    }),
+                  );
+              } finally {
+                if (runtime.current === r) {
+                  setInspection(original);
+                  setHidden(original.hidden);
+                  setIsolated(original.isolated);
+                  setTransparent((original.opacity ?? 1) < 1);
+                  r.camera.position.copy(eye);
+                  r.controls.target.copy(target);
+                  r.controls.update();
+                  r.render();
+                }
+                setMeasuring(false);
+              }
+            }}
           >
-            {performanceReport}
-          </output>
+            Run inspection benchmark
+          </Button>
+          <details className="sm:col-span-2">
+            <summary className="cursor-pointer text-xs">
+              Render measurement details
+            </summary>
+            <output
+              className="block max-h-40 overflow-auto break-all text-xs"
+              aria-label="Render measurement"
+            >
+              {performanceReport}
+            </output>
+          </details>
         </div>
         <p className="text-xs text-muted-foreground">
           Explosion is authored inspection choreography. Sections show existing
