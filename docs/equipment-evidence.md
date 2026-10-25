@@ -19,6 +19,24 @@ The native app implementation is independent: app-owned React/Three.js code, val
 
 Screenshots and raw measurements are in [the equipment evidence directory](evidence/equipment). Rendering uses ANGLE SwiftShader in Chromium 145.0.7632.6 / Playwright 1.58.2 on Mac15,13, Apple M3, macOS 27.0.1, DPR 1; the mobile configuration is a viewport on the same host, not a physical phone. Each measurement samples 30 animation frames with the canvas scrolled into view. These are frame intervals under test load, including scheduling/compositing, not isolated GPU timings or an FPS service guarantee. The same critical geometry is retained on both sizes. Software rendering disables shadows; hardware shadows and DPR are adaptive. Static views render on demand.
 
+## Clean-checkout and measured render evidence
+
+A fresh clone at `94641b8` installed with `pnpm install --offline --frozen-lockfile` from the ordinary pnpm store, then passed type checking, production build and **5 cold-start browser tests (1 public-only test skipped)**. Its parent directory contained only this frontend checkout; no sibling checkout, environment file or existing node_modules was copied. All peer endpoints/tokens were unset. Fresh browser contexts blocked every non-app origin. The three audited workflows recorded 230/229/228 attempts respectively, **zero peer requests**, and two blocked optional analytics attempts each. Raw [qualification](evidence/equipment/clean-checkout.json) and [network audit](evidence/equipment/network-audit-1.json) are retained. Later commits add documentation/evidence only.
+
+The following clean-run numbers are median / p95 frame intervals in milliseconds. Canvas and critical geometry remain visible during sampling. Lower intervals are better; these software-rendered samples do not establish physical mobile performance.
+
+| State | 1440×1000 desktop viewport | 390×844 mobile viewport |
+| --- | ---: | ---: |
+| Assembled | 150.6 / 383.4 | 33.3 / 133.3 |
+| Fully exploded | 133.2 / 317.4 | 33.3 / 67.1 |
+| Selected seal subassembly | 33.2 / 67.2 | 16.8 / 67.1 |
+| Z section | 133.3 / 249.8 | 16.7 / 33.5 |
+| Ghost housings / hide covers | 149.9 / 250 | 16.7 / 34.3 |
+| Isolated winding close-up | 66.6 / 114.6 | 16.7 / 17.6 |
+| Restored assembly | 216.6 / 365.9 | 16.7 / 17.5 |
+
+Original/restored assembled draw counts are 66 in both configurations, with 66 geometries and two textures. Fully exploded inspection uses 141 draws including guides. The section has 57 generated caps and one safely omitted tangent contour (Winding phase 1). Restoration error is zero in the measured matrices. Raw [desktop](evidence/equipment/performance-1440.json) and [mobile viewport](evidence/equipment/performance-390.json) measurements include per-state counts. [Assembled](evidence/equipment/assembled-1440.png), [exploded](evidence/equipment/fully-exploded-1440.png), [seal](evidence/equipment/seal-subassembly-1440.png), [section](evidence/equipment/sectioned-1440.png), [ghosted](evidence/equipment/ghost-housings-1440.png) and [winding close-up](evidence/equipment/internal-closeup-1440.png) captures are retained for visual review.
+
 ## Optional protocol and outage evidence
 
 Real local MQTT was exercised through the existing edge durable publisher, Mosquitto and .NET 8 subscriber/bridge into the Node store. Ten generated source samples produced 38 acknowledged events for two instances and six source component identities, including four source-alarm transitions and two connection events. All data remained **simulated**, despite using a real protocol stack. No PLC/hardware operation is claimed.
@@ -32,3 +50,8 @@ The pinned real consumer's synthetic-evidence Pydantic model accepted the separa
 Use [independent installation/startup](equipment-view.md), apply additive migrations 0018–0021, and keep all `ONESA_*` configuration absent for native operation. `pnpm e2e:equipment` creates and removes only its own disposable database/Redis stack and supported fixture account. `pnpm check`, `pnpm test`, `pnpm build`, `pnpm equipment:schemas:check`, `pnpm docs:check` and `pnpm deployment:check` qualify the repository. Database-backed tests require `TEST_DATABASE_URL` / optional `TEST_REDIS_URL` pointing to isolated test services. Edge tests use its own installed requirements/venv. Optional MQTT/receiver tests are explicitly opt-in.
 
 Back up the application's database before rollout. Disable optional exchange independently when needed. Preserve immutable model revisions, source identities and additive columns/tables on rollback; redeploy the previous reviewed image instead of rewriting migration history. Production and any authorized staging rollout remain subject to repository review/CI/environment controls.
+
+
+## Review branches
+
+Backend: `af60378`, [draft PR 3](https://github.com/DruHustle/smart-factory-iot-backend/pull/3), [CI passed](https://github.com/DruHustle/smart-factory-iot-backend/actions/runs/40234312487). Edge: `193d4f6`, [draft PR 2](https://github.com/DruHustle/smart-factory-iot-edge/pull/2), [CI passed](https://github.com/DruHustle/smart-factory-iot-edge/actions/runs/40234317970). The frontend branch is `feat/native-equipment-monitoring`. These repositories expose main/main/master review targets; no dev/staging branches or staging environment were added. Nothing was merged or deployed to production.

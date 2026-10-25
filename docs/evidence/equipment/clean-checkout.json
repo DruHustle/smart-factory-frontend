@@ -1,0 +1,42 @@
+{
+  "sourceCommit": "94641b8",
+  "checkout": "Fresh clone with no sibling repositories, .env files or preexisting node_modules/browser state",
+  "install": "pnpm 10.34.5 install --offline --frozen-lockfile; ordinary dependencies from pnpm store; no peer registry or release access",
+  "typecheck": "passed",
+  "build": "passed",
+  "browserStats": {
+    "startTime": "2026-10-25T21:11:10.709Z",
+    "duration": 135387.092,
+    "expected": 5,
+    "skipped": 1,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "networkAudits": [
+    {
+      "test": "local context, files, simulation and saved work at 1440px without peer access",
+      "attempts": 230,
+      "blockedExternal": 2,
+      "peerRequests": 0
+    },
+    {
+      "test": "local context, files, simulation and saved work at 768px without peer access",
+      "attempts": 229,
+      "blockedExternal": 2,
+      "peerRequests": 0
+    },
+    {
+      "test": "local context, files, simulation and saved work at 390px without peer access",
+      "attempts": 228,
+      "blockedExternal": 2,
+      "peerRequests": 0
+    }
+  ],
+  "host": {
+    "model": "Mac15,13",
+    "cpu": "Apple M3",
+    "os": "macOS 27.0.1",
+    "browser": "Chromium 145.0.7632.6, Playwright 1.58.2, ANGLE SwiftShader"
+  },
+  "scope": "Standalone app-owned fixtures and software WebGL; no physical hardware/phone or hosted consumer acceptance"
+}

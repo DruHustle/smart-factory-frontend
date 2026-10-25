@@ -1,0 +1,10 @@
+{
+  "verification": "app-owned protocol receiver, not actual Onesa",
+  "run": "native-outage-v2",
+  "sourceSamples": 10,
+  "durableReceiverEvents": 38,
+  "remainingBacklog": 3,
+  "remainingQuarantine": 3,
+  "lastAcknowledgment": "2026-10-25 20:32:25.774088+00",
+  "mode": "simulated"
+}

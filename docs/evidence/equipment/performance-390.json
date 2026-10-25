@@ -8,8 +8,8 @@
   },
   "assembled": {
     "frames": 30,
-    "medianFrameMs": 16.7,
-    "p95FrameMs": 34.3,
+    "medianFrameMs": 33.3,
+    "p95FrameMs": 133.3,
     "drawCalls": 66,
     "triangles": 161286,
     "geometries": 66,
@@ -27,8 +27,8 @@
   },
   "fully-exploded": {
     "frames": 30,
-    "medianFrameMs": 49.4,
-    "p95FrameMs": 200.2,
+    "medianFrameMs": 33.3,
+    "p95FrameMs": 67.1,
     "drawCalls": 141,
     "triangles": 161286,
     "geometries": 141,
@@ -46,8 +46,8 @@
   },
   "seal-subassembly": {
     "frames": 30,
-    "medianFrameMs": 16.7,
-    "p95FrameMs": 17.4,
+    "medianFrameMs": 16.8,
+    "p95FrameMs": 67.1,
     "drawCalls": 16,
     "triangles": 9294,
     "geometries": 72,
@@ -65,8 +65,8 @@
   },
   "sectioned": {
     "frames": 30,
-    "medianFrameMs": 33.3,
-    "p95FrameMs": 66.7,
+    "medianFrameMs": 16.7,
+    "p95FrameMs": 33.5,
     "drawCalls": 123,
     "triangles": 162897,
     "geometries": 123,
@@ -85,7 +85,7 @@
   "ghost-housings": {
     "frames": 30,
     "medianFrameMs": 16.7,
-    "p95FrameMs": 49.8,
+    "p95FrameMs": 34.3,
     "drawCalls": 58,
     "triangles": 152238,
     "geometries": 66,
@@ -104,7 +104,7 @@
   "internal-closeup": {
     "frames": 30,
     "medianFrameMs": 16.7,
-    "p95FrameMs": 33.5,
+    "p95FrameMs": 17.6,
     "drawCalls": 3,
     "triangles": 18626,
     "geometries": 64,
@@ -123,7 +123,7 @@
   "restored": {
     "frames": 30,
     "medianFrameMs": 16.7,
-    "p95FrameMs": 33.5,
+    "p95FrameMs": 17.5,
     "drawCalls": 66,
     "triangles": 161286,
     "geometries": 66,
