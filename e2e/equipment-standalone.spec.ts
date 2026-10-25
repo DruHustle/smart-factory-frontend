@@ -95,7 +95,8 @@ test.describe("standalone native equipment monitoring", () => {
         page.getByRole("img", { name: "Interactive 3D equipment model" }),
       ).toBeVisible();
       await expect(page.locator("[data-state=ready]")).toBeVisible();
-      if (viewport.width === 1440) {
+      const baseline = process.env.EQUIPMENT_COMPARE_REVISION === "3";
+      if (viewport.width === 1440 || baseline) {
         await page
           .getByRole("button", { name: "Assembly", exact: true })
           .click();
@@ -324,13 +325,40 @@ for (const viewport of [
         .click();
       await page
         .getByLabel("GLB file", { exact: true })
-        .setInputFiles("fixtures/equipment/pump-motor.glb");
+        .setInputFiles(
+          baseline
+            ? "fixtures/equipment/revisions/3/model.glb"
+            : "fixtures/equipment/pump-motor.glb",
+        );
       await page
         .getByRole("button", {
           name: "Use local manifest example",
           exact: true,
         })
         .click();
+      if (baseline) {
+        const t = JSON.parse(
+          await (
+            await import("node:fs/promises")
+          ).readFile("fixtures/equipment/revisions/3/template.json", "utf8"),
+        );
+        await page
+          .getByLabel("Mapping manifest JSON")
+          .fill(
+            JSON.stringify({
+              schemaVersion: "smart-factory-model-1",
+              name: "Revision 3 comparison",
+              provenance: "Original archived Smart Factory reference 3",
+              license: "MIT",
+              units: "m",
+              handedness: "right",
+              upAxis: "+Y",
+              components: t.components,
+              bindings: t.bindings,
+              maintenanceText: t.maintenanceText ?? null,
+            }),
+          );
+      }
       await page
         .getByRole("button", {
           name: "Validate and import local model",
@@ -348,7 +376,7 @@ for (const viewport of [
     await page
       .getByLabel("Serial number", { exact: true })
       .fill(`DETAIL-${viewport.width}-${Date.now()}`);
-    if (viewport.width === 1440)
+    if (viewport.width === 1440 || baseline)
       await page
         .getByRole("combobox", { name: "Local model/template", exact: true })
         .selectOption({ index: 1 });
@@ -393,7 +421,12 @@ for (const viewport of [
         asset: JSON.parse(
           await (
             await import("node:fs/promises")
-          ).readFile("fixtures/equipment/geometry-audit.json", "utf8"),
+          ).readFile(
+            baseline
+              ? "fixtures/equipment/revisions/3/template.json"
+              : "fixtures/equipment/geometry-audit.json",
+            "utf8",
+          ),
         ),
       };
       await page.evaluate(() =>
@@ -579,25 +612,27 @@ for (const viewport of [
     await page
       .getByRole("button", { name: "Restore assembly", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Run inspection benchmark", exact: true })
-      .click();
-    await expect(
-      page.getByRole("button", {
-        name: "Run inspection benchmark",
-        exact: true,
-      }),
-    ).toBeEnabled({ timeout: 150000 });
-    const sustained = JSON.parse(
-      (await page.getByLabel("Render measurement").textContent())!,
-    );
-    expect(sustained.stages).toHaveLength(7);
-    for (const stage of sustained.stages) {
-      expect(stage.durationMs).toBe(8000);
-      expect(stage.warmupMs).toBe(1500);
-      expect(stage.frames).toBeGreaterThan(5);
+    if (!baseline) {
+      await page
+        .getByRole("button", { name: "Run inspection benchmark", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", {
+          name: "Run inspection benchmark",
+          exact: true,
+        }),
+      ).toBeEnabled({ timeout: 150000 });
+      const sustained = JSON.parse(
+        (await page.getByLabel("Render measurement").textContent())!,
+      );
+      expect(sustained.stages).toHaveLength(7);
+      for (const stage of sustained.stages) {
+        expect(stage.durationMs).toBe(8000);
+        expect(stage.warmupMs).toBe(1500);
+        expect(stage.frames).toBeGreaterThan(5);
+      }
+      stats.sustained = sustained;
     }
-    stats.sustained = sustained;
     expect(errors).toEqual([]);
     await writeFile(
       testInfo.outputPath("reference-performance.json"),

@@ -11,11 +11,14 @@ export default defineConfig({
     baseURL: process.env.NATIVE_E2E_BASE_URL ?? "http://127.0.0.1:3112",
     ...devices["Desktop Chrome"],
     launchOptions: {
-      args: [
-        "--use-gl=angle",
-        "--use-angle=swiftshader",
-        "--enable-unsafe-swiftshader",
-      ],
+      args:
+        process.env.EQUIPMENT_RENDERER === "metal"
+          ? ["--use-gl=angle", "--use-angle=metal"]
+          : [
+              "--use-gl=angle",
+              "--use-angle=swiftshader",
+              "--enable-unsafe-swiftshader",
+            ],
     },
   },
 });
