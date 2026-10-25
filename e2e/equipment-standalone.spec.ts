@@ -411,6 +411,34 @@ for (const viewport of [
       .getByRole("button", { name: "Focus selected", exact: true })
       .click();
     await evidence("seal-subassembly");
+    // Pick actual moved geometry, rather than relying only on BOM selection.
+    const movedCanvas = page.getByRole("img", {
+        name: "Interactive 3D equipment model",
+      }),
+      bounds = await movedCanvas.boundingBox();
+    let movedPick = false;
+    for (const y of [0.35, 0.45, 0.55, 0.65]) {
+      for (const x of [0.3, 0.4, 0.5, 0.6, 0.7]) {
+        await movedCanvas.click({
+          position: { x: bounds!.width * x, y: bounds!.height * y },
+        });
+        if (
+          (await page
+            .getByRole("button", { name: "Mechanical seal", exact: true })
+            .getAttribute("aria-pressed")) === "false"
+        ) {
+          movedPick = true;
+          break;
+        }
+      }
+      if (movedPick) break;
+    }
+    expect(
+      movedPick,
+      "Picking must follow the exploded, isolated seal geometry",
+    ).toBe(true);
+    await select("Mechanical seal");
+
     await page.getByRole("button", { name: "Reassemble", exact: true }).click();
     await page.waitForTimeout(600);
     await page.getByRole("button", { name: "Show all", exact: true }).click();

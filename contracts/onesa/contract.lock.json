@@ -14,9 +14,9 @@
     "finding": "No Digital Twin ingestion/registration/AAS/3D contract. Existing importer is synthetic evidence only."
   },
   "hashes": {
-    "contracts/onesa/batch.schema.json": "c21300faeb4acdc21816d4a078b4df8083d134aefb7a92c39757513b3a643be8",
-    "contracts/onesa/receipt.schema.json": "82638f50f824e0b990404cd6963732640fc23cfc44bd40a5f51ec5c030155027",
+    "contracts/onesa/batch.schema.json": "93f624cb2c51c6adacb4a56f3fe08e10a04e543664a301b1e526a72f75420a9d",
+    "contracts/onesa/receipt.schema.json": "d2524590db6d8e26a778d52ee79605ceba273b2806ff8f99098f50b180a6ff71",
     "contracts/onesa/registration.schema.json": "8dce33a1dc1855d475f351558bee6c6ef18824803043e1155f22b5988266ee31",
-    "contracts/onesa/openapi.json": "8c819ae34aae1578508bbbc538bb521588371250afe3c91610d33ef2c593c383"
+    "contracts/onesa/openapi.json": "1ed723729c45f391730b618dff2d38d85bb3a882da50ef8994d1ab4bf889d4c9"
   }
 }
