@@ -95,8 +95,7 @@ test.describe("standalone native equipment monitoring", () => {
         page.getByRole("img", { name: "Interactive 3D equipment model" }),
       ).toBeVisible();
       await expect(page.locator("[data-state=ready]")).toBeVisible();
-      const baseline = process.env.EQUIPMENT_COMPARE_REVISION === "3";
-      if (viewport.width === 1440 || baseline) {
+      if (viewport.width === 1440) {
         await page
           .getByRole("button", { name: "Assembly", exact: true })
           .click();
@@ -319,7 +318,8 @@ for (const viewport of [
       page.getByRole("heading", { name: "Factory Overview", exact: true }),
     ).toBeVisible();
     await page.goto("/#/equipment");
-    if (viewport.width === 1440) {
+    const baseline = process.env.EQUIPMENT_COMPARE_REVISION === "3";
+    if (viewport.width === 1440 || baseline) {
       await page
         .getByText("Import local GLB and component manifest", { exact: true })
         .click();
@@ -342,22 +342,20 @@ for (const viewport of [
             await import("node:fs/promises")
           ).readFile("fixtures/equipment/revisions/3/template.json", "utf8"),
         );
-        await page
-          .getByLabel("Mapping manifest JSON")
-          .fill(
-            JSON.stringify({
-              schemaVersion: "smart-factory-model-1",
-              name: "Revision 3 comparison",
-              provenance: "Original archived Smart Factory reference 3",
-              license: "MIT",
-              units: "m",
-              handedness: "right",
-              upAxis: "+Y",
-              components: t.components,
-              bindings: t.bindings,
-              maintenanceText: t.maintenanceText ?? null,
-            }),
-          );
+        await page.getByLabel("Mapping manifest JSON").fill(
+          JSON.stringify({
+            schemaVersion: "smart-factory-model-1",
+            name: "Revision 3 comparison",
+            provenance: "Original archived Smart Factory reference 3",
+            license: "MIT",
+            units: "m",
+            handedness: "right",
+            upAxis: "+Y",
+            components: t.components,
+            bindings: t.bindings,
+            maintenanceText: t.maintenanceText ?? null,
+          }),
+        );
       }
       await page
         .getByRole("button", {
