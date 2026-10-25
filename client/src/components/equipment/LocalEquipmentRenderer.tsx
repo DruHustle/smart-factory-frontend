@@ -169,10 +169,15 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         scene: THREE.Scene | undefined,
         observer: ResizeObserver | undefined,
         loaded: THREE.Group | undefined;
+      let firstModelRender: (() => void) | undefined;
       const loadStarted = performance.now();
       const abort = new AbortController();
       const timeout = setTimeout(() => abort.abort(), 20000);
       const cleanupCallbacks: Array<() => void> = [];
+      cleanupCallbacks.push(() => {
+        firstModelRender?.();
+        firstModelRender = undefined;
+      });
       setState("loading");
       setProgress(0);
       setHidden([]);
@@ -273,6 +278,10 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
               );
             }
             currentRenderer.render(currentScene, camera);
+            if (loaded?.parent === currentScene && !gl.isContextLost()) {
+              firstModelRender?.();
+              firstModelRender = undefined;
+            }
             if (software && !gl.isContextLost()) {
               gpuFence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
               gl.flush();
@@ -365,6 +374,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           -((event.clientY - rect.top) / rect.height) * 2 + 1,
         );
         const ray = new THREE.Raycaster();
+        camera.updateMatrixWorld(true);
         ray.setFromCamera(point, camera);
         const visible = (o: THREE.Object3D): boolean =>
           o.visible && (!o.parent || visible(o.parent));
@@ -541,7 +551,12 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             inspector,
             renderer: currentRenderer,
           };
+          const initialFrame = new Promise<void>((resolve) => {
+            firstModelRender = resolve;
+          });
           fit();
+          await initialFrame;
+          if (disposed) return;
           container.dataset.loadInteractiveMs = String(
             performance.now() - loadStarted,
           );

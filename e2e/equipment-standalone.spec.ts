@@ -398,17 +398,20 @@ for (const viewport of [
       await page.getByRole("button", { name, exact: true }).click();
     };
     const evidence = async (name: string) => {
+      const output = page.getByLabel("Render measurement"),
+        previous = await output.textContent();
       await page
         .getByRole("button", { name: "Measure render", exact: true })
         .click();
       await expect(
-        page.getByRole("button", { name: "Measuring…", exact: true }),
-      ).toBeVisible();
-      await expect(
         page.getByRole("button", { name: "Measure render", exact: true }),
       ).toBeEnabled({ timeout: 60000 });
-      const output = page.getByLabel("Render measurement");
       await expect(output).not.toBeEmpty({ timeout: 60000 });
+      await expect.poll(() => output.textContent()).not.toBe(previous);
+      const result = JSON.parse((await output.textContent())!);
+      expect(result.completed).toBe(true);
+      expect(result.durationMs).toBe(2500);
+      expect(result.frames).toBeGreaterThan(0);
       stats[name] = {
         ...JSON.parse((await output.textContent())!),
         viewpoint: JSON.parse(

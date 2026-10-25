@@ -89,6 +89,7 @@ export async function measureOrbit(
   ).memory;
   return {
     protocol: "smart-factory-active-orbit-v2",
+    measurementStartedAt: performance.timeOrigin + started,
     completed: !gl.isContextLost() && elapsedMs >= warmupMs + durationMs,
     synchronization:
       "one completed GPU frame in flight; nonblocking WebGL fence",
