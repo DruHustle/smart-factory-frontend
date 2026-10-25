@@ -40,8 +40,21 @@ export default function EquipmentView() {
     onError: (e) => setNotice(e.message),
   });
   useEffect(() => {
-    if (!id && catalog.data?.length) setId(catalog.data[0].id);
+    if (!id && catalog.data?.length) {
+      const requested = new URL(window.location.href).searchParams.get(
+        "equipment",
+      );
+      setId(
+        catalog.data.find((e) => e.id === requested)?.id ?? catalog.data[0].id,
+      );
+    }
   }, [catalog.data, id]);
+  useEffect(() => {
+    if (!id) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("equipment", id);
+    window.history.replaceState(window.history.state, "", url);
+  }, [id]);
   return (
     <div className="space-y-5 min-w-0">
       <div>

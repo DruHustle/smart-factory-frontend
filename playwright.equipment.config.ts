@@ -4,7 +4,8 @@ export default defineConfig({
   testMatch: "equipment-standalone.spec.ts",
   outputDir: "test-results/equipment-standalone",
   workers: 1,
-  timeout: 90000,
+  timeout: 120000,
+  expect: { timeout: 20000 },
   reporter: "list",
   use: {
     baseURL: process.env.NATIVE_E2E_BASE_URL ?? "http://127.0.0.1:3112",

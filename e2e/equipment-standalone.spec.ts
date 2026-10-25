@@ -1,5 +1,28 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
+async function submitEquipment(page: Page, name: string) {
+  const pending = page.waitForResponse(
+    (r) =>
+      r.request().method() === "POST" &&
+      new URL(r.url()).pathname.includes("/equipment.create"),
+    { timeout: 30000 },
+  );
+  await page
+    .getByRole("button", { name: "Create equipment", exact: true })
+    .click();
+  const response = await pending,
+    body = await response.json(),
+    item = Array.isArray(body) ? body[0] : body;
+  expect(
+    item.error?.json?.message ?? item.error?.message ?? null,
+    "Equipment creation must receive an explicit successful response",
+  ).toBeNull();
+  expect(response.ok()).toBe(true);
+  const id = (item.result?.data?.json ?? item.result?.data)?.id;
+  expect(typeof id).toBe("string");
+  await expect(page.locator("#local-equipment")).toHaveValue(id);
+  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+}
 test.describe("standalone native equipment monitoring", () => {
   test.skip(
     process.env.E2E_EQUIPMENT_STANDALONE !== "true",
@@ -61,9 +84,7 @@ test.describe("standalone native equipment monitoring", () => {
       await page
         .getByLabel("Serial number", { exact: true })
         .fill(`LOCAL-${viewport.width}-${Date.now()}`);
-      await page
-        .getByRole("button", { name: "Create equipment", exact: true })
-        .click();
+      await submitEquipment(page, `Standalone pump ${viewport.width}`);
       await expect(
         page.getByRole("heading", {
           name: `Standalone pump ${viewport.width}`,
@@ -331,9 +352,7 @@ for (const viewport of [
       await page
         .getByRole("combobox", { name: "Local model/template", exact: true })
         .selectOption({ index: 1 });
-    await page
-      .getByRole("button", { name: "Create equipment", exact: true })
-      .click();
+    await submitEquipment(page, "Detailed inspection " + viewport.width);
     await expect(
       page.getByRole("heading", {
         name: "Detailed inspection " + viewport.width,
@@ -426,7 +445,15 @@ for (const viewport of [
     await expect(
       page.getByText("Local work saved.", { exact: true }),
     ).toBeVisible();
+    const installedId = await page.locator("#local-equipment").inputValue();
     await page.reload();
+    await expect(page.locator("#local-equipment")).toHaveValue(installedId);
+    await expect(
+      page.getByRole("heading", {
+        name: "Detailed inspection " + viewport.width,
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(page.locator("[data-state=ready]")).toBeVisible();
     await page
       .getByRole("button", {
