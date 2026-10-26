@@ -1,3 +1,4 @@
+import { setRuntimeDemoDataEnabled } from "../demoData";
 import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
@@ -31,6 +32,7 @@ import { securityRouter } from "./router";
 import { sweep } from "./runtime";
 import { evaluate } from "./rules";
 const originalDemoFlag = process.env.ENABLE_DEMO_ACCOUNTS;
+const originalDemoDataFlag = process.env.ENABLE_DEMO_DATA;
 const actor = 100001,
   other = 100002,
   namespace = "security-test-" + randomUUID(),
@@ -89,6 +91,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
   () => {
     beforeAll(async () => {
       process.env.ENABLE_DEMO_ACCOUNTS = "false";
+      process.env.ENABLE_DEMO_DATA = "false";
+      setRuntimeDemoDataEnabled(false);
       const db = await database();
       await db.execute(
         sql`insert into users(id,"openId",name,email,role) values(${actor},${namespace},'Security test administrator',${namespace + "@example.test"},'admin'),(${other},${namespace + "-other"},'Other engineer',${namespace + "-other@example.test"},'engineer')`,
@@ -96,6 +100,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       await initialize();
     });
     afterAll(async () => {
+      setRuntimeDemoDataEnabled(undefined);
+      if (originalDemoDataFlag === undefined)
+        delete process.env.ENABLE_DEMO_DATA;
+      else process.env.ENABLE_DEMO_DATA = originalDemoDataFlag;
       if (originalDemoFlag === undefined)
         delete process.env.ENABLE_DEMO_ACCOUNTS;
       else process.env.ENABLE_DEMO_ACCOUNTS = originalDemoFlag;
@@ -137,6 +145,32 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         sql`update security_rules set actor_id=null where actor_id in(${actor},${other})`,
       );
       await db.execute(sql`delete from users where id in(${actor},${other})`);
+    });
+    it("honors the persisted demonstration setting over the environment fallback", async () => {
+      const db = await database();
+      expect(
+        await rows(
+          db,
+          sql`select id from security_sources where system_key='demonstration'`,
+        ),
+      ).toHaveLength(0);
+      setRuntimeDemoDataEnabled(true);
+      try {
+        await initialize();
+        const [demo] = await rows(
+          db,
+          sql`select * from security_sources where system_key='demonstration'`,
+        );
+        sourceIds.push(demo.id);
+        expect(demo.is_demo).toBe(true);
+        const [{ count }] = await rows(
+          db,
+          sql`select count(*)::int as count from security_events where source_id=${demo.id}`,
+        );
+        expect(count).toBe(28);
+      } finally {
+        setRuntimeDemoDataEnabled(false);
+      }
     });
     it("enforces viewer/operator/engineer/admin and read-only demonstration boundaries", async () => {
       for (const role of ["viewer", "operator", "engineer", "admin"]) {

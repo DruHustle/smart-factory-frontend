@@ -1,3 +1,4 @@
+import { demoDataEnabled } from "../demoData";
 import { reserve } from "./quota";
 import { sql } from "drizzle-orm";
 import { getDb } from "../db";
@@ -104,8 +105,7 @@ export async function initialize() {
       );
     }
   });
-  if (process.env.ENABLE_DEMO_DATA === "true")
-    await (await import("./demo")).seedDemonstration();
+  if (demoDataEnabled()) await (await import("./demo")).seedDemonstration();
 }
 export async function validateTarget(
   c: Conn,

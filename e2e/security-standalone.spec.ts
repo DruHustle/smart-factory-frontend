@@ -251,7 +251,7 @@ test.describe("independent cybersecurity workspace", () => {
       page.getByText("investigation_resolve", { exact: true }),
     ).toBeVisible();
     await page.screenshot({
-      path: testInfo.outputPath("investigation-light.png"),
+      path: testInfo.outputPath("investigation-dark.png"),
       fullPage: true,
     });
     await login(request);
@@ -508,6 +508,9 @@ test.describe("independent cybersecurity workspace", () => {
       page.on("pageerror", (e) => errors.push(e.message));
       await browserLogin(page);
       await page.goto("/#/cybersecurity");
+      await expect(
+        page.getByRole("button", { name: /^Switch to (light|dark) theme$/ }),
+      ).toBeVisible();
       for (const theme of ["light", "dark"]) {
         const switcher = page.getByRole("button", {
           name: `Switch to ${theme} theme`,
@@ -553,7 +556,12 @@ test.describe("independent cybersecurity workspace", () => {
         await page
           .getByRole("button", { name: "Overview", exact: true })
           .click();
+        await page.mouse.move(0, 0);
+        await expect(
+          page.getByText("Login successful!", { exact: true }),
+        ).toBeHidden({ timeout: 10000 });
         await page.screenshot({
+          animations: "disabled",
           path: testInfo.outputPath(`overview-${theme}-${width}.png`),
           fullPage: true,
         });
