@@ -509,10 +509,27 @@ test.describe("independent cybersecurity workspace", () => {
       await browserLogin(page);
       await page.goto("/#/cybersecurity");
       for (const theme of ["light", "dark"]) {
-        await page.evaluate((theme) => {
-          localStorage.setItem("theme", theme);
-          document.documentElement.classList.toggle("dark", theme === "dark");
-        }, theme);
+        const switcher = page.getByRole("button", {
+          name: `Switch to ${theme} theme`,
+          exact: true,
+        });
+        if (await switcher.count()) await switcher.click();
+        await expect
+          .poll(() =>
+            page.evaluate(() =>
+              document.documentElement.classList.contains("dark"),
+            ),
+          )
+          .toBe(theme === "dark");
+        await expect
+          .poll(() =>
+            page.evaluate(() =>
+              getComputedStyle(document.documentElement)
+                .getPropertyValue("--background")
+                .trim(),
+            ),
+          )
+          .toBe(theme === "dark" ? "#0a0e27" : "#f3f6fb");
         for (const tab of [
           "Overview",
           "Asset posture",

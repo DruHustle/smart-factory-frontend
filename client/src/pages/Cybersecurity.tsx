@@ -1,3 +1,4 @@
+import { useTheme } from "@/contexts/ThemeContext";
 import SecurityAdministration from "@/components/security/SecurityAdministration";
 import { useHashLocation } from "wouter/use-hash-location";
 import { useEffect, useState } from "react";
@@ -79,6 +80,7 @@ function Workspace({
     canAdmin: boolean;
   };
 }) {
+  const { theme, toggleTheme } = useTheme();
   const [hashLocation] = useHashLocation();
   const params = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
   const [tab, setTab] = useState<string>(
@@ -263,6 +265,13 @@ function Workspace({
             Observed evidence, explainable findings and human investigation
           </p>
         </div>
+        <Button
+          variant="outline"
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+          onClick={toggleTheme}
+        >
+          Theme: {theme}
+        </Button>
         <Button variant="outline" onClick={refresh}>
           Refresh evidence
         </Button>
