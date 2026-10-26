@@ -264,6 +264,10 @@ test.describe("unified item workspace", () => {
     await expect(page.getByLabel("Filter evidence mode")).toHaveValue(
       "simulated",
     );
+    await expect(page.getByLabel("Filter finding severity")).toHaveValue(
+      "high",
+    );
+    await page.getByLabel("Filter finding severity").selectOption("medium");
     await page
       .getByRole("button", { name: /^Repeated rejected sign-ins/ })
       .first()

@@ -1,6 +1,12 @@
 import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { database, rows, ingest, audit, securityTransaction } from "./store";
+import {
+  database,
+  rows,
+  ingestInTransaction,
+  audit,
+  securityTransaction,
+} from "./store";
 import { ownedEnvelope, SecurityError, ownedEventTypes } from "./contract";
 /** Authored simulation only; no live asset/incident is changed. */
 export async function seedDemonstration(actor: number | null = null) {
@@ -9,7 +15,7 @@ export async function seedDemonstration(actor: number | null = null) {
       await tx.execute(sql`select pg_advisory_xact_lock(2026102702)`);
       const [old] = await rows(
         tx,
-        sql`select * from security_sources where system_key='demonstration'`,
+        sql`select * from security_sources where system_key='demonstration-v2'`,
       );
       if (old)
         return {
@@ -18,7 +24,7 @@ export async function seedDemonstration(actor: number | null = null) {
           anchor: new Date(old.created_at).getTime(),
         };
       const id = randomUUID(),
-        namespace = "smart-factory-demonstration";
+        namespace = "smart-factory-demonstration-v2";
       const policy = {
         targets: [{ kind: "application", id: null }],
         modes: ["simulated", "replay"],
@@ -30,7 +36,7 @@ export async function seedDemonstration(actor: number | null = null) {
         expectedIntervalSeconds: 0,
       };
       await tx.execute(
-        sql`insert into security_sources(id,name,namespace,system_key,is_demo,policy) values(${id},'Authored security demonstration',${namespace},'demonstration',true,${JSON.stringify(policy)}::jsonb)`,
+        sql`insert into security_sources(id,name,namespace,system_key,is_demo,policy) values(${id},'Authored security demonstration',${namespace},'demonstration-v2',true,${JSON.stringify(policy)}::jsonb)`,
       );
       await tx.execute(
         sql`insert into security_baselines(id,source_id,revision,settings,proposed_by,approved_at,approved_by) values(${randomUUID()},${id},'authored-demo-baseline',${JSON.stringify({ configRevision: "approved-demo", relevantKeys: ["asset_connections"], expectedTls: true, basis: "authored demonstration; no live approval" })}::jsonb,${actor},now(),${actor})`,
@@ -128,17 +134,23 @@ export async function seedDemonstration(actor: number | null = null) {
         sourceEventId: `demo-${mode}-${n}`,
         occurredAt: date(n * 10),
         mode,
-        scenarioRunId: mode === "simulated" ? "authored-demo-001" : undefined,
-        replayRunId: mode === "replay" ? "authored-replay-001" : undefined,
+        scenarioRunId:
+          mode === "simulated" ? "authored-demo-v2-001" : undefined,
+        replayRunId: mode === "replay" ? "authored-replay-v2-001" : undefined,
         eventType,
         assetRef: null,
         summary: `Authored ${mode} example: ${eventType}. No physical attack is asserted.`,
         quality: "good",
-        producerVersion: "smart-factory-demo-1",
+        producerVersion: "smart-factory-demo-2",
         attributes,
       }),
     );
-    await ingest(source.id, events);
+    await securityTransaction((tx) =>
+      ingestInTransaction(tx, source.id, events, {
+        kind: "application",
+        id: null,
+      }),
+    );
   }
   return { sourceId: source.id, created: true };
 }
@@ -146,7 +158,7 @@ export async function simulateRecurrence(id: string, actor: number) {
   const db = await database(),
     [f] = await rows(
       db,
-      sql`select f.*,s.namespace from security_findings f join security_sources s on s.id=f.source_id where f.id=${id} and f.mode='simulated' and s.system_key='demonstration' and f.rule_id='authentication-burst'`,
+      sql`select f.*,s.namespace from security_findings f join security_sources s on s.id=f.source_id where f.id=${id} and f.mode='simulated' and s.system_key='demonstration-v2' and f.rule_id='authentication-burst'`,
     );
   if (!f) throw new SecurityError(422, "authored_simulation_finding_required");
   const events = Array.from({ length: 5 }, () =>
@@ -162,7 +174,7 @@ export async function simulateRecurrence(id: string, actor: number) {
       summary:
         "An explicitly requested simulation repeats a rejected sign-in pattern.",
       quality: "good",
-      producerVersion: "smart-factory-demo-1",
+      producerVersion: "smart-factory-demo-2",
       attributes: {
         service: "demonstration",
         outcome: "denied",
@@ -170,7 +182,9 @@ export async function simulateRecurrence(id: string, actor: number) {
       },
     }),
   );
-  const result = await ingest(f.source_id, events);
+  const result = await securityTransaction((tx) =>
+    ingestInTransaction(tx, f.source_id, events, f.target),
+  );
   await securityTransaction(async (tx) =>
     audit(
       tx,
