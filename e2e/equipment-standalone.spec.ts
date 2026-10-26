@@ -64,6 +64,13 @@ test.describe("standalone native equipment monitoring", () => {
       });
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));
+      page.on("console", (e) => {
+        if (
+          e.type() === "error" &&
+          /THREE.WebGLProgram|GL_INVALID|shader error/i.test(e.text())
+        )
+          errors.push(e.text());
+      });
       await page.goto("/#/login");
       await page.getByLabel("Email").fill("local-equipment@example.test");
       await page
@@ -308,6 +315,13 @@ for (const viewport of [
     const page = await context.newPage();
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
+    page.on("console", (e) => {
+      if (
+        e.type() === "error" &&
+        /THREE.WebGLProgram|GL_INVALID|shader error/i.test(e.text())
+      )
+        errors.push(e.text());
+    });
     await page.goto("/#/login");
     await page.getByLabel("Email").fill("local-equipment@example.test");
     await page

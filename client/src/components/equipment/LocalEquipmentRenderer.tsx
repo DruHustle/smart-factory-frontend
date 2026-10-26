@@ -551,6 +551,12 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             inspector,
             renderer: currentRenderer,
           };
+          // On-demand Metal rendering must have linked PBR programs and an
+          // initialized shadow map before its first visible frame.
+          await currentRenderer.compileAsync(currentScene, camera);
+          if (disposed) return;
+          currentRenderer.shadowMap.needsUpdate =
+            currentRenderer.shadowMap.enabled;
           const initialFrame = new Promise<void>((resolve) => {
             firstModelRender = resolve;
           });
