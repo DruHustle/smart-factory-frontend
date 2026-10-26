@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/workspace/Primitives";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,10 +37,7 @@ export default function UserAccess() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">User access</h1>
-        <p className="text-muted-foreground">Manage users and access roles.</p>
-      </div>
+      <PageHeader title="Users & access" description="Manage users and access roles."/>
       <Card>
         <CardHeader><CardTitle>Create an account</CardTitle></CardHeader>
         <CardContent><form className="grid gap-4 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); create.mutate(account); }}>

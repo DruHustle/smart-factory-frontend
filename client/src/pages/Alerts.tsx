@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/workspace/Primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -191,10 +192,7 @@ export default function Alerts() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-            <h1 className="text-2xl font-bold tracking-tight">Alerts & Event History</h1>
-            <p className="text-muted-foreground">Review active events and incident history.</p>
-        </div>
+        <PageHeader title="Alerts" description="Review active events and incident history."/>
         <div className="flex gap-2">
         <ExportButton onExportHtml={handleExport} label="Export History" />
         <Button

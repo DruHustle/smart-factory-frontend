@@ -78,7 +78,7 @@ test.describe("standalone native equipment monitoring", () => {
         .fill("Synthetic-fixture-only-2026!");
       await page.getByRole("button", { name: /^sign in$/i }).click();
       await expect(
-        page.getByRole("heading", { name: "Factory Overview", exact: true }),
+        page.getByRole("heading", { name: "Overview", exact: true }),
       ).toBeVisible();
       await page.goto("/#/equipment");
       await expect(
@@ -316,7 +316,7 @@ test("public equipment demonstration is read-only and local files require authen
   await page.getByRole("button", { name: "Demo Viewer", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
-    page.getByRole("heading", { name: "Factory Overview", exact: true }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
   await page.goto("/#/equipment");
   await expect(
@@ -365,7 +365,7 @@ for (const viewport of [
       .fill("Synthetic-fixture-only-2026!");
     await page.getByRole("button", { name: /^sign in$/i }).click();
     await expect(
-      page.getByRole("heading", { name: "Factory Overview", exact: true }),
+      page.getByRole("heading", { name: "Overview", exact: true }),
     ).toBeVisible();
     await page.goto("/#/equipment");
     const baseline = process.env.EQUIPMENT_COMPARE_REVISION === "3";

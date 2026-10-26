@@ -27,7 +27,7 @@ test.describe("private Onesa integration", () => {
         );
       await page.getByRole("button", { name: /^sign in$/i }).click();
       await expect(
-        page.getByRole("heading", { name: "Factory Overview", exact: true }),
+        page.getByRole("heading", { name: "Overview", exact: true }),
       ).toBeVisible();
       await page.goto("/#/integrations/onesa");
       await expect(
@@ -88,11 +88,11 @@ test.describe("private Onesa integration", () => {
       });
       await page.goto("/#/monitoring");
       await expect(
-        page.getByRole("heading", { name: "Live Monitoring", exact: true }),
+        page.getByRole("heading", { name: "Monitoring", exact: true }),
       ).toBeVisible();
       await page.goto("/#/assets");
       await expect(
-        page.getByRole("heading", { name: "Industrial Assets", exact: true }),
+        page.getByRole("heading", { name: "Assets & devices", exact: true }),
       ).toBeVisible();
       expect(errors).toEqual([]);
     });
@@ -111,7 +111,7 @@ test("public demo engineering identity cannot read private integration configura
     .click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
-    page.getByRole("heading", { name: "Factory Overview", exact: true }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
   await page.goto("/#/integrations/onesa");
   await expect(

@@ -1,7 +1,16 @@
+import {
+  navigate,
+  addItem,
+  openItem,
+  finishGateway,
+} from "./workspace-helpers";
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
-async function loginAs(page: import("@playwright/test").Page, role: "admin" | "operator" | "engineer" | "viewer") {
+async function loginAs(
+  page: import("@playwright/test").Page,
+  role: "admin" | "operator" | "engineer" | "viewer",
+) {
   const labels = {
     admin: "Demo Admin",
     operator: "Demo Operator",
@@ -17,25 +26,43 @@ async function loginAs(page: import("@playwright/test").Page, role: "admin" | "o
   await page.goto("/#/login");
   await page.getByRole("button", { name: labels[role], exact: true }).click();
   await expect(page.getByLabel("Email")).toHaveValue(emails[role]);
-  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("@agqJmbpaPtJ#5SM1#vJ");
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue(
+    "@agqJmbpaPtJ#5SM1#vJ",
+  );
   await page.getByRole("button", { name: /^sign in$/i }).click();
-  await expect(page.getByRole("heading", { name: /factory overview/i })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /^overview$/i }),
+  ).toBeVisible();
 }
 
 test("account routes and the signed-out flow render", async ({ page }) => {
   await page.goto("/#/login");
-  await expect(page.getByRole("heading", { name: /smart factory iot/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /forgot password\?/i })).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /smart factory iot/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /forgot password\?/i }),
+  ).toHaveCount(0);
   await expect(page.getByRole("button", { name: /sign up/i })).toHaveCount(0);
-  await expect(page.getByText(/accounts and password changes are managed by your administrator/i)).toHaveCount(0);
+  await expect(
+    page.getByText(
+      /accounts and password changes are managed by your administrator/i,
+    ),
+  ).toHaveCount(0);
   await page.goto("/#/forgot-password");
-  await expect(page.getByRole("heading", { name: /password assistance/i })).toBeVisible();
-  await expect(page.getByText(/self-service password reset is not available/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /password assistance/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/self-service password reset is not available/i),
+  ).toBeVisible();
   await page.getByRole("button", { name: /back to login/i }).click();
   await expect(page).toHaveURL(/#\/login/);
 });
 
-test("login and dashboard render without uncaught browser errors", async ({ page }) => {
+test("login and dashboard render without uncaught browser errors", async ({
+  page,
+}) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
@@ -43,109 +70,201 @@ test("login and dashboard render without uncaught browser errors", async ({ page
   });
 
   await loginAs(page, "admin");
-  await page.getByRole("button", { name: "Assets", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Industrial Assets" })).toBeVisible();
+  await navigate(page, "Assets");
+  await expect(
+    page.getByRole("heading", { name: "Assets & devices" }),
+  ).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
 
-test("login demo shortcuts follow the server-side environment flag", async ({ page }) => {
+test("login demo shortcuts follow the server-side environment flag", async ({
+  page,
+}) => {
   await page.goto("/#/login");
   const expectedButtons = process.env.ENABLE_DEMO_ACCOUNTS === "true" ? 4 : 0;
-  await expect(page.getByRole("button", { name: /^Demo (Admin|Operator|Engineer|Viewer)$/ })).toHaveCount(expectedButtons);
+  await expect(
+    page.getByRole("button", {
+      name: /^Demo (Admin|Operator|Engineer|Viewer)$/,
+    }),
+  ).toHaveCount(expectedButtons);
 });
 
-test("Dashboard, Monitoring, alerts, and Assistant have distinct useful views", async ({ page }) => {
+test("Dashboard, Monitoring, alerts, and Assistant have distinct useful views", async ({
+  page,
+}) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(message.text());
   });
   await loginAs(page, "viewer");
-  await expect(page.getByRole("heading", { name: "Factory Overview" })).toBeVisible();
-  await expect(page.getByText("Active downtime", { exact: true })).toBeVisible();
-  await expect(page.getByText("Online edge devices", { exact: true })).toBeVisible();
-  await expect(page.getByText("Edge device connectivity", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await expect(
+    page.getByText("Active downtime", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Online edge devices", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Edge device connectivity", { exact: true }),
+  ).toBeVisible();
 
-  await page.getByRole("button", { name: "Monitoring", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Live Monitoring", exact: true })).toBeVisible();
-  await expect(page.getByText("Connectivity and latest readings.", { exact: true })).toBeVisible();
+  await navigate(page, "Monitoring");
+  await expect(
+    page.getByRole("heading", { name: "Monitoring", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Connectivity and latest readings.", { exact: true }),
+  ).toBeVisible();
 
-  await page.getByRole("button", { name: "Analytics", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Asset Analytics" })).toBeVisible();
+  await navigate(page, "Analytics");
+  await expect(
+    page.getByRole("heading", { name: "Analytics", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/simulated data/i).first()).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Condition and maintenance signals" })).toBeVisible();
-  await expect(page.getByText("Assets reporting vibration", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Pressure trend/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Rotational speed/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Advanced analytics data readiness" })).toBeVisible();
-  await expect(page.getByText("Predictive maintenance and RUL", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Condition and maintenance signals" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Assets reporting vibration", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Pressure trend/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Rotational speed/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Advanced analytics data readiness" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Predictive maintenance and RUL", { exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Analytics scope").click();
   await page.getByRole("option", { name: "Single asset" }).click();
   await page.getByLabel("Choose asset").click();
-  await page.getByRole("option", { name: /Compressed Air Compressor 01/ }).click();
-  await expect(page.getByText("Compressed Air Compressor 01", { exact: true })).toBeVisible();
+  await page
+    .getByRole("option", { name: /Compressed Air Compressor 01/ })
+    .click();
+  await expect(
+    page
+      .getByText("Compressed Air Compressor 01", { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible();
   await expect(page.getByText("Peak vibration", { exact: true })).toBeVisible();
-  await expect(page.getByText("Mean pressure (asset unit)", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Mean pressure (asset unit)", { exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Analytics scope").click();
   await page.getByRole("option", { name: "Asset group" }).click();
   await page.getByLabel("Group assets by").click();
   await page.getByRole("option", { name: "Manufacturer" }).click();
-  await expect(page.getByText("All assets · grouped by manufacturer", { exact: true })).toBeVisible();
-  await expect(page.getByText("Atlas Copco", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("All assets · grouped by manufacturer", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Atlas Copco", { exact: true }).first(),
+  ).toBeVisible();
 
   await page.getByLabel("Analytics scope").click();
   await page.getByRole("option", { name: "Single asset" }).click();
   await page.getByLabel("Choose asset").click();
-  await page.getByRole("option", { name: /Windformer Wind Turbine Generator 01/ }).click();
-  await expect(page.getByRole("heading", { name: "Asset-specific signals" })).toBeVisible();
+  await page
+    .getByRole("option", { name: /Windformer Wind Turbine Generator 01/ })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Asset-specific signals" }),
+  ).toBeVisible();
   await expect(page.getByText("windSpeedMps", { exact: true })).toBeVisible();
   await expect(page.getByText("bladePitchDeg", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Alerts", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Alerts & Event History" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Export History" })).toBeVisible();
+  await navigate(page, "Alerts");
+  await expect(page.getByRole("heading", { name: "Alerts" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Export History" }),
+  ).toBeVisible();
 
-  await page.getByRole("button", { name: "Assistant", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Smart Factory Assistant" })).toBeVisible();
-  await page.getByLabel("Ask the Smart Factory Assistant").fill("How do I import an AASX package?");
+  await navigate(page, "Assistant");
+  await expect(
+    page.getByRole("heading", { name: "Assistant", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Ask the Smart Factory Assistant")
+    .fill("How do I import an AASX package?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
-  await expect(page.getByTestId("assistant-answer-content").first()).toBeVisible();
-  await page.locator("details summary").first().click();
-  await expect(page.getByText("AASX and edge configuration", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Current system data", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByTestId("assistant-answer-content").first(),
+  ).toBeVisible();
+  await page
+    .locator('section[aria-label="Conversation"] details summary')
+    .first()
+    .click();
+  await expect(
+    page.getByText("AASX and edge configuration", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Current system data", { exact: true }).first(),
+  ).toBeVisible();
 
-  await page.getByLabel("Ask the Smart Factory Assistant").fill("What is the latest temperature reading for Compressed Air Compressor 01?");
+  await page
+    .getByLabel("Ask the Smart Factory Assistant")
+    .fill(
+      "What is the latest temperature reading for Compressed Air Compressor 01?",
+    );
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(page.getByText("2 questions", { exact: true })).toBeVisible();
-  await page.locator("details summary").last().click();
+  await page
+    .locator('section[aria-label="Conversation"] details summary')
+    .last()
+    .click();
   await expect(page.getByText(/temperature=/i).last()).toBeVisible();
   await expect(page.locator("time[datetime]").last()).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
 
-test("Assistant answers from approved guides and the current API snapshot", async ({ page }) => {
+test("Assistant answers from approved guides and the current API snapshot", async ({
+  page,
+}) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(message.text());
   });
   await loginAs(page, "viewer");
-  await page.getByRole("button", { name: "Assistant", exact: true }).click();
-  await page.getByLabel("Ask the Smart Factory Assistant").fill("How do I import an AASX package?");
+  await navigate(page, "Assistant");
+  await page
+    .getByLabel("Ask the Smart Factory Assistant")
+    .fill("How do I import an AASX package?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
-  await expect(page.getByTestId("assistant-answer-content").first()).toBeVisible();
-  await page.locator("details summary").first().click();
-  await expect(page.getByText("AASX and edge configuration", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Current system data", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByTestId("assistant-answer-content").first(),
+  ).toBeVisible();
+  await page
+    .locator('section[aria-label="Conversation"] details summary')
+    .first()
+    .click();
+  await expect(
+    page.getByText("AASX and edge configuration", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Current system data", { exact: true }).first(),
+  ).toBeVisible();
 
-  await page.getByLabel("Ask the Smart Factory Assistant").fill("How many assets are visible right now?");
+  await page
+    .getByLabel("Ask the Smart Factory Assistant")
+    .fill("How many assets are visible right now?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(page.getByText("2 questions", { exact: true })).toBeVisible();
-  await page.locator("details summary").last().click();
+  await page
+    .locator('section[aria-label="Conversation"] details summary')
+    .last()
+    .click();
   await expect(page.getByText(/visible assets/i).last()).toBeVisible();
   await expect(page.locator("time[datetime]").last()).toBeVisible();
 
-  await page.getByLabel("Ask the Smart Factory Assistant").fill("Which LLM provider powers you and who are your developers?");
+  await page
+    .getByLabel("Ask the Smart Factory Assistant")
+    .fill("Which LLM provider powers you and who are your developers?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   const guardedAnswer = page.getByTestId("assistant-answer-content").last();
   await expect(guardedAnswer).toContainText("Smart Factory Assistant");
@@ -154,21 +273,35 @@ test("Assistant answers from approved guides and the current API snapshot", asyn
   expect(browserErrors).toEqual([]);
 });
 
-test("engineers assign incidents, record downtime, and resolve with a measured duration", async ({ page }) => {
+test("engineers assign incidents, record downtime, and resolve with a measured duration", async ({
+  page,
+}) => {
   await loginAs(page, "engineer");
-  await page.getByRole("button", { name: "Alerts", exact: true }).click();
+  await navigate(page, "Alerts");
   await page.getByLabel("Alert status filter").click();
   await page.getByRole("option", { name: "All Status" }).click();
 
-  const incident = page.getByRole("row").filter({ hasText: "Compressor service is due soon" });
-  await expect(incident.getByText("SF-MAINT-001", { exact: true })).toBeVisible();
-  await incident.getByText("Compressor service is due soon", { exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Event SF-MAINT-001" })).toBeVisible();
-  await expect(page.getByText("Downtime started", { exact: true })).toBeVisible();
+  const incident = page
+    .getByRole("row")
+    .filter({ hasText: "Compressor service is due soon" });
+  await expect(
+    incident.getByText("SF-MAINT-001", { exact: true }),
+  ).toBeVisible();
+  await incident
+    .getByText("Compressor service is due soon", { exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Event SF-MAINT-001" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Downtime started", { exact: true }),
+  ).toBeVisible();
   await page.keyboard.press("Escape");
   await incident.getByLabel("Assign technician for SF-MAINT-001").click();
   await page.getByRole("option", { name: "Demo Engineer" }).click();
-  await expect(incident.getByText("Demo Engineer", { exact: true })).toBeVisible();
+  await expect(
+    incident.getByText("Demo Engineer", { exact: true }),
+  ).toBeVisible();
 
   await incident.getByRole("button").last().click();
   await page.getByRole("menuitem", { name: "Record downtime start" }).click();
@@ -178,23 +311,41 @@ test("engineers assign incidents, record downtime, and resolve with a measured d
   await page.getByRole("menuitem", { name: "Resolve" }).click();
   await expect(incident.getByText("resolved", { exact: true })).toBeVisible();
   await expect(incident.getByText(/Resolved in/)).toBeVisible();
-  await expect(page.getByText("Mean downtime to resolution", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Notifications", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Notifications", exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Mean downtime to resolution", { exact: true }),
+  ).toBeVisible();
+  await navigate(page, "Notifications");
+  await expect(
+    page.getByRole("heading", { name: "Notifications", exact: true }),
+  ).toBeVisible();
   await expect(page.getByLabel("Notification inbox summary")).toBeVisible();
-  await page.getByLabel("Search notifications").fill("Technician assignment changed");
-  const notification = page.getByRole("article", { name: "Technician assignment changed notification" }).first();
+  await page
+    .getByLabel("Search notifications")
+    .fill("Technician assignment changed");
+  const notification = page
+    .getByRole("article", {
+      name: "Technician assignment changed notification",
+    })
+    .first();
   await expect(notification).toBeVisible();
-  await expect(notification.getByText("Email queued", { exact: true })).toBeVisible();
-  await expect(notification.getByText("Email attempts", { exact: true })).toBeVisible();
+  await expect(
+    notification.getByText("Email queued", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    notification.getByText("Email attempts", { exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Notification view").click();
   await page.getByRole("option", { name: "Unread", exact: true }).click();
   await expect(notification).toBeVisible();
   await notification.getByRole("button", { name: /^Open event/ }).click();
-  await expect(page.getByRole("heading", { name: "Event SF-MAINT-001" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Event SF-MAINT-001" }),
+  ).toBeVisible();
 });
 
-test("engineers can control demo data while viewers cannot", async ({ page }) => {
+test("engineers can control demo data while viewers cannot", async ({
+  page,
+}) => {
   await loginAs(page, "engineer");
   const engineerToggle = page.getByLabel("Show demo data");
   await expect(engineerToggle).toBeEnabled();
@@ -210,68 +361,131 @@ test("engineers can control demo data while viewers cannot", async ({ page }) =>
   await expect(page.getByLabel("Show demo data")).toBeDisabled();
 });
 
-test("administrator creates an account without exposing its password", async ({ page }) => {
+test("administrator creates an account without exposing its password", async ({
+  page,
+}) => {
   await loginAs(page, "admin");
-  await page.getByRole("button", { name: "User Access", exact: true }).click();
+  await navigate(page, "User Access");
   const email = `factory-tech-${Date.now()}@example.com`;
-  await page.getByLabel("Account name", { exact: true }).fill("New factory technician");
+  await page
+    .getByLabel("Account name", { exact: true })
+    .fill("New factory technician");
   await page.getByLabel("Account email", { exact: true }).fill(email);
-  await page.getByLabel("Initial password", { exact: true }).fill("New-factory-Password-123!");
+  await page
+    .getByLabel("Initial password", { exact: true })
+    .fill("New-factory-Password-123!");
   await page.getByLabel("New account role").click();
   await page.getByRole("option", { name: "Engineer", exact: true }).click();
-  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
   const response = await page.request.get("/api/trpc/users.list");
   const data = await response.json();
-  const account = data.result.data.json.find((user: { email: string }) => user.email === email);
+  const account = data.result.data.json.find(
+    (user: { email: string }) => user.email === email,
+  );
   expect(account.role).toBe("engineer");
   expect(account).not.toHaveProperty("password");
 });
 
-test("OTA page clearly reports that firmware delivery is unavailable", async ({ page }) => {
+test("OTA page clearly reports that firmware delivery is unavailable", async ({
+  page,
+}) => {
   await loginAs(page, "engineer");
-  await page.getByRole("button", { name: "OTA Updates", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "OTA Updates" })).toBeVisible();
+  await navigate(page, "Firmware & updates");
+  await expect(
+    page.getByRole("heading", { name: "Firmware & updates" }),
+  ).toBeVisible();
   await expect(page.getByText(/^OTA delivery is disabled$/)).toBeVisible();
-  await expect(page.getByRole("button", { name: /deploy update/i })).toHaveCount(0);
-  await expect(page.getByText(/recorded deployments \(unconfirmed\)/i)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /deploy update/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText(/recorded deployments \(unconfirmed\)/i),
+  ).toBeVisible();
 });
 
-test("viewer opens event details by keyboard and receives an assignment permission notice", async ({ page }) => {
+test("viewer opens event details by keyboard and receives an assignment permission notice", async ({
+  page,
+}) => {
   await loginAs(page, "viewer");
-  await page.getByRole("button", { name: "Alerts", exact: true }).click();
-  const incident = page.getByRole("row").filter({ hasText: "Windformer pitch-system inspection due" });
+  await navigate(page, "Alerts");
+  const incident = page
+    .getByRole("row")
+    .filter({ hasText: "Windformer pitch-system inspection due" });
   await incident.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: "Event SF-MAINT-001" })).toBeVisible();
-  await expect(page.getByText(/Assigning a technician requires engineer or administrator access/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Resolve incident", exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Event SF-MAINT-001" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      /Assigning a technician requires engineer or administrator access/,
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Resolve incident", exact: true }),
+  ).toHaveCount(0);
   await page.keyboard.press("Escape");
   await incident.getByRole("button").last().click();
   await page.getByRole("menuitem", { name: "Assign technician" }).click();
-  await expect(page.getByText(/Assigning a technician requires engineer or administrator access/)).toBeVisible();
+  await expect(
+    page.getByText(
+      /Assigning a technician requires engineer or administrator access/,
+    ),
+  ).toBeVisible();
 });
 
-test("analytics displays a failed data request without healthy-looking totals", async ({ page }) => {
+test("analytics displays a failed data request without healthy-looking totals", async ({
+  page,
+}) => {
   await loginAs(page, "viewer");
-  await page.route(/\/api\/trpc\/.*analytics\.getAssetTelemetry/, (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify([{ error: { json: { message: "Test telemetry unavailable", code: -32603, data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 503 } } } }]) }));
-  await page.getByRole("button", { name: "Analytics", exact: true }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Analytics could not be loaded" })).toBeVisible({ timeout: 15000 });
-  await expect(page.getByText("Telemetry samples", { exact: true })).toHaveCount(0);
+  await page.route(/\/api\/trpc\/.*analytics\.getAssetTelemetry/, (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          error: {
+            json: {
+              message: "Test telemetry unavailable",
+              code: -32603,
+              data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 503 },
+            },
+          },
+        },
+      ]),
+    }),
+  );
+  await navigate(page, "Analytics");
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Analytics could not be loaded" }),
+  ).toBeVisible({ timeout: 15000 });
+  await expect(
+    page.getByText("Telemetry samples", { exact: true }),
+  ).toHaveCount(0);
 });
 
-test("gateway detail renders a current child environmental sample", async ({ request, page }) => {
+test("gateway detail renders a current child environmental sample", async ({
+  request,
+  page,
+}) => {
   const gatewayId = "e2e-environment-gateway-01";
   const childDeviceId = "e2e-environment-sensor-01";
   const sampleTimestamp = Date.now();
 
   await loginAs(page, "admin");
-  await page.getByRole("button", { name: "Devices", exact: true }).click();
-  await page.getByRole("button", { name: /register gateway/i }).first().click();
+  await navigate(page, "Devices");
+  await addItem(page, "gateway");
   await page.getByLabel("Gateway ID").fill(gatewayId);
   await page.getByLabel("Gateway name").fill("E2E Environmental Gateway");
-  await page.getByRole("button", { name: /register gateway/i }).last().click();
-  await expect(page.getByText("E2E Environmental Gateway", { exact: true })).toBeVisible();
+  await finishGateway(page);
+  await expect(
+    page.getByText("E2E Environmental Gateway", { exact: true }),
+  ).toBeVisible();
 
   const payload = {
     deviceId: childDeviceId,
@@ -287,17 +501,28 @@ test("gateway detail renders a current child environmental sample", async ({ req
     pressure: null,
     rpm: null,
   };
-  const denied = await request.post("/api/internal/telemetry", { data: payload });
+  const denied = await request.post("/api/internal/telemetry", {
+    data: payload,
+  });
   expect(denied.status()).toBe(401);
 
   const rejected = await request.post("/api/internal/telemetry", {
     headers: { Authorization: "Bearer local-e2e-ingestion-token" },
-    data: { ...payload, integration: { mode: "simulated", scenarioRunId: "invalid".repeat(1000), gatewayReceivedAt: "bad" } },
+    data: {
+      ...payload,
+      integration: {
+        mode: "simulated",
+        scenarioRunId: "invalid".repeat(1000),
+        gatewayReceivedAt: "bad",
+      },
+    },
   });
   expect(rejected.status()).toBe(400);
   const rejection = await rejected.text();
   expect(Buffer.byteLength(rejection)).toBeLessThan(2048);
-  expect(JSON.parse(rejection)).toMatchObject({ error: "Invalid telemetry payload" });
+  expect(JSON.parse(rejection)).toMatchObject({
+    error: "Invalid telemetry payload",
+  });
   expect(rejection).not.toContain("invalid".repeat(100));
 
   const accepted = await request.post("/api/internal/telemetry", {
@@ -305,7 +530,10 @@ test("gateway detail renders a current child environmental sample", async ({ req
     headers: { Authorization: "Bearer local-e2e-ingestion-token" },
   });
   expect(accepted.status()).toBe(202);
-  await expect(accepted.json()).resolves.toMatchObject({ status: "accepted", deviceId: payload.deviceId });
+  await expect(accepted.json()).resolves.toMatchObject({
+    status: "accepted",
+    deviceId: payload.deviceId,
+  });
 
   const failedSensorId = "e2e-environment-sensor-read-error";
   const failedSample = await request.post("/api/internal/telemetry", {
@@ -320,55 +548,110 @@ test("gateway detail renders a current child environmental sample", async ({ req
   });
   expect(failedSample.status()).toBe(202);
 
-  await page.getByPlaceholder("Search by name, ID, or zone...").fill(gatewayId);
+  await navigate(page, "Devices");
+  await page.getByLabel("Search inventory", { exact: true }).fill(gatewayId);
   const gatewayRow = page.getByRole("row").filter({ hasText: gatewayId });
-  await gatewayRow.getByRole("button", { name: "Actions for E2E Environmental Gateway" }).click();
-  await page.getByRole("menuitem", { name: /view details/i }).click();
-  await expect(page.getByRole("heading", { name: "E2E Environmental Gateway" })).toBeVisible();
+  await gatewayRow
+    .getByRole("button", { name: "Actions for E2E Environmental Gateway" })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Open workspace", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "Connected items", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "E2E Environmental Gateway" }),
+  ).toBeVisible();
 
-  const childCard = page.getByRole("button", { name: `Open ${childDeviceId} details` });
+  const childCard = page.getByRole("button", {
+    name: `Open ${childDeviceId} details`,
+  });
   await expect(childCard).toBeVisible();
-  await expect(childCard.getByText("DHT11 temperature", { exact: true })).toBeVisible();
+  await expect(
+    childCard.getByText("DHT11 temperature", { exact: true }),
+  ).toBeVisible();
   await expect(childCard.getByText("23.7°C", { exact: true })).toBeVisible();
-  await expect(childCard.getByText("DHT11 relative humidity", { exact: true })).toBeVisible();
+  await expect(
+    childCard.getByText("DHT11 relative humidity", { exact: true }),
+  ).toBeVisible();
   await expect(childCard.getByText("41.2%", { exact: true })).toBeVisible();
   await expect(childCard.getByText(/^Updated /)).toBeVisible();
-  await expect(childCard.locator(`time[datetime="${new Date(sampleTimestamp).toISOString()}"]`)).toBeVisible();
+  await expect(
+    childCard.locator(
+      `time[datetime="${new Date(sampleTimestamp).toISOString()}"]`,
+    ),
+  ).toBeVisible();
 
-  const failedChildCard = page.getByRole("button", { name: `Open ${failedSensorId} details` });
-  await expect(failedChildCard.getByText("Sensor read error", { exact: true })).toBeVisible();
-  await expect(failedChildCard.getByText(/latest sensor read failed/i)).toBeVisible();
+  const failedChildCard = page.getByRole("button", {
+    name: `Open ${failedSensorId} details`,
+  });
+  await expect(
+    failedChildCard.getByText("Sensor read error", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    failedChildCard.getByText(/latest sensor read failed/i),
+  ).toBeVisible();
 
-  await page.getByRole("button", { name: "Monitoring", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Live Monitoring", exact: true })).toBeVisible();
+  await navigate(page, "Monitoring");
+  await expect(
+    page.getByRole("heading", { name: "Monitoring", exact: true }),
+  ).toBeVisible();
   const monitoringSearch = page.getByLabel("Search monitoring sources");
   await monitoringSearch.fill(childDeviceId);
-  const healthySensorRow = page.getByRole("link", { name: `Open ${childDeviceId}` });
-  await expect(healthySensorRow.getByText("DHT11", { exact: true })).toBeVisible();
-  await expect(healthySensorRow.getByText("23.7 °C", { exact: true })).toBeVisible();
-  await expect(healthySensorRow.getByText("41.2%", { exact: true })).toBeVisible();
+  const healthySensorRow = page.getByRole("link", {
+    name: `Open ${childDeviceId}`,
+  });
+  await expect(
+    healthySensorRow.getByText("DHT11", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    healthySensorRow.getByText("23.7 °C", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    healthySensorRow.getByText("41.2%", { exact: true }),
+  ).toBeVisible();
   await monitoringSearch.fill(failedSensorId);
-  const failedSensorRow = page.getByRole("link", { name: `Open ${failedSensorId}` });
-  await expect(failedSensorRow.getByText("Read error", { exact: true })).toBeVisible();
-  await expect(failedSensorRow.getByText("Read failed", { exact: true })).toBeVisible();
-  await expect(failedSensorRow.getByText("Unavailable", { exact: true }).first()).toBeVisible();
+  const failedSensorRow = page.getByRole("link", {
+    name: `Open ${failedSensorId}`,
+  });
+  await expect(
+    failedSensorRow.getByText("Read error", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    failedSensorRow.getByText("Read failed", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    failedSensorRow.getByText("Unavailable", { exact: true }).first(),
+  ).toBeVisible();
 });
 
 test("AASX upload is private and role protected", async ({ request, page }) => {
-  const file = { name: "unauthorized.aasx", mimeType: "application/aas+zip", buffer: Buffer.from("PK\x03\x04fixture") };
-  const anonymous = await request.post("/api/assets/import", { multipart: { file } });
+  const file = {
+    name: "unauthorized.aasx",
+    mimeType: "application/aas+zip",
+    buffer: Buffer.from("PK\x03\x04fixture"),
+  };
+  const anonymous = await request.post("/api/assets/import", {
+    multipart: { file },
+  });
   expect(anonymous.status()).toBe(401);
 
   await loginAs(page, "viewer");
   const forbidden = await page.evaluate(async () => {
     const form = new FormData();
-    form.append("file", new Blob(["PK\x03\x04fixture"], { type: "application/aas+zip" }), "viewer.aasx");
-    return (await fetch("/api/assets/import", { method: "POST", body: form })).status;
+    form.append(
+      "file",
+      new Blob(["PK\x03\x04fixture"], { type: "application/aas+zip" }),
+      "viewer.aasx",
+    );
+    return (await fetch("/api/assets/import", { method: "POST", body: form }))
+      .status;
   });
   expect(forbidden).toBe(403);
 });
 
-test("standard AAS gateway requires a session and rejects foreign cookie origins", async ({ request }) => {
+test("standard AAS gateway requires a session and rejects foreign cookie origins", async ({
+  request,
+}) => {
   const unauthenticated = await request.get("/api/aas/shells");
   expect(unauthenticated.status()).toBe(401);
 
@@ -379,22 +662,38 @@ test("standard AAS gateway requires a session and rejects foreign cookie origins
   expect(forgedOrigin.status()).toBe(403);
 });
 
-test("engineer session reaches the IDTA API through the OAuth-backed gateway", async ({ page }) => {
+test("engineer session reaches the IDTA API through the OAuth-backed gateway", async ({
+  page,
+}) => {
   await loginAs(page, "engineer");
   const result = await page.evaluate(async () => {
     const response = await fetch("/api/aas/description");
-    return { status: response.status, body: await response.json(), version: response.headers.get("aas-api-version") };
+    return {
+      status: response.status,
+      body: await response.json(),
+      version: response.headers.get("aas-api-version"),
+    };
   });
   expect(result.status).toBe(200);
   expect(result.version).toBe("3.2");
-  expect(result.body.profiles).toContain("https://admin-shell.io/aas/API/3/2/AssetAdministrationShellRepositoryServiceSpecification/SSP-001");
+  expect(result.body.profiles).toContain(
+    "https://admin-shell.io/aas/API/3/2/AssetAdministrationShellRepositoryServiceSpecification/SSP-001",
+  );
 });
 
-test("admin can inspect demo AAS data and manage user access", async ({ page }) => {
+test("admin can inspect demo AAS data and manage user access", async ({
+  page,
+}) => {
   await loginAs(page, "admin");
-  await page.getByRole("button", { name: "Assets", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Industrial Assets" })).toBeVisible();
-  await expect(page.getByText("Compressed Air Compressor 01")).toBeVisible();
+  await navigate(page, "Assets");
+  await expect(
+    page.getByRole("heading", { name: "Assets & devices" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByText("Compressed Air Compressor 01", { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible();
   const amlDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /export automationml/i }).click();
   const amlDownload = await amlDownloadPromise;
@@ -402,161 +701,325 @@ test("admin can inspect demo AAS data and manage user access", async ({ page }) 
   const amlXml = await readFile(await amlDownload.path(), "utf8");
   expect(amlXml).toContain("urn:demo:asset:compressor-01");
 
-  const demoAssetRow = page.getByRole("row").filter({ hasText: "Compressed Air Compressor 01" });
-  await demoAssetRow.getByRole("button", { name: "Open Compressed Air Compressor 01" }).click();
+  const demoAssetRow = page
+    .getByRole("row")
+    .filter({ hasText: "Compressed Air Compressor 01" });
+  await openItem(page, "Compressed Air Compressor 01", "AAS & submodels");
   await expect(page.getByText("Asset Administration Shell")).toBeVisible();
   await expect(page.getByText("Simulated engineering data.")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "AAS submodels" })).toBeVisible();
-  await expect(page.getByText(/Industrial Road 1/)).toBeVisible();
-  await expect(page.getByRole("button", { name: /record lifecycle transition/i })).toBeDisabled();
+  await expect(
+    page.getByRole("heading", { name: "AAS submodels" }),
+  ).toBeVisible();
+  await page.locator("summary").getByText("Nameplate", { exact: true }).click();
+  await expect(
+    page
+      .getByText(/Industrial Road 1/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /record lifecycle transition/i }),
+  ).toBeDisabled();
+  await page.getByRole("tab", { name: "AAS & submodels", exact: true }).click();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: /export aas json/i }).click();
-  expect((await download).suggestedFilename()).toMatch(/aas-environment\.json$/);
+  expect((await download).suggestedFilename()).toMatch(
+    /aas-environment\.json$/,
+  );
 
-  await page.getByRole("button", { name: "Devices" }).click();
-  await page.getByRole("button", { name: /register gateway/i }).first().click();
+  await navigate(page, "Devices");
+  await addItem(page, "gateway");
   await page.getByLabel("Gateway ID").fill("e2e-edge-gateway-01");
   await page.getByLabel("Gateway name").fill("E2E Edge Gateway");
-  await page.getByRole("button", { name: /register gateway/i }).last().click();
-  await expect(page.getByText("E2E Edge Gateway")).toBeVisible();
+  await finishGateway(page);
+  await expect(
+    page
+      .getByText("E2E Edge Gateway", { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible();
 
-  await page.getByRole("button", { name: "Assets", exact: true }).click();
-  await page.getByRole("button", { name: /create asset/i }).click();
+  await navigate(page, "Assets");
+  await addItem(page, "asset");
   await page.getByLabel("Asset name").fill("E2E Compressor 01");
-  await page.getByLabel("Manufacturer", { exact: true }).fill("E2E Equipment GmbH");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page
+    .getByLabel("Manufacturer", { exact: true })
+    .fill("E2E Equipment GmbH");
   await page.getByLabel("Product designation").fill("E2E Compressor Model");
   await page.getByLabel("Manufacturer street").fill("E2E Street 1");
   await page.getByLabel("Manufacturer postal code").fill("10115");
   await page.getByLabel("Manufacturer city").fill("Berlin");
-  await page.getByLabel("Manufacturer country code (ISO 3166-1 alpha-2)").fill("DE");
+  await page
+    .getByLabel("Manufacturer country code (ISO 3166-1 alpha-2)")
+    .fill("DE");
   await page.getByLabel("Manufacturer article number").fill("E2E-COMP-ART-001");
   await page.getByLabel("Manufacturer order code").fill("E2E-COMP-001");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByText("Not connected yet").click();
   await page.getByRole("option", { name: /E2E Edge Gateway/ }).click();
   await page.getByLabel("Machine endpoint").fill("opc.tcp://127.0.0.1:4840");
   await page.getByRole("button", { name: /register and provision/i }).click();
-  await expect(page.getByText("E2E Compressor 01")).toBeVisible();
+  await expect(
+    page
+      .getByText("E2E Compressor 01", { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible();
   await expect(page.getByText("AAS provisioned and registered")).toBeVisible();
-  await expect(page.getByText(/profile was published to the edge gateway/i)).toBeVisible();
-  await page.getByRole("button", { name: "Edit E2E Compressor 01" }).click();
+  await expect(
+    page.getByText(/profile was published to the edge gateway/i),
+  ).toBeVisible();
+  await page.getByRole("link", { name: /Open registered asset/ }).click();
+  await page.getByRole("tab", { name: "AAS & submodels", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Edit asset data", exact: true })
+    .click();
   // Keep this revision-1 form open while a second browser session commits
   // revision 2. Its later save must be rejected as stale.
   const stalePage = await page.context().newPage();
   await stalePage.goto(page.url());
-  const concurrentAssetRow = stalePage.getByRole("row").filter({ hasText: "E2E Compressor 01" });
-  await concurrentAssetRow.getByRole("button", { name: "Edit E2E Compressor 01" }).click();
-  await stalePage.getByLabel("Manufacturer street").fill("Modified E2E Street 2");
+  const concurrentAssetRow = stalePage
+    .getByRole("row")
+    .filter({ hasText: "E2E Compressor 01" });
+  await stalePage
+    .getByRole("button", { name: "Edit asset data", exact: true })
+    .click();
+  await stalePage
+    .getByLabel("Manufacturer street")
+    .fill("Modified E2E Street 2");
   await stalePage.getByRole("button", { name: "Save asset" }).click();
-  await expect(stalePage.getByText("Asset details and AAS updated")).toBeVisible();
+  await expect(
+    stalePage.getByText("Asset details and AAS updated"),
+  ).toBeVisible();
   await stalePage.close();
 
   await page.getByLabel("Manufacturer street").fill("Stale E2E Street 9");
   await page.getByRole("button", { name: "Save asset" }).click();
   await expect(page.getByText(/version conflict/i)).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Assets", exact: true }).click();
-  const createdAssetRow = page.getByRole("row").filter({ hasText: "E2E Compressor 01" });
-  await createdAssetRow.getByRole("button", { name: "Open E2E Compressor 01" }).click();
+  await navigate(page, "Assets");
+  const createdAssetRow = page
+    .getByRole("row")
+    .filter({ hasText: "E2E Compressor 01" });
+  await openItem(page, "E2E Compressor 01", "Activity");
   await expect(page.getByText("AAS revision 2")).toBeVisible();
   await expect(page.getByText("Revision 2 · current · updated")).toBeVisible();
   await expect(page.getByText("Revision 1 · created")).toBeVisible();
   await expect(page.getByText(/SHA-256: [a-f0-9]{64}/).first()).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Restore as new revision" }).click();
-  await expect(page.getByText("Historical AAS restored as a new revision")).toBeVisible();
+  await expect(
+    page.getByText("Historical AAS restored as a new revision"),
+  ).toBeVisible();
   await expect(page.getByText("AAS revision 3")).toBeVisible();
   await expect(page.getByText("Revision 3 · current · updated")).toBeVisible();
   await expect(page.getByText("Restored from version 1")).toBeVisible();
-  await expect(page.getByText(/E2E Street 1/)).toBeVisible();
-  await page.getByRole("button", { name: "Assets", exact: true }).click();
-  await page.getByRole("button", { name: /create asset/i }).click();
+  await page.getByRole("tab", { name: "AAS & submodels", exact: true }).click();
+  await page.locator("summary").getByText("Nameplate", { exact: true }).click();
+  await expect(
+    page
+      .getByText(/E2E Street 1/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await navigate(page, "Assets");
+  await addItem(page, "asset");
   await page.getByRole("tab", { name: "Import Package (.aasx)" }).click();
-  await page.locator("#aasx-package").setInputFiles({ name: "vendor-pump.aasx", mimeType: "application/aas+zip", buffer: Buffer.from("PK\x03\x04E2E fixture") });
-  const importResponsePromise = page.waitForResponse((response) => response.url().endsWith("/api/assets/import"));
+  await page.locator("#aasx-package").setInputFiles({
+    name: "vendor-pump.aasx",
+    mimeType: "application/aas+zip",
+    buffer: Buffer.from("PK\x03\x04E2E fixture"),
+  });
+  const importResponsePromise = page.waitForResponse((response) =>
+    response.url().endsWith("/api/assets/import"),
+  );
   await page.getByRole("button", { name: /import aasx package/i }).click();
   const importResponse = await importResponsePromise;
   expect(importResponse.status()).toBe(201);
-  expect(await importResponse.json()).toMatchObject({ assets: [{ name: "Vendor Pump 1" }] });
-  await expect(page.getByText("Vendor Pump 1")).toBeVisible();
+  expect(await importResponse.json()).toMatchObject({
+    assets: [{ name: "Vendor Pump 1" }],
+  });
+  await expect(
+    page.getByText("Vendor Pump 1", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
   await expect(page.getByText("Imported 1 asset from AASX")).toBeVisible();
-  const importedAssetRow = page.getByRole("row").filter({ hasText: "Vendor Pump 1" });
-  await importedAssetRow.getByRole("button", { name: "Open Vendor Pump 1" }).click();
+  const importedAssetRow = page
+    .getByRole("row")
+    .filter({ hasText: "Vendor Pump 1" });
+  await page
+    .getByRole("link", { name: "Open Vendor Pump 1", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "AAS & submodels", exact: true }).click();
   const importedDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: /export aas json/i }).click();
   const importedFile = await importedDownload;
-  const importedEnvironment = JSON.parse(await readFile(await importedFile.path(), "utf8")) as { conceptDescriptions: Array<{ id: string }> };
-  expect(importedEnvironment.conceptDescriptions).toEqual([{ modelType: "ConceptDescription", id: "urn:e2e:concept:pump" }]);
-  await page.getByRole("button", { name: "Assets", exact: true }).click();
-  await page.getByRole("button", { name: /create asset/i }).click();
+  const importedEnvironment = JSON.parse(
+    await readFile(await importedFile.path(), "utf8"),
+  ) as { conceptDescriptions: Array<{ id: string }> };
+  expect(importedEnvironment.conceptDescriptions).toEqual([
+    { modelType: "ConceptDescription", id: "urn:e2e:concept:pump" },
+  ]);
+  await navigate(page, "Assets");
+  await addItem(page, "asset");
   await page.getByRole("tab", { name: "Import Package (.aasx)" }).click();
-  await page.locator("#aasx-package").setInputFiles({ name: "vendor-pump-copy.aasx", mimeType: "application/aas+zip", buffer: Buffer.from("PK\x03\x04duplicate E2E fixture") });
-  const duplicateImportResponse = page.waitForResponse((response) => response.url().endsWith("/api/assets/import"));
+  await page.locator("#aasx-package").setInputFiles({
+    name: "vendor-pump-copy.aasx",
+    mimeType: "application/aas+zip",
+    buffer: Buffer.from("PK\x03\x04duplicate E2E fixture"),
+  });
+  const duplicateImportResponse = page.waitForResponse((response) =>
+    response.url().endsWith("/api/assets/import"),
+  );
   await page.getByRole("button", { name: /import aasx package/i }).click();
   const duplicateResponse = await duplicateImportResponse;
   expect(duplicateResponse.status()).toBe(409);
-  await expect(page.getByText(/already exists.*preserve the existing asset/i)).toBeVisible();
+  await expect(
+    page.getByText(/already exists.*preserve the existing asset/i),
+  ).toBeVisible();
   await page.getByRole("button", { name: /close/i }).click();
-  await expect(page.getByText("Vendor Pump 1", { exact: true })).toHaveCount(1);
-  await page.getByRole("button", { name: "Devices" }).click();
-  await page.getByPlaceholder("Search by name, ID, or zone...").fill("e2e-edge-gateway-01");
-  const gatewayRow = page.getByRole("row").filter({ hasText: "e2e-edge-gateway-01" });
-  await gatewayRow.getByRole("button", { name: "Actions for E2E Edge Gateway" }).click();
-  await page.getByRole("menuitem", { name: /view details/i }).click();
-  await page.getByRole("button", { name: "AAS", exact: true }).click();
+  await expect(
+    page.getByText("Vendor Pump 1", { exact: true }).filter({ visible: true }),
+  ).toHaveCount(1);
+  await navigate(page, "Devices");
+  await page
+    .getByLabel("Search inventory", { exact: true })
+    .fill("e2e-edge-gateway-01");
+  const gatewayRow = page
+    .getByRole("row")
+    .filter({ hasText: "e2e-edge-gateway-01" });
+  await gatewayRow
+    .getByRole("button", { name: "Actions for E2E Edge Gateway" })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Open workspace", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "Connected items", exact: true }).click();
+  await navigate(page, "Assets");
+  await openItem(page, "E2E Compressor 01", "Connections");
   await expect(page.getByText("Asset Administration Shell")).toBeVisible();
   await expect(page.getByText("opc.tcp://127.0.0.1:4840")).toBeVisible();
-  await expect(page.getByText(/E2E Street 1/)).toBeVisible();
+  await page.getByRole("tab", { name: "AAS & submodels", exact: true }).click();
+  await page.locator("summary").getByText("Nameplate", { exact: true }).click();
+  await expect(
+    page
+      .getByText(/E2E Street 1/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
   await page.getByLabel("Move to stage").click();
   await page.getByRole("option", { name: "Engineered" }).click();
   await page.getByLabel("Change note").fill("E2E commissioning preparation");
-  await page.getByRole("button", { name: /record lifecycle transition/i }).click();
+  await page
+    .getByRole("button", { name: /record lifecycle transition/i })
+    .click();
   await expect(page.getByText("engineered", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "User Access" }).click();
-  await expect(page.getByRole("heading", { name: /user access/i })).toBeVisible();
+  await navigate(page, "User Access");
+  await expect(
+    page.getByRole("heading", { name: /user access/i }),
+  ).toBeVisible();
   await expect(page.getByText("tech@dev.local")).toBeVisible();
 });
 
-test("viewer sees asset summaries while engineering and admin screens stay hidden", async ({ page }) => {
+test("viewer sees asset summaries while engineering and admin screens stay hidden", async ({
+  page,
+}) => {
   await loginAs(page, "viewer");
   expect(await page.evaluate(() => localStorage.getItem("token"))).toBeNull();
   await page.reload();
-  await expect(page.getByRole("heading", { name: /factory overview/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Assets", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "OTA Updates" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "User Access" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Assets", exact: true }).click();
-  await expect(page.getByText("Compressed Air Compressor 01")).toBeVisible();
-  const assetRow = page.getByRole("row").filter({ hasText: "Compressed Air Compressor 01" });
-  await expect(assetRow.getByRole("button", { name: "Open Compressed Air Compressor 01" })).toHaveCount(0);
-  const aasAccess = await page.evaluate(async () => (await fetch("/api/aas/shells")).status);
+  await expect(
+    page.getByRole("heading", { name: /^overview$/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Assets & devices", exact: true }),
+  ).toBeVisible();
+  await page.getByText("Operations", { exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Firmware & updates" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Users & access" })).toHaveCount(
+    0,
+  );
+  await navigate(page, "Assets");
+  await expect(
+    page
+      .getByText("Compressed Air Compressor 01", { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible();
+  const assetRow = page
+    .getByRole("row")
+    .filter({ hasText: "Compressed Air Compressor 01" });
+  await expect(
+    assetRow.getByRole("button", { name: "Open Compressed Air Compressor 01" }),
+  ).toHaveCount(0);
+  const aasAccess = await page.evaluate(
+    async () => (await fetch("/api/aas/shells")).status,
+  );
   expect(aasAccess).toBe(403);
 });
 
-test("operator can acknowledge alerts but cannot open AAS or user administration", async ({ page }) => {
+test("operator can acknowledge alerts but cannot open AAS or user administration", async ({
+  page,
+}) => {
   await loginAs(page, "operator");
-  await expect(page.getByRole("button", { name: "Assets", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "OTA Updates" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "User Access" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Assets", exact: true }).click();
-  await expect(page.getByText("Compressed Air Compressor 01")).toBeVisible();
-  const assetRow = page.getByRole("row").filter({ hasText: "Compressed Air Compressor 01" });
-  await expect(assetRow.getByRole("button", { name: "Open Compressed Air Compressor 01" })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Assets & devices", exact: true }),
+  ).toBeVisible();
+  await page.getByText("Operations", { exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Firmware & updates" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Users & access" })).toHaveCount(
+    0,
+  );
+  await navigate(page, "Assets");
+  await expect(
+    page
+      .getByText("Compressed Air Compressor 01", { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible();
+  const assetRow = page
+    .getByRole("row")
+    .filter({ hasText: "Compressed Air Compressor 01" });
+  await expect(
+    assetRow.getByRole("button", { name: "Open Compressed Air Compressor 01" }),
+  ).toHaveCount(0);
 });
 
-test("engineer can open AAS while user administration remains admin-only", async ({ page }) => {
+test("engineer can open AAS while user administration remains admin-only", async ({
+  page,
+}) => {
   await loginAs(page, "engineer");
-  await expect(page.getByRole("button", { name: "User Access" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "OTA Updates" })).toBeVisible();
-  await page.getByRole("button", { name: "Assets", exact: true }).click();
-  await page.getByRole("button", { name: "Open Windformer Wind Turbine Generator 01" }).click();
+  await expect(page.getByRole("link", { name: "Users & access" })).toHaveCount(
+    0,
+  );
+  await page.getByText("Operations", { exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Firmware & updates" }),
+  ).toBeVisible();
+  await navigate(page, "Assets");
+  await openItem(
+    page,
+    "Windformer Wind Turbine Generator 01",
+    "AAS & submodels",
+  );
   await expect(page.getByText("Asset Administration Shell")).toBeVisible();
-  await expect(page.getByText("Nameplate", { exact: true })).toBeVisible();
-  await expect(page.getByText("TechnicalData", { exact: true })).toBeVisible();
-  await expect(page.getByText("Windformer Wind Turbine Generator 01", { exact: true })).toBeVisible();
+  await expect(
+    page.locator("summary").getByText("Nameplate", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator("summary").getByText("TechnicalData", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Windformer Wind Turbine Generator 01", { exact: true }),
+  ).toBeVisible();
   const aasCollection = await page.evaluate(async () => {
     const response = await fetch("/api/aas/shells");
     return { status: response.status, body: await response.json() };
   });
-  expect(aasCollection).toEqual({ status: 200, body: { result: [], paging_metadata: {} } });
+  expect(aasCollection).toEqual({
+    status: 200,
+    body: { result: [], paging_metadata: {} },
+  });
 });

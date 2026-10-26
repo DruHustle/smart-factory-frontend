@@ -1,4 +1,5 @@
-import { useHashLocation } from "wouter/use-hash-location";
+import { EquipmentBindingEditor } from "@/components/workspace/MappingEditors";
+import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import type { LocalRendererHandle } from "@/components/equipment/LocalEquipmentRenderer";
 const LocalEquipmentRenderer = lazy(
@@ -7,21 +8,35 @@ const LocalEquipmentRenderer = lazy(
 import ModelImport from "@/components/equipment/ModelImport";
 import ModelReplacement from "@/components/equipment/ModelReplacement";
 import { trpc } from "@/lib/trpc";
-import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-export default function EquipmentView() {
+export default function EquipmentView({
+  equipmentId,
+  embedded = false,
+  section = "3d",
+  active = true,
+}: {
+  equipmentId?: string;
+  embedded?: boolean;
+  section?: string;
+  active?: boolean;
+} = {}) {
   const [hashLocation] = useHashLocation();
-  const { theme, toggleTheme } = useTheme();
   const access = trpc.equipment.access.useQuery();
   const writable = access.data?.canWrite === true;
-  const catalog = trpc.equipment.list.useQuery();
-  const template = trpc.equipment.template.useQuery();
-  const models = trpc.equipment.models.useQuery();
+  const catalog = trpc.equipment.list.useQuery(undefined, {
+    enabled: !embedded,
+  });
+  const template = trpc.equipment.template.useQuery(undefined, {
+    enabled: !embedded,
+  });
+  const models = trpc.equipment.models.useQuery(undefined, {
+    enabled: !embedded,
+  });
   const [modelRevision, setModelRevision] = useState("");
   const securityAccess = trpc.security.availability.useQuery();
   const securityFindingId = new URLSearchParams(
@@ -31,11 +46,11 @@ export default function EquipmentView() {
     { id: securityFindingId ?? "00000000-0000-0000-0000-000000000000" },
     { enabled: !!securityFindingId && securityAccess.data?.enabled === true },
   );
-  const assets = trpc.assets.list.useQuery();
+  const assets = trpc.assets.list.useQuery(undefined, { enabled: !embedded });
   const [existingAssetId, setExistingAssetId] = useState(""),
     [bindingText, setBindingText] = useState("");
   const utils = trpc.useUtils();
-  const [id, setId] = useState(""),
+  const [id, setId] = useState(equipmentId ?? ""),
     [name, setName] = useState(""),
     [serial, setSerial] = useState(""),
     [kind, setKind] = useState<"real" | "simulated">("simulated"),
@@ -49,6 +64,9 @@ export default function EquipmentView() {
     },
     onError: (e) => setNotice(e.message),
   });
+  useEffect(() => {
+    if (equipmentId) setId(equipmentId);
+  }, [equipmentId]);
   useEffect(() => {
     if (findingLocation.data) setId(findingLocation.data.equipmentId);
   }, [findingLocation.data?.equipmentId]);
@@ -78,181 +96,183 @@ export default function EquipmentView() {
             equipment or review the finding in the security list.
           </p>
         )}
-      <div>
-        <h1 className="text-2xl font-bold">Equipment view</h1>
-        <p className="text-muted-foreground">
-          Local equipment, components, observations and saved work
-        </p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-3"
-          onClick={toggleTheme}
-          aria-label={
-            theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
-          }
-        >
-          Theme: {theme}
-        </Button>
-      </div>
-      {notice && <p role="status">{notice}</p>}
-      <label className="block text-sm" htmlFor="local-equipment">
-        Installed equipment
-      </label>
-      <select
-        id="local-equipment"
-        className="w-full rounded border bg-background p-2 text-foreground sm:max-w-lg"
-        value={id}
-        onChange={(e) => setId(e.target.value)}
-      >
-        <option value="">Choose local equipment</option>
-        {catalog.data?.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.name} · {e.serialNumber} · {e.kind}
-          </option>
-        ))}
-      </select>
-      {catalog.isError && (
-        <p role="alert">
-          Local equipment could not be loaded. Check Smart Factory storage.
-        </p>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold">Equipment view</h1>
+          <p className="text-muted-foreground">
+            Local equipment, components, observations and saved work
+          </p>
+        </div>
       )}
-      {writable && (
-        <details className="rounded border p-4">
-          <summary className="cursor-pointer font-medium">
-            Create local equipment
-          </summary>
-          <form
-            className="mt-3 grid gap-3 sm:grid-cols-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (template.data) {
-                try {
-                  create.mutate({
-                    name,
-                    serialNumber: serial,
-                    kind,
-                    templateRevision: modelRevision || template.data.revision,
-                    ...(existingAssetId
-                      ? {
-                          existingAssetId: Number(existingAssetId),
-                          sourceBindings: JSON.parse(bindingText),
-                        }
-                      : {}),
-                  });
-                } catch {
-                  setNotice("Provide valid explicit source metric bindings");
-                }
-              }
-            }}
+      {notice && <p role="status">{notice}</p>}
+      {!embedded && (
+        <>
+          <label className="block text-sm" htmlFor="local-equipment">
+            Installed equipment
+          </label>
+          <select
+            id="local-equipment"
+            className="w-full rounded border bg-background p-2 text-foreground sm:max-w-lg"
+            value={id}
+            onChange={(e) => setId(e.target.value)}
           >
-            <label className="text-sm sm:col-span-2">
-              Acquisition source
-              <select
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={existingAssetId}
-                onChange={(e) => {
-                  setExistingAssetId(e.target.value);
-                  if (e.target.value) {
-                    const a = assets.data?.find(
-                      (a) => a.id === Number(e.target.value),
-                    );
-                    setName(a?.name ?? "");
-                    setSerial(a?.serialNumber ?? "Declared by operator");
-                    setKind("real");
-                    setBindingText(
-                      JSON.stringify(
-                        template.data?.bindings.map((b) => ({
-                          ...b,
-                          sourceUnit: b.unit,
-                        })) ?? [],
-                        null,
-                        2,
-                      ),
-                    );
+            <option value="">Choose local equipment</option>
+            {catalog.data?.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name} · {e.serialNumber} · {e.kind}
+              </option>
+            ))}
+          </select>
+          {catalog.isError && (
+            <p role="alert">
+              Local equipment could not be loaded. Check Smart Factory storage.
+            </p>
+          )}
+          {writable && (
+            <details className="rounded border p-4">
+              <summary className="cursor-pointer font-medium">
+                Create local equipment
+              </summary>
+              <form
+                className="mt-3 grid gap-3 sm:grid-cols-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (template.data) {
+                    try {
+                      create.mutate({
+                        name,
+                        serialNumber: serial,
+                        kind,
+                        templateRevision:
+                          modelRevision || template.data.revision,
+                        ...(existingAssetId
+                          ? {
+                              existingAssetId: Number(existingAssetId),
+                              sourceBindings: JSON.parse(bindingText),
+                            }
+                          : {}),
+                      });
+                    } catch {
+                      setNotice(
+                        "Provide valid explicit source metric bindings",
+                      );
+                    }
                   }
                 }}
               >
-                <option value="">Create a new local instance</option>
-                {assets.data
-                  ?.filter((a) => !a.isDemo)
-                  .map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} · {a.assetId}
+                <label className="text-sm sm:col-span-2">
+                  Acquisition source
+                  <select
+                    className="mt-1 w-full rounded border bg-background p-2"
+                    value={existingAssetId}
+                    onChange={(e) => {
+                      setExistingAssetId(e.target.value);
+                      if (e.target.value) {
+                        const a = assets.data?.find(
+                          (a) => a.id === Number(e.target.value),
+                        );
+                        setName(a?.name ?? "");
+                        setSerial(a?.serialNumber ?? "Declared by operator");
+                        setKind("real");
+                        setBindingText(
+                          JSON.stringify(
+                            template.data?.bindings.map((b) => ({
+                              ...b,
+                              sourceUnit: b.unit,
+                            })) ?? [],
+                            null,
+                            2,
+                          ),
+                        );
+                      }
+                    }}
+                  >
+                    <option value="">Create a new local instance</option>
+                    {assets.data
+                      ?.filter((a) => !a.isDemo)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} · {a.assetId}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="text-sm">
+                  Equipment name
+                  <Input
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    maxLength={200}
+                  />
+                </label>
+                <label className="text-sm">
+                  Serial number
+                  <Input
+                    required
+                    value={serial}
+                    onChange={(e) => setSerial(e.target.value)}
+                    maxLength={128}
+                  />
+                </label>
+                <label className="text-sm">
+                  Equipment data mode
+                  <select
+                    className="mt-1 w-full rounded border bg-background p-2"
+                    value={kind}
+                    onChange={(e) => setKind(e.target.value as typeof kind)}
+                  >
+                    <option value="simulated">Simulated equipment</option>
+                    <option value="real">
+                      Real equipment · initially no readings
                     </option>
-                  ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              Equipment name
-              <Input
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={200}
-              />
-            </label>
-            <label className="text-sm">
-              Serial number
-              <Input
-                required
-                value={serial}
-                onChange={(e) => setSerial(e.target.value)}
-                maxLength={128}
-              />
-            </label>
-            <label className="text-sm">
-              Equipment data mode
-              <select
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={kind}
-                onChange={(e) => setKind(e.target.value as typeof kind)}
-              >
-                <option value="simulated">Simulated equipment</option>
-                <option value="real">
-                  Real equipment · initially no readings
-                </option>
-              </select>
-            </label>
-            <label className="text-sm">
-              Local model/template
-              <select
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={modelRevision}
-                onChange={(e) => setModelRevision(e.target.value)}
-              >
-                <option value="">Bundled illustrative pump and motor</option>
-                {models.data?.imported.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} · {m.id.slice(-12)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {existingAssetId && (
-              <label className="text-sm sm:col-span-2">
-                Explicit source metric bindings (verify source units)
-                <Textarea
-                  className="min-h-40 font-mono text-xs"
-                  required
-                  value={bindingText}
-                  onChange={(e) => setBindingText(e.target.value)}
-                />
-              </label>
-            )}
-            <Button disabled={!template.data || create.isPending}>
-              Create equipment
-            </Button>
-          </form>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Uses Smart Factory storage and auth. No Onesa pairing is required.
-            Models and mappings are owned and validated by Smart Factory.
-          </p>
-        </details>
+                  </select>
+                </label>
+                <label className="text-sm">
+                  Local model/template
+                  <select
+                    className="mt-1 w-full rounded border bg-background p-2"
+                    value={modelRevision}
+                    onChange={(e) => setModelRevision(e.target.value)}
+                  >
+                    <option value="">
+                      Bundled illustrative pump and motor
+                    </option>
+                    {models.data?.imported.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} · {m.id.slice(-12)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {existingAssetId && (
+                  <EquipmentBindingEditor
+                    value={bindingText || "[]"}
+                    onChange={setBindingText}
+                    components={template.data?.components ?? []}
+                  />
+                )}
+                <Button disabled={!template.data || create.isPending}>
+                  Create equipment
+                </Button>
+              </form>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Uses Smart Factory storage and auth. No Onesa pairing is
+                required. Models and mappings are owned and validated by Smart
+                Factory.
+              </p>
+            </details>
+          )}
+          {writable && <ModelImport />}
+        </>
       )}
-      {writable && <ModelImport />}
       {id ? (
-        <LocalWorkspace id={id} writable={writable} />
+        <LocalWorkspace
+          id={id}
+          writable={writable}
+          section={embedded ? section : undefined}
+          active={active}
+        />
       ) : (
         <p>
           No installed equipment selected. An engineer can create an instance
@@ -262,13 +282,23 @@ export default function EquipmentView() {
     </div>
   );
 }
-function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
+function LocalWorkspace({
+  id,
+  writable,
+  section,
+  active,
+}: {
+  id: string;
+  writable: boolean;
+  section?: string;
+  active: boolean;
+}) {
   const [stream, setStream] = useState<"live" | "simulated" | undefined>(
     undefined,
   );
   const data = trpc.equipment.get.useQuery(
     { id, mode: stream },
-    { refetchInterval: 5000 },
+    { refetchInterval: active ? 5000 : false },
   );
   const utils = trpc.useUtils();
   const [selected, setSelected] = useState<string | null>(null),
@@ -284,7 +314,10 @@ function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
   const securityAccess = trpc.security.availability.useQuery();
   const security = trpc.security.equipmentOverlay.useQuery(
     { id },
-    { enabled: securityOverlay && securityAccess.data?.enabled === true },
+    {
+      enabled:
+        active && securityOverlay && securityAccess.data?.enabled === true,
+    },
   );
   const securityFindingId = new URLSearchParams(
     window.location.hash.split("?")[1] ?? "",
@@ -370,7 +403,9 @@ function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
           <option value="simulated">Explicitly simulated source</option>
         </select>
       </label>
-      <div className="grid gap-4 lg:grid-cols-[14rem_1fr]">
+      <div
+        className={`grid gap-4 lg:grid-cols-[14rem_1fr] ${section === "observations" ? "hidden" : ""}`}
+      >
         <Card>
           <CardHeader>
             <CardTitle>Components</CardTitle>
@@ -533,231 +568,258 @@ function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
           {notice}
         </p>
       )}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {component?.name ?? "Select component"} · observations
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {component ? (
-            <p className="break-all text-xs text-muted-foreground">
-              {component.designation} · quantity {component.quantity ?? 1} ·{" "}
-              {component.material}
-              <br />
-              {component.description}
-              <br />
-              Template component: {component.templateComponentId}
-              <br />
-              Installed component: {component.installedComponentId}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Select a component in the model or BOM to inspect its details.
-            </p>
-          )}
-          {observations.length ? (
-            observations.map((o) => (
-              <div
-                key={o.metric}
-                className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
+      {section === "observations" && (
+        <label className="block text-sm">
+          Observation component
+          <select
+            aria-label="Observation component"
+            className="ml-2 max-w-full rounded border bg-background p-2"
+            value={selected ?? ""}
+            onChange={(e) => setSelected(e.target.value || null)}
+          >
+            <option value="">Select a component</option>
+            {w.components.map((c) => (
+              <option
+                key={c.installedComponentId}
+                value={c.installedComponentId}
               >
-                <span>{o.metric}</span>
-                <strong>
-                  {o.value == null ? "Unavailable" : `${o.value} ${o.unit}`}
-                </strong>
-                <span>
-                  {String(o.mode)} · {o.freshness} · quality{" "}
-                  {String(o.sourceQuality)}
-                </span>
-                {o.alarmActive && (
-                  <Badge variant="destructive">
-                    Source alarm active · {String(o.mode)}
-                  </Badge>
-                )}
-                {o.conversion && (
-                  <span className="w-full text-xs text-muted-foreground">
-                    Source {o.rawValue} {o.sourceUnit} · conversion ×{" "}
-                    {o.conversion.factor}
-                  </span>
-                )}
-                <time className="w-full text-xs text-muted-foreground">
-                  {o.observedAt ?? "No observation"}
-                </time>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No metric binding for this component. Select Pump or Motor.
-              Missing data is unavailable.
-            </p>
-          )}
-          {canEdit && w.kind === "simulated" && (
-            <div>
-              <p className="mb-2 text-sm font-medium">
-                Run local simulated scenario
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {(["normal", "alarm", "recovery", "stale"] as const).map(
-                  (s) => (
-                    <Button
-                      key={s}
-                      variant="outline"
-                      disabled={scenario.isPending}
-                      onClick={() => scenario.mutate({ id, scenario: s })}
-                    >
-                      {s[0].toUpperCase() + s.slice(1)}
-                    </Button>
-                  ),
-                )}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Local notes and selected component</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {notes.map((a) => (
-            <p
-              key={a.id}
-              className="whitespace-pre-wrap rounded border p-3 text-sm"
-            >
-              {a.text}
-            </p>
-          ))}
-          {canEdit ? (
-            <>
-              <label className="text-sm" htmlFor="equipment-note">
-                {component
-                  ? `Note for ${component.name}`
-                  : "Select a component to add a note"}
-              </label>
-              <Textarea
-                id="equipment-note"
-                disabled={!component}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                maxLength={2000}
-              />
-              <Button
-                disabled={save.isPending}
-                onClick={() =>
-                  save.mutate({
-                    id,
-                    expectedVersion: w.version,
-                    selectedComponent: selected,
-                    annotations:
-                      note.trim() && selected
-                        ? [
-                            ...w.annotations,
-                            {
-                              id: crypto.randomUUID(),
-                              componentId: selected,
-                              text: note.trim(),
-                            },
-                          ]
-                        : w.annotations,
-                    viewpoints: w.viewpoints,
-                  })
-                }
-              >
-                Save local work
-              </Button>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Public demonstration work is read-only.
-            </p>
-          )}
-          <div className="space-y-2">
-            {w.viewpoints.map((v) => (
-              <Button
-                key={v.id}
-                variant="outline"
-                onClick={() => renderer.current?.restore(v)}
-              >
-                Open viewpoint: {v.name}
-              </Button>
+                {c.name}
+              </option>
             ))}
-            {canEdit && (
-              <div className="flex flex-wrap gap-2">
-                <Input
-                  aria-label="Viewpoint name"
-                  className="sm:max-w-xs"
-                  value={viewName}
-                  onChange={(e) => setViewName(e.target.value)}
-                  placeholder="Viewpoint name"
-                  maxLength={80}
-                />
-                <Button
-                  variant="outline"
-                  disabled={save.isPending || !viewName.trim()}
-                  onClick={() => {
-                    const v = renderer.current?.capture();
-                    if (v)
-                      save.mutate({
-                        id,
-                        expectedVersion: w.version,
-                        selectedComponent: selected,
-                        annotations: w.annotations,
-                        viewpoints: [
-                          ...w.viewpoints,
-                          {
-                            ...v,
-                            id: crypto.randomUUID(),
-                            name: viewName.trim(),
-                          },
-                        ],
-                      });
-                  }}
+          </select>
+        </label>
+      )}
+      {(!section || section === "observations") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {component?.name ?? "Select component"} · observations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {component ? (
+              <p className="break-all text-xs text-muted-foreground">
+                {component.designation} · quantity {component.quantity ?? 1} ·{" "}
+                {component.material}
+                <br />
+                {component.description}
+                <br />
+                Template component: {component.templateComponentId}
+                <br />
+                Installed component: {component.installedComponentId}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Select a component in the model or BOM to inspect its details.
+              </p>
+            )}
+            {observations.length ? (
+              observations.map((o) => (
+                <div
+                  key={o.metric}
+                  className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
                 >
-                  Save viewpoint
-                </Button>
+                  <span>{o.metric}</span>
+                  <strong>
+                    {o.value == null ? "Unavailable" : `${o.value} ${o.unit}`}
+                  </strong>
+                  <span>
+                    {String(o.mode)} · {o.freshness} · quality{" "}
+                    {String(o.sourceQuality)}
+                  </span>
+                  {o.alarmActive && (
+                    <Badge variant="destructive">
+                      Source alarm active · {String(o.mode)}
+                    </Badge>
+                  )}
+                  {o.conversion && (
+                    <span className="w-full text-xs text-muted-foreground">
+                      Source {o.rawValue} {o.sourceUnit} · conversion ×{" "}
+                      {o.conversion.factor}
+                    </span>
+                  )}
+                  <time className="w-full text-xs text-muted-foreground">
+                    {o.observedAt ?? "No observation"}
+                  </time>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No metric binding for this component. Select Pump or Motor.
+                Missing data is unavailable.
+              </p>
+            )}
+            {canEdit && w.kind === "simulated" && (
+              <div>
+                <p className="mb-2 text-sm font-medium">
+                  Run local simulated scenario
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(["normal", "alarm", "recovery", "stale"] as const).map(
+                    (s) => (
+                      <Button
+                        key={s}
+                        variant="outline"
+                        disabled={scenario.isPending}
+                        onClick={() => scenario.mutate({ id, scenario: s })}
+                      >
+                        {s[0].toUpperCase() + s.slice(1)}
+                      </Button>
+                    ),
+                  )}
+                </div>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
-      {canEdit && <ModelReplacement id={id} version={w.version} />}
-      <details className="rounded border p-4">
-        <summary className="cursor-pointer font-medium">
-          Classified local history
-        </summary>
-        <div className="mt-3 max-h-96 space-y-2 overflow-y-auto">
-          {w.history
-            .filter((o) => o.componentId === selected)
-            .map((o, i) => (
-              <div key={i} className="rounded border p-2 text-xs">
-                <strong>
-                  {o.metric}:{" "}
-                  {o.value == null ? "Unavailable" : `${o.value} ${o.unit}`}
-                </strong>
-                <p>
-                  {o.observedAt} · {String(o.mode)} · quality{" "}
-                  {String(o.sourceQuality)}
-                </p>
-                <p className="break-all">
-                  Run: {String(o.scenarioRunId ?? o.replayRunId ?? "none")}
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setReplayAt(o.observedAt)}
-                >
-                  Replay this observation time
-                </Button>
-              </div>
+          </CardContent>
+        </Card>
+      )}
+      {(!section || section === "views") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Local notes and selected component</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {notes.map((a) => (
+              <p
+                key={a.id}
+                className="whitespace-pre-wrap rounded border p-3 text-sm"
+              >
+                {a.text}
+              </p>
             ))}
-          {!w.history.length && (
-            <p className="text-sm text-muted-foreground">
-              No local history yet.
-            </p>
-          )}
-        </div>
-      </details>
+            {canEdit ? (
+              <>
+                <label className="text-sm" htmlFor="equipment-note">
+                  {component
+                    ? `Note for ${component.name}`
+                    : "Select a component to add a note"}
+                </label>
+                <Textarea
+                  id="equipment-note"
+                  disabled={!component}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  maxLength={2000}
+                />
+                <Button
+                  disabled={save.isPending}
+                  onClick={() =>
+                    save.mutate({
+                      id,
+                      expectedVersion: w.version,
+                      selectedComponent: selected,
+                      annotations:
+                        note.trim() && selected
+                          ? [
+                              ...w.annotations,
+                              {
+                                id: crypto.randomUUID(),
+                                componentId: selected,
+                                text: note.trim(),
+                              },
+                            ]
+                          : w.annotations,
+                      viewpoints: w.viewpoints,
+                    })
+                  }
+                >
+                  Save local work
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Public demonstration work is read-only.
+              </p>
+            )}
+            <div className="space-y-2">
+              {w.viewpoints.map((v) => (
+                <Button
+                  key={v.id}
+                  variant="outline"
+                  onClick={() => renderer.current?.restore(v)}
+                >
+                  Open viewpoint: {v.name}
+                </Button>
+              ))}
+              {canEdit && (
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    aria-label="Viewpoint name"
+                    className="sm:max-w-xs"
+                    value={viewName}
+                    onChange={(e) => setViewName(e.target.value)}
+                    placeholder="Viewpoint name"
+                    maxLength={80}
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={save.isPending || !viewName.trim()}
+                    onClick={() => {
+                      const v = renderer.current?.capture();
+                      if (v)
+                        save.mutate({
+                          id,
+                          expectedVersion: w.version,
+                          selectedComponent: selected,
+                          annotations: w.annotations,
+                          viewpoints: [
+                            ...w.viewpoints,
+                            {
+                              ...v,
+                              id: crypto.randomUUID(),
+                              name: viewName.trim(),
+                            },
+                          ],
+                        });
+                    }}
+                  >
+                    Save viewpoint
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {canEdit && <ModelReplacement id={id} version={w.version} />}
+      {(!section || section === "observations") && (
+        <details className="rounded border p-4">
+          <summary className="cursor-pointer font-medium">
+            Classified local history
+          </summary>
+          <div className="mt-3 max-h-96 space-y-2 overflow-y-auto">
+            {w.history
+              .filter((o) => o.componentId === selected)
+              .map((o, i) => (
+                <div key={i} className="rounded border p-2 text-xs">
+                  <strong>
+                    {o.metric}:{" "}
+                    {o.value == null ? "Unavailable" : `${o.value} ${o.unit}`}
+                  </strong>
+                  <p>
+                    {o.observedAt} · {String(o.mode)} · quality{" "}
+                    {String(o.sourceQuality)}
+                  </p>
+                  <p className="break-all">
+                    Run: {String(o.scenarioRunId ?? o.replayRunId ?? "none")}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setReplayAt(o.observedAt)}
+                  >
+                    Replay this observation time
+                  </Button>
+                </div>
+              ))}
+            {!w.history.length && (
+              <p className="text-sm text-muted-foreground">
+                No local history yet.
+              </p>
+            )}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

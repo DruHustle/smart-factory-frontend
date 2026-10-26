@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/workspace/Primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,10 +31,7 @@ export default function OTAUpdates() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">OTA Updates</h1>
-          <p className="text-muted-foreground">Firmware inventory and recorded rollout history.</p>
-        </div>
+        <PageHeader title="Firmware & updates" description="Firmware inventory and recorded rollout history."/>
         <Button variant="outline" size="sm" onClick={() => { void Promise.all([deploymentsQuery.refetch(), firmwareQuery.refetch(), devicesQuery.refetch(), capability.refetch()]); }} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Refresh
         </Button>

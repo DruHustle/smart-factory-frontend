@@ -3,14 +3,16 @@ import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Redirect, Route, Switch, Router as WouterRouter } from "wouter";
-import { useHashLocation } from "wouter/use-hash-location";
+import { useParams,Redirect, Route, Switch, Router as WouterRouter } from "wouter";
+import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import DashboardLayout from "./components/DashboardLayout";
 import { canAdministerUsers, canViewEngineering } from "@/lib/access";
 
+const Inventory = lazy(() => import("./pages/Inventory"));
+const ItemWorkspace = lazy(() => import("./pages/ItemWorkspace"));
 const Cybersecurity = lazy(() => import("./pages/Cybersecurity"));
 const EquipmentView = lazy(() => import("./pages/EquipmentView"));
 const OnesaIntegration = lazy(() => import("./pages/OnesaIntegration"));
@@ -49,6 +51,12 @@ function RouteLoading() {
       Loading page…
     </div>
   );
+}
+
+function LegacyItem({kind,section}:{kind:"asset"|"device";section:string}) {
+ const params=useParams<{id:string}>();const [hash]=useHashLocation();
+ const q=new URLSearchParams(hash.split('?')[1]??'');const nextSection=q.get('section')??section;q.delete('section');
+ return <Redirect to={`/inventory/${kind}:${params.id}/${nextSection}${q.size?'?'+q:''}`}/>;
 }
 
 function AppRouter() {
@@ -99,18 +107,20 @@ function AppRouter() {
           <Route path="/passport/:id" component={ProductPassport} />
           <Route>
             <DashboardLayout>
-              <Switch>
+              <Suspense fallback={<RouteLoading />}><Switch>
+                <Route path="/inventory" component={Inventory}/>
+                <Route path="/inventory/:ref/:section" component={ItemWorkspace}/>
+                <Route path="/inventory/:ref" component={ItemWorkspace}/>
                 <Route path="/" component={Home} />
                 <Route path="/monitoring" component={Monitoring} />
-                <Route path="/devices" component={Devices} />
-                <Route path="/devices/:id" component={DeviceDetail} />
+                <Route path="/devices"><Redirect to="/inventory?view=devices"/></Route>
+                <Route path="/devices/:id"><LegacyItem kind="device" section="overview"/></Route>
                 <Route path="/cybersecurity" component={Cybersecurity} />
-                <Route path="/equipment" component={EquipmentView} />
-                <Route path="/assets" component={Assets} />
+                <Route path="/equipment"><EquipmentView/></Route>
+                <Route path="/assets"><Redirect to="/inventory?view=assets"/></Route>
                 <Route
                   path="/assets/:id/aas"
-                  component={AssetAdministrationShell}
-                />
+                ><LegacyItem kind="asset" section="aas"/></Route>
                 <Route path="/integrations/onesa">
                   {canViewEngineering(user.role) ? (
                     <OnesaIntegration />
@@ -142,7 +152,7 @@ function AppRouter() {
                 </Route>
                 <Route path="/404" component={NotFound} />
                 <Route component={NotFound} />
-              </Switch>
+              </Switch></Suspense>
             </DashboardLayout>
           </Route>
         </Switch>

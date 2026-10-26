@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/workspace/Primitives";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
@@ -91,12 +92,7 @@ function PrivateIntegration() {
   };
   return (
     <div className="space-y-5 min-w-0">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Onesa integration</h1>
-        <p className="text-muted-foreground">
-          Optional source adapter for Digital Twin Workspace
-        </p>
-      </div>
+      <PageHeader title="Integrations" description="Optional Onesa exchange for Digital Twin Workspace."/>
       <div className="rounded-lg border p-4 text-sm">
         <strong>Proposed contract · consumer acceptance pending.</strong>
         <p className="mt-1">

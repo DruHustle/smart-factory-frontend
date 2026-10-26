@@ -1,3 +1,6 @@
+import { Link } from "wouter";
+import { SampleTime } from "@/components/workspace/Primitives";
+import { PageHeader } from "@/components/workspace/Primitives";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,10 +71,7 @@ export default function Monitoring() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Live Monitoring</h1>
-          <p className="text-muted-foreground">Connectivity and latest readings.</p>
-        </div>
+        <PageHeader title="Monitoring" description="Connectivity and latest readings."/>
         <Button type="button" variant="outline" size="sm" onClick={() => void Promise.all([refetch(), refetchReadings()])} disabled={isFetching || readingsFetching}>
           <RefreshCw aria-hidden="true" className={`mr-2 h-4 w-4 ${isFetching || readingsFetching ? "animate-spin" : ""}`} />{isFetching || readingsFetching ? "Refreshing…" : "Refresh"}
         </Button>
@@ -112,7 +112,7 @@ export default function Monitoring() {
               <p className="mt-1 text-sm text-muted-foreground">{search || statusFilter !== "all" || typeFilter !== "all" ? "Try changing the search, status, or type filter." : "Register a gateway or ingest an edge-device sample to begin monitoring."}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>Source</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead><TableHead>Temperature</TableHead><TableHead>Humidity</TableHead><TableHead>Vibration</TableHead><TableHead>Power</TableHead><TableHead>Speed</TableHead><TableHead>Last reading</TableHead><TableHead>Last seen</TableHead>
@@ -154,7 +154,7 @@ export default function Monitoring() {
                   </TableRow>;
                 })}</TableBody>
               </Table>
-            </div>
+            </div><div className="space-y-3 md:hidden">{pageDevices.map(d=><article key={d.id} className="space-y-2 rounded border p-3"><div className="flex items-start justify-between gap-2"><Link className="min-w-0 break-words font-medium" href={`/inventory/device:${d.id}/telemetry`}>{d.name}</Link><Button asChild variant="outline" size="sm"><Link href={`/inventory/device:${d.id}/telemetry`}>Open</Link></Button></div><p className="break-all text-xs text-muted-foreground">{d.deviceId} · {d.type}</p><Badge variant="outline">{d.status}</Badge><p className="text-xs"><SampleTime value={latestByDeviceId.get(d.id)?.timestamp} historical={d.status!=="online"}/> · {String(latestByDeviceId.get(d.id)?.integration?.mode??"unknown")} evidence</p></article>)}</div></>
           )}
         </CardContent>
       </Card>

@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/workspace/Primitives";
 import { useMemo } from "react";
 import { useLocation } from "wouter";
 import { Activity, AlertTriangle, ArrowRight, Bell, Clock, Factory, Layers, RefreshCw, Wifi, WifiOff } from "lucide-react";
@@ -77,12 +78,11 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-xl border bg-gradient-to-r from-sky-50 via-indigo-50 to-emerald-50 p-4 dark:from-sky-950/30 dark:via-indigo-950/30 dark:to-emerald-950/30 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <div className="flex flex-col gap-4 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-3">
-          <span className="rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 p-3 text-white shadow-sm"><Factory className="h-6 w-6" /></span>
+          <span className="rounded-lg bg-primary/10 p-3 text-primary"><Factory className="h-6 w-6" /></span>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Factory Overview</h1>
-            <p className="mt-1 text-muted-foreground">Asset status, gateway connectivity, open incidents, and confirmed downtime.</p>
+            <PageHeader title="Overview" description="Asset status, connectivity, open incidents and confirmed downtime."/>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -106,9 +106,9 @@ export default function Home() {
       {assets.length > 0 && assets.every((asset) => asset.isDemo) && <div className="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm">This is API-provided simulated asset and telemetry data. Replace it with registered equipment when ready.</div>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <SummaryCard accent="indigo" title="Industrial assets" value={isLoading ? "…" : assets.length} detail="AAS-backed equipment records" icon={<Factory className="h-5 w-5" />} onClick={() => setLocation("/assets")} />
-        <SummaryCard accent="emerald" title="Online gateways" value={isLoading ? "…" : `${onlineGateways} / ${gateways.length}`} detail="Edge gateways" icon={<Wifi className="h-5 w-5" />} onClick={() => setLocation("/devices")} />
-        <SummaryCard accent="emerald" title="Online edge devices" value={isLoading ? "…" : `${onlineEdgeDevices} / ${edgeDevices.length}`} detail="Connected edge devices" icon={<Wifi className="h-5 w-5" />} onClick={() => setLocation("/devices")} />
+        <SummaryCard accent="indigo" title="Industrial assets" value={isLoading ? "…" : assets.length} detail="AAS-backed equipment records" icon={<Factory className="h-5 w-5" />} onClick={() => setLocation("/inventory?view=assets")} />
+        <SummaryCard accent="emerald" title="Online gateways" value={isLoading ? "…" : `${onlineGateways} / ${gateways.length}`} detail="Edge gateways" icon={<Wifi className="h-5 w-5" />} onClick={() => setLocation("/inventory?view=devices")} />
+        <SummaryCard accent="emerald" title="Online edge devices" value={isLoading ? "…" : `${onlineEdgeDevices} / ${edgeDevices.length}`} detail="Connected edge devices" icon={<Wifi className="h-5 w-5" />} onClick={() => setLocation("/inventory?view=devices")} />
         <SummaryCard accent="rose" title="Open incidents" value={overview.data?.alerts.open ?? "—"} detail={`${overview.data?.alerts.critical ?? 0} critical · ${overview.data?.alerts.warning ?? 0} warning`} icon={<Bell className="h-5 w-5" />} onClick={() => setLocation("/alerts")} />
         <SummaryCard
           accent="rose"
@@ -120,12 +120,12 @@ export default function Home() {
           icon={<Clock className="h-5 w-5" />}
           onClick={() => setLocation("/alerts")}
         />
-        <SummaryCard accent="amber" title="In maintenance" value={isLoading ? "…" : maintenanceAssets} detail="Assets in maintenance lifecycle stage" icon={<Activity className="h-5 w-5" />} onClick={() => setLocation("/assets")} />
+        <SummaryCard accent="amber" title="In maintenance" value={isLoading ? "…" : maintenanceAssets} detail="Assets in maintenance lifecycle stage" icon={<Activity className="h-5 w-5" />} onClick={() => setLocation("/inventory?view=assets")} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-6">
-        <ConnectivityCard title="Gateway connectivity" records={gateways} emptyText="No gateway records yet. Register an edge gateway under Devices." action="Open gateways" statuses={gatewayStatus} onOpen={() => setLocation("/devices")} />
-        <ConnectivityCard title="Edge device connectivity" records={edgeDevices} emptyText="No edge device records yet. Register an edge device under Devices." action="Open edge devices" statuses={edgeDeviceStatus} onOpen={() => setLocation("/devices")} />
+        <ConnectivityCard title="Gateway connectivity" records={gateways} emptyText="No gateway records yet. Register an edge gateway under Devices." action="Open gateways" statuses={gatewayStatus} onOpen={() => setLocation("/inventory?view=devices")} />
+        <ConnectivityCard title="Edge device connectivity" records={edgeDevices} emptyText="No edge device records yet. Register an edge device under Devices." action="Open edge devices" statuses={edgeDeviceStatus} onOpen={() => setLocation("/inventory?view=devices")} />
 
         <Card className="xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0"><CardTitle>Open incidents</CardTitle><Button variant="ghost" size="sm" onClick={() => setLocation("/alerts")}>View queue<ArrowRight className="ml-2 h-4 w-4" /></Button></CardHeader>
@@ -145,9 +145,9 @@ export default function Home() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0"><CardTitle>Asset portfolio</CardTitle><Button variant="ghost" size="sm" onClick={() => setLocation("/assets")}>All assets<ArrowRight className="ml-2 h-4 w-4" /></Button></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0"><CardTitle>Asset portfolio</CardTitle><Button variant="ghost" size="sm" onClick={() => setLocation("/inventory?view=assets")}>All assets<ArrowRight className="ml-2 h-4 w-4" /></Button></CardHeader>
         <CardContent>
-          {assets.length === 0 ? <EmptyState text="No industrial assets are registered. Create an AAS for each machine or import its vendor package." action={canViewEngineering(user?.role) ? "Create an asset" : undefined} onClick={canViewEngineering(user?.role) ? () => setLocation("/assets") : undefined} /> : <div className="overflow-x-auto"><table className="w-full text-sm"><caption className="sr-only">Industrial asset portfolio</caption><thead><tr className="border-b text-left text-muted-foreground"><th className="py-2 pr-4">Asset</th><th className="py-2 pr-4">Type</th><th className="py-2 pr-4">Zone / location</th><th className="py-2 pr-4">Lifecycle</th><th className="py-2">AAS revision</th></tr></thead><tbody>
+          {assets.length === 0 ? <EmptyState text="No industrial assets are registered. Create an AAS for each machine or import its vendor package." action={canViewEngineering(user?.role) ? "Create an asset" : undefined} onClick={canViewEngineering(user?.role) ? () => setLocation("/inventory?view=assets") : undefined} /> : <div className="overflow-x-auto"><table className="w-full text-sm"><caption className="sr-only">Industrial asset portfolio</caption><thead><tr className="border-b text-left text-muted-foreground"><th className="py-2 pr-4">Asset</th><th className="py-2 pr-4">Type</th><th className="py-2 pr-4">Zone / location</th><th className="py-2 pr-4">Lifecycle</th><th className="py-2">AAS revision</th></tr></thead><tbody>
             {assets.slice(0, 6).map((asset) => {
               const destination = canViewEngineering(user?.role) ? `/assets/${asset.id}/aas` : "/assets";
               return <tr key={asset.id} aria-label={`Open ${asset.name}`} className="cursor-pointer border-b last:border-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" role="link" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setLocation(destination); } }} onClick={() => setLocation(destination)}><td className="py-3 pr-4"><span className="font-medium">{asset.name}</span>{asset.isDemo && <Badge variant="outline" className="ml-2 border-violet-200 bg-violet-50 text-[10px] text-violet-800 dark:border-violet-900 dark:bg-violet-950/50 dark:text-violet-300">Demo</Badge>}</td><td className="py-3 pr-4 capitalize">{asset.assetType}</td><td className="py-3 pr-4">{asset.zone ?? "—"} · {asset.location ?? "—"}</td><td className="py-3 pr-4"><Badge variant="outline" className={`capitalize ${lifecycleStyles[asset.lifecycleStage.toLowerCase()] ?? "border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-300"}`}>{asset.lifecycleStage}</Badge></td><td className="py-3">v{asset.aasVersion}</td></tr>;
@@ -158,7 +158,7 @@ export default function Home() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <QuickLink title="Live monitoring" detail="Inspect current gateway readings" tone="cyan" icon={<Activity className="h-4 w-4" />} onClick={() => setLocation("/monitoring")} />
-        <QuickLink title="Asset engineering" detail="Create, import, and manage AAS" tone="violet" icon={<Layers className="h-4 w-4" />} onClick={() => setLocation("/assets")} />
+        <QuickLink title="Asset engineering" detail="Create, import, and manage AAS" tone="violet" icon={<Layers className="h-4 w-4" />} onClick={() => setLocation("/inventory?view=assets")} />
         <QuickLink title="Asset analytics" detail="Compare telemetry by asset group" tone="amber" icon={<Factory className="h-4 w-4" />} onClick={() => setLocation("/analytics")} />
       </div>
     </div>
@@ -176,10 +176,10 @@ function formatDuration(totalSeconds: number) {
 
 function SummaryCard({ accent, title, value, detail, icon, onClick }: { accent: "indigo" | "emerald" | "rose" | "amber"; title: string; value: string | number; detail: string; icon: React.ReactNode; onClick: () => void }) {
   const accentStyles = {
-    indigo: "border-t-indigo-500 bg-gradient-to-br from-indigo-500/[0.07] to-card",
-    emerald: "border-t-emerald-500 bg-gradient-to-br from-emerald-500/[0.07] to-card",
-    rose: "border-t-rose-500 bg-gradient-to-br from-rose-500/[0.07] to-card",
-    amber: "border-t-amber-500 bg-gradient-to-br from-amber-500/[0.07] to-card",
+    indigo: "border-t-border bg-card",
+    emerald: "border-t-border bg-card",
+    rose: "border-t-border bg-card",
+    amber: "border-t-border bg-card",
   }[accent];
   const iconStyles = {
     indigo: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",

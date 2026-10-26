@@ -424,3 +424,14 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #2a3a57;
 }
+
+/* Shared workspace system: restrained surfaces, visible focus, compact data. */
+#dashboard-main { overflow-wrap: anywhere; }
+#dashboard-main [data-slot="card"] { box-shadow: none; border-radius: .5rem; }
+#dashboard-main [data-slot="card-header"] { padding: 1rem 1rem .65rem; }
+#dashboard-main [data-slot="card-content"] { padding-left: 1rem; padding-right: 1rem; }
+#dashboard-main [data-slot="card-title"] { font-size: .95rem; line-height: 1.4; font-weight: 600; }
+#dashboard-main a:focus-visible, summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+#dashboard-main th { font-weight: 500; font-size: .75rem; }
+#dashboard-main td { vertical-align: top; }
+.workspace-page-header { width: 100%; }

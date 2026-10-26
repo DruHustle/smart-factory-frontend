@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/workspace/Primitives";
 import { useMemo, useState } from "react";
 import { endOfDay, format } from "date-fns";
 import {
@@ -118,10 +119,7 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Asset Analytics</h1>
-          <p className="text-muted-foreground">Analyze telemetry for assets and groups.</p>
-        </div>
+        <PageHeader title="Analytics" description="Analyze telemetry for assets and groups."/>
         <div className="flex flex-wrap gap-2">
           <ExportButton onExportHtml={handleExport} label="Export Report" />
           <Button variant="outline" size="sm" onClick={() => { setAnalysisTime(Date.now()); void assetsQuery.refetch(); void analyticsQuery.refetch(); void coverageQuery.refetch(); }} disabled={isLoading || !selectedAssets.length}>
@@ -168,6 +166,7 @@ export default function AnalyticsPage() {
       {assets.length > 0 && selectedAssets.length === 0 && <Card><CardContent className="py-12 text-center text-muted-foreground">Choose an asset to view its telemetry.</CardContent></Card>}
 
       {selectedAssets.length > 0 && !analyticsQuery.isError && <>
+        <p className="text-xs text-muted-foreground">Historical operational scope: live and unclassified legacy samples. Explicit simulation and replay streams remain excluded; demonstration records are labelled separately.</p>
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{selectedLabel}</span>
           <span>{selectedAssets.every((asset) => asset.isDemo) ? "Simulated data" : selectedAssets.some((asset) => asset.isDemo) ? "Includes simulated data" : "Registered asset data"}</span>
