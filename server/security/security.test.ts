@@ -16,6 +16,7 @@ import {
 } from "./store";
 import { envelope, sourceInput, digest, canonical } from "./contract";
 import {
+  overview,
   detail,
   filters,
   findings,
@@ -525,6 +526,19 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         "replay",
         "simulated",
       ]);
+      for (const mode of ["simulated", "replay"] as const) {
+        const scope = filters.parse({ sourceId: s.id, mode });
+        const summary = await overview(false, scope);
+        expect(summary.modeCounts).toEqual([{ mode, count: 1 }]);
+        expect(summary.activity).toHaveLength(5);
+        expect(summary.activity.every((e) => e.mode === mode)).toBe(true);
+        const exported = JSON.parse(
+          (await exportEvents(scope, false, "json")).body,
+        ).events;
+        expect(exported.every((e: { mode: string }) => e.mode === mode)).toBe(
+          true,
+        );
+      }
       const [{ count }] = await rows(
         await database(),
         sql`select count(*)::int as count from notification_inbox where "securityFindingId" in(select id from security_findings where source_id=${s.id})`,

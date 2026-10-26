@@ -353,6 +353,7 @@ export const onesaAudit = pgTable("onesa_audit", {
 
 /** App-owned equipment work; no Onesa configuration or account is required. */
 export const equipmentWorkspaces = pgTable("equipment_workspaces", {
+  isStandalone: boolean("is_standalone").notNull().default(false),
   bindings: jsonb("bindings"),
   sourceDeviceId: varchar("source_device_id", { length: 64 }),
   id: uuid("id").primaryKey(),

@@ -403,6 +403,7 @@ export async function recordDeviceHeartbeat(input: { deviceId: string; timestamp
     if (device.lastSeen && device.lastSeen.getTime() >= input.timestamp) return true;
     await tx.update(devices).set({
       lastSeen: new Date(input.timestamp),
+      metadata:{...device.metadata,heartbeatPolicy:"mqtt-gateway-5s-v1",freshnessMs:device.metadata?.freshnessMs??120000},
       status: device.status === "maintenance" || device.status === "error" ? device.status : input.status,
       updatedAt: new Date(),
     }).where(eq(devices.id, device.id));
@@ -445,6 +446,8 @@ export async function getAssets() {
     return rows.filter((asset) => visibleWhenDemoDataEnabled(asset)).map((asset) => ({
       ...asset,
       connectionCount: countsByAsset.get(asset.id) ?? 0,
+      connectionConfigured: (countsByAsset.get(asset.id) ?? 0) > 0,
+      // Deprecated compatibility alias for configuration only; never an availability signal.
       isConnected: (countsByAsset.get(asset.id) ?? 0) > 0,
     }));
   });
@@ -533,12 +536,15 @@ export async function getAssetVersionSnapshot(assetId: number, version: number) 
   });
 }
 
+export async function getAssetsForDevice(devicePk: number) {
+  return withDb(async (db) => (await db.select({id:assets.id,assetId:assets.assetId,name:assets.name,isDemo:assets.isDemo})
+    .from(assetDevices).innerJoin(assets,eq(assets.id,assetDevices.assetId))
+    .where(eq(assetDevices.deviceId,devicePk)).orderBy(asc(assets.id))).filter(r=>visibleWhenDemoDataEnabled(r)));
+}
+/** Compatibility only: callers needing relationships must use getAssetsForDevice. */
 export async function getAssetForDevice(devicePk: number) {
-  const assetId = await withDb(async (db) => {
-    const [link] = await db.select().from(assetDevices).where(eq(assetDevices.deviceId, devicePk)).limit(1);
-    return link?.assetId;
-  });
-  return assetId === undefined ? undefined : getAssetById(assetId);
+  const links=await getAssetsForDevice(devicePk);
+  return links.length ? getAssetById(links[0].id) : undefined;
 }
 
 export async function getAssetLifecycleEvents(assetId: number) {
@@ -846,10 +852,10 @@ export async function ingestTelemetryByDeviceId(input: {
         .where(and(eq(assetDevices.deviceId, sourceDevice.id), eq(assets.assetId, attributedAssetId))).limit(1) : [];
       if (!connection) throw new Error("Telemetry assetId is not linked to the publishing device or its gateway");
     } else if (!input.gatewayId && device.metadata?.connectionMode === "direct_mqtt") {
-      const [connection] = await tx.select({ assetId: assets.assetId }).from(assetDevices)
+      const connections = await tx.select({ assetId: assets.assetId }).from(assetDevices)
         .innerJoin(assets, eq(assets.id, assetDevices.assetId))
-        .where(eq(assetDevices.deviceId, device.id)).limit(1);
-      attributedAssetId = connection?.assetId ?? null;
+        .where(eq(assetDevices.deviceId, device.id)).limit(2);
+      attributedAssetId = connections.length === 1 ? connections[0].assetId : null;
     }
 
     // Adding optional provenance must not change legacy retry identities.

@@ -1,3 +1,5 @@
+import { inventoryRouter } from "./inventory";
+import { registerDeviceInput, registerDevice } from "./deviceRegistration";
 import { securityRouter } from "./security/router";
 import { nativeEvent, principal } from "./security/runtime";
 import { equipmentRouter } from "./equipment/router";
@@ -185,6 +187,7 @@ export const appRouter = router({
     }),
   }),
 
+  inventory: inventoryRouter,
   devices: router({
     list: viewerProcedure.input(z.object({ status: deviceStatusEnum.optional(), type: deviceTypeEnum.optional(), zone: z.string().optional() }).optional()).query(({ input }) => db.getDevices(input)),
     getById: viewerProcedure.input(z.object({ id: z.number() })).query(({ input }) => db.getDeviceById(input.id)),
@@ -201,7 +204,7 @@ export const appRouter = router({
       if (!gateway || gateway.type !== "gateway") return [];
       return db.getAssetsForGateway(gateway.deviceId);
     }),
-    create: engineerProcedure.input(z.object({ type: z.enum(["gateway", "edge_device"]).default("gateway"), deviceId: z.string().trim().min(3).max(64), name: z.string().trim().min(3).max(255), status: deviceStatusEnum.optional(), location: z.string().trim().max(255).optional(), zone: z.string().trim().max(100).optional() })).mutation(({ input }) => db.createDevice(input)),
+    create: engineerProcedure.input(registerDeviceInput).mutation(({ input }) => registerDevice(input)),
     update: engineerProcedure.input(z.object({ id: z.number(), name: z.string().optional(), status: deviceStatusEnum.optional() })).mutation(({ input: { id, ...data } }) => db.updateDevice(id, data)),
     delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       if (!await db.deleteDevice(input.id)) throw new TRPCError({ code: "NOT_FOUND", message: "Device not found" });
@@ -237,6 +240,7 @@ export const appRouter = router({
       };
     }),
     getById: viewerProcedure.input(z.object({ id: z.number() })).query(({ input }) => db.getAssetById(input.id)),
+    getAllForDevice: viewerProcedure.input(z.object({ devicePk: z.number().int().positive() })).query(({ input }) => db.getAssetsForDevice(input.devicePk)),
     getForDevice: viewerProcedure.input(z.object({ devicePk: z.number() })).query(({ input }) => db.getAssetForDevice(input.devicePk)),
     getShell: engineerProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       const asset = await db.getAssetRecordById(input.id);
