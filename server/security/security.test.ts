@@ -25,6 +25,7 @@ import {
   events,
   observeCertificate,
   retryReport,
+  sources as sourcePolicies,
 } from "./service";
 import { drainOutbox, nativeEvent } from "./runtime";
 import { processReportChunk } from "./report-worker";
@@ -213,6 +214,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         res: {},
       } as any);
       expect((await demo.availability()).canAdmin).toBe(false);
+      expect(await demo.assignees()).toEqual([]);
       await expect(
         demo.retention({ days: 30, reason: "Forbidden shared change" }),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -331,6 +333,33 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       expect((await ingest(s.id, [event(s)])).accepted[0].status).toBe(
         "accepted",
       );
+    });
+    it("redacts administrative rule rationale from non-admin policy responses", async () => {
+      await activateRule(
+        {
+          id: "authentication-burst",
+          threshold: 5,
+          windowSeconds: 300,
+          enabled: true,
+          reason: "Private owner review rationale",
+        },
+        actor,
+      );
+      const admin = await sourcePolicies(false, true),
+        reader = await sourcePolicies(false, false);
+      expect(JSON.stringify(admin.rules)).toContain(
+        "Private owner review rationale",
+      );
+      expect(JSON.stringify(reader.rules)).not.toContain(
+        "Private owner review rationale",
+      );
+      expect(
+        reader.rules.every(
+          (r: any) =>
+            Object.keys(r.settings).sort().join(",") ===
+            "enabled,threshold,windowSeconds",
+        ),
+      ).toBe(true);
     });
     it("parses supplied public certificate metadata and rejects private material", async () => {
       const s = await source(),

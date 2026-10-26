@@ -206,7 +206,7 @@ export async function sources(demo: boolean, admin: boolean) {
     );
   const rules = await rows(
     db,
-    sql`select * from security_rules order by id,version desc limit 200`,
+    sql`select * from security_rules order by active desc,id,version desc limit 200`,
   );
   const baselines = await rows(
     db,
@@ -244,10 +244,24 @@ export async function sources(demo: boolean, admin: boolean) {
             },
           },
     ),
-    rules: admin ? rules : rules.map(({ actor_id, ...r }) => r),
+    rules: admin
+      ? rules
+      : rules.map(({ actor_id, settings, ...r }) => ({
+          ...r,
+          settings: {
+            threshold: settings.threshold,
+            windowSeconds: settings.windowSeconds,
+            enabled: settings.enabled,
+          },
+        })),
     baselines: admin
       ? baselines
-      : baselines.map(({ proposed_by, approved_by, ...b }) => b),
+      : baselines.map(
+          ({ proposed_by, approved_by, settings: original, ...b }) => {
+            const { reason, ...settings } = original;
+            return { ...b, settings };
+          },
+        ),
   };
 }
 export async function posture(demo: boolean, redacted = false) {
@@ -279,7 +293,15 @@ export async function posture(demo: boolean, redacted = false) {
         r = reviewed.find((p) => p.target_key === targetKey(t));
       return {
         ...i,
-        review: r ?? null,
+        review: r
+          ? redacted
+            ? {
+                zone: r.zone,
+                criticality: r.criticality,
+                reviewed_at: r.reviewed_at,
+              }
+            : r
+          : null,
         declaredConnections: connections
           .filter((c) =>
             i.kind === "asset" ? c.asset_id === i.id : c.device_id === i.id,

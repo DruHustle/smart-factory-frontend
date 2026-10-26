@@ -298,12 +298,14 @@ export const securityRouter = router({
         }
       : captureHealth(),
   ),
-  assignees: engineerProcedure.query(() =>
+  assignees: engineerProcedure.query(({ ctx }) =>
     run(async () =>
-      store.rows(
-        await store.database(),
-        sql`select id,name,role from users where role in ('engineer','admin') and ${individualSecurityUser()} order by id limit 100`,
-      ),
+      demoOnly(ctx.user)
+        ? []
+        : store.rows(
+            await store.database(),
+            sql`select id,name,role from users where role in ('engineer','admin') and ${individualSecurityUser()} order by id limit 100`,
+          ),
     ),
   ),
   outbox: adminProcedure.query(({ ctx }) =>
