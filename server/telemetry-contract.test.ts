@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { edgeTelemetrySchema } from "./telemetrySchema";
+import { edgeTelemetrySchema, telemetryRejection } from "./telemetrySchema";
 
 describe("edge telemetry wire contract", () => {
   it("normalizes the .NET bridge's nullable assetSignals field", () => {
@@ -48,31 +48,125 @@ describe("edge telemetry wire contract", () => {
       temperature: 25.7,
     };
 
-    expect(edgeTelemetrySchema.safeParse({ ...sample, humidity: -0.1 }).success).toBe(false);
-    expect(edgeTelemetrySchema.safeParse({ ...sample, humidity: 100.1 }).success).toBe(false);
-    expect(edgeTelemetrySchema.safeParse({ ...sample, humidity: 0 }).success).toBe(true);
-    expect(edgeTelemetrySchema.safeParse({ ...sample, humidity: 100 }).success).toBe(true);
+    expect(
+      edgeTelemetrySchema.safeParse({ ...sample, humidity: -0.1 }).success,
+    ).toBe(false);
+    expect(
+      edgeTelemetrySchema.safeParse({ ...sample, humidity: 100.1 }).success,
+    ).toBe(false);
+    expect(
+      edgeTelemetrySchema.safeParse({ ...sample, humidity: 0 }).success,
+    ).toBe(true);
+    expect(
+      edgeTelemetrySchema.safeParse({ ...sample, humidity: 100 }).success,
+    ).toBe(true);
   });
 
   it("rejects unknown sensor health states and control characters", () => {
-    const sample = { deviceId: "esp32-wrover-01", timestamp: 1_791_222_498_582 };
-    expect(edgeTelemetrySchema.safeParse({ ...sample, sensorStatus: "healthy" }).success).toBe(false);
-    expect(edgeTelemetrySchema.safeParse({ ...sample, sensorType: "DHT11\nspoofed" }).success).toBe(false);
+    const sample = {
+      deviceId: "esp32-wrover-01",
+      timestamp: 1_791_222_498_582,
+    };
+    expect(
+      edgeTelemetrySchema.safeParse({ ...sample, sensorStatus: "healthy" })
+        .success,
+    ).toBe(false);
+    expect(
+      edgeTelemetrySchema.safeParse({ ...sample, sensorType: "DHT11\nspoofed" })
+        .success,
+    ).toBe(false);
   });
 
   it("requires internally consistent DHT11 health and measurement fields", () => {
-    const sample = { deviceId: "esp32-wrover-01", sensorType: "DHT11", timestamp: 1_791_222_498_582 };
+    const sample = {
+      deviceId: "esp32-wrover-01",
+      sensorType: "DHT11",
+      timestamp: 1_791_222_498_582,
+    };
 
-    expect(edgeTelemetrySchema.safeParse({ ...sample, temperature: 25, humidity: 40 }).success).toBe(false);
-    expect(edgeTelemetrySchema.safeParse({ ...sample, sensorStatus: "ok", temperature: 25 }).success).toBe(false);
-    expect(edgeTelemetrySchema.safeParse({ ...sample, sensorStatus: "read_error", temperature: 25, humidity: 40 }).success).toBe(false);
-    expect(edgeTelemetrySchema.safeParse({ ...sample, sensorStatus: "ok", temperature: 25, humidity: 40 }).success).toBe(true);
-    expect(edgeTelemetrySchema.safeParse({ ...sample, sensorStatus: "read_error", temperature: null, humidity: null }).success).toBe(true);
+    expect(
+      edgeTelemetrySchema.safeParse({
+        ...sample,
+        temperature: 25,
+        humidity: 40,
+      }).success,
+    ).toBe(false);
+    expect(
+      edgeTelemetrySchema.safeParse({
+        ...sample,
+        sensorStatus: "ok",
+        temperature: 25,
+      }).success,
+    ).toBe(false);
+    expect(
+      edgeTelemetrySchema.safeParse({
+        ...sample,
+        sensorStatus: "read_error",
+        temperature: 25,
+        humidity: 40,
+      }).success,
+    ).toBe(false);
+    expect(
+      edgeTelemetrySchema.safeParse({
+        ...sample,
+        sensorStatus: "ok",
+        temperature: 25,
+        humidity: 40,
+      }).success,
+    ).toBe(true);
+    expect(
+      edgeTelemetrySchema.safeParse({
+        ...sample,
+        sensorStatus: "read_error",
+        temperature: null,
+        humidity: null,
+      }).success,
+    ).toBe(true);
   });
 
   it("accepts the full Arduino uint32 counter range", () => {
-    const sample = { deviceId: "ada031-v4-arm-01", timestamp: 1_791_222_498_582 };
-    expect(edgeTelemetrySchema.safeParse({ ...sample, assetSignals: { uptime_ms: 4_294_967_295 } }).success).toBe(true);
-    expect(edgeTelemetrySchema.safeParse({ ...sample, assetSignals: { uptime_ms: 4_294_967_296 } }).success).toBe(false);
+    const sample = {
+      deviceId: "ada031-v4-arm-01",
+      timestamp: 1_791_222_498_582,
+    };
+    expect(
+      edgeTelemetrySchema.safeParse({
+        ...sample,
+        assetSignals: { uptime_ms: 4_294_967_295 },
+      }).success,
+    ).toBe(true);
+    expect(
+      edgeTelemetrySchema.safeParse({
+        ...sample,
+        assetSignals: { uptime_ms: 4_294_967_296 },
+      }).success,
+    ).toBe(false);
   });
+});
+
+it("bounds validation diagnostics without echoing invalid values or unknown keys", () => {
+  const secret = "private-invalid-input".repeat(1000);
+  const result = edgeTelemetrySchema.safeParse({
+    deviceId: "test",
+    timestamp: 1,
+    assetSignals: Object.fromEntries(
+      Array.from({ length: 100 }, (_, n) => [`${n}${secret}`, null]),
+    ),
+    integration: {
+      mode: "simulated",
+      scenarioRunId: secret,
+      gatewayReceivedAt: secret,
+      [secret]: true,
+    },
+  });
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    const body = telemetryRejection(result.error),
+      wire = JSON.stringify(body);
+    expect(body.details.length).toBe(8);
+    expect(body.truncated).toBe(true);
+    expect(Buffer.byteLength(wire)).toBeLessThan(2048);
+    expect(wire).not.toContain(secret);
+    expect(body.details[0].code).toBeTruthy();
+  }
 });

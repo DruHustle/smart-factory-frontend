@@ -93,3 +93,18 @@ export const edgeTelemetrySchema = z
       });
     }
   });
+
+/** Bounded diagnostics: never echo invalid values or arbitrary unknown keys. */
+export function telemetryRejection(error: z.ZodError) {
+  return {
+    error: "Invalid telemetry payload",
+    details: error.issues.slice(0, 8).map((issue) => ({
+      path: issue.path
+        .join(".")
+        .replace(/[^A-Za-z0-9_.-]/g, "?")
+        .slice(0, 96),
+      code: issue.code,
+    })),
+    truncated: error.issues.length > 8,
+  };
+}

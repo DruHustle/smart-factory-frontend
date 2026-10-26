@@ -24,7 +24,7 @@ import { edgeTagMappingsSchema } from "../../shared/edge-configuration";
 import { sdk } from "./sdk";
 import { importAasxPackage, rollbackAasxImport, publishEdgeConfiguration, AasProvisioningRequestError, type AasxImportResult } from "../aasProvisioningClient";
 import { buildAutomationMlPlantLayout } from "../automationml";
-import { edgeTelemetrySchema } from "../telemetrySchema";
+import { edgeTelemetrySchema, telemetryRejection } from "../telemetrySchema";
 
 const edgeHeartbeatSchema = z.object({
   deviceId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/),
@@ -207,7 +207,7 @@ async function startServer() {
       return res.status(401).json({ error: "Unauthorized service" });
     }
     const parsed = edgeTelemetrySchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "Invalid telemetry payload", details: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(telemetryRejection(parsed.error));
     const timestamp = typeof parsed.data.timestamp === "number" ? parsed.data.timestamp : Date.parse(parsed.data.timestamp);
     if (!Number.isFinite(timestamp) || timestamp <= 0 || timestamp > Date.now() + 300_000) {
       return res.status(400).json({ error: "Telemetry timestamp must be valid and no more than five minutes in the future" });
