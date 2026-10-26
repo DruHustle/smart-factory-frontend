@@ -16,6 +16,7 @@ import {
 } from "./store";
 import { envelope, sourceInput, digest, canonical } from "./contract";
 import {
+  overview,
   detail,
   filters,
   findings,
@@ -152,7 +153,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       expect(
         await rows(
           db,
-          sql`select id from security_sources where system_key='demonstration'`,
+          sql`select id from security_sources where system_key='demonstration-v2'`,
         ),
       ).toHaveLength(0);
       setRuntimeDemoDataEnabled(true);
@@ -160,7 +161,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         await initialize();
         const [demo] = await rows(
           db,
-          sql`select * from security_sources where system_key='demonstration'`,
+          sql`select * from security_sources where system_key='demonstration-v2'`,
         );
         sourceIds.push(demo.id);
         expect(demo.is_demo).toBe(true);
@@ -508,6 +509,31 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         ).items,
       ).toHaveLength(0);
     });
+    it("loads idempotent authored findings with an explicit application target and isolated modes", async () => {
+      const { seedDemonstration } = await import("./demo");
+      const seeded = await seedDemonstration(actor);
+      sourceIds.push(seeded.sourceId);
+      expect((await seedDemonstration(actor)).created).toBe(false);
+      for (const mode of ["simulated", "replay"] as const) {
+        const page = await findings(
+          filters.parse({ sourceId: seeded.sourceId, mode }),
+          false,
+        );
+        expect(
+          page.items.some((f) => f.rule_id === "authentication-burst"),
+        ).toBe(true);
+        expect(
+          page.items.every(
+            (f) => f.mode === mode && f.target?.kind === "application",
+          ),
+        ).toBe(true);
+      }
+      const [{ count }] = await rows(
+        await database(),
+        sql`select count(*)::int as count from notification_inbox where "securityFindingId" in(select id from security_findings where source_id=${seeded.sourceId})`,
+      );
+      expect(count).toBe(0);
+    });
     it("preserves replay and simulation as separate finding scopes and never emits live notifications for either", async () => {
       const s = await source(["simulated", "replay"]);
       for (const mode of ["simulated", "replay"])
@@ -525,6 +551,19 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         "replay",
         "simulated",
       ]);
+      for (const mode of ["simulated", "replay"] as const) {
+        const scope = filters.parse({ sourceId: s.id, mode });
+        const summary = await overview(false, scope);
+        expect(summary.modeCounts).toEqual([{ mode, count: 1 }]);
+        expect(summary.activity).toHaveLength(5);
+        expect(summary.activity.every((e) => e.mode === mode)).toBe(true);
+        const exported = JSON.parse(
+          (await exportEvents(scope, false, "json")).body,
+        ).events;
+        expect(exported.every((e: { mode: string }) => e.mode === mode)).toBe(
+          true,
+        );
+      }
       const [{ count }] = await rows(
         await database(),
         sql`select count(*)::int as count from notification_inbox where "securityFindingId" in(select id from security_findings where source_id=${s.id})`,

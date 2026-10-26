@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/workspace/Primitives";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { AlertCircle, BellRing, CheckCheck, LoaderCircle, MailCheck, RefreshCw, Search } from "lucide-react";
@@ -91,10 +92,7 @@ export default function Notifications() {
 
   return <div className="space-y-5">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
-        <p className="text-muted-foreground">Incident and technician assignment updates for your account.</p>
-      </div>
+      <PageHeader title="Notifications" description="Incident and technician assignment updates for your account."/>
       <div className="flex flex-col items-start gap-1 sm:items-end">
         <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()} disabled={query.isFetching}>
           <RefreshCw aria-hidden="true" className={`h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />

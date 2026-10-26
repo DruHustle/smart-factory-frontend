@@ -90,7 +90,7 @@ export default function Assets() {
                     <span className="block max-w-60 truncate text-xs text-muted-foreground">{[asset.manufacturer, asset.model].filter(Boolean).join(" · ") || (asset.aasxImported ? "Not specified in imported AAS" : "Not set")}</span>
                   </TableCell>
                   <TableCell className="min-w-36">{asset.zone ?? "—"}<span className="block text-xs text-muted-foreground">{asset.location ?? "No location"}</span></TableCell>
-                  <TableCell className="whitespace-nowrap"><Badge className={asset.isConnected ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}>{asset.isConnected ? "Connected" : "Not connected"}</Badge>{asset.connectionCount > 1 && <span className="mt-1 block text-xs text-muted-foreground">{asset.connectionCount} device connections</span>}</TableCell>
+                  <TableCell className="whitespace-nowrap"><Badge className={asset.connectionConfigured ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}>{asset.connectionConfigured ? "Connection configured" : "Not configured"}</Badge>{asset.connectionCount > 1 && <span className="mt-1 block text-xs text-muted-foreground">{asset.connectionCount} device connections</span>}</TableCell>
                   <TableCell><Badge variant="outline" className="capitalize">{asset.lifecycleStage}</Badge>{asset.isDemo && <span className="mt-1 block"><Badge variant="secondary">Simulated</Badge></span>}{asset.aasxImported && <span className="mt-1 block"><Badge variant="outline">AASX</Badge></span>}</TableCell>
                   <TableCell className="whitespace-nowrap">v{asset.aasVersion}</TableCell>
                   {canViewEngineering(user?.role) && <TableCell className="text-right">

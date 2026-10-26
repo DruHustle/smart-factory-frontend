@@ -165,8 +165,8 @@ export const securityRouter = router({
     .query(({ ctx, input }) =>
       run(() => service.equipmentForFinding(input.id, demoOnly(ctx.user))),
     ),
-  overview: viewerProcedure.query(({ ctx }) =>
-    run(() => service.overview(demoOnly(ctx.user))),
+  overview: viewerProcedure.input(service.filters.optional()).query(({ ctx,input }) =>
+    run(() => service.overview(demoOnly(ctx.user),input)),
   ),
   events: viewerProcedure
     .input(service.filters)
@@ -195,11 +195,12 @@ export const securityRouter = router({
         ),
       ),
     ),
-  posture: viewerProcedure.query(({ ctx }) =>
+  posture: viewerProcedure.input(service.filters.optional()).query(({ ctx,input }) =>
     run(() =>
       service.posture(
         demoOnly(ctx.user),
         !["operator", "engineer", "admin"].includes(ctx.user.role),
+        input,
       ),
     ),
   ),

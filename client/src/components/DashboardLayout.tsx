@@ -1,3 +1,5 @@
+import { useTheme } from "@/contexts/ThemeContext";
+import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -38,7 +40,7 @@ import {
   Plug,
   ShieldCheck,
 } from "lucide-react";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { Fragment, CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
@@ -46,19 +48,51 @@ import { safeLocalStorage } from "@/lib/storage";
 import { hasMinimumRole } from "@/lib/access";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Activity, label: "Monitoring", path: "/monitoring" },
-  { icon: Cpu, label: "Devices", path: "/devices" },
-  { icon: Layers, label: "Assets", path: "/assets" },
-  { icon: Factory, label: "Equipment view", path: "/equipment" },
+  { icon: LayoutDashboard, label: "Overview", path: "/" },
+  { icon: Layers, label: "Assets & devices", path: "/inventory" },
   { icon: ShieldCheck, label: "Cybersecurity", path: "/cybersecurity" },
-  { icon: AlertTriangle, label: "Alerts", path: "/alerts" },
-  { icon: Bell, label: "Notifications", path: "/notifications" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
   { icon: Bot, label: "Assistant", path: "/assistant" },
-  { icon: Download, label: "OTA Updates", path: "/ota", minRole: "engineer" as const },
-  { icon: Plug, label: "Onesa integration", path: "/integrations/onesa", minRole: "engineer" as const },
-  { icon: Users, label: "User Access", path: "/users", minRole: "admin" as const },
+];
+const groups: {
+  label: string;
+  items: {
+    icon: typeof Activity;
+    label: string;
+    path: string;
+    minRole?: "engineer" | "admin";
+  }[];
+}[] = [
+  {
+    label: "Operations",
+    items: [
+      { icon: Activity, label: "Monitoring", path: "/monitoring" },
+      { icon: AlertTriangle, label: "Alerts", path: "/alerts" },
+      {
+        icon: Download,
+        label: "Firmware & updates",
+        path: "/ota",
+        minRole: "engineer" as const,
+      },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      {
+        icon: Plug,
+        label: "Integrations",
+        path: "/integrations/onesa",
+        minRole: "engineer" as const,
+      },
+      {
+        icon: Users,
+        label: "Users & access",
+        path: "/users",
+        minRole: "admin" as const,
+      },
+    ],
+  },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -74,7 +108,9 @@ export default function DashboardLayout({
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = safeLocalStorage.getItem(SIDEBAR_WIDTH_KEY);
     const parsed = saved ? Number.parseInt(saved, 10) : DEFAULT_WIDTH;
-    return Number.isFinite(parsed) ? Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, parsed)) : DEFAULT_WIDTH;
+    return Number.isFinite(parsed)
+      ? Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, parsed))
+      : DEFAULT_WIDTH;
   });
   const { isLoading, user } = useAuth();
 
@@ -98,7 +134,8 @@ export default function DashboardLayout({
               Smart Factory IoT Dashboard
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Monitor and manage your industrial IoT devices with real-time analytics and alerts.
+              Monitor and manage your industrial IoT devices with real-time
+              analytics and alerts.
             </p>
           </div>
           <Button
@@ -123,7 +160,10 @@ export default function DashboardLayout({
         } as CSSProperties
       }
     >
-      <DashboardLayoutContent sidebarWidth={sidebarWidth} setSidebarWidth={setSidebarWidth}>
+      <DashboardLayoutContent
+        sidebarWidth={sidebarWidth}
+        setSidebarWidth={setSidebarWidth}
+      >
         {children}
       </DashboardLayoutContent>
     </SidebarProvider>
@@ -142,15 +182,25 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const previousLocationRef = useRef(location);
-  const visibleMenuItems = menuItems.filter((item) => !item.minRole || hasMinimumRole(user?.role, item.minRole));
-  const isMenuItemActive = (path: string) => path === "/" ? location === "/" : location === path || location.startsWith(`${path}/`);
-  const activeMenuItem = visibleMenuItems.find((item) => isMenuItemActive(item.path));
+  const visibleMenuItems = menuItems;
+  const isMenuItemActive = (path: string) =>
+    path === "/"
+      ? location === "/"
+      : (path === "/inventory" &&
+          /^\/(devices|assets|equipment)(\/|$)/.test(location)) ||
+        location === path ||
+        location.startsWith(`${path}/`);
+  const activeMenuItem = [
+    ...visibleMenuItems,
+    ...groups.flatMap((g) => g.items),
+  ].find((item) => isMenuItemActive(item.path));
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -204,10 +254,66 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
+  function renderGroup(group: (typeof groups)[number]) {
+    const items = group.items.filter(
+      (i) => !i.minRole || hasMinimumRole(user?.role, i.minRole),
+    );
+    if (!items.length) return null;
+    return (
+      <li className="list-none" key={group.label}>
+        <details
+          open={
+            items.some((i) => isMenuItemActive(i.path)) ||
+            isCollapsed ||
+            undefined
+          }
+          className="group/nav"
+        >
+          <summary
+            className="cursor-pointer rounded-md px-3 py-2 text-xs font-medium text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            title={group.label}
+          >
+            <span className={isCollapsed ? "sr-only" : ""}>{group.label}</span>
+            {isCollapsed ? "…" : null}
+          </summary>
+          <ul className="space-y-1">
+            {items.map((item) => (
+              <SidebarMenuItem key={item.path}>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={item.label}
+                  isActive={isMenuItemActive(item.path)}
+                >
+                  <Link
+                    href={item.path}
+                      aria-label={item.label}
+                    aria-current={
+                      isMenuItemActive(item.path) ? "page" : undefined
+                    }
+                    onClick={() => {
+                      if (isMobile) setOpenMobile(false);
+                    }}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </ul>
+        </details>
+      </li>
+    );
+  }
+
   return (
     <>
       <a
         href="#dashboard-main"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("dashboard-main")?.focus();
+        }}
         className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-transform focus:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         Skip to main content
@@ -230,7 +336,7 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-500 flex items-center justify-center shadow-[0_0_20px_var(--primary)] shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
                     <Factory className="w-5 h-5 text-primary-foreground" />
                   </div>
                   <span className="font-semibold tracking-tight truncate text-sidebar-foreground">
@@ -241,42 +347,46 @@ function DashboardLayoutContent({
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0 py-2">
+          <SidebarContent className="gap-1 py-3">
             <SidebarMenu className="px-2">
-              {visibleMenuItems.map((item) => {
-                const isActive = isMenuItemActive(item.path);
-                return (
-                  <SidebarMenuItem key={item.path}>
+              {visibleMenuItems.map((item, index) => (
+                <Fragment key={item.path}>
+                  <SidebarMenuItem>
                     <SidebarMenuButton
-                      isActive={isActive}
-                      aria-current={isActive ? "page" : undefined}
-                      onClick={() => {
-                        setLocation(item.path);
-                        if (isMobile) setOpenMobile(false);
-                      }}
+                      asChild
+                      isActive={isMenuItemActive(item.path)}
                       tooltip={item.label}
-                      className={`h-10 transition-all font-normal ${
-                        isActive ? "bg-sidebar-accent" : ""
-                      }`}
+                      className="h-10"
                     >
-                      <item.icon
-                        className={`h-4 w-4 ${
-                          isActive ? "text-primary" : "text-sidebar-foreground"
-                        }`}
-                      />
-                      <span className="text-sidebar-foreground">{item.label}</span>
+                      <Link
+                        href={item.path}
+                      aria-label={item.label}
+                        aria-current={
+                          isMenuItemActive(item.path) ? "page" : undefined
+                        }
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false);
+                        }}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                );
-              })}
+                  {index === 1 && renderGroup(groups[0])}
+                </Fragment>
+              ))}
+              {renderGroup(groups[1])}
             </SidebarMenu>
           </SidebarContent>
 
           <SidebarFooter className="p-3 border-t border-sidebar-border space-y-2">
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button aria-label="Open account menu" className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-sidebar-accent transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <button
+                  aria-label="Open account menu"
+                  className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-sidebar-accent transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
                   <Avatar className="h-9 w-9 border border-sidebar-border shrink-0">
                     <AvatarFallback className="text-xs font-medium bg-primary/20 text-primary">
                       {user?.name?.charAt(0).toUpperCase()}
@@ -324,7 +434,12 @@ function DashboardLayoutContent({
             if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
               event.preventDefault();
               const direction = event.key === "ArrowLeft" ? -10 : 10;
-              setSidebarWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, sidebarWidth + direction)));
+              setSidebarWidth(
+                Math.min(
+                  MAX_WIDTH,
+                  Math.max(MIN_WIDTH, sidebarWidth + direction),
+                ),
+              );
             } else if (event.key === "Home") {
               event.preventDefault();
               setSidebarWidth(MIN_WIDTH);
@@ -337,20 +452,37 @@ function DashboardLayoutContent({
         />
       </div>
 
-      <SidebarInset id="dashboard-main" tabIndex={-1} className="min-w-0 max-w-full overflow-x-clip bg-background">
-        {isMobile && (
-          <div className="flex border-b border-border h-14 items-center justify-between bg-background px-2 sticky top-0 z-40">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg" />
-              <div className="flex items-center gap-3">
-                <Factory className="h-5 w-5 text-primary" />
-                <span className="tracking-tight text-foreground font-medium">
-                  {activeMenuItem?.label ?? "Menu"}
-                </span>
-              </div>
-            </div>
+      <SidebarInset
+        id="dashboard-main"
+        tabIndex={-1}
+        className="min-w-0 max-w-full overflow-x-clip bg-background"
+      >
+        <header className="sticky top-0 z-40 flex h-14 min-w-0 items-center justify-between gap-2 border-b bg-background/95 px-3 md:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <SidebarTrigger aria-label="Toggle navigation" />
+            <span className="truncate text-sm font-medium">
+              {activeMenuItem?.label ?? "Factory workspace"}
+            </span>
           </div>
-        )}
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+              onClick={toggleTheme}
+            >
+              Theme: {theme}
+            </Button>
+            <Button asChild variant="ghost" size="icon">
+              <Link
+                href="/notifications"
+                aria-label="Notifications and history"
+              >
+                <Bell className="h-5 w-5" />
+              </Link>
+            </Button>
+          </div>
+        </header>
         <div className="min-w-0 flex-1 p-4 md:p-6">{children}</div>
       </SidebarInset>
     </>

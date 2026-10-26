@@ -1,7 +1,8 @@
-import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { SectionNav, SampleTime } from "@/components/workspace/Primitives";
 import SecurityAdministration from "@/components/security/SecurityAdministration";
-import { useHashLocation } from "wouter/use-hash-location";
-import { useEffect, useState } from "react";
+import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
+import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -80,8 +81,9 @@ function Workspace({
     canAdmin: boolean;
   };
 }) {
-  const { theme, toggleTheme } = useTheme();
-  const [hashLocation] = useHashLocation();
+  const { user } = useAuth();
+  const preferenceKey = `security-filters:${user?.id}`;
+  const [hashLocation, navigate] = useHashLocation();
   const params = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
   const [tab, setTab] = useState<string>(
     params.has("finding") ? "Findings" : (params.get("tab") ?? "Overview"),
@@ -99,9 +101,10 @@ function Workspace({
   }, [hashLocation]);
   const [filter, setFilter] = useState<Filter>(() => {
     try {
-      const p = JSON.parse(
-        safeLocalStorage.getItem("security-filters") ?? "{}",
-      );
+      const p = {
+        ...JSON.parse(safeLocalStorage.getItem(preferenceKey) ?? "{}"),
+        ...Object.fromEntries(params.entries()),
+      };
       return {
         search: String(p.search ?? "").slice(0, 100),
         sourceId: /^[a-f0-9-]{36}$/.test(p.sourceId ?? "")
@@ -147,12 +150,56 @@ function Workspace({
       };
     }
   });
+  const previousHash = useRef(hashLocation);
+  useEffect(() => {
+    if (previousHash.current === hashLocation) return;
+    previousHash.current = hashLocation;
+    const p = new URLSearchParams(hashLocation.split("?")[1] ?? "");
+    setFilter({
+      search: (p.get("search") ?? "").slice(0, 100),
+      page: Math.min(200, Math.max(0, Number(p.get("page")) || 0)),
+      mode: ["live", "simulated", "replay", "unknown"].includes(
+        p.get("mode") ?? "",
+      )
+        ? (p.get("mode") as Filter["mode"])
+        : undefined,
+      sourceId: /^[a-f0-9-]{36}$/.test(p.get("sourceId") ?? "")
+        ? p.get("sourceId")!
+        : undefined,
+      severity: ["critical", "high", "medium", "low"].includes(
+        p.get("severity") ?? "",
+      )
+        ? (p.get("severity") as Filter["severity"])
+        : undefined,
+      status: [
+        "open",
+        "acknowledged",
+        "investigating",
+        "resolved",
+        "accepted_risk",
+        "dismissed",
+      ].includes(p.get("status") ?? "")
+        ? (p.get("status") as Filter["status"])
+        : undefined,
+      since:
+        p.get("since") && Number.isFinite(Date.parse(p.get("since")!))
+          ? p.get("since")!
+          : undefined,
+      targetKind: ["asset", "device", "application"].includes(
+        p.get("targetKind") ?? "",
+      )
+        ? (p.get("targetKind") as Filter["targetKind"])
+        : undefined,
+      targetId:
+        Number(p.get("targetId")) > 0 ? Number(p.get("targetId")) : undefined,
+    });
+  }, [hashLocation]);
   const [notice, setNotice] = useState(""),
     [failure, setFailure] = useState("");
-  const overview = trpc.security.overview.useQuery(undefined, {
+  const overview = trpc.security.overview.useQuery(filter, {
     refetchInterval: 15000,
   });
-  const posture = trpc.security.posture.useQuery(undefined, {
+  const posture = trpc.security.posture.useQuery(filter, {
     enabled: ["Asset posture", "Sources and policies"].includes(tab),
   });
   const events = trpc.security.events.useQuery(filter, {
@@ -176,27 +223,34 @@ function Workspace({
   };
   const select = (id: string) => {
     setSelected(id);
-    window.history.replaceState(
-      null,
-      "",
-      `#/cybersecurity?tab=${encodeURIComponent(tab)}&finding=${id}`,
-    );
+    const p = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
+    p.set("finding", id);
+    p.set("tab", "Findings");
+    navigate(`/cybersecurity?${p}`);
   };
   const changeTab = (value: string) => {
     setTab(value);
     setSelected(null);
     setFailure("");
-    window.history.replaceState(
-      null,
-      "",
-      `#/cybersecurity?tab=${encodeURIComponent(value)}`,
-    );
+    const p = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
+    p.set("tab", value);
+    p.delete("finding");
+    navigate(`/cybersecurity?${p}`);
   };
   const setFilters = (next: Partial<typeof filter>) => {
+    setSelected(null);
     const value = { ...filter, ...next, page: 0 };
     setFilter(value);
-    safeLocalStorage.setItem("security-filters", JSON.stringify(value));
+    safeLocalStorage.setItem(preferenceKey, JSON.stringify(value));
+    const p = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
+    p.delete("finding");
+    for (const [k, v] of Object.entries(value)) {
+      if (v === undefined || v === "" || v === 0) p.delete(k);
+      else p.set(k, String(v));
+    }
+    navigate(`/cybersecurity?${p}`, { replace: true });
   };
+
   const demonstration = trpc.security.seedDemo.useMutation({
     onSuccess: () => {
       setNotice("Authored simulation and replay evidence is ready.");
@@ -244,11 +298,9 @@ function Workspace({
     { enabled: false },
   );
   const goTarget = (target: any) =>
-    target?.kind === "device"
-      ? `#/devices/${target.id}`
-      : target?.kind === "asset"
-        ? `#/assets/${target.id}/aas`
-        : "#/";
+    ["asset", "device"].includes(target?.kind)
+      ? `#/inventory/${target.kind}:${target.id}/overview?return=${encodeURIComponent(hashLocation)}`
+      : "#/cybersecurity";
   const activeError =
     overview.error ??
     posture.error ??
@@ -265,25 +317,24 @@ function Workspace({
             Observed evidence, explainable findings and human investigation
           </p>
         </div>
-        <Button
-          variant="outline"
-          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-          onClick={toggleTheme}
-        >
-          Theme: {theme}
-        </Button>
+
         <Button variant="outline" onClick={refresh}>
           Refresh evidence
         </Button>
       </header>
       {access.canEngineer && (
-        <Button
-          variant="outline"
-          disabled={demonstration.isPending}
-          onClick={() => demonstration.mutate()}
-        >
-          Load local security demonstration
-        </Button>
+        <details className="rounded border p-3">
+          <summary className="cursor-pointer text-sm">
+            Demonstration / setup
+          </summary>
+          <Button
+            variant="outline"
+            disabled={demonstration.isPending}
+            onClick={() => demonstration.mutate()}
+          >
+            Load local security demonstration
+          </Button>
+        </details>
       )}
       {access.demoOnly && (
         <p className="rounded border p-3 text-sm">
@@ -291,673 +342,768 @@ function Workspace({
           live security investigations.
         </p>
       )}
-      <nav aria-label="Cybersecurity sections" className="flex flex-wrap gap-2">
-        {tabs.map((t) => (
-          <Button
-            key={t}
-            variant={tab === t ? "default" : "outline"}
-            aria-pressed={tab === t}
-            onClick={() => changeTab(t)}
+      <SectionNav
+        label="Cybersecurity sections"
+        sections={tabs.map((t) => ({ id: t, label: t }))}
+        value={tab}
+        onChange={changeTab}
+      >
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+          <label className="text-sm font-medium">
+            Evidence mode scope
+            <select
+              aria-label="Filter evidence mode"
+              className={`ml-2 ${selectClass}`}
+              value={filter.mode ?? ""}
+              onChange={(e) =>
+                setFilters({
+                  mode: (e.target.value || undefined) as Filter["mode"],
+                })
+              }
+            >
+              <option value="">Combined · all evidence modes</option>
+              {["live", "simulated", "replay", "unknown"].map((m) => (
+                <option key={m}>{m}</option>
+              ))}
+            </select>
+          </label>
+          <span className="text-xs text-muted-foreground">
+            {filter.mode
+              ? `${filter.mode} scope`
+              : "Combined scope · provenance retained on every record"}
+          </span>
+        </div>
+        {(notice || failure) && (
+          <p
+            role={failure ? "alert" : "status"}
+            className="rounded border p-3 text-sm"
           >
-            {t}
-          </Button>
-        ))}
-      </nav>
-      {(notice || failure) && (
-        <p
-          role={failure ? "alert" : "status"}
-          className="rounded border p-3 text-sm"
-        >
-          {failure || notice}
-        </p>
-      )}
-      {activeError && (
-        <p role="alert" className="rounded border p-3 text-sm">
-          Security evidence could not be loaded. {activeError.message}{" "}
-          <Button variant="outline" onClick={refresh}>
-            Try again
-          </Button>
-        </p>
-      )}
-      {tab === "Overview" && (
-        <p className="text-sm">
-          Open findings by evidence mode:{" "}
-          {overview.data?.modeCounts
-            .map((m: any) => `${m.mode}: ${m.count}`)
-            .join(" · ") || "No assessed findings"}
-          . Overview combines these explicitly classified modes; use the
-          Findings mode filter for investigation.
-        </p>
-      )}
-      {tab === "Overview" &&
-        (overview.isLoading ? (
-          <p role="status">Loading observed coverage…</p>
-        ) : (
-          overview.data && (
-            <>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {["critical", "high", "medium", "low"].map((severity) => (
-                  <Card key={severity}>
-                    <CardHeader>
-                      <CardTitle className="text-sm capitalize">
-                        Open {severity} findings
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <strong className="text-3xl">
-                        {overview.data.counts.find(
-                          (c) => c.severity === severity,
-                        )?.count ?? 0}
-                      </strong>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Monitoring coverage</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p>
-                    {overview.data.coverage.receiving} receiving ·{" "}
-                    {overview.data.coverage.stale} stale or missing ·{" "}
-                    {overview.data.coverage.configured} configured sources ·{" "}
-                    {overview.data.affected} affected identities
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {overview.data.explanation}
-                  </p>
-                  {!overview.data.sources.length && (
-                    <p>
-                      No security sources are configured. Create a scoped source
-                      or import reviewed evidence; asset controls remain
-                      unknown.
-                    </p>
-                  )}
-                  {overview.data.sources.map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
-                    >
-                      <span>{s.name}</span>
-                      <Badge variant="outline">{s.state}</Badge>
-                      <span>Last live receipt: {time(s.last_received_at)}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent security evidence</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {overview.data.activity.length ? (
-                    overview.data.activity.map((e) => (
-                      <p key={e.id} className="py-2 text-sm">
-                        {e.event_type} · {e.mode} · quality {e.quality} ·{" "}
-                        {time(e.occurred_at)}
-                      </p>
-                    ))
-                  ) : (
-                    <p>
-                      No observed events. Absence of evidence is not a secure
-                      assessment.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )
-        ))}
-      {tab === "Asset posture" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Registered assets and gateways</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              {posture.data?.scopeNote}
-            </p>
-            {posture.isLoading && (
-              <p role="status">Loading registered identities…</p>
-            )}
-            {posture.data?.items.map((i) => (
-              <div
-                key={`${i.kind}-${i.id}`}
-                className="space-y-2 rounded border p-3"
-              >
-                <div className="flex flex-wrap justify-between gap-2">
-                  <a className="text-primary underline" href={goTarget(i)}>
-                    {i.name}
-                  </a>
-                  <Badge variant="outline">
-                    {i.kind} · criticality {i.criticality}
-                  </Badge>
-                </div>
-                <p className="break-all text-xs">
-                  {i.external_id} · Zone:{" "}
-                  {i.review?.zone ?? i.zone ?? "Not reviewed"}
-                </p>
-                <p className="text-sm">
-                  Firmware/software: {i.firmware_version ?? "Unknown"} ·{" "}
-                  {i.versionBasis}
-                </p>
-                <p className="text-sm">
-                  {i.observations.length} observed fact types ·{" "}
-                  {i.findings.length} findings in this page
-                </p>
-                {i.declaredConnections.map((c: any) => (
-                  <p key={c.id} className="text-xs">
-                    Declared connection {c.id}: {c.protocol} ·{" "}
-                    {c.transport_declaration} · authentication{" "}
-                    {c.authentication} · {time(c.declared_at)}
-                  </p>
-                ))}
-                {i.inventories.map((r: any) => (
-                  <details key={r.id} className="text-sm">
-                    <summary>
-                      Imported package versions · {r.mode} ·{" "}
-                      {time(r.producedAt)}
-                    </summary>
-                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap text-xs">
-                      {json(r)}
-                    </pre>
-                  </details>
-                ))}
-                {i.observations.map((o: any) => (
-                  <details key={o.event_type} className="text-sm">
-                    <summary>
-                      {o.event_type} · {o.mode} · {o.quality} ·{" "}
-                      {Date.now() - Date.parse(o.occurred_at) > 86400000
-                        ? "stale"
-                        : "observed"}{" "}
-                      · {time(o.occurred_at)}
-                    </summary>
-                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all text-xs">
-                      {json(o.fact)}
-                    </pre>
-                  </details>
-                ))}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setFilters({
-                      targetKind: i.kind as "asset" | "device",
-                      targetId: i.id,
-                    });
-                    changeTab("Findings");
-                  }}
-                >
-                  Scoped findings
-                </Button>
-                {access.canEngineer && (
-                  <PostureForm
-                    target={{ kind: i.kind, id: i.id }}
-                    onDone={() => {
-                      refresh();
-                      setNotice("Reviewed posture saved.");
-                    }}
-                    onError={setFailure}
-                  />
-                )}
-              </div>
-            ))}
-            {posture.data && !posture.data.items.length && (
-              <p>No registered assets or gateways are available.</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-      {["Events", "Findings", "Incidents"].includes(tab) && (
-        <>
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="text-sm">
-              Search evidence
-              <Input
-                aria-label="Search security evidence"
-                value={filter.search}
-                onChange={(e) => setFilters({ search: e.target.value })}
-              />
-            </label>
-            <label className="text-sm">
-              Evidence mode
-              <select
-                aria-label="Security evidence mode"
-                className={`block ${selectClass}`}
-                value={filter.mode ?? ""}
-                onChange={(e) =>
-                  setFilters({ mode: (e.target.value || undefined) as "live" })
-                }
-              >
-                <option value="">All modes</option>
-                {["live", "simulated", "replay", "unknown"].map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              Source
-              <select
-                aria-label="Filter security source"
-                className={`block ${selectClass}`}
-                value={filter.sourceId ?? ""}
-                onChange={(e) =>
-                  setFilters({ sourceId: e.target.value || undefined })
-                }
-              >
-                <option value="">All sources</option>
-                {sources.data?.items.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              Received / last seen since
-              <Input
-                aria-label="Security time filter"
-                type="date"
-                value={filter.since?.slice(0, 10) ?? ""}
-                onChange={(e) =>
-                  setFilters({
-                    since: e.target.value
-                      ? new Date(e.target.value).toISOString()
-                      : undefined,
-                  })
-                }
-              />
-            </label>
-            {tab !== "Events" && (
+            {failure || notice}
+          </p>
+        )}
+        {activeError && (
+          <p role="alert" className="rounded border p-3 text-sm">
+            Security evidence could not be loaded. {activeError.message}{" "}
+            <Button variant="outline" onClick={refresh}>
+              Try again
+            </Button>
+          </p>
+        )}
+        {tab === "Overview" && (
+          <p className="text-sm">
+            Open findings by evidence mode:{" "}
+            {overview.data?.modeCounts
+              .map((m: any) => `${m.mode}: ${m.count}`)
+              .join(" · ") || "No assessed findings"}
+            . {filter.mode ? "Scoped assessment" : "Combined scope"}. Missing
+            coverage remains unknown.
+          </p>
+        )}
+        {tab === "Overview" &&
+          (overview.isLoading ? (
+            <p role="status">Loading observed coverage…</p>
+          ) : (
+            overview.data && (
               <>
-                <label className="text-sm">
-                  Severity
-                  <select
-                    aria-label="Filter finding severity"
-                    className={`block ${selectClass}`}
-                    value={filter.severity ?? ""}
-                    onChange={(e) =>
-                      setFilters({
-                        severity: (e.target.value ||
-                          undefined) as Filter["severity"],
-                      })
-                    }
-                  >
-                    <option value="">All severities</option>
-                    {["critical", "high", "medium", "low"].map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm">
-                  Workflow
-                  <select
-                    aria-label="Filter investigation status"
-                    className={`block ${selectClass}`}
-                    value={filter.status ?? ""}
-                    onChange={(e) =>
-                      setFilters({
-                        status: (e.target.value ||
-                          undefined) as Filter["status"],
-                      })
-                    }
-                  >
-                    <option value="">All states</option>
-                    {[
-                      "open",
-                      "acknowledged",
-                      "investigating",
-                      "resolved",
-                      "accepted_risk",
-                      "dismissed",
-                    ].map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                </label>
-              </>
-            )}
-            {filter.targetKind && (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  setFilters({ targetKind: undefined, targetId: undefined })
-                }
-              >
-                Clear asset scope
-              </Button>
-            )}
-          </div>
-          {tab === "Events" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Security events</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {events.isLoading && (
-                  <p role="status">Loading source evidence…</p>
-                )}
-                {events.data?.items.map((e) => (
-                  <details key={e.id} className="rounded border p-3 text-sm">
-                    <summary className="cursor-pointer">
-                      {e.event_type} · {e.mode} · {e.quality} ·{" "}
-                      {time(e.occurred_at)}
-                    </summary>
-                    <p className="my-2">
-                      Source: {e.source_name} · received {time(e.ingested_at)} ·{" "}
-                      {e.late ? "out of order" : "ordered"} ·{" "}
-                      {e.clock_skew ? "future clock skew" : "no future skew"}
-                    </p>
-                    <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all text-xs">
-                      {json(e.envelope)}
-                    </pre>
-                    {e.target && (
-                      <a
-                        href={goTarget(e.target)}
-                        className="text-primary underline"
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {["critical", "high", "medium", "low"].map((severity) => (
+                    <Card key={severity}>
+                      <button
+                        className="w-full rounded-lg text-left focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`Open ${severity} findings`}
+                        onClick={() => {
+                          setFilters({
+                            severity: severity as Filter["severity"],
+                            status: undefined,
+                          });
+                          changeTab("Findings");
+                        }}
                       >
-                        Open registered identity
-                      </a>
+                        <CardHeader>
+                          <CardTitle className="text-sm capitalize">
+                            Open {severity} findings
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <strong className="text-3xl">
+                            {overview.data.counts.find(
+                              (c) => c.severity === severity,
+                            )?.count ?? 0}
+                          </strong>
+                        </CardContent>
+                      </button>
+                    </Card>
+                  ))}
+                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Monitoring coverage</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p>
+                      {overview.data.coverage.receiving} receiving ·{" "}
+                      {overview.data.coverage.stale} stale or missing ·{" "}
+                      {overview.data.coverage.configured} configured sources ·{" "}
+                      {overview.data.affected} affected identities
+                    </p>
+                    <div className="text-sm text-muted-foreground">
+                      Receiving evidence does not prove secure controls. Zero
+                      findings leaves uncovered controls unknown.
+                      <details className="mt-2">
+                        <summary className="cursor-pointer">
+                          How coverage is calculated
+                        </summary>
+                        {overview.data.explanation}
+                      </details>
+                    </div>
+                    {!overview.data.sources.length && (
+                      <p>
+                        No security sources are configured. Create a scoped
+                        source or import reviewed evidence; asset controls
+                        remain unknown.
+                      </p>
                     )}
-                  </details>
-                ))}
-                {events.data && !events.data.items.length && (
-                  <p>
-                    No evidence matches these filters. Unobserved controls
-                    remain unknown.
+                    {overview.data.sources.map((s) => (
+                      <div
+                        key={s.id}
+                        className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
+                      >
+                        <span>{s.name}</span>
+                        <Badge variant="outline">{s.state}</Badge>
+                        <span>
+                          Last live receipt: {time(s.last_received_at)}
+                        </span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent security evidence</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {overview.data.activity.length ? (
+                      overview.data.activity.map((e) => (
+                        <article
+                          key={e.id}
+                          className="grid gap-1 border-b py-3 text-sm last:border-0 sm:grid-cols-2"
+                        >
+                          <strong className="font-medium capitalize">
+                            {e.event_type.replaceAll(/[._]/g, " ")}
+                          </strong>
+                          <span className="text-muted-foreground">
+                            Source:{" "}
+                            {String(e.source_name ?? "Registered source")}
+                          </span>
+                          <span>
+                            {e.target &&
+                            ["asset", "device"].includes(e.target.kind) ? (
+                              <a
+                                className="text-primary underline"
+                                href={goTarget(e.target)}
+                              >
+                                {String(e.target_name)}
+                              </a>
+                            ) : (
+                              String(e.target_name ?? "Application / service")
+                            )}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            <SampleTime value={String(e.occurred_at)} /> ·{" "}
+                            {e.mode} · {e.quality} quality
+                          </span>
+                        </article>
+                      ))
+                    ) : (
+                      <p>
+                        No observed events. Absence of evidence is not a secure
+                        assessment.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )
+          ))}
+        {tab === "Asset posture" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Registered assets and gateways</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {posture.data?.scopeNote}
+              </p>
+              {posture.isLoading && (
+                <p role="status">Loading registered identities…</p>
+              )}
+              {posture.data?.items.map((i) => (
+                <div
+                  key={`${i.kind}-${i.id}`}
+                  className="space-y-2 rounded border p-3"
+                >
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <a className="text-primary underline" href={goTarget(i)}>
+                      {i.name}
+                    </a>
+                    <Badge variant="outline">
+                      {i.kind} · criticality {i.criticality}
+                    </Badge>
+                  </div>
+                  <p className="break-all text-xs">
+                    {i.external_id} · Zone:{" "}
+                    {i.review?.zone ?? i.zone ?? "Not reviewed"}
                   </p>
-                )}
-                {access.role !== "viewer" && (
-                  <div className="flex flex-wrap gap-2">
+                  <p className="text-sm">
+                    Firmware/software: {i.firmware_version ?? "Unknown"} ·{" "}
+                    {i.versionBasis}
+                  </p>
+                  <p className="text-sm">
+                    {i.observations.length} observed fact types ·{" "}
+                    {i.findings.length} findings in this page
+                  </p>
+                  {i.declaredConnections.map((c: any) => (
+                    <p key={c.id} className="text-xs">
+                      Declared connection {c.id}: {c.protocol} ·{" "}
+                      {c.transport_declaration} · authentication{" "}
+                      {c.authentication} · {time(c.declared_at)}
+                    </p>
+                  ))}
+                  {i.inventories.map((r: any) => (
+                    <details key={r.id} className="text-sm">
+                      <summary>
+                        Imported package versions · {r.mode} ·{" "}
+                        {time(r.producedAt)}
+                      </summary>
+                      <pre className="max-h-48 overflow-auto whitespace-pre-wrap text-xs">
+                        {json(r)}
+                      </pre>
+                    </details>
+                  ))}
+                  {i.observations.map((o: any) => (
+                    <details key={o.event_type} className="text-sm">
+                      <summary>
+                        {o.event_type} · {o.mode} · {o.quality} ·{" "}
+                        {Date.now() - Date.parse(o.occurred_at) > 86400000
+                          ? "stale"
+                          : "observed"}{" "}
+                        · {time(o.occurred_at)}
+                      </summary>
+                      <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all text-xs">
+                        {json(o.fact)}
+                      </pre>
+                    </details>
+                  ))}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setFilters({
+                        targetKind: i.kind as "asset" | "device",
+                        targetId: i.id,
+                      });
+                      changeTab("Findings");
+                    }}
+                  >
+                    Scoped findings
+                  </Button>
+                  {access.canEngineer && (
+                    <PostureForm
+                      target={{ kind: i.kind, id: i.id }}
+                      onDone={() => {
+                        refresh();
+                        setNotice("Reviewed posture saved.");
+                      }}
+                      onError={setFailure}
+                    />
+                  )}
+                </div>
+              ))}
+              {posture.data && !posture.data.items.length && (
+                <p>No registered assets or gateways are available.</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+        {["Events", "Findings", "Incidents"].includes(tab) && (
+          <>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-sm">
+                Search evidence
+                <Input
+                  aria-label="Search security evidence"
+                  value={filter.search}
+                  onChange={(e) => setFilters({ search: e.target.value })}
+                />
+              </label>
+              <label className="text-sm">
+                Source
+                <select
+                  aria-label="Filter security source"
+                  className={`block ${selectClass}`}
+                  value={filter.sourceId ?? ""}
+                  onChange={(e) =>
+                    setFilters({ sourceId: e.target.value || undefined })
+                  }
+                >
+                  <option value="">All sources</option>
+                  {sources.data?.items.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm">
+                Received / last seen since
+                <Input
+                  aria-label="Security time filter"
+                  type="date"
+                  value={filter.since?.slice(0, 10) ?? ""}
+                  onChange={(e) =>
+                    setFilters({
+                      since: e.target.value
+                        ? new Date(e.target.value).toISOString()
+                        : undefined,
+                    })
+                  }
+                />
+              </label>
+              {tab !== "Events" && (
+                <>
+                  <label className="text-sm">
+                    Severity
                     <select
-                      aria-label="Security export format"
-                      className={selectClass}
-                      value={exportFormat}
+                      aria-label="Filter finding severity"
+                      className={`block ${selectClass}`}
+                      value={filter.severity ?? ""}
                       onChange={(e) =>
-                        setExportFormat(e.target.value as typeof exportFormat)
+                        setFilters({
+                          severity: (e.target.value ||
+                            undefined) as Filter["severity"],
+                        })
                       }
                     >
-                      {["ndjson", "json", "csv"].map((f) => (
-                        <option key={f}>{f}</option>
+                      <option value="">All severities</option>
+                      {["critical", "high", "medium", "low"].map((v) => (
+                        <option key={v}>{v}</option>
                       ))}
                     </select>
-                    <Button
-                      variant="outline"
-                      onClick={async () => {
-                        const r = await exporter.refetch();
-                        if (r.data) {
-                          download(
-                            `security-evidence.${exportFormat}`,
-                            r.data.body,
-                            exportFormat === "csv"
-                              ? "text/csv"
-                              : "application/x-ndjson",
-                          );
-                          setNotice(
-                            `Exported this scoped page; ${r.data.omitted} unreviewed/unknown records omitted. ${r.data.reason}`,
-                          );
-                        } else setFailure(r.error?.message ?? "Export failed");
-                      }}
+                  </label>
+                  <label className="text-sm">
+                    Workflow
+                    <select
+                      aria-label="Filter investigation status"
+                      className={`block ${selectClass}`}
+                      value={filter.status ?? ""}
+                      onChange={(e) =>
+                        setFilters({
+                          status: (e.target.value ||
+                            undefined) as Filter["status"],
+                        })
+                      }
                     >
-                      Export scoped page
+                      <option value="">All states</option>
+                      {[
+                        "open",
+                        "acknowledged",
+                        "investigating",
+                        "resolved",
+                        "accepted_risk",
+                        "dismissed",
+                      ].map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
+              {filter.targetKind && (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setFilters({ targetKind: undefined, targetId: undefined })
+                  }
+                >
+                  Clear asset scope
+                </Button>
+              )}
+            </div>
+            {tab === "Events" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Security events</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {events.isLoading && (
+                    <p role="status">Loading source evidence…</p>
+                  )}
+                  {events.data?.items.map((e) => (
+                    <details key={e.id} className="rounded border p-3 text-sm">
+                      <summary className="cursor-pointer">
+                        {e.event_type.replaceAll(/[._]/g, " ")} · {e.mode} ·{" "}
+                        {e.quality} · {time(e.occurred_at)}
+                      </summary>
+                      <p className="my-2">
+                        Source: {e.source_name} · received {time(e.ingested_at)}{" "}
+                        · {e.late ? "out of order" : "ordered"} ·{" "}
+                        {e.clock_skew ? "future clock skew" : "no future skew"}
+                      </p>
+                      <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all text-xs">
+                        {json(e.envelope)}
+                      </pre>
+                      {e.target && (
+                        <a
+                          href={goTarget(e.target)}
+                          className="text-primary underline"
+                        >
+                          Open registered identity
+                        </a>
+                      )}
+                    </details>
+                  ))}
+                  {events.data && !events.data.items.length && (
+                    <p>
+                      No evidence matches these filters. Unobserved controls
+                      remain unknown.
+                    </p>
+                  )}
+                  {access.role !== "viewer" && (
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        aria-label="Security export format"
+                        className={selectClass}
+                        value={exportFormat}
+                        onChange={(e) =>
+                          setExportFormat(e.target.value as typeof exportFormat)
+                        }
+                      >
+                        {["ndjson", "json", "csv"].map((f) => (
+                          <option key={f}>{f}</option>
+                        ))}
+                      </select>
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          const r = await exporter.refetch();
+                          if (r.data) {
+                            download(
+                              `security-evidence.${exportFormat}`,
+                              r.data.body,
+                              exportFormat === "csv"
+                                ? "text/csv"
+                                : "application/x-ndjson",
+                            );
+                            setNotice(
+                              `Exported this scoped page; ${r.data.omitted} unreviewed/unknown records omitted. ${r.data.reason}`,
+                            );
+                          } else
+                            setFailure(r.error?.message ?? "Export failed");
+                        }}
+                      >
+                        Export scoped page
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            {(tab === "Findings" || tab === "Incidents") && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {tab === "Incidents"
+                      ? "Assigned security investigations"
+                      : "Evidence-backed findings"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {findings.isLoading && <p role="status">Loading findings…</p>}
+                  {findings.data?.items.map((f) => (
+                    <button
+                      type="button"
+                      key={f.id}
+                      aria-pressed={selected === f.id}
+                      onClick={() => select(f.id)}
+                      className="block w-full rounded border p-3 text-left hover:bg-accent focus-visible:outline-2"
+                    >
+                      <div className="flex flex-wrap justify-between gap-2">
+                        <strong>{f.title}</strong>
+                        <Badge variant="outline">
+                          {f.severity} · priority {f.priority}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-sm">
+                        {f.mode} · {f.category} · {f.status} · {f.confidence} ·{" "}
+                        {f.condition_active
+                          ? "condition observed"
+                          : "condition no longer current"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {f.rule_id} v{f.rule_version} ·{" "}
+                        {f.assignee ?? "Unassigned"} · last {time(f.last_seen)}
+                      </p>
+                    </button>
+                  ))}
+                  {findings.data && !findings.data.items.length && (
+                    <p>
+                      No {tab === "Incidents" ? "investigations" : "findings"}{" "}
+                      match these filters. This is not a claim that assets are
+                      secure.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                disabled={!filter.page}
+                onClick={() => {
+                  const p = new URLSearchParams(
+                    window.location.hash.split("?")[1] ?? "",
+                  );
+                  p.set("page", String(Math.max(0, filter.page - 1)));
+                  navigate(`/cybersecurity?${p}`);
+                }}
+              >
+                Previous evidence page
+              </Button>
+              <span className="text-sm">Page {filter.page + 1}</span>
+              <Button
+                variant="outline"
+                disabled={
+                  filter.page >= 200 ||
+                  !(tab === "Events"
+                    ? events.data?.hasMore
+                    : findings.data?.hasMore)
+                }
+                onClick={() => {
+                  const p = new URLSearchParams(
+                    window.location.hash.split("?")[1] ?? "",
+                  );
+                  p.set("page", String(filter.page + 1));
+                  navigate(`/cybersecurity?${p}`);
+                }}
+              >
+                Next evidence page
+              </Button>
+            </div>
+          </>
+        )}
+        {selected &&
+          finding.data &&
+          filter.mode &&
+          finding.data.mode !== filter.mode && (
+            <p role="status" className="rounded border p-3 text-sm">
+              This finding is outside the selected evidence mode.{" "}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const p = new URLSearchParams(
+                    hashLocation.split("?")[1] ?? "",
+                  );
+                  p.set("mode", finding.data!.mode);
+                  navigate(`/cybersecurity?${p}`);
+                }}
+              >
+                Open matching evidence scope
+              </Button>
+            </p>
+          )}
+        {selected &&
+          finding.data &&
+          (!filter.mode || finding.data.mode === filter.mode) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{finding.data.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p>
+                  <Badge variant="outline">{finding.data.severity}</Badge> ·{" "}
+                  {finding.data.mode} · {finding.data.status} ·{" "}
+                  {finding.data.category} · confidence {finding.data.confidence}
+                </p>
+                <p className="text-sm">
+                  Rule {finding.data.rule_id} v{finding.data.rule_version} ·
+                  First {time(finding.data.first_seen)} · Last{" "}
+                  {time(finding.data.last_seen)} · {finding.data.occurrences}{" "}
+                  qualifying evaluations · {finding.data.recurrences}{" "}
+                  recurrences
+                </p>
+                <p className="text-sm">
+                  Resolving an investigation records a decision; it does not
+                  erase evidence or clear an active observed condition.
+                </p>
+                <details className="rounded border p-3">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Assessment calculation and rule context
+                  </summary>
+                  <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs">
+                    {json(finding.data.explanation)}
+                  </pre>
+                </details>
+                {finding.data.target && (
+                  <a
+                    className="text-primary underline"
+                    href={goTarget(finding.data.target)}
+                  >
+                    Follow affected registered identity
+                  </a>
+                )}
+                {finding.data.installed_component_id && (
+                  <a
+                    className="ml-3 text-primary underline"
+                    href={`#/equipment?securityFinding=${selected}`}
+                  >
+                    Focus mapped equipment component
+                  </a>
+                )}
+                <h3 className="font-semibold">Original normalized evidence</h3>
+                {!finding.data.evidence.length && (
+                  <p>Detailed evidence is unavailable to this role.</p>
+                )}
+                {finding.data.evidence.map((e) => (
+                  <details key={e.event_id} className="rounded border p-3">
+                    <summary className="cursor-pointer break-all text-sm">
+                      Evidence {e.event_id} · SHA-256{" "}
+                      {String(e.fingerprint).slice(0, 16)}…
+                    </summary>
+                    <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs">
+                      {json(e.snapshot)}
+                    </pre>
+                  </details>
+                ))}
+                {access.canReview && (
+                  <p className="text-sm">
+                    {finding.data.evidence.length} immutable snapshots
+                    displayed; at most {finding.data.evidenceLimit} are retained
+                    per finding. The occurrence counter counts qualifying
+                    evaluations. Raw event retention is separate.
+                  </p>
+                )}
+                {access.canReview && (
+                  <div className="space-y-3 rounded border p-3">
+                    <h3 className="font-semibold">Investigation decision</h3>
+                    <label className="block text-sm">
+                      Decision
+                      <select
+                        aria-label="Investigation decision"
+                        className={`ml-2 ${selectClass}`}
+                        value={decision}
+                        onChange={(e) =>
+                          setDecision(e.target.value as typeof decision)
+                        }
+                      >
+                        <option value="acknowledge">Acknowledge</option>
+                        {access.canEngineer && (
+                          <>
+                            <option value="assign">Assign</option>
+                            <option value="investigate">Investigate</option>
+                            <option value="note">Add note</option>
+                            <option value="resolve">
+                              Resolve with evidence
+                            </option>
+                            <option value="dismiss">
+                              Dismiss / false positive
+                            </option>
+                          </>
+                        )}
+                        {access.canAdmin && (
+                          <option value="accept_risk">
+                            Accept time-limited risk
+                          </option>
+                        )}
+                      </select>
+                    </label>
+                    {decision === "assign" && (
+                      <label className="block text-sm">
+                        Assign engineer
+                        <select
+                          aria-label="Assign security engineer"
+                          className={`ml-2 ${selectClass}`}
+                          value={assignee}
+                          onChange={(e) => setAssignee(e.target.value)}
+                        >
+                          <option value="">Assign to me</option>
+                          {assignees.data?.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.name ?? u.id}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                    {decision === "accept_risk" && (
+                      <label className="block text-sm">
+                        Risk expiry UTC
+                        <Input
+                          aria-label="Risk acceptance expiry"
+                          placeholder="2026-11-01T12:00:00Z"
+                          value={riskUntil}
+                          onChange={(e) => setRiskUntil(e.target.value)}
+                        />
+                      </label>
+                    )}
+                    <label className="block text-sm">
+                      Evidence and decision reason
+                      <Textarea
+                        aria-label="Investigation reason"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        maxLength={2000}
+                      />
+                    </label>
+                    <Button
+                      disabled={reason.trim().length < 5 || action.isPending}
+                      onClick={() =>
+                        action.mutate({
+                          id: selected,
+                          expectedVersion: finding.data.version,
+                          action: decision,
+                          reason,
+                          assignee: assignee ? Number(assignee) : undefined,
+                          riskUntil:
+                            decision === "accept_risk" ? riskUntil : undefined,
+                          evidenceIds:
+                            decision === "resolve"
+                              ? finding.data.evidence
+                                  .slice(0, 20)
+                                  .map((e) => e.event_id)
+                              : [],
+                        })
+                      }
+                    >
+                      Save investigation decision
                     </Button>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          )}
-          {(tab === "Findings" || tab === "Incidents") && (
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {tab === "Incidents"
-                    ? "Assigned security investigations"
-                    : "Evidence-backed findings"}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {findings.isLoading && <p role="status">Loading findings…</p>}
-                {findings.data?.items.map((f) => (
-                  <button
-                    type="button"
-                    key={f.id}
-                    aria-pressed={selected === f.id}
-                    onClick={() => select(f.id)}
-                    className="block w-full rounded border p-3 text-left hover:bg-accent focus-visible:outline-2"
-                  >
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <strong>{f.title}</strong>
-                      <Badge variant="outline">
-                        {f.severity} · priority {f.priority}
-                      </Badge>
-                    </div>
-                    <p className="mt-2 text-sm">
-                      {f.mode} · {f.category} · {f.status} · {f.confidence} ·{" "}
-                      {f.condition_active
-                        ? "condition observed"
-                        : "condition no longer current"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {f.rule_id} v{f.rule_version} ·{" "}
-                      {f.assignee ?? "Unassigned"} · last {time(f.last_seen)}
-                    </p>
-                  </button>
+                <h3 className="font-semibold">Investigation timeline</h3>
+                {finding.data.timeline.map((t) => (
+                  <div key={t.id} className="rounded border p-2 text-sm">
+                    <strong>{t.action}</strong> · {time(t.created_at)}
+                    <pre className="whitespace-pre-wrap break-all text-xs">
+                      {json(t.detail)}
+                    </pre>
+                  </div>
                 ))}
-                {findings.data && !findings.data.items.length && (
-                  <p>
-                    No {tab === "Incidents" ? "investigations" : "findings"}{" "}
-                    match these filters. This is not a claim that assets are
-                    secure.
-                  </p>
-                )}
               </CardContent>
             </Card>
           )}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              disabled={!filter.page}
-              onClick={() => setFilter((v) => ({ ...v, page: v.page - 1 }))}
-            >
-              Previous evidence page
-            </Button>
-            <span className="text-sm">Page {filter.page + 1}</span>
-            <Button
-              variant="outline"
-              disabled={
-                filter.page >= 200 ||
-                !(tab === "Events"
-                  ? events.data?.hasMore
-                  : findings.data?.hasMore)
-              }
-              onClick={() => setFilter((v) => ({ ...v, page: v.page + 1 }))}
-            >
-              Next evidence page
-            </Button>
-          </div>
-        </>
-      )}
-      {selected && finding.data && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{finding.data.title}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p>
-              {finding.data.mode} · {finding.data.status} ·{" "}
-              {finding.data.category} · confidence {finding.data.confidence}
-            </p>
-            <p className="text-sm">
-              Rule {finding.data.rule_id} v{finding.data.rule_version} · First{" "}
-              {time(finding.data.first_seen)} · Last{" "}
-              {time(finding.data.last_seen)} · {finding.data.occurrences}{" "}
-              qualifying evaluations · {finding.data.recurrences} recurrences
-            </p>
-            <p className="text-sm">
-              Resolving an investigation records a decision; it does not erase
-              evidence or clear an active observed condition.
-            </p>
-            <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded border p-3 text-xs">
-              {json(finding.data.explanation)}
-            </pre>
-            {finding.data.target && (
-              <a
-                className="text-primary underline"
-                href={goTarget(finding.data.target)}
-              >
-                Follow affected registered identity
-              </a>
-            )}
-            {finding.data.installed_component_id && (
-              <a
-                className="ml-3 text-primary underline"
-                href={`#/equipment?securityFinding=${selected}`}
-              >
-                Focus mapped equipment component
-              </a>
-            )}
-            <h3 className="font-semibold">Original normalized evidence</h3>
-            {!finding.data.evidence.length && (
-              <p>Detailed evidence is unavailable to this role.</p>
-            )}
-            {finding.data.evidence.map((e) => (
-              <details key={e.event_id} className="rounded border p-3">
-                <summary className="cursor-pointer break-all text-sm">
-                  Evidence {e.event_id} · SHA-256{" "}
-                  {String(e.fingerprint).slice(0, 16)}…
-                </summary>
-                <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs">
-                  {json(e.snapshot)}
-                </pre>
-              </details>
-            ))}
-            {access.canReview && (
-              <p className="text-sm">
-                {finding.data.evidence.length} immutable snapshots displayed; at
-                most {finding.data.evidenceLimit} are retained per finding. The
-                occurrence counter counts qualifying evaluations. Raw event
-                retention is separate.
-              </p>
-            )}
-            {access.canReview && (
-              <div className="space-y-3 rounded border p-3">
-                <h3 className="font-semibold">Investigation decision</h3>
-                <label className="block text-sm">
-                  Decision
-                  <select
-                    aria-label="Investigation decision"
-                    className={`ml-2 ${selectClass}`}
-                    value={decision}
-                    onChange={(e) =>
-                      setDecision(e.target.value as typeof decision)
-                    }
-                  >
-                    <option value="acknowledge">Acknowledge</option>
-                    {access.canEngineer && (
-                      <>
-                        <option value="assign">Assign</option>
-                        <option value="investigate">Investigate</option>
-                        <option value="note">Add note</option>
-                        <option value="resolve">Resolve with evidence</option>
-                        <option value="dismiss">
-                          Dismiss / false positive
-                        </option>
-                      </>
-                    )}
-                    {access.canAdmin && (
-                      <option value="accept_risk">
-                        Accept time-limited risk
-                      </option>
-                    )}
-                  </select>
-                </label>
-                {decision === "assign" && (
-                  <label className="block text-sm">
-                    Assign engineer
-                    <select
-                      aria-label="Assign security engineer"
-                      className={`ml-2 ${selectClass}`}
-                      value={assignee}
-                      onChange={(e) => setAssignee(e.target.value)}
-                    >
-                      <option value="">Assign to me</option>
-                      {assignees.data?.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name ?? u.id}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                {decision === "accept_risk" && (
-                  <label className="block text-sm">
-                    Risk expiry UTC
-                    <Input
-                      aria-label="Risk acceptance expiry"
-                      placeholder="2026-11-01T12:00:00Z"
-                      value={riskUntil}
-                      onChange={(e) => setRiskUntil(e.target.value)}
-                    />
-                  </label>
-                )}
-                <label className="block text-sm">
-                  Evidence and decision reason
-                  <Textarea
-                    aria-label="Investigation reason"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    maxLength={2000}
-                  />
-                </label>
-                <Button
-                  disabled={reason.trim().length < 5 || action.isPending}
-                  onClick={() =>
-                    action.mutate({
-                      id: selected,
-                      expectedVersion: finding.data.version,
-                      action: decision,
-                      reason,
-                      assignee: assignee ? Number(assignee) : undefined,
-                      riskUntil:
-                        decision === "accept_risk" ? riskUntil : undefined,
-                      evidenceIds:
-                        decision === "resolve"
-                          ? finding.data.evidence
-                              .slice(0, 20)
-                              .map((e) => e.event_id)
-                          : [],
-                    })
-                  }
-                >
-                  Save investigation decision
-                </Button>
-              </div>
-            )}
-            <h3 className="font-semibold">Investigation timeline</h3>
-            {finding.data.timeline.map((t) => (
-              <div key={t.id} className="rounded border p-2 text-sm">
-                <strong>{t.action}</strong> · {time(t.created_at)}
-                <pre className="whitespace-pre-wrap break-all text-xs">
-                  {json(t.detail)}
-                </pre>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-      {tab === "Sources and policies" && (
-        <SourcePolicies
-          sources={sources.data}
-          access={access}
-          posture={posture.data}
-          onDone={(s) => {
-            setNotice(s);
-            refresh();
-          }}
-          onError={setFailure}
-        />
-      )}
+        {tab === "Sources and policies" && (
+          <SourcePolicies
+            sources={sources.data}
+            access={access}
+            posture={posture.data}
+            onDone={(s) => {
+              setNotice(s);
+              refresh();
+            }}
+            onError={setFailure}
+          />
+        )}
+      </SectionNav>
     </div>
   );
 }

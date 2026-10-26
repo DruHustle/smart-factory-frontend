@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { edgeTelemetrySchema, telemetryRejection } from "./telemetrySchema";
 
 describe("edge telemetry wire contract", () => {
+  it("normalizes the .NET direct-device bridge's null gateway without relaxing identity validation",()=>{
+    const sample={deviceId:"standalone-sensor",gatewayId:null,assetId:null,timestamp:Date.now(),temperature:22};
+    expect(edgeTelemetrySchema.parse(sample).gatewayId).toBeUndefined();
+    expect(edgeTelemetrySchema.safeParse({...sample,gatewayId:"unsafe/topic"}).success).toBe(false);
+  });
   it("normalizes the .NET bridge's nullable assetSignals field", () => {
     const parsed = edgeTelemetrySchema.parse({
       deviceId: "esp32-wrover-01",

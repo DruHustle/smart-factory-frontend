@@ -62,20 +62,20 @@ function conditions(f: Filters, demo: boolean, kind: "events" | "findings") {
   const col = kind === "events" ? sql`e` : sql`f`;
   return sql`${scopeCondition(demo)} and (${f.since ?? null}::timestamptz is null or ${kind === "events" ? sql`e.ingested_at` : sql`f.last_seen`}>=${f.since ?? null}::timestamptz) and (${f.sourceId ?? null}::uuid is null or ${col}.source_id=${f.sourceId ?? null}) and (${f.mode ?? null}::text is null or ${col}.mode=${f.mode ?? null}) and (${f.targetKind ?? null}::text is null or ${col}.target->>'kind'=${f.targetKind ?? null}) and (${f.targetId ?? null}::text is null or ${col}.target->>'id'=${f.targetId?.toString() ?? null})`;
 }
-export async function overview(demo: boolean) {
+export async function overview(demo: boolean, f: Filters = filters.parse({})) {
   const db = await database(),
     visible = scopeCondition(demo);
   const counts = await rows(
     db,
-    sql`select f.severity,count(*)::int as count from security_findings f join security_sources s on s.id=f.source_id where ${visible} and f.status not in ('resolved','dismissed','accepted_risk') group by severity`,
+    sql`select f.severity,count(*)::int as count from security_findings f join security_sources s on s.id=f.source_id where ${conditions(f, demo, "findings")} and f.status not in ('resolved','dismissed','accepted_risk') group by severity`,
   );
   const modeCounts = await rows(
     db,
-    sql`select f.mode,count(*)::int as count from security_findings f join security_sources s on s.id=f.source_id where ${visible} and f.status not in ('resolved','dismissed','accepted_risk') group by f.mode order by f.mode`,
+    sql`select f.mode,count(*)::int as count from security_findings f join security_sources s on s.id=f.source_id where ${conditions(f, demo, "findings")} and f.status not in ('resolved','dismissed','accepted_risk') group by f.mode order by f.mode`,
   );
   const sources = await rows(
     db,
-    sql`select id,name,active,policy,last_received_at,latest_event_at,created_at from security_sources s where ${visible} order by name limit 100`,
+    sql`select id,name,active,policy,last_received_at,latest_event_at,created_at from security_sources s where ${visible} and (${f.mode ?? null}::text is null or policy->'modes' ? ${f.mode ?? ""}) order by name limit 100`,
   );
   const freshness: Record<string, any>[] = sources.map((s) => ({
     ...s,
@@ -92,11 +92,11 @@ export async function overview(demo: boolean) {
   }));
   const activity = await rows(
     db,
-    sql`select e.id,e.event_type,e.mode,e.quality,e.occurred_at,e.ingested_at from security_events e join security_sources s on s.id=e.source_id where ${visible} order by ingested_at desc limit 10`,
+    sql`select e.id,e.event_type,e.mode,e.quality,e.occurred_at,e.ingested_at,e.target,s.name as source_name,coalesce(a.name,d.name,'Application / service') as target_name from security_events e join security_sources s on s.id=e.source_id left join assets a on e.target->>'kind'='asset' and e.target->>'id'=a.id::text left join devices d on e.target->>'kind'='device' and e.target->>'id'=d.id::text where ${conditions(f, demo, "events")} order by ingested_at desc limit 10`,
   );
   const [{ affected }] = await rows(
     db,
-    sql`select count(distinct f.target::text)::int as affected from security_findings f join security_sources s on s.id=f.source_id where ${visible} and f.target is not null and f.condition_active=true`,
+    sql`select count(distinct f.target::text)::int as affected from security_findings f join security_sources s on s.id=f.source_id where ${conditions(f, demo, "findings")} and f.target is not null and f.condition_active=true`,
   );
   return {
     counts,
@@ -264,7 +264,11 @@ export async function sources(demo: boolean, admin: boolean) {
         ),
   };
 }
-export async function posture(demo: boolean, redacted = false) {
+export async function posture(
+  demo: boolean,
+  redacted = false,
+  f: Filters = filters.parse({}),
+) {
   const db = await database();
   const inventory = await rows<InventoryRecord>(
     db,
@@ -280,12 +284,12 @@ export async function posture(demo: boolean, redacted = false) {
   );
   const observations = await rows(
     db,
-    sql`select distinct on(e.target::text,e.event_type) e.target,e.event_type,e.mode,e.quality,e.occurred_at,e.ingested_at,e.envelope->'attributes' as fact,e.clock_skew from security_events e join security_sources s on s.id=e.source_id where ${scopeCondition(demo)} and e.target is not null order by e.target::text,e.event_type,e.occurred_at desc limit 5000`,
+    sql`select distinct on(e.target::text,e.event_type) e.target,e.event_type,e.mode,e.quality,e.occurred_at,e.ingested_at,e.envelope->'attributes' as fact,e.clock_skew from security_events e join security_sources s on s.id=e.source_id where ${conditions(f, demo, "events")} and e.target is not null order by e.target::text,e.event_type,e.occurred_at desc limit 5000`,
   );
-  const affected = await findings(filters.parse({}), demo);
+  const affected = await findings(f, demo);
   const inventories = await rows(
     db,
-    sql`select i.id,i.target,i.provenance,i.producer_version,i.produced_at,i.created_at,i.original_sha256,i.report from security_imports i join security_sources s on s.id=i.source_id where ${scopeCondition(demo)} order by i.created_at desc limit 100`,
+    sql`select i.id,i.target,i.provenance,i.producer_version,i.produced_at,i.created_at,i.original_sha256,i.report from security_imports i join security_sources s on s.id=i.source_id where ${scopeCondition(demo)} and (${f.mode ?? null}::text is null or i.provenance->>'mode'=${f.mode ?? null}) order by i.created_at desc limit 100`,
   );
   return {
     items: inventory.map((i) => {

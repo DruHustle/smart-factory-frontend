@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-26T20:45:04.476772+00:00",
+  "uiSource": "b4273fdeb1152a3e0cc2bbdf95de5b1a3fec1026",
+  "fullRegressionSource": "ea80e18f1c74c3fa16fa066d87c784b99ad50a25",
+  "finalCopyChange": "Representation fallback wording only; workspace and build rerun.",
+  "runtimeSource": "9deb56f2f366ee46ce8849a217a169f5bbba41e1",
+  "backendSource": "905ef8ebb9a13090bab9288a8fd8677e1373fe8d",
+  "edgeSource": "b63c2ad351b1da22a1c590dc1df9d9445ddc5afe",
+  "checks": [
+    {
+      "name": "typecheck",
+      "result": "passed"
+    },
+    {
+      "name": "application",
+      "result": "passed",
+      "passedTests": 347
+    },
+    {
+      "name": "general-browser",
+      "result": "passed",
+      "passedTests": 26
+    },
+    {
+      "name": "independent-equipment-browser",
+      "result": "passed",
+      "passedTests": 5
+    },
+    {
+      "name": "security-browser-including-real-local-collector",
+      "result": "passed",
+      "passedTests": 7
+    },
+    {
+      "name": "unified-workspace-browser",
+      "result": "passed",
+      "passedTests": 8
+    },
+    {
+      "name": "production-build",
+      "result": "passed"
+    },
+    {
+      "name": "equipment-schemas",
+      "result": "passed"
+    },
+    {
+      "name": "onesa-contract",
+      "result": "passed"
+    },
+    {
+      "name": "documentation",
+      "result": "passed"
+    },
+    {
+      "name": "deployment-configuration",
+      "result": "passed"
+    },
+    {
+      "name": "dependency-audit",
+      "result": "passed"
+    },
+    {
+      "name": "combined-container-integration",
+      "result": "passed",
+      "passedTests": 9
+    }
+  ],
+  "runnerBoundaries": {
+    "generalSkipped": {
+      "nativeEquipment": 5,
+      "optionalPrivateOnesa": 2,
+      "security": 7,
+      "workspace": 8
+    },
+    "privateEquipmentSkippedPublicDemo": 1
+  },
+  "image": {
+    "tag": "smart-factory-backend:workspace-9deb56f-905ef8e",
+    "platform": "linux/arm64",
+    "indexDigest": "sha256:193b7a8d5b60858b3c45dd14f81f1763f6f2d5af75da11ecb5f4ef577878a772",
+    "platformManifest": "sha256:7a1ad512e8dd966b1cee9b169434b50d92f877a7b6665b2036192c0de3622309",
+    "archiveSha256": "45c971282e203b7741f98ab666d5c0834ab0145c1281c9102248819ee0b0f1d0",
+    "highCriticalVulnerabilities": 0,
+    "secretFindings": 0,
+    "auditReportSha256": "8a75ac3f2408aa792ce8f95e8952ee412ffe5850ad5c88a6c9ed25089218d93a"
+  },
+  "production": {
+    "deploymentExit": 0,
+    "apiReady": true,
+    "workerReady": true,
+    "workerInstances": 1,
+    "processesRunning": [
+      "api",
+      "identity",
+      "device",
+      "analytics",
+      "telemetry",
+      "notification"
+    ],
+    "readOnlyDatabaseProof": {
+      "checkedAt": "2026-10-26T20:34:07.735Z",
+      "inventoryOriginColumn": 1,
+      "demoDataEnabled": false,
+      "nativeSources": 2,
+      "activeRules": 9,
+      "actualNodeHealthEvents": 42,
+      "latestNodeReceipt": "2026-10-26 20:33:41.564048+00"
+    },
+    "hostedUI": "Gated exact-main deployment after merge; observed SHA and workflow links recorded in PR release note."
+  },
+  "safety": {
+    "productionUIFixtureWrites": false,
+    "productionDemoLoading": false,
+    "physicalCommands": false,
+    "firmwareDelivery": false,
+    "gatewayConfigurationPublication": false
+  },
+  "screenshots": [
+    {
+      "file": "aas-dark-390.png",
+      "width": 390,
+      "height": 1230,
+      "sha256": "32088f1f2469316dab99160ac770121c92055f1e0681a75fd77f16d04f29f4d0"
+    },
+    {
+      "file": "aas-light-1440.png",
+      "width": 1440,
+      "height": 972,
+      "sha256": "2e4508a311555a792fd4ee34d2dbb7e9289a33a7f10cbd97a04a213dbf86e776"
+    },
+    {
+      "file": "equipment-dark-390.png",
+      "width": 390,
+      "height": 3020,
+      "sha256": "3ccf10653fc1279195a5cb2142d1b513d49194b5d946a0658b90937df96ea2d9"
+    },
+    {
+      "file": "equipment-light-1440.png",
+      "width": 1440,
+      "height": 1875,
+      "sha256": "d26bb9061eebf0e01b2d95d4a92ce704809abee031ebf7768fa08fcfa4a9ad2a"
+    },
+    {
+      "file": "inventory-dark-1440.png",
+      "width": 1440,
+      "height": 1151,
+      "sha256": "70331158348cc580a0ae66359bb735f93bfa0d59c69505ceff424224d86e940a"
+    },
+    {
+      "file": "inventory-dark-360.png",
+      "width": 360,
+      "height": 2872,
+      "sha256": "e6c2e78033d4d71cd15fe4a6af20abb26d43ca8173d6396f1b34a417bc919c4d"
+    },
+    {
+      "file": "inventory-dark-390.png",
+      "width": 390,
+      "height": 2832,
+      "sha256": "a7e8e8280d51ab6ccb2df1f1c5baa04a7319b21076598a8a8a7251acb5ea7182"
+    },
+    {
+      "file": "inventory-dark-768.png",
+      "width": 768,
+      "height": 2270,
+      "sha256": "8df2b6f1210284fdd96af37212e9267e1da8eae1f3c6d0f399ed053b892327f7"
+    },
+    {
+      "file": "inventory-error.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "8b97494d1f7122b6b25bb9545910bc6a52a925e82fd9977c08ef4e46ba5a741b"
+    },
+    {
+      "file": "inventory-light-1440.png",
+      "width": 1440,
+      "height": 1151,
+      "sha256": "4fb8c85f04994715828f4e6e84dd5f15de893a274cfbec66b62b986b8f922912"
+    },
+    {
+      "file": "inventory-light-360.png",
+      "width": 360,
+      "height": 2872,
+      "sha256": "a62984395f331c7ea21631a18d134a9bff9208c4b650ec350ed51b4f4594d636"
+    },
+    {
+      "file": "inventory-light-390.png",
+      "width": 390,
+      "height": 2832,
+      "sha256": "7f099f66762748befaf9cb3cbc1e84100345f4012931afb1cf93f6a393f371e6"
+    },
+    {
+      "file": "inventory-light-768.png",
+      "width": 768,
+      "height": 2270,
+      "sha256": "6a90eb5f8ad5f88bbd8b74b3844720d33d4affbc1d87d86f6f1634d8e81bd39d"
+    },
+    {
+      "file": "security-dark-390.png",
+      "width": 390,
+      "height": 2998,
+      "sha256": "9ea1805da33d34cd9fbd6b38943b2a0e84d8338cc12114c5216ec20735ce71a7"
+    },
+    {
+      "file": "security-light-1440.png",
+      "width": 1440,
+      "height": 1829,
+      "sha256": "8db1d34d1292555d76c1379c2d40156b2f94739435fd36c14baf77d362b64437"
+    }
+  ]
+}

@@ -197,7 +197,7 @@ export async function createEquipment(
           })
           .returning();
     await tx.execute(
-      sql`insert into equipment_workspaces (id,asset_id,template_revision,components,kind,is_demo,updated_by,source_device_id,bindings) values (${id},${asset.id},${t.revision},${JSON.stringify(components)}::jsonb,${input.kind},${fixed?.isDemo ?? false},${actor},${input.kind === "simulated" ? (fixed?.isDemo ? "smart-factory-public-simulator" : "local-sim-" + id) : null},${JSON.stringify(bindings)}::jsonb)`,
+      sql`insert into equipment_workspaces (id,asset_id,template_revision,components,kind,is_demo,updated_by,source_device_id,bindings,is_standalone) values (${id},${asset.id},${t.revision},${JSON.stringify(components)}::jsonb,${input.kind},${fixed?.isDemo ?? false},${actor},${input.kind === "simulated" ? (fixed?.isDemo ? "smart-factory-public-simulator" : "local-sim-" + id) : null},${JSON.stringify(bindings)}::jsonb,${!input.existingAssetId})`,
     );
     if (input.kind === "simulated") {
       const [device] = await tx
