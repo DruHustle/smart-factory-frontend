@@ -530,7 +530,7 @@ function Capabilities({ item }: { item: InventoryItem }) {
         </span>
       )}
       {!item.aas && !item.equipmentId && (
-        <span className="text-xs text-muted-foreground">Standalone device</span>
+        <span className="text-xs text-muted-foreground">No AAS / 3D</span>
       )}
     </div>
   );
