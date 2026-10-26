@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { CONTRACT } from "./contract";
+import { publicDemoDeployment } from "../../shared/access-policy";
 const scopeId = z.string().regex(/^[A-Za-z0-9:_.-]{1,128}$/);
 export function integrationConfig(env = process.env) {
   if (env.ONESA_ENABLED !== "true") return null;
-  if (env.ENABLE_DEMO_ACCOUNTS === "true")
+  if (publicDemoDeployment(env))
     throw new Error(
       "Private integration requires a deployment without shared demo accounts",
     );

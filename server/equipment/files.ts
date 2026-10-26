@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { sdk } from "../_core/sdk";
 import { workspace, template, modelBytes } from "./local";
 import { importModel } from "./packages";
-import { isDemoAccount } from "../../shared/demo-accounts";
+import { demonstrationOnly } from "../../shared/access-policy";
 const root = new URL("../../fixtures/equipment/", import.meta.url);
 let uploads = 0;
 export function installEquipmentFiles(app: express.Express) {
@@ -16,10 +16,7 @@ export function installEquipmentFiles(app: express.Express) {
       return res.status(401).json({ error: "Authentication required" });
     }
     if (
-      process.env.ENABLE_DEMO_ACCOUNTS === "true" ||
-      !["engineer", "admin"].includes(user.role) ||
-      isDemoAccount(user.email ?? "") ||
-      user.openId.startsWith("demo-")
+      !["engineer", "admin"].includes(user.role) || demonstrationOnly(user)
     )
       return res
         .status(403)

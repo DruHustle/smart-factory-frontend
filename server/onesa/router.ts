@@ -2,15 +2,13 @@ import { operatorAction } from "../equipment/errors";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, engineerProcedure, adminProcedure } from "../_core/trpc";
-import { isDemoAccount } from "../../shared/demo-accounts";
+import { demonstrationOnly } from "../../shared/access-policy";
 import * as store from "./store";
 import { registrationSchema, mappingSchema, CONTRACT } from "./contract";
 import { integrationConfig } from "./config";
 const privateEngineer = engineerProcedure.use(({ ctx, next }) => {
   if (
-    process.env.ENABLE_DEMO_ACCOUNTS === "true" ||
-    isDemoAccount(ctx.user.email ?? "") ||
-    ctx.user.openId.startsWith("demo-")
+    demonstrationOnly(ctx.user)
   )
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -21,9 +19,7 @@ const privateEngineer = engineerProcedure.use(({ ctx, next }) => {
 });
 const privateAdmin = adminProcedure.use(({ ctx, next }) => {
   if (
-    process.env.ENABLE_DEMO_ACCOUNTS === "true" ||
-    isDemoAccount(ctx.user.email ?? "") ||
-    ctx.user.openId.startsWith("demo-")
+    demonstrationOnly(ctx.user)
   )
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -35,9 +31,7 @@ const privateAdmin = adminProcedure.use(({ ctx, next }) => {
 export const onesaRouter = router({
   availability: engineerProcedure.query(({ ctx }) => ({
     privateAccess:
-      process.env.ENABLE_DEMO_ACCOUNTS !== "true" &&
-      !isDemoAccount(ctx.user.email ?? "") &&
-      !ctx.user.openId.startsWith("demo-"),
+      !demonstrationOnly(ctx.user),
   })),
   status: privateEngineer.query(() => operatorAction(() => store.status())),
   history: privateEngineer.query(() => operatorAction(() => store.history())),

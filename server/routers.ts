@@ -506,7 +506,9 @@ export const appRouter = router({
     getForDevice: viewerProcedure.input(telemetryRangeInput.safeExtend({ deviceId: z.number().int().positive(), limit: z.number().int().min(1).max(10000).optional() })).query(({ input }) => db.getSensorReadings(input.deviceId, input.startTime, input.endTime, input.limit)),
     getLatest: viewerProcedure.input(z.object({ deviceId: z.number() })).query(({ input }) => db.getLatestReading(input.deviceId)),
     getLatestBatch: viewerProcedure.input(z.object({ deviceIds: z.array(z.number().int().positive()).max(500) })).query(({ input }) => db.getLatestReadings(input.deviceIds)),
-    create: operatorProcedure.input(z.object({ deviceId: z.number(), temperature: z.number().optional(), timestamp: z.number() })).mutation(async ({ input }) => { await db.createSensorReading(input); return { success: true }; }),
+    create: operatorProcedure.input(z.object({ deviceId: z.number(), temperature: z.number().optional(), timestamp: z.number() })).mutation(() => {
+      throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Manual telemetry entry is retired. Use commissioned device ingestion, or a labelled isolated simulation." });
+    }),
   }),
 
   thresholds: router({

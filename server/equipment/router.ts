@@ -2,14 +2,12 @@ import { operatorAction } from "./errors";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, viewerProcedure, engineerProcedure } from "../_core/trpc";
-import { isDemoAccount } from "../../shared/demo-accounts";
+import { demonstrationOnly, operationalWritesAllowed } from "../../shared/access-policy";
 import { modelCatalog, localBindingSchema } from "./packages";
 import * as local from "./local";
 const writer = engineerProcedure.use(({ ctx, next }) => {
   if (
-    process.env.ENABLE_DEMO_ACCOUNTS === "true" ||
-    isDemoAccount(ctx.user.email ?? "") ||
-    ctx.user.openId.startsWith("demo-")
+    demonstrationOnly(ctx.user)
   )
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -20,11 +18,9 @@ const writer = engineerProcedure.use(({ ctx, next }) => {
 export const equipmentRouter = router({
   access: viewerProcedure.query(({ ctx }) => ({
     canWrite:
-      process.env.ENABLE_DEMO_ACCOUNTS !== "true" &&
-      !isDemoAccount(ctx.user.email ?? "") &&
-      !ctx.user.openId.startsWith("demo-") &&
+      operationalWritesAllowed(ctx.user) &&
       ["engineer", "admin"].includes(ctx.user.role),
-    demoOnly: process.env.ENABLE_DEMO_ACCOUNTS === "true",
+    demoOnly: demonstrationOnly(ctx.user),
   })),
   bindingTemplate: writer
     .input(z.object({ revision: z.string().min(1).max(128) }))
@@ -41,10 +37,10 @@ export const equipmentRouter = router({
       }),
     ),
   template: viewerProcedure.query(() => operatorAction(() => local.template())),
-  models: viewerProcedure.query(async () => ({
+  models: viewerProcedure.query(async ({ ctx }) => ({
     bundled: await operatorAction(() => local.template()),
     imported:
-      process.env.ENABLE_DEMO_ACCOUNTS === "true" ? [] : await modelCatalog(),
+      demonstrationOnly(ctx.user) ? [] : await modelCatalog(),
   })),
   previewModel: writer
     .input(

@@ -16,6 +16,7 @@ import { wsManager } from "../websocket";
 import * as db from "../db";
 import { initializeDemoAccounts } from "../initDemoAccounts";
 import { demoAccountsEnabled } from "../../shared/demo-accounts";
+import { demonstrationOnly, DEMONSTRATION_READ_ONLY } from "../../shared/access-policy";
 
 // Import the cors package
 import cors from 'cors';
@@ -156,6 +157,7 @@ async function startServer() {
     try { user = await sdk.authenticateRequest(req); }
     catch { return res.status(401).json({ error: "Authentication is required" }); }
     if (user.role !== "engineer" && user.role !== "admin") return res.status(403).json({ error: "Requires engineer access" });
+    if (demonstrationOnly(user)) return res.status(403).json({ error: DEMONSTRATION_READ_ONLY });
 
     try {
       const xml = buildAutomationMlPlantLayout(await db.getAssets());
@@ -260,6 +262,7 @@ async function startServer() {
     try { user = await sdk.authenticateRequest(req); }
     catch { return res.status(401).json({ error: "Authentication is required" }); }
     if (user.role !== "engineer" && user.role !== "admin") return res.status(403).json({ error: "Requires engineer access" });
+    if (demonstrationOnly(user)) return res.status(403).json({ error: DEMONSTRATION_READ_ONLY });
 
     const contentType = req.get("content-type") ?? "";
     if (!/^multipart\/form-data\s*;\s*boundary=/i.test(contentType)) {

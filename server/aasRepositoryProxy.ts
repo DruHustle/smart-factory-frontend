@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
+import { demonstrationOnly, DEMONSTRATION_READ_ONLY } from "../shared/access-policy";
 
 type TokenCache = { token: string; expiresAt: number; key: string };
 let cachedToken: TokenCache | undefined;
@@ -103,6 +104,8 @@ export async function aasRepositoryProxy(req: Request, res: Response) {
   } catch {
     return res.status(401).json({ error: "Authentication required" });
   }
+  // Repository credentials grant private upstream access, including raw exports.
+  if (demonstrationOnly(user)) return res.status(403).json({ error: DEMONSTRATION_READ_ONLY });
   if ((roleRank[user.role] ?? -1) < roleRank.engineer) {
     return res.status(403).json({ error: "Requires engineer access" });
   }

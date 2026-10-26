@@ -83,7 +83,9 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     });
     testDeviceId = createdDevice.id;
 
-    await caller.readings.create({
+    // Read/report coverage uses an explicit isolated fixture; the public manual
+    // mutation is retired and has its own negative boundary regression.
+    await db.createSensorReading({
       deviceId: createdDevice.id,
       temperature: 33,
       timestamp: Date.now(),

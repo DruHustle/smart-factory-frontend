@@ -8,7 +8,7 @@ import {
   engineerProcedure,
   adminProcedure,
 } from "../_core/trpc";
-import { isDemoAccount } from "../../shared/demo-accounts";
+import { demonstrationOnly } from "../../shared/access-policy";
 import { sql } from "drizzle-orm";
 import * as store from "./store";
 import * as service from "./service";
@@ -23,10 +23,7 @@ import {
 } from "./contract";
 import { captureHealth } from "./runtime";
 import type { User } from "../../drizzle/schema";
-export const demoOnly = (u: User) =>
-  process.env.ENABLE_DEMO_ACCOUNTS === "true" ||
-  isDemoAccount(u.email ?? "") ||
-  u.openId.startsWith("demo-");
+export const demoOnly = (u: User) => demonstrationOnly(u);
 const write = (procedure: typeof operatorProcedure) =>
   procedure.use(({ ctx, next }) => {
     if (demoOnly(ctx.user))
