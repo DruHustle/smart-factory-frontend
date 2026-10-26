@@ -235,6 +235,18 @@ test.describe("unified item workspace", () => {
     await expect(page.getByLabel("Filter evidence mode")).toHaveValue(
       "simulated",
     );
+    await page.getByText("Demonstration / setup", { exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "Load local security demonstration",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByText("Authored simulation and replay evidence is ready.", {
+        exact: true,
+      }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Open high findings" }).click();
     await expect(
       page.getByRole("tab", { name: "Findings", exact: true }),
@@ -242,6 +254,24 @@ test.describe("unified item workspace", () => {
     await expect(page.getByLabel("Filter evidence mode")).toHaveValue(
       "simulated",
     );
+    await page
+      .getByRole("button", { name: /^Repeated rejected sign-ins/ })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("heading", {
+        name: "Original normalized evidence",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.getByLabel("Filter evidence mode").selectOption("replay");
+    await expect(
+      page.getByRole("heading", {
+        name: "Original normalized evidence",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await page.getByLabel("Filter evidence mode").selectOption("simulated");
     await page.reload();
     await expect(page.getByLabel("Filter evidence mode")).toHaveValue(
       "simulated",

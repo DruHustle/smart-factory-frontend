@@ -29,7 +29,7 @@ export default function ItemWorkspace() {
   const params = useParams<{ ref: string; section?: string }>();
   const { user } = useAuth();
   const [location, navigate] = useHashLocation();
-  const ref = decodeURIComponent(params.ref ?? "");
+  const ref = params.ref ?? "";
   const query = new URLSearchParams(location.split("?")[1] ?? "");
   const returnTo = query.get("return");
   const safeReturn =
