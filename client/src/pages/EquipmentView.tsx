@@ -38,6 +38,11 @@ export default function EquipmentView({
     enabled: !embedded,
   });
   const [modelRevision, setModelRevision] = useState("");
+  const selectedTemplate = trpc.equipment.bindingTemplate.useQuery(
+    { revision: modelRevision },
+    { enabled: !embedded && writable && !!modelRevision },
+  );
+  const bindingModel = modelRevision ? selectedTemplate.data : template.data;
   const securityAccess = trpc.security.availability.useQuery();
   const securityFindingId = new URLSearchParams(
     hashLocation.split("?")[1] ?? "",
@@ -176,7 +181,7 @@ export default function EquipmentView({
                         setKind("real");
                         setBindingText(
                           JSON.stringify(
-                            template.data?.bindings.map((b) => ({
+                            bindingModel?.bindings.map((b) => ({
                               ...b,
                               sourceUnit: b.unit,
                             })) ?? [],
@@ -233,7 +238,10 @@ export default function EquipmentView({
                   <select
                     className="mt-1 w-full rounded border bg-background p-2"
                     value={modelRevision}
-                    onChange={(e) => setModelRevision(e.target.value)}
+                    onChange={(e) => {
+                      setModelRevision(e.target.value);
+                      setBindingText("[]");
+                    }}
                   >
                     <option value="">
                       Bundled illustrative pump and motor
@@ -245,14 +253,26 @@ export default function EquipmentView({
                     ))}
                   </select>
                 </label>
+                {modelRevision && selectedTemplate.error && (
+                  <p role="alert">
+                    Model mapping metadata is unavailable. Retry selecting the
+                    model before creating equipment.
+                  </p>
+                )}
                 {existingAssetId && (
                   <EquipmentBindingEditor
                     value={bindingText || "[]"}
                     onChange={setBindingText}
-                    components={template.data?.components ?? []}
+                    components={bindingModel?.components ?? []}
                   />
                 )}
-                <Button disabled={!template.data || create.isPending}>
+                <Button
+                  disabled={
+                    !template.data ||
+                    create.isPending ||
+                    (!!modelRevision && !selectedTemplate.data)
+                  }
+                >
                   Create equipment
                 </Button>
               </form>

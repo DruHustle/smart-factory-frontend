@@ -68,7 +68,10 @@ export default function Inventory() {
       if (saved?.startsWith("/inventory?")) navigate(saved, { replace: true });
     }
   }, []);
-  const result = trpc.inventory.list.useQuery(filter, { retry: false });
+  const result = trpc.inventory.list.useQuery(filter, {
+    retry: false,
+    refetchInterval: 30000,
+  });
   const utils = trpc.useUtils();
   function update(values: Record<string, string | number>) {
     const p = new URLSearchParams(params);

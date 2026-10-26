@@ -147,7 +147,19 @@ export default function CreateDeviceDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Device type</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        if (
+                          value === "gateway" &&
+                          form.getValues("route") === "gateway"
+                        ) {
+                          form.setValue("route", "unconfigured");
+                          form.setValue("gatewayId", undefined);
+                        }
+                      }}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue />

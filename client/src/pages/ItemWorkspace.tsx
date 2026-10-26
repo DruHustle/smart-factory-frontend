@@ -40,7 +40,10 @@ export default function ItemWorkspace() {
       : "/inventory";
   const item = trpc.inventory.item.useQuery(
     { ref },
-    { enabled: /^(asset:\d+|device:\d+|equipment:[a-f0-9-]{36})$/.test(ref) },
+    {
+      enabled: /^(asset:\d+|device:\d+|equipment:[a-f0-9-]{36})$/.test(ref),
+      refetchInterval: 30000,
+    },
   );
   const connections = trpc.assets.getConnections.useQuery(
     { id: Number(ref.split(":")[1]) },

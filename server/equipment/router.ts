@@ -26,6 +26,20 @@ export const equipmentRouter = router({
       ["engineer", "admin"].includes(ctx.user.role),
     demoOnly: process.env.ENABLE_DEMO_ACCOUNTS === "true",
   })),
+  bindingTemplate: writer
+    .input(z.object({ revision: z.string().min(1).max(128) }))
+    .query(({ input }) =>
+      operatorAction(async () => {
+        const t = await local.template(input.revision);
+        return {
+          components: t.components.map((c) => ({
+            templateComponentId: c.templateComponentId,
+            name: c.name,
+          })),
+          bindings: t.bindings,
+        };
+      }),
+    ),
   template: viewerProcedure.query(() => operatorAction(() => local.template())),
   models: viewerProcedure.query(async () => ({
     bundled: await operatorAction(() => local.template()),

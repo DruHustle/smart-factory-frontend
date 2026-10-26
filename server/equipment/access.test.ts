@@ -27,6 +27,31 @@ it("denies mutation to individually named accounts on shared demo deployments", 
       templateRevision: "x",
     }),
   ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  await expect(
+    caller.equipment.bindingTemplate({ revision: "local-import:private" }),
+  ).rejects.toMatchObject({ code: "FORBIDDEN" });
   const models = await caller.equipment.models();
   expect(models.imported).toEqual([]);
+});
+
+it("returns model-specific mapping metadata only to private engineers", async () => {
+  vi.stubEnv("ENABLE_DEMO_ACCOUNTS", "false");
+  const caller = appRouter.createCaller({
+    user: {
+      id: 2,
+      role: "engineer",
+      email: "mapping@example.test",
+      openId: "mapping-engineer",
+    },
+    req: {},
+    res: {},
+  } as TrpcContext);
+  const t = await caller.equipment.template();
+  const mapping = await caller.equipment.bindingTemplate({
+    revision: t.revision,
+  });
+  expect(mapping.components.map((c) => c.templateComponentId)).toEqual(
+    t.components.map((c) => c.templateComponentId),
+  );
+  expect(mapping.bindings).toEqual(t.bindings);
 });
