@@ -185,6 +185,16 @@ test.describe("unified item workspace", () => {
     await expect(
       page.getByLabel("Search inventory", { exact: true }),
     ).toHaveValue("Workspace child");
+    await expect(
+      page
+        .getByRole("link", { name: "Workspace child A", exact: true })
+        .filter({ visible: true }),
+    ).toBeFocused();
+    expect(
+      new URLSearchParams(page.url().split("#")[1].split("?")[1]).get(
+        "selected",
+      ),
+    ).toMatch(/^device:/);
     const row = (
       await call(page.request, "inventory.list", { search: "workspace-direct" })
     ).data.items[0];

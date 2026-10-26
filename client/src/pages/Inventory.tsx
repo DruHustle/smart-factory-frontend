@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { trpc } from "@/lib/trpc";
@@ -44,6 +44,7 @@ const views = [
 export default function Inventory() {
   const { user } = useAuth();
   const [location, navigate] = useHashLocation();
+  const restoredSelection = useRef<string | null>(null);
   const params = new URLSearchParams(location.split("?")[1] ?? "");
   const key = `inventory:${user?.id}`;
   const [add, setAdd] = useState(false);
@@ -76,6 +77,7 @@ export default function Inventory() {
   function update(values: Record<string, string | number>) {
     const p = new URLSearchParams(params);
     p.delete("page");
+    p.delete("selected");
     for (const [k, v] of Object.entries(values)) {
       if (v === "all" || v === "" || v === 0) p.delete(k);
       else p.set(k, String(v));
@@ -84,8 +86,33 @@ export default function Inventory() {
     safeLocalStorage.setItem(key, next);
     navigate(next);
   }
+  const selected = params.get("selected");
+  const returnUrl = (item: InventoryItem) => {
+    const p = new URLSearchParams(params);
+    p.set("selected", item.ref);
+    return "/inventory?" + p;
+  };
   const href = (item: InventoryItem) =>
-    itemHref(item.ref, "overview", location);
+    itemHref(item.ref, "overview", returnUrl(item));
+  const remember = (item: InventoryItem) => {
+    const u = new URL(window.location.href);
+    u.hash = returnUrl(item);
+    window.history.replaceState(window.history.state, "", u);
+  };
+  useEffect(() => {
+    if (!selected || restoredSelection.current === selected || !result.data)
+      return;
+    const frame = requestAnimationFrame(() => {
+      const desktop = document.getElementById("inventory-desktop-" + selected),
+        mobile = document.getElementById("inventory-mobile-" + selected);
+      const link = desktop?.getClientRects().length ? desktop : mobile;
+      if (link?.getClientRects().length) {
+        link.focus();
+        restoredSelection.current = selected;
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selected, result.data]);
   const count = (id: string) =>
     result.data?.groups.reduce(
       (n, g) =>
@@ -264,11 +291,15 @@ export default function Inventory() {
                     <tbody>
                       {result.data.items.map((item) => (
                         <tr
-                          className="border-b last:border-0 hover:bg-muted/30"
+                          data-selected={selected === item.ref || undefined}
+                          className={`border-b last:border-0 hover:bg-muted/30 ${selected === item.ref ? "bg-primary/10" : ""}`}
                           key={item.ref}
                         >
                           <td className="p-3">
                             <Link
+                              id={"inventory-desktop-" + item.ref}
+                              aria-label={item.name}
+                              onClick={() => remember(item)}
                               className="font-medium text-foreground underline-offset-4 hover:underline"
                               href={href(item)}
                             >
@@ -321,7 +352,12 @@ export default function Inventory() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem asChild>
-                                  <Link href={href(item)}>Open workspace</Link>
+                                  <Link
+                                    onClick={() => remember(item)}
+                                    href={href(item)}
+                                  >
+                                    Open workspace
+                                  </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() =>
@@ -343,12 +379,16 @@ export default function Inventory() {
                 <div className="space-y-3 md:hidden">
                   {result.data.items.map((item) => (
                     <article
-                      className="space-y-3 rounded-lg border bg-card p-4"
+                      data-selected={selected === item.ref || undefined}
+                      className={`space-y-3 rounded-lg border bg-card p-4 ${selected === item.ref ? "border-primary" : ""}`}
                       key={item.ref}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <Link
+                            id={"inventory-mobile-" + item.ref}
+                            aria-label={item.name}
+                            onClick={() => remember(item)}
                             href={href(item)}
                             className="break-words font-semibold"
                           >
@@ -359,7 +399,12 @@ export default function Inventory() {
                           </p>
                         </div>
                         <Button asChild variant="outline" size="sm">
-                          <Link href={href(item)}>Open</Link>
+                          <Link
+                            onClick={() => remember(item)}
+                            href={href(item)}
+                          >
+                            Open
+                          </Link>
                         </Button>
                       </div>
                       <StatusBadge status={item.status} />
