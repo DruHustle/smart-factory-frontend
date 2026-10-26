@@ -43,7 +43,7 @@ node scripts/e2e-aas-upstream.mjs &
 mock_aas_pid=$!
 
 pnpm exec drizzle-kit migrate
-pnpm test
+pnpm test --maxWorkers="${E2E_TEST_WORKERS:-1}"
 
 if [[ "${E2E_HEADED:-0}" == "1" ]]; then
   pnpm exec playwright test --headed "$@"
