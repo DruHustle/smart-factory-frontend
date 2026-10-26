@@ -198,7 +198,7 @@ async function startServer() {
   // Shared PostgreSQL counters enforce the same login limits across replicas.
   app.use("/api/trpc", (req, res, next) => {
     const procedures = req.path.replace(/^\/+/, "").split(",");
-    if (req.method === "POST" && procedures.includes("auth.login")) {
+    if (req.method === "POST" && procedures.some(path => ["auth.login", "auth.changePassword"].includes(path))) {
       return loginRateLimit(req, res, next);
     }
     return next();
@@ -416,8 +416,15 @@ async function startServer() {
       const origin = request.headers.origin;
       if (origin && !allowedOrigins.has(origin)) return false;
       try {
-        await sdk.authenticateRequest(request as express.Request);
-        return true;
+        const { user, session } = await sdk.authenticateRequestWithSession(request as express.Request);
+        if (demonstrationOnly(user) || user.passwordChangeRequired || !session.sessionId || !session.expiresAt) return false;
+        return { userId: user.id, sessionId: session.sessionId, expiresAt: session.expiresAt,
+          reauthorize: async () => {
+            try {
+              const current = await sdk.authenticateRequest(request as express.Request);
+              return !demonstrationOnly(current) && !current.passwordChangeRequired;
+            } catch { return false; }
+          } };
       } catch {
         return false;
       }

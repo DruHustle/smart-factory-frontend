@@ -169,6 +169,13 @@
       "when": 1793040000000,
       "tag": "0023_inventory_context",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793043600000,
+      "tag": "0024_account_access",
+      "breakpoints": true
     }
   ]
 }

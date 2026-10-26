@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { sdk } from "./_core/sdk";
 import { appRouter } from "./routers";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
@@ -42,6 +43,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
 }
 
 describe("auth.logout", () => {
+  afterEach(() => vi.restoreAllMocks());
   it("clears the session cookie and reports success", async () => {
     const { ctx, clearedCookies } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
@@ -57,5 +59,11 @@ describe("auth.logout", () => {
       httpOnly: true,
       path: "/",
     });
+  });
+  it("clears local credentials but does not claim persisted revocation when storage fails", async () => {
+    const { ctx, clearedCookies } = createAuthContext();
+    vi.spyOn(sdk, "revokeRequestSession").mockRejectedValue(new Error("Revocation storage unavailable"));
+    await expect(appRouter.createCaller(ctx).auth.logout()).rejects.toThrow("Revocation storage unavailable");
+    expect(clearedCookies).toHaveLength(1);
   });
 });

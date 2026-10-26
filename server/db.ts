@@ -245,26 +245,23 @@ export async function listUsers() {
     name: users.name,
     email: users.email,
     role: users.role,
+    disabledAt: users.disabledAt,
+    accessVersion: users.authVersion,
     createdAt: users.createdAt,
     lastSignedIn: users.lastSignedIn,
   }).from(users).orderBy(asc(users.createdAt)));
 }
 
 export async function updateUserRole(id: number, role: User["role"]) {
-  return withDb(async (db) => {
-    const [updated] = await db.update(users)
-      .set({ role, updatedAt: new Date() })
-      .where(eq(users.id, id))
-      .returning({ id: users.id, openId: users.openId, name: users.name, email: users.email, role: users.role });
-    return updated;
-  });
+  const { changeUserAccess } = await import("./accountAccess");
+  return changeUserAccess(id, { role });
 }
 
 /** Refreshes a reserved local demo identity during non-production bootstrap. */
 export async function updateDemoAccount(id: number, password: string, role: User["role"]) {
   return withDb(async (db) => {
     const [updated] = await db.update(users)
-      .set({ password, role, updatedAt: new Date() })
+      .set({ password, role, authVersion: sql`${users.authVersion}+1`, updatedAt: new Date() })
       .where(eq(users.id, id))
       .returning({ id: users.id, email: users.email, role: users.role });
     return updated;

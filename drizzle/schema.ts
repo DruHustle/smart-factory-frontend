@@ -24,6 +24,11 @@ export const users = pgTable("users", {
   password: text("password"),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: roleEnum("role").default("user").notNull(),
+  authVersion: integer("auth_version").default(0).notNull(),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  passwordChangeRequired: boolean("password_change_required").default(false).notNull(),
+  temporaryCredentialExpiresAt: timestamp("temporary_credential_expires_at", { withTimezone: true }),
+  temporaryCredentialUsedAt: timestamp("temporary_credential_used_at", { withTimezone: true }),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn", { withTimezone: true }).defaultNow().notNull(),
@@ -31,6 +36,14 @@ export const users = pgTable("users", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+/** Only hashes are persisted; logout/expiry never leaves reusable bearer tokens. */
+export const sessionRevocations = pgTable("session_revocations", {
+  sessionHash: varchar("session_hash", { length: 64 }).primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [index("session_revocations_expiry").on(table.expiresAt)]);
 
 /** Deployment-wide feature switches edited by authorized administrators. */
 export const systemSettings = pgTable("system_settings", {

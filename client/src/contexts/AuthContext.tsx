@@ -8,7 +8,7 @@ import {
 } from "@/lib/api-auth";
 import type { User } from "../../../drizzle/schema";
 import { SESSION_EXPIRED_EVENT } from "@/lib/session-expiry";
-type PublicUser = Omit<User, "password">;
+type PublicUser = Omit<User, "password" | "authVersion">;
 
 interface AuthContextType {
   user: PublicUser | null;

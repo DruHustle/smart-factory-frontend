@@ -10,7 +10,7 @@ import superjson from "superjson";
 import type { User } from "../../../drizzle/schema";
 import type { AppRouter } from "../../../server/routers";
 import { userFacingApiError } from "./errors";
-export type PublicUser = Omit<User, "password">;
+export type PublicUser = Omit<User, "password" | "authVersion">;
 
 export interface AuthResponse {
   success: boolean;

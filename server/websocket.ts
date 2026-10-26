@@ -63,7 +63,17 @@ export interface AasChangedMessage extends WebSocketMessage {
 
 const REDIS_CHANNEL_PREFIX = "smart-factory:websocket:";
 const MAX_SUBSCRIPTIONS_PER_CLIENT = 32;
-const CHANNEL_PATTERN = /^[A-Za-z0-9:_-]{1,160}$/;
+const CHANNEL_PATTERN = /^(?:aas:all|alerts:all|device:[1-9][0-9]{0,9}:(?:sensor|status|alert))$/;
+const MAX_CHANNELS_PER_MESSAGE = 64;
+const MAX_MESSAGES_PER_SECOND = 20;
+const MAX_BUFFERED_BYTES = 1024 * 1024;
+export type SocketAuthorization = {
+  userId: number; sessionId: string; expiresAt: number; reauthorize: () => Promise<boolean>;
+};
+type SocketState = {
+  identity?: SocketAuthorization; lastVerifiedAt: number; windowAt: number; messages: number; pending: number;
+  checking?: Promise<boolean>; expiryTimer?: NodeJS.Timeout;
+};
 
 type FanoutEnvelope = {
   version: 1;
@@ -79,6 +89,8 @@ export class WebSocketManager extends EventEmitter {
   private wss: WebSocketServer | null = null;
   private readonly clients = new Map<string, Set<WebSocket>>();
   private readonly subscriptionsBySocket = new Map<WebSocket, Set<string>>();
+  private readonly sockets = new Map<WebSocket, SocketState>();
+  private upgrades = 0;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private redisPublisher: ReturnType<typeof createClient> | null = null;
   private redisSubscriber: ReturnType<typeof createClient> | null = null;
@@ -88,28 +100,39 @@ export class WebSocketManager extends EventEmitter {
   public async initialize(
     server: Server,
     path = "/ws",
-    authorizeUpgrade: (request: IncomingMessage) => Promise<boolean> = async () => false,
+    authorizeUpgrade: (request: IncomingMessage) => Promise<boolean | SocketAuthorization> = async () => false,
   ): Promise<void> {
     if (this.wss) throw new Error("WebSocket server is already initialized");
     await this.initializeRedis();
 
-    this.wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024, perMessageDeflate: false });
+    this.wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024, perMessageDeflate: false });
     this.httpServer = server;
     this.wss.on("connection", (ws: WebSocket) => this.handleConnection(ws));
     this.upgradeHandler = (request, socket, head) => {
-      const requestPath = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`).pathname;
+      let requestPath: string;
+      try { requestPath = new URL(request.url ?? "/", "http://localhost").pathname; }
+      catch { socket.destroy(); return; }
       if (requestPath !== path) return;
+      if (this.sockets.size >= 128 || this.upgrades >= 16) {
+        socket.write("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n"); socket.destroy(); return;
+      }
+      this.upgrades++;
       void authorizeUpgrade(request).then((authorized) => {
         if (!authorized || !this.wss) {
           socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
           socket.destroy();
           return;
         }
-        this.wss.handleUpgrade(request, socket, head, (ws) => this.wss?.emit("connection", ws, request));
+        this.wss.handleUpgrade(request, socket, head, (ws) => {
+          const state: SocketState = { identity: typeof authorized === "object" ? authorized : undefined,
+            lastVerifiedAt: Date.now(), windowAt: Date.now(), messages: 0, pending: 0 };
+          this.sockets.set(ws, state);
+          this.wss?.emit("connection", ws, request);
+        });
       }).catch(() => {
         socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
         socket.destroy();
-      });
+      }).finally(() => { this.upgrades--; });
     };
     server.on("upgrade", this.upgradeHandler);
     this.heartbeatInterval = setInterval(() => this.broadcastHeartbeat(), 30_000);
@@ -164,15 +187,21 @@ export class WebSocketManager extends EventEmitter {
     const clientId = this.generateClientId();
     this.subscriptionsBySocket.set(ws, new Set());
     console.log(`[WebSocket] Client connected: ${clientId}`);
+    const state = this.sockets.get(ws)!;
+    if (state.identity) {
+      state.expiryTimer = setTimeout(() => ws.close(4001, "Session expired"), Math.max(0, state.identity.expiresAt - Date.now()));
+      state.expiryTimer.unref();
+    }
 
     ws.on("message", (data) => {
-      try {
-        const message: unknown = JSON.parse(data.toString());
-        this.handleMessage(clientId, ws, message);
-      } catch (error) {
-        console.error("[WebSocket] Failed to parse message:", error);
-        this.sendError(ws, "Invalid message format");
-      }
+      if (Date.now() - state.windowAt >= 1000) { state.windowAt = Date.now(); state.messages = 0; }
+      if (++state.messages > MAX_MESSAGES_PER_SECOND || state.pending >= 4) { ws.close(1008, "Message capacity exceeded"); return; }
+      state.pending++;
+      void this.checkAccess(ws).then(authorized => {
+        if (!authorized || ws.readyState !== WebSocket.OPEN) return;
+        try { this.handleMessage(clientId, ws, JSON.parse(data.toString())); }
+        catch { this.sendError(ws, "Invalid message format"); }
+      }).finally(() => { state.pending--; });
     });
 
     ws.on("close", () => {
@@ -193,8 +222,8 @@ export class WebSocketManager extends EventEmitter {
       this.sendError(ws, "Unsupported message type");
       return;
     }
-    if (!Array.isArray(candidate.channels) || candidate.channels.some((channel) => typeof channel !== "string")) {
-      this.sendError(ws, "Channels must be an array of strings");
+    if (!Array.isArray(candidate.channels) || candidate.channels.length > MAX_CHANNELS_PER_MESSAGE || candidate.channels.some((channel) => typeof channel !== "string")) {
+      this.sendError(ws, "Provide at most 64 channel names per message");
       return;
     }
     const channels = [...new Set(candidate.channels.filter((channel: string) => CHANNEL_PATTERN.test(channel)))];
@@ -209,24 +238,26 @@ export class WebSocketManager extends EventEmitter {
 
   private subscribe(clientId: string, ws: WebSocket, requestedChannels: string[]): void {
     const current = this.subscriptionsBySocket.get(ws) ?? new Set<string>();
-    const channels = requestedChannels.filter((channel) => current.has(channel) || current.size < MAX_SUBSCRIPTIONS_PER_CLIENT);
-    for (const channel of channels) {
+    const channels: string[] = [];
+    for (const channel of requestedChannels) {
+      if (!current.has(channel) && current.size >= MAX_SUBSCRIPTIONS_PER_CLIENT) continue;
+      channels.push(channel);
+      current.add(channel); // Capacity changes before the next candidate is considered.
       if (!this.clients.has(channel)) this.clients.set(channel, new Set());
       this.clients.get(channel)!.add(ws);
-      current.add(channel);
     }
     this.subscriptionsBySocket.set(ws, current);
     this.send(ws, {
       type: WebSocketMessageType.SUBSCRIPTION_CONFIRM,
-      data: { channels },
+      data: { channels, rejected: requestedChannels.filter(channel => !current.has(channel)), limit: MAX_SUBSCRIPTIONS_PER_CLIENT },
       timestamp: Date.now(),
     });
-    console.log(`[WebSocket] Client ${clientId} subscribed to: ${channels.join(", ")}`);
+    console.log(`[WebSocket] Client ${clientId} subscription count: ${current.size}`);
   }
 
   private unsubscribe(clientId: string, ws: WebSocket, channels: string[]): void {
     for (const channel of channels) this.removeSubscription(ws, channel);
-    console.log(`[WebSocket] Client ${clientId} unsubscribed from: ${channels.join(", ")}`);
+    console.log(`[WebSocket] Client ${clientId} removed ${channels.length} subscriptions`);
   }
 
   private removeSubscription(ws: WebSocket, channel: string): void {
@@ -237,6 +268,9 @@ export class WebSocketManager extends EventEmitter {
   }
 
   private removeSocket(ws: WebSocket): void {
+    const state = this.sockets.get(ws);
+    if (state?.expiryTimer) clearTimeout(state.expiryTimer);
+    this.sockets.delete(ws);
     for (const channel of this.subscriptionsBySocket.get(ws) ?? []) this.removeSubscription(ws, channel);
     this.subscriptionsBySocket.delete(ws);
   }
@@ -293,6 +327,14 @@ export class WebSocketManager extends EventEmitter {
 
   private receiveFanout(payload: string): void {
     try {
+      if (Buffer.byteLength(payload) > 64 * 1024) return;
+      const access = JSON.parse(payload);
+      if (access.version === 2 && access.kind === "access_revoked") {
+        if ((Number.isSafeInteger(access.userId) && access.userId > 0) ||
+            (typeof access.sessionId === "string" && /^[0-9a-f-]{36}$/.test(access.sessionId)))
+          this.invalidateLocally(access);
+        return;
+      }
       const envelope = JSON.parse(payload) as Partial<FanoutEnvelope>;
       if (envelope.version !== 1 || typeof envelope.channel !== "string" || !CHANNEL_PATTERN.test(envelope.channel)) return;
       const message = envelope.message;
@@ -308,6 +350,8 @@ export class WebSocketManager extends EventEmitter {
   }
 
   private send(ws: WebSocket, message: WebSocketMessage): void {
+    if ((this.sockets.get(ws)?.identity?.expiresAt ?? Infinity) <= Date.now()) { ws.close(4001, "Session expired"); return; }
+    if (ws.bufferedAmount > MAX_BUFFERED_BYTES) { ws.terminate(); return; }
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
   }
 
@@ -318,9 +362,36 @@ export class WebSocketManager extends EventEmitter {
   private broadcastHeartbeat(): void {
     const timestamp = Date.now();
     const message: WebSocketMessage = { type: WebSocketMessageType.HEARTBEAT, data: {}, timestamp };
-    const sockets = new Set([...this.clients.values()].flatMap((clients) => [...clients]));
-    for (const ws of sockets) this.send(ws, message);
+    for (const ws of this.sockets.keys()) void this.checkAccess(ws).then(allowed => { if (allowed) this.send(ws, message); });
   }
+
+  private async checkAccess(ws: WebSocket): Promise<boolean> {
+    const state = this.sockets.get(ws);
+    if (!state) return false;
+    if (!state.identity) return true; // Only explicitly trusted harness callbacks use boolean authorization.
+    if (state.identity.expiresAt <= Date.now()) { ws.close(4001, "Session expired"); return false; }
+    if (Date.now() - state.lastVerifiedAt < 15_000) return true;
+    if (!state.checking) state.checking = state.identity.reauthorize().then(allowed => {
+      if (!allowed) ws.close(4001, "Access revoked");
+      else state.lastVerifiedAt = Date.now();
+      return allowed;
+    }).catch(() => { ws.close(4001, "Authorization unavailable"); return false; }).finally(() => { state.checking = undefined; });
+    return state.checking;
+  }
+
+  private invalidateLocally(scope: { userId?: number; sessionId?: string }) {
+    for (const [ws, state] of this.sockets) {
+      if (state.identity && (state.identity.userId === scope.userId || state.identity.sessionId === scope.sessionId))
+        ws.close(4001, "Access revoked");
+    }
+  }
+  private async invalidate(scope: { userId?: number; sessionId?: string }) {
+    this.invalidateLocally(scope);
+    if (this.redisPublisher) await this.redisPublisher.publish(`${REDIS_CHANNEL_PREFIX}auth:revoked`,
+      JSON.stringify({ version: 2, kind: "access_revoked", ...scope })).catch(() => console.error("[WebSocket] Revocation fan-out unavailable; periodic reauthorization remains active"));
+  }
+  public invalidateUser(userId: number) { return this.invalidate({ userId }); }
+  public invalidateSession(sessionId: string) { return this.invalidate({ sessionId }); }
 
   private generateClientId(): string {
     return `client_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
@@ -339,6 +410,8 @@ export class WebSocketManager extends EventEmitter {
     this.wss?.clients.forEach((client) => client.close(1001, "Server shutting down"));
     this.wss?.close(() => console.log("[WebSocket] Server shut down"));
     this.wss = null;
+    for (const state of this.sockets.values()) if (state.expiryTimer) clearTimeout(state.expiryTimer);
+    this.sockets.clear();
     this.clients.clear();
     this.subscriptionsBySocket.clear();
     const clients = [this.redisSubscriber, this.redisPublisher].filter((client) => client !== null);
@@ -348,7 +421,7 @@ export class WebSocketManager extends EventEmitter {
   }
 
   public getConnectedClientsCount(): number {
-    return new Set([...this.clients.values()].flatMap((clients) => [...clients])).size;
+    return this.sockets.size;
   }
 
   public getSubscribedChannelsCount(): number {

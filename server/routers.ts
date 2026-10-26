@@ -20,6 +20,8 @@ import { provisionAas, removeProvisionedAas, removeImportedAasxAsset, updateProv
 import { DEMO_ACCOUNTS, demoAccountsEnabled, isDemoAccount } from "../shared/demo-accounts";
 import { edgeTagMappingsSchema } from "../shared/edge-configuration";
 import { answerFactoryQuestion } from "./assistantKnowledge";
+import { AccountAccessError, changeUserAccess, resetAccountCredential, consumeTemporaryCredential, changeOwnPassword } from "./accountAccess";
+import { wsManager } from "./websocket";
 
 const deviceTypeEnum = z.enum(["sensor", "actuator", "controller", "gateway", "edge_device"]);
 const deviceStatusEnum = z.enum(["online", "offline", "maintenance", "error"]);
@@ -99,8 +101,16 @@ async function updateAssetRevision(
 
 function publicUser(user: db.User | null | undefined) {
   if (!user) return null;
-  const { password: _password, ...safeUser } = user;
+  const { password: _password, authVersion: _authVersion, ...safeUser } = user;
   return safeUser;
+}
+
+async function accountAction<T>(action: () => Promise<T>): Promise<T> {
+  try { return await action(); }
+  catch (error) {
+    if (error instanceof AccountAccessError) throw new TRPCError({ code: error.code, message: error.message });
+    throw error;
+  }
 }
 
 async function runIncidentMutation<T>(action: () => Promise<T | undefined>) {
@@ -141,7 +151,7 @@ export const appRouter = router({
   auth: router({
     registrationPolicy: publicProcedure.query(() => ({ enabled: process.env.NODE_ENV !== "production" })),
     me: publicProcedure.query(async ({ ctx }) => {
-      if (!ctx.user || !bundleEnabled()) return publicUser(ctx.user);
+      if (!ctx.user || ctx.user.passwordChangeRequired || !bundleEnabled()) return publicUser(ctx.user);
       const profile = await internalService<{ id: number; openId: string; name: string | null; email: string | null; role: db.User["role"] }>(3104, "/api/auth/profile", ctx.user.id);
       return { ...publicUser(ctx.user)!, ...profile };
     }),
@@ -151,12 +161,18 @@ export const appRouter = router({
     login: publicProcedure
       .input(z.object({ email: z.string().email(), password: passwordInput }))
       .mutation(async ({ input, ctx }) => {
-        const user = await db.getUserByEmail(input.email);
-        if ((isDemoAccount(input.email) && !demoAccountsEnabled()) || !user || !user.password || !(await sdk.comparePassword(input.password, user.password))) {
+        let user = await db.getUserByEmail(input.email);
+        if ((isDemoAccount(input.email) && !demoAccountsEnabled()) || !user || user.disabledAt || !user.password || !(await sdk.comparePassword(input.password, user.password))) {
           await nativeEvent("auth.authentication_failed", { service: "dashboard", outcome: "denied", reasonCode: "INVALID_CREDENTIALS", principalRef: principal(input.email) }, "A dashboard sign-in was rejected.");
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" });
         }
-        const token = await sdk.createSessionToken(user);
+        if (user.passwordChangeRequired) {
+          const consumed = await consumeTemporaryCredential(user.id, user.authVersion);
+          if (!consumed) throw new TRPCError({ code: "UNAUTHORIZED", message: "The temporary credential is expired or already used. Ask an administrator for recovery." });
+          user = consumed;
+        }
+        const token = await sdk.createSessionToken(user, user.passwordChangeRequired
+          ? { expiresInMs: Math.max(1, user.temporaryCredentialExpiresAt!.getTime() - Date.now()) } : {});
         ctx.res.cookie(COOKIE_NAME, token, getSessionCookieOptions(ctx.req));
         return { user: publicUser(user) };
       }),
@@ -164,6 +180,7 @@ export const appRouter = router({
       .input(z.object({ email: z.string().email(), password: newPasswordInput, name: z.string().trim().min(1).max(255) }))
       .mutation(async ({ input, ctx }) => {
         if (process.env.NODE_ENV === "production") throw new TRPCError({ code: "FORBIDDEN", message: "Public registration is disabled for this factory. Ask an administrator to create your account." });
+        if (isDemoAccount(input.email)) throw new TRPCError({ code: "BAD_REQUEST", message: "This address is reserved for the shared walkthrough." });
         if (await db.getUserByEmail(input.email)) throw new Error("Email already registered");
         const user = await db.createUser({
           email: input.email,
@@ -180,9 +197,25 @@ export const appRouter = router({
         ctx.res.cookie(COOKIE_NAME, token, getSessionCookieOptions(ctx.req));
         return { user: publicUser(user) };
       }),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, cookieOptions);
+    changePassword: viewerProcedure.input(z.object({ currentPassword: passwordInput.optional(), newPassword: newPasswordInput }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user.password || (!ctx.user.passwordChangeRequired && (!input.currentPassword || !(await sdk.comparePassword(input.currentPassword, ctx.user.password)))))
+          throw new TRPCError({ code: "BAD_REQUEST", message: "The current password could not be verified." });
+        if (await sdk.comparePassword(input.newPassword, ctx.user.password))
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Choose a different password from the previous or temporary credential." });
+        const passwordHash = await sdk.hashPassword(input.newPassword);
+        const updated = await accountAction(() => changeOwnPassword(ctx.user.id, ctx.user.authVersion, passwordHash));
+        await wsManager.invalidateUser(ctx.user.id);
+        ctx.res.cookie(COOKIE_NAME, await sdk.createSessionToken(updated), getSessionCookieOptions(ctx.req));
+        return { user: publicUser(updated) };
+      }),
+    logout: publicProcedure.mutation(async ({ ctx }) => {
+      try {
+        const sessionId = await sdk.revokeRequestSession(ctx.req);
+        if (sessionId) await wsManager.invalidateSession(sessionId);
+      } finally {
+        ctx.res.clearCookie(COOKIE_NAME, getSessionCookieOptions(ctx.req));
+      }
       return { success: true };
     }),
   }),
@@ -218,7 +251,7 @@ export const appRouter = router({
         throw new Error("A live gateway-connected WROVER edge device is required");
       }
       const commandId = randomUUID();
-      const userToken = await sdk.createSessionToken(ctx.user, { expiresInMs: 60_000 });
+      const userToken = await sdk.createSessionToken(ctx.user, { expiresInMs: 60_000, sessionId: ctx.session?.sessionId });
       return publishWroverIndicator({ gatewayDeviceId, targetDeviceId: device.deviceId,
         commandId, expiresAt: Date.now() + 10_000 }, userToken);
     }),
@@ -463,7 +496,7 @@ export const appRouter = router({
       const commandId = randomUUID();
       // Re-sign the current DB-backed role for one minute so DeviceService sees
       // fresh authorization even when an older browser cookie has a stale role.
-      const userToken = await sdk.createSessionToken(ctx.user, { expiresInMs: 60_000 });
+      const userToken = await sdk.createSessionToken(ctx.user, { expiresInMs: 60_000, sessionId: ctx.session?.sessionId });
       return publishAda031Control({
         gatewayDeviceId: connection.gatewayDeviceId,
         assetId: asset.assetId,
@@ -485,19 +518,43 @@ export const appRouter = router({
     list: adminProcedure.query(() => db.listUsers()),
     create: adminProcedure.input(z.object({ email: z.string().email().max(320), name: z.string().trim().min(1).max(255), password: newPasswordInput,
       role: z.enum(["viewer", "operator", "engineer", "admin"]).default("viewer") })).mutation(async ({ input }) => {
+      if (isDemoAccount(input.email)) throw new TRPCError({ code: "BAD_REQUEST", message: "This address is reserved for the shared walkthrough." });
       if (await db.getUserByEmail(input.email)) throw new TRPCError({ code: "CONFLICT", message: "This account already exists" });
-      const user = await db.createUser({ ...input, password: await sdk.hashPassword(input.password), openId: randomUUID() });
+      const user = await db.createUser({ ...input, password: await sdk.hashPassword(input.password), openId: randomUUID(),
+        passwordChangeRequired: true, temporaryCredentialExpiresAt: new Date(Date.now() + 30 * 60_000) });
       await db.enqueueWelcomeEmail(user).catch((error) =>
         console.error("[Email] Could not queue account welcome message:", error instanceof Error ? error.message : "unknown error"));
       return publicUser(user);
     }),
     setRole: adminProcedure
-      .input(z.object({ id: z.number(), role: z.enum(["viewer", "operator", "engineer", "admin"]) }))
+      .input(z.object({ id: z.number().int().positive(), role: z.enum(["viewer", "operator", "engineer", "admin"]), expectedVersion: z.number().int().nonnegative().optional() }))
       .mutation(async ({ input, ctx }) => {
-        if (input.id === ctx.user.id && input.role !== "admin") throw new Error("You cannot remove your own administrator access");
-        const result = await db.updateUserRole(input.id, input.role);
+        if (input.id === ctx.user.id && input.role !== "admin") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Ask another administrator to change your own administrator access." });
+        const result = await accountAction(() => changeUserAccess(input.id, { role: input.role, expectedVersion: input.expectedVersion }));
+        await wsManager.invalidateUser(input.id);
         if (!result) throw new Error("User not found");
         await nativeEvent("config.changed", { configRevision: randomUUID(), changedKeys: ["users.roles"] }, "An administrator changed an application role.");
+        return result;
+      }),
+    setEnabled: adminProcedure.input(z.object({ id: z.number().int().positive(), enabled: z.boolean(), expectedVersion: z.number().int().nonnegative() }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.id === ctx.user.id && !input.enabled) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Ask another administrator to disable your account." });
+        const result = await accountAction(() => changeUserAccess(input.id, { enabled: input.enabled, expectedVersion: input.expectedVersion }));
+        await wsManager.invalidateUser(input.id);
+        return result;
+      }),
+    revokeSessions: adminProcedure.input(z.object({ id: z.number().int().positive(), expectedVersion: z.number().int().nonnegative() }))
+      .mutation(async ({ input }) => {
+        const result = await accountAction(() => changeUserAccess(input.id, { expectedVersion: input.expectedVersion }));
+        await wsManager.invalidateUser(input.id);
+        return result;
+      }),
+    resetPassword: adminProcedure.input(z.object({ id: z.number().int().positive(), temporaryPassword: newPasswordInput, expectedVersion: z.number().int().nonnegative() }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.id === ctx.user.id) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Use your account's Change password action instead of resetting yourself." });
+        const passwordHash = await sdk.hashPassword(input.temporaryPassword);
+        const result = await accountAction(() => resetAccountCredential(input.id, passwordHash, input.expectedVersion));
+        await wsManager.invalidateUser(input.id);
         return result;
       }),
   }),

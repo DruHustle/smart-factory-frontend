@@ -24,6 +24,8 @@ const observeDecisions = t.middleware(async ({ next, path }) => {
   return result;
 });
 const accessBoundary = t.middleware(({ ctx, next, type, path }) => {
+  if (ctx.user?.passwordChangeRequired && !["auth.me", "auth.login", "auth.logout", "auth.changePassword"].includes(path))
+    throw new TRPCError({ code: "FORBIDDEN", message: "Change your temporary password before opening the factory workspace." });
   // Central containment includes future routers and runs before their side effects.
   // Signing in/out remains available; neither operation grants operational writes.
   if (type === "mutation" && !["auth.login", "auth.logout", "assistant.ask"].includes(path) && demonstrationOnly(ctx.user)) {
