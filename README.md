@@ -202,3 +202,5 @@ Native equipment validation and remaining premium asset gaps: [implementation ev
 ## OT cybersecurity workspace
 
 The independently owned [cybersecurity workspace](docs/cybersecurity.md) provides source-scoped evidence, deterministic findings and assigned investigations. See its [strict API/import profile](docs/cybersecurity-api.md) and run `pnpm e2e:security` for the disposable standalone workflow. The detailed native equipment view remains available independently.
+
+The [unified workspace guide](docs/unified-workspace.md) describes inventory views, contextual item sections, registration, observation status and compatible routes.
