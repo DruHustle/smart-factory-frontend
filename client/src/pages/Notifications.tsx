@@ -156,7 +156,7 @@ export default function Notifications() {
                       {!item.readAt && <Badge>Unread</Badge>}
                       <Badge variant="outline">{notificationKindLabel(item.kind)}</Badge>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">Event #{item.alertId}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{item.securityFindingId ? "Security investigation" : `Event #${item.alertId}`}</p>
                   </div>
                   <Badge variant="outline" className={`w-fit max-w-full whitespace-normal text-left ${deliveryStyles[item.emailStatus] ?? ""}`}>{deliveryLabels[item.emailStatus] ?? item.emailStatus}</Badge>
                 </div>
@@ -172,7 +172,7 @@ export default function Notifications() {
                 </dl>
                 {item.lastError && <div role="alert" className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive"><span className="font-medium">Last email error: </span><span className="break-words">{item.lastError}</span></div>}
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={() => { if (!item.readAt) read.mutate({ id: item.id }); navigate(`/alerts/${item.alertId}`); }}>Open event #{item.alertId}</Button>
+                  <Button type="button" variant="outline" onClick={() => { if (!item.readAt) read.mutate({ id: item.id }); if(item.securityFindingId) window.location.hash = `/cybersecurity?finding=${item.securityFindingId}`; else navigate(`/alerts/${item.alertId}`); }}>Open {item.securityFindingId ? "security investigation" : `event #${item.alertId}`}</Button>
                   {!item.readAt && <Button type="button" variant="ghost" disabled={read.isPending} onClick={() => read.mutate({ id: item.id })}>{markingThisRead && <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />}{markingThisRead ? "Marking read…" : "Mark read"}</Button>}
                   {hasMinimumRole(user?.role, "engineer") && DELIVERY_ATTENTION.has(item.emailStatus) && <Button type="button" variant="outline" disabled={retry.isPending} onClick={() => retry.mutate({ id: item.id })}>{retryingThisEmail && <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />}{retryingThisEmail ? "Requesting retry…" : "Retry email request"}</Button>}
                 </div>

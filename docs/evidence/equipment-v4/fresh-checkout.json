@@ -1,0 +1,14 @@
+{
+  "testedSource": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
+  "cleanCheckout": true,
+  "checkout": "/private/tmp/smart-factory-ed7b0f3-independent/frontend",
+  "siblings": [
+    "frontend"
+  ],
+  "privateEnvFiles": [],
+  "modelSha256": "cb1d547822ae954d698ae330ee6d2083fa966f6af3aec889c4605c1305d29712",
+  "install": "pnpm install --offline --frozen-lockfile; ordinary pnpm package cache; pnpm 10.34.5",
+  "configuration": "DOTENV_CONFIG_PATH=/dev/null; all ONESA_* export variables explicitly unset by scripts/equipment/e2e.sh; own disposable PostgreSQL/Redis, individual fixture account",
+  "socketAudit": "server-socket-snapshot.txt is a point-in-time TCP snapshot during final desktop inspection; only own loopback app/database/Redis connections",
+  "hostBoundary": "No sibling repository or peer configuration exists in the fresh checkout. Existing unrelated host services were not stopped. Browser origin audit blocks every origin except this app."
+}

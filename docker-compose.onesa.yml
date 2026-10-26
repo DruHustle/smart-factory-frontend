@@ -1,0 +1,58 @@
+# Combine with docker-compose.e2e.yml. Only synthetic loopback test services.
+services:
+  onesa-broker:
+    image: eclipse-mosquitto:2.0.22
+    volumes:
+      [
+        "./fixtures/onesa/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro",
+      ]
+    ports: ["127.0.0.1:51884:1883"]
+    healthcheck:
+      test: [CMD-SHELL, "mosquitto_pub -h 127.0.0.1 -t fixture/health -m ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+  onesa-telemetry-database:
+    image: postgres:16-alpine
+    environment:
+      {
+        POSTGRES_USER: postgres,
+        POSTGRES_PASSWORD: postgres,
+        POSTGRES_DB: telemetry_onesa_test,
+      }
+    healthcheck:
+      {
+        test: [CMD-SHELL, "pg_isready -U postgres -d telemetry_onesa_test"],
+        interval: 2s,
+        timeout: 3s,
+        retries: 20,
+      }
+    tmpfs: [/var/lib/postgresql/data]
+  onesa-telemetry:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    working_dir: /app
+    volumes:
+      - ../smart-factory-iot-backend/src/Services/TelemetryService/bin/Release/net8.0:/app:ro
+      - ../smart-factory-iot-backend/deploy/migrations:/migrations:ro
+    command:
+      [
+        sh,
+        -c,
+        "dotnet TelemetryService.dll --migrate && dotnet TelemetryService.dll",
+      ]
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      PostgresConnectionString: Host=onesa-telemetry-database;Database=telemetry_onesa_test;Username=postgres;Password=postgres;SSL Mode=Disable
+      TELEMETRY_MIGRATIONS_DIR: /migrations
+      MqttBrokerHost: onesa-broker
+      MqttBrokerPort: "1883"
+      MqttUseTls: "false"
+      MqttClientId: onesa-protocol-test
+      INTERNAL_TELEMETRY_SINK_URL: http://host.docker.internal:3108/api/internal/telemetry
+      INGESTION_API_TOKEN: isolated-onesa-dashboard-bridge
+      PORT: "8080"
+    ports: ["127.0.0.1:51885:8080"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      onesa-broker: { condition: service_healthy }
+      onesa-telemetry-database: { condition: service_healthy }

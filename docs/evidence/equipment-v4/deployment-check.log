@@ -1,0 +1,5 @@
+
+> smart-factory-iot@1.0.0 deployment:check /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend
+> node scripts/check-deployment.mjs
+
+Deployment topology and coordinated release configuration are consistent.

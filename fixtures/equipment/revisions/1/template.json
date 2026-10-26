@@ -1,0 +1,70 @@
+{
+  "revision": "smart-factory-illustrative-pump-motor-1",
+  "status": "App-owned illustrative template",
+  "sha256": "3157266636a0039f1186f7aea6b705aaa9918722056b41098723339a51e9ab42",
+  "units": "m",
+  "handedness": "right",
+  "upAxis": "+Y",
+  "components": [
+    {
+      "templateComponentId": "96dbea7b-a855-5257-9e54-657bf7c6bf62",
+      "name": "Assembly",
+      "nodeIndex": 0,
+      "nodePath": "/Assembly",
+      "parentTemplateComponentId": null
+    },
+    {
+      "templateComponentId": "9eb83ff8-7434-5b9f-b283-7e3be67d7ad7",
+      "name": "Pump",
+      "nodeIndex": 1,
+      "nodePath": "/Assembly/Pump",
+      "parentTemplateComponentId": "96dbea7b-a855-5257-9e54-657bf7c6bf62"
+    },
+    {
+      "templateComponentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5",
+      "name": "Motor",
+      "nodeIndex": 2,
+      "nodePath": "/Assembly/Motor",
+      "parentTemplateComponentId": "96dbea7b-a855-5257-9e54-657bf7c6bf62"
+    }
+  ],
+  "provenance": "Self-authored by Smart Factory integration fixture generator; repository MIT license",
+  "bindings": [
+    {
+      "sourceKey": "pressure",
+      "templateComponentId": "9eb83ff8-7434-5b9f-b283-7e3be67d7ad7",
+      "meaning": "pressure",
+      "unit": "bar",
+      "expectedIntervalMs": 1000
+    },
+    {
+      "sourceKey": "temperature",
+      "templateComponentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5",
+      "meaning": "temperature",
+      "unit": "Cel",
+      "expectedIntervalMs": 1000
+    },
+    {
+      "sourceKey": "rpm",
+      "templateComponentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5",
+      "meaning": "rotational_speed",
+      "unit": "1/min",
+      "expectedIntervalMs": 1000
+    },
+    {
+      "sourceKey": "vibration",
+      "templateComponentId": "9eb83ff8-7434-5b9f-b283-7e3be67d7ad7",
+      "meaning": "vibration_velocity",
+      "unit": "mm/s",
+      "expectedIntervalMs": 1000
+    }
+  ],
+  "documentComponentIds": [
+    "9eb83ff8-7434-5b9f-b283-7e3be67d7ad7",
+    "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5"
+  ],
+  "schemaVersion": "smart-factory-model-1",
+  "name": "Illustrative pump and motor",
+  "license": "MIT (Smart Factory original fixture)",
+  "maintenanceText": "Smart Factory pump/motor demonstrator \u2014 revision 1\nOriginal synthetic reference, authored for integration testing. Not an equipment service manual.\nApplicable components: Pump and Motor in model revision illustrative-1.\nIllustrative technical properties: pump pressure 5 bar; motor power 1.5 kW; speed 1450 1/min.\nScenario thresholds are test inputs, not approved operating limits.\nFor a simulated temperature or vibration threshold crossing, inspect the matching component's time, quality and scenario run before comparing recovery samples.\nDisconnected/unknown data is not proof of safe operation. Obtain the actual manufacturer's manual and approved isolation procedure before any real maintenance.\nThe visualization mesh is not dimensional CAD, robot collision geometry or kinematic data.\n"
+}

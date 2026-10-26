@@ -80,7 +80,9 @@ try:
     # Check the private service boundary, independent of the public Node role guard.
     status=run(COMPOSE+['exec','-T','bundle','curl','-s','-o','/dev/null','-w','%{http_code}','http://127.0.0.1:3104/api/auth/profile'], True)
     assert status == '401'
-    print('PASS: IdentityService reads current dashboard roles and rejects anonymous private requests.')
+    wait(lambda: int(sql("SELECT count(*) FROM security_events e JOIN security_sources s ON s.id=e.source_id WHERE s.system_key='dotnet-services' AND e.event_type='auth.authentication_failed'")) >= 1)
+    assert sql("SELECT count(*) FROM security_events e JOIN security_sources s ON s.id=e.source_id WHERE s.system_key='dotnet-services' AND e.envelope->'attributes'->>'service'='identity-service'") != '0'
+    print('PASS: IdentityService rejects the actual anonymous request and its own durable outbox reaches the native security workspace.')
     device=trpc(engineer,'devices.create',{'deviceId':'bundle-gateway','name':'Bundle gateway','type':'gateway'})
     alert=int(sql(f'''INSERT INTO alerts ("deviceId",type,severity,message,"errorCode") VALUES ({device['id']},'system_error','critical','Bundle incident','SF-TEST') RETURNING id'''))
     trpc(engineer,'alerts.assign',{'id':alert,'assignedToId':engineer_id})

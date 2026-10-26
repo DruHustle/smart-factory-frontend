@@ -1,0 +1,123 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  TelemetryService -> /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend/src/Services/TelemetryService/bin/Release/net8.0/TelemetryService.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.56
+ Network smart-factory-v4-provenance_default Creating
+ Network smart-factory-v4-provenance_default Creating
+ Network smart-factory-v4-provenance_default Created
+ Network smart-factory-v4-provenance_default Created
+ Container smart-factory-v4-provenance-redis-1 Creating
+ Container smart-factory-v4-provenance-onesa-broker-1 Creating
+ Container smart-factory-v4-provenance-database-1 Creating
+ Container smart-factory-v4-provenance-onesa-telemetry-database-1 Creating
+ Container smart-factory-v4-provenance-redis-1 Created
+ Container smart-factory-v4-provenance-onesa-telemetry-database-1 Created
+ Container smart-factory-v4-provenance-onesa-broker-1 Created
+ Container smart-factory-v4-provenance-database-1 Created
+ Container smart-factory-v4-provenance-onesa-broker-1 Starting
+ Container smart-factory-v4-provenance-onesa-telemetry-database-1 Starting
+ Container smart-factory-v4-provenance-redis-1 Starting
+ Container smart-factory-v4-provenance-database-1 Starting
+ Container smart-factory-v4-provenance-onesa-broker-1 Started
+ Container smart-factory-v4-provenance-onesa-telemetry-database-1 Started
+ Container smart-factory-v4-provenance-redis-1 Started
+ Container smart-factory-v4-provenance-database-1 Started
+ Container smart-factory-v4-provenance-redis-1 Waiting
+ Container smart-factory-v4-provenance-onesa-broker-1 Waiting
+ Container smart-factory-v4-provenance-onesa-telemetry-database-1 Waiting
+ Container smart-factory-v4-provenance-database-1 Waiting
+ Container smart-factory-v4-provenance-onesa-telemetry-database-1 Healthy
+ Container smart-factory-v4-provenance-redis-1 Healthy
+ Container smart-factory-v4-provenance-onesa-broker-1 Healthy
+ Container smart-factory-v4-provenance-database-1 Healthy
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend/drizzle.config.ts'
+Using 'postgres' driver for database querying
+[⣷] applying migrations...[✓] migrations applied successfully! Container smart-factory-v4-provenance-onesa-telemetry-database-1 Running
+ Container smart-factory-v4-provenance-onesa-broker-1 Running
+ Container smart-factory-v4-provenance-onesa-telemetry-1 Creating
+ Container smart-factory-v4-provenance-onesa-telemetry-1 Created
+ Container smart-factory-v4-provenance-onesa-broker-1 Waiting
+ Container smart-factory-v4-provenance-onesa-telemetry-database-1 Waiting
+ Container smart-factory-v4-provenance-onesa-telemetry-database-1 Healthy
+ Container smart-factory-v4-provenance-onesa-broker-1 Healthy
+ Container smart-factory-v4-provenance-onesa-telemetry-1 Starting
+ Container smart-factory-v4-provenance-onesa-telemetry-1 Started
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+Published 10 simulated source samples through existing durable edge relay and real MQTT, run v4-simulated-path
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+[LOCAL MQTT] telemetry queued -> factory/onesa-fixture/line-1/onesa-demo-gateway/telemetry
+Published 10 replay source samples through existing durable edge relay and real MQTT, run v4-replay-path
+{"receiverRows":0,"phase":"outage"}
+ persisted | pending | attempts
+-----------+---------+----------
+        20 |      20 |        3
+(1 row)
+
+/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend/scripts/equipment/provenance-path.ts:54
+      throw Error(
+            ^
+
+
+Error: Smart Factory ingestion path mismatch: []
+    at <anonymous> (/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend/scripts/equipment/provenance-path.ts:54:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+Node.js v20.20.1
+/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend/scripts/equipment/provenance-path.ts:54
+      throw Error(
+            ^
+
+
+Error: Smart Factory ingestion path mismatch: []
+    at <anonymous> (/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend/scripts/equipment/provenance-path.ts:54:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+Node.js v20.20.1
+/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend/scripts/equipment/provenance-path.ts:54
+      throw Error(
+            ^
+
+
+Error: Smart Factory ingestion path mismatch: []
+    at <anonymous> (/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend/scripts/equipment/provenance-path.ts:54:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+Node.js v20.20.1
+/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend/scripts/equipment/provenance-path.ts:54
+      throw Error(
+            ^
+
+
+Error: Smart Factory ingestion path mismatch: []
+    at <anonymous> (/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend/scripts/equipment/provenance-path.ts:54:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+Node.js v20.20.1
+{"verification":"actual Smart Factory edge durable publisher / Mosquitto / .NET 8 / authenticated Node; optional peer export disabled","sourceModes":[{"mode":"replay","count":10,"assets":2,"canonical":true},{"mode":"simulated","count":10,"assets":2,"canonical":true}],"sourceSamples":20,"physicalEquipment":false}
+ persisted | acknowledged | quarantined
+-----------+--------------+-------------
+        20 |           20 |           0
+(1 row)

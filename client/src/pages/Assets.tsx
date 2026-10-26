@@ -82,7 +82,7 @@ export default function Assets() {
                 </TableRow></TableHeader>
                 <TableBody>{pageAssets.map((asset) => <TableRow key={asset.id}>
                   <TableCell className="min-w-56">
-                    <span className="font-medium">{asset.name}</span>
+                    <span className="font-medium">{asset.name}</span><a className="block text-xs text-primary underline" href={`#/cybersecurity?tab=Findings&targetKind=asset&targetId=${asset.id}`}>Cybersecurity posture</a>
                     <span className="block max-w-72 truncate font-mono text-xs text-muted-foreground" title={asset.assetId}>{asset.assetId}</span>
                   </TableCell>
                   <TableCell className="min-w-48">

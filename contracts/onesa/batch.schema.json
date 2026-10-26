@@ -1,0 +1,424 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "urn:smart-factory:onesa-proposed:1.0.0"
+    },
+    "installationId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9:_.-]+$"
+    },
+    "items": {
+      "minItems": 1,
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "equipmentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "componentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "assetTypeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9:_.-]+$"
+          },
+          "externalAssetId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "workspaceId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9:_.-]+$"
+              },
+              "equipmentId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9:_.-]+$"
+              },
+              "componentId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9:_.-]+$"
+              },
+              "mappingVersion": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "workspaceId",
+              "equipmentId",
+              "componentId",
+              "mappingVersion"
+            ],
+            "additionalProperties": false
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "gatewayReceivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "simulated",
+              "replay"
+            ]
+          },
+          "scenarioRunId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9:_.-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replayRunId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9:_.-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sessionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9:_.-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sequence": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceQuality": {
+            "type": "string",
+            "enum": [
+              "good",
+              "bad",
+              "uncertain",
+              "unknown"
+            ]
+          },
+          "sourceConnection": {
+            "type": "string",
+            "enum": [
+              "online",
+              "offline",
+              "unknown"
+            ]
+          },
+          "clockSkew": {
+            "type": "string",
+            "enum": [
+              "within_tolerance",
+              "future",
+              "delayed"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "observation",
+              "source_alarm",
+              "source_connection"
+            ]
+          },
+          "metric": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "metricId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9:_.-]+$"
+                  },
+                  "meaning": {
+                    "type": "string",
+                    "enum": [
+                      "temperature",
+                      "relative_humidity",
+                      "pressure",
+                      "rotational_speed",
+                      "power",
+                      "vibration_acceleration",
+                      "vibration_velocity"
+                    ]
+                  },
+                  "valueType": {
+                    "type": "string",
+                    "const": "number"
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "Cel",
+                      "%",
+                      "bar",
+                      "Pa",
+                      "1/min",
+                      "W",
+                      "kW",
+                      "m/s2",
+                      "mm/s"
+                    ]
+                  },
+                  "expectedIntervalMs": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 86400000
+                  }
+                },
+                "required": [
+                  "metricId",
+                  "meaning",
+                  "valueType",
+                  "unit",
+                  "expectedIntervalMs"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sourceEvent": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9:_.-]+$"
+                  },
+                  "origin": {
+                    "type": "string",
+                    "const": "source"
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9:_.-]+$"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "cleared"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "origin",
+                  "code",
+                  "state"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "deviceId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9:_.-]+$"
+                  },
+                  "sourceKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9:_.-]+$"
+                  },
+                  "rawValue": {
+                    "type": "number"
+                  },
+                  "rawUnit": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 24
+                  },
+                  "conversion": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "rule": {
+                            "type": "string",
+                            "const": "linear"
+                          },
+                          "factor": {
+                            "type": "number"
+                          },
+                          "offset": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "rule",
+                          "factor",
+                          "offset"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "aggregation": {
+                    "type": "null"
+                  },
+                  "timestampOrigin": {
+                    "type": "string",
+                    "enum": [
+                      "device",
+                      "gateway"
+                    ]
+                  },
+                  "retained": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "deviceId",
+                  "sourceKey",
+                  "rawValue",
+                  "rawUnit",
+                  "conversion",
+                  "aggregation",
+                  "timestampOrigin",
+                  "retained"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eventId",
+          "installationId",
+          "equipmentId",
+          "componentId",
+          "assetTypeId",
+          "externalAssetId",
+          "target",
+          "observedAt",
+          "gatewayReceivedAt",
+          "mode",
+          "scenarioRunId",
+          "replayRunId",
+          "sessionId",
+          "sequence",
+          "sourceQuality",
+          "sourceConnection",
+          "clockSkew",
+          "kind",
+          "metric",
+          "value",
+          "sourceEvent",
+          "provenance"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "installationId",
+    "workspaceId",
+    "items"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:smart-factory:onesa-proposed:1.0.0"
+}

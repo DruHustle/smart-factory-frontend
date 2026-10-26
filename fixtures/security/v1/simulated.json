@@ -1,0 +1,94 @@
+{
+  "events": [
+    {
+      "schemaVersion": "ot-security-evidence/v1",
+      "producerNamespace": "fixture-simulated",
+      "sourceEventId": "fixture-simulated-0",
+      "occurredAt": "2026-10-26T09:00:00Z",
+      "mode": "simulated",
+      "eventType": "auth.authentication_failed",
+      "assetRef": null,
+      "summary": "Authored interoperability fixture; no physical incident is asserted.",
+      "quality": "good",
+      "producerVersion": "smart-factory-fixture-1",
+      "attributes": {
+        "service": "fixture-dashboard",
+        "outcome": "denied",
+        "reasonCode": "INVALID_CREDENTIALS"
+      },
+      "scenarioRunId": "fixture-simulated-001"
+    },
+    {
+      "schemaVersion": "ot-security-evidence/v1",
+      "producerNamespace": "fixture-simulated",
+      "sourceEventId": "fixture-simulated-1",
+      "occurredAt": "2026-10-26T09:00:00Z",
+      "mode": "simulated",
+      "eventType": "auth.authentication_failed",
+      "assetRef": null,
+      "summary": "Authored interoperability fixture; no physical incident is asserted.",
+      "quality": "good",
+      "producerVersion": "smart-factory-fixture-1",
+      "attributes": {
+        "service": "fixture-dashboard",
+        "outcome": "denied",
+        "reasonCode": "INVALID_CREDENTIALS"
+      },
+      "scenarioRunId": "fixture-simulated-001"
+    },
+    {
+      "schemaVersion": "ot-security-evidence/v1",
+      "producerNamespace": "fixture-simulated",
+      "sourceEventId": "fixture-simulated-2",
+      "occurredAt": "2026-10-26T09:00:00Z",
+      "mode": "simulated",
+      "eventType": "auth.authentication_failed",
+      "assetRef": null,
+      "summary": "Authored interoperability fixture; no physical incident is asserted.",
+      "quality": "good",
+      "producerVersion": "smart-factory-fixture-1",
+      "attributes": {
+        "service": "fixture-dashboard",
+        "outcome": "denied",
+        "reasonCode": "INVALID_CREDENTIALS"
+      },
+      "scenarioRunId": "fixture-simulated-001"
+    },
+    {
+      "schemaVersion": "ot-security-evidence/v1",
+      "producerNamespace": "fixture-simulated",
+      "sourceEventId": "fixture-simulated-3",
+      "occurredAt": "2026-10-26T09:00:00Z",
+      "mode": "simulated",
+      "eventType": "auth.authentication_failed",
+      "assetRef": null,
+      "summary": "Authored interoperability fixture; no physical incident is asserted.",
+      "quality": "good",
+      "producerVersion": "smart-factory-fixture-1",
+      "attributes": {
+        "service": "fixture-dashboard",
+        "outcome": "denied",
+        "reasonCode": "INVALID_CREDENTIALS"
+      },
+      "scenarioRunId": "fixture-simulated-001"
+    },
+    {
+      "schemaVersion": "ot-security-evidence/v1",
+      "producerNamespace": "fixture-simulated",
+      "sourceEventId": "fixture-simulated-4",
+      "occurredAt": "2026-10-26T09:00:00Z",
+      "mode": "simulated",
+      "eventType": "auth.authentication_failed",
+      "assetRef": null,
+      "summary": "Authored interoperability fixture; no physical incident is asserted.",
+      "quality": "good",
+      "producerVersion": "smart-factory-fixture-1",
+      "attributes": {
+        "service": "fixture-dashboard",
+        "outcome": "denied",
+        "reasonCode": "INVALID_CREDENTIALS"
+      },
+      "scenarioRunId": "fixture-simulated-001"
+    }
+  ]
+}

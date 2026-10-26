@@ -103,6 +103,42 @@
   --warning-foreground: #0a0e27;
 }
 
+:root:not(.dark) {
+  color-scheme: light;
+  --background: #f3f6fb;
+  --foreground: #17233a;
+  --card: #ffffff;
+  --card-foreground: #17233a;
+  --popover: #ffffff;
+  --popover-foreground: #17233a;
+  --primary: #c2410c;
+  --primary-foreground: #ffffff;
+  --secondary: #e8eef7;
+  --secondary-foreground: #24354e;
+  --muted: #e7edf5;
+  --muted-foreground: #52637a;
+  --accent: #ffedd5;
+  --accent-foreground: #7c2d12;
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --border: #cbd5e1;
+  --input: #ffffff;
+  --ring: #c2410c;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #17233a;
+  --sidebar-primary: #c2410c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ffedd5;
+  --sidebar-accent-foreground: #7c2d12;
+  --sidebar-border: #cbd5e1;
+  --sidebar-ring: #c2410c;
+  --success: #047857;
+  --success-foreground: #ffffff;
+  --warning: #9a6700;
+  --warning-foreground: #ffffff;
+}
+.dark { color-scheme: dark; }
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

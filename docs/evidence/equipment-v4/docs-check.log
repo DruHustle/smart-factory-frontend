@@ -1,0 +1,5 @@
+
+> smart-factory-iot@1.0.0 docs:check /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend
+> node scripts/check-docs.mjs
+
+Reviewed 57 Markdown files, 194 local file links, 11 Mermaid diagrams.

@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "equipmentId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "externalAssetId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "deviceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9:_.-]+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "assetTypeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9:_.-]+$"
+    },
+    "serialNumber": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "components": {
+      "minItems": 1,
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "componentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "parentComponentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "componentId",
+          "name",
+          "parentComponentId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "bindings": {
+      "minItems": 1,
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sourceKey": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "temperature",
+                  "humidity",
+                  "pressure",
+                  "rpm",
+                  "power",
+                  "vibration"
+                ]
+              },
+              {
+                "type": "string",
+                "pattern": "^assetSignals\\.[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+              }
+            ]
+          },
+          "componentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "metric": {
+            "type": "object",
+            "properties": {
+              "metricId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9:_.-]+$"
+              },
+              "meaning": {
+                "type": "string",
+                "enum": [
+                  "temperature",
+                  "relative_humidity",
+                  "pressure",
+                  "rotational_speed",
+                  "power",
+                  "vibration_acceleration",
+                  "vibration_velocity"
+                ]
+              },
+              "valueType": {
+                "type": "string",
+                "const": "number"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "Cel",
+                  "%",
+                  "bar",
+                  "Pa",
+                  "1/min",
+                  "W",
+                  "kW",
+                  "m/s2",
+                  "mm/s"
+                ]
+              },
+              "expectedIntervalMs": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 86400000
+              }
+            },
+            "required": [
+              "metricId",
+              "meaning",
+              "valueType",
+              "unit",
+              "expectedIntervalMs"
+            ],
+            "additionalProperties": false
+          },
+          "sourceUnit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
+          }
+        },
+        "required": [
+          "sourceKey",
+          "componentId",
+          "metric",
+          "sourceUnit"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "equipmentId",
+    "externalAssetId",
+    "deviceId",
+    "name",
+    "assetTypeId",
+    "serialNumber",
+    "components",
+    "bindings"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:smart-factory:onesa-proposed:1.0.0:registration"
+}

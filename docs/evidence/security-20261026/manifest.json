@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "uiSource": "82626097df5bf235c72cae49e349520a844d79aa",
+  "serverSource": "f1aa16864731f0a5c6ffd8737a642a541f2e67f2",
+  "backendSource": "905ef8ebb9a13090bab9288a8fd8677e1373fe8d",
+  "backendMain": "b10e6391d239d7f3db534da097362435f6fbd790",
+  "edgeSource": "b63c2ad351b1da22a1c590dc1df9d9445ddc5afe",
+  "edgeDefaultBranch": "1722f197c47a46371af76e778267d16ac477abd1",
+  "image": "smart-factory-backend:security-f1aa168-905ef8e",
+  "imageId": "sha256:b5c606032d2c0b95e75889e4998a7ed0704573382536354fe6eb20025b8d18ab",
+  "archiveSha256": "0a63c8bd6782aa5bd74028870d1e045702fd029b25ecb5d19193984a3197fc40",
+  "imageNode": "22.23.4",
+  "imageDotnet": "8.0.33",
+  "imageHighCriticalVulnerabilities": 0,
+  "securityBrowserTestsPassed": 7,
+  "screenshots": {
+    "mapped-equipment-security.png": {
+      "sha256": "a224591f63db8645f8a7834b324fc136dd4d89b4cbe55446df5dabfd030cdf5e",
+      "bytes": 367711
+    },
+    "overview-light-390.png": {
+      "sha256": "2d9e3446088055a7126145071f44a3747cd5756b9ebdeff73dbf3f13fa29dfcd",
+      "bytes": 204156
+    },
+    "overview-dark-390.png": {
+      "sha256": "ffa846b1dcfce32442d371a3c9d8952006fc042323ca51b6715086a988b981cd",
+      "bytes": 202596
+    },
+    "investigation-dark.png": {
+      "sha256": "9a102849869a4bc41e6326277d597568acdb51015ee8c21a17705ec58cf8317f",
+      "bytes": 378497
+    },
+    "overview-light-1440.png": {
+      "sha256": "342bb98f9b25cc3f46e770a589eb046ef18cf90b7209bd7433c92e262d77e0bf",
+      "bytes": 232199
+    },
+    "overview-dark-1440.png": {
+      "sha256": "b187d0ea401f35b17ec952ed9762869d0bcb9d98891f87f35bd44567f9395b07",
+      "bytes": 232335
+    }
+  },
+  "generalBrowserTestsPassed": 26,
+  "generalBrowserTestsSkipped": 14,
+  "applicationTestsPassed": 337,
+  "securityDisabledEquipmentTestsPassed": 5,
+  "securityDisabledEquipmentTestsSkipped": 1,
+  "backendTestsPassed": 216,
+  "gatewayTestsPassed": 70,
+  "productionApiReady": true,
+  "productionWorkerReady": true,
+  "productionDemoDataEnabled": false
+}

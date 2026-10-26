@@ -1,3 +1,4 @@
+import SecuritySummary from "@/components/SecuritySummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -274,6 +275,7 @@ export default function DeviceDetail() {
 
   return (
     <div className="space-y-6">
+      <SecuritySummary kind="device" id={device.id}/>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">

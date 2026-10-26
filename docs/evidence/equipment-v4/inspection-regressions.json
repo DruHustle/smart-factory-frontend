@@ -1,0 +1,39 @@
+{
+  "beforeSource": "5369a6b65c7832712b573ec7f2a6638b463d05e9",
+  "fixedSource": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
+  "reproducedFailures": [
+    {
+      "test": "animation starts at the current pose, survives selection updates, and reverses without a jump",
+      "expectedInitialPosition": 0,
+      "actualBeforeFix": 1
+    },
+    {
+      "test": "inspection preserves imported alpha and emission, and applies visibility consistently",
+      "expectedImportedOpacity": 0.6,
+      "actualBeforeFix": 1
+    },
+    {
+      "test": "fully transparent or alpha-discarded imported surfaces do not affect focus bounds",
+      "beforeSource": "30ee4f9da1ef6275a5b3f513fcb3ef03127d30ed",
+      "expectedMaxX": 0.5,
+      "actualBeforeFix": 100.5
+    }
+  ],
+  "regressionsCovered": [
+    "no destination-frame flash",
+    "selection/telemetry refresh preserves active transition",
+    "mid-transition reversal and exact restoration",
+    "original imported opacity/emission restored",
+    "hide/isolate combinations and cover visibility reset",
+    "hidden ancestor excluded from focus",
+    "caps inherit saved opacity",
+    "open-surface diagnostics without fabricated caps",
+    "null saved selection and labels after reload",
+    "bounded HTTP rejection without invalid-value echo",
+    "uniformly invisible imported surfaces excluded from actual raycasting, framing and caps",
+    "inspection transparency scales an imported alpha-test threshold"
+  ],
+  "focusedTests": 131,
+  "focusedFiles": 3,
+  "command": "pnpm exec vitest run server/equipment/inspection.test.ts server/telemetry-contract.test.ts server/equipment/provenance-policy.test.ts"
+}

@@ -1,4 +1,10 @@
+import { installSecurityBodies, installSecurityRoutes } from "../security/http";
+import { startSecurity, nativeEvent } from "../security/runtime";
 import "dotenv/config";
+import { installEquipmentFiles } from "../equipment/files";
+import { initializeLocalEquipmentDemos } from "../equipment/local";
+import { startOnesaWorker } from "../onesa/worker";
+import { installArtifactRoutes } from "../onesa/artifacts";
 import express from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -20,7 +26,7 @@ import { edgeTagMappingsSchema } from "../../shared/edge-configuration";
 import { sdk } from "./sdk";
 import { importAasxPackage, rollbackAasxImport, publishEdgeConfiguration, AasProvisioningRequestError, type AasxImportResult } from "../aasProvisioningClient";
 import { buildAutomationMlPlantLayout } from "../automationml";
-import { edgeTelemetrySchema } from "../telemetrySchema";
+import { edgeTelemetrySchema, telemetryRejection } from "../telemetrySchema";
 
 const edgeHeartbeatSchema = z.object({
   deviceId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/),
@@ -96,6 +102,8 @@ async function startServer() {
   configureTrustedProxies(app);
   const server = createServer(app);
   let bootstrapReady = false;
+  const stopSecurity = startSecurity();
+  server.on("close", stopSecurity);
   server.on("upgrade", (_request, socket) => {
     if (!bootstrapReady) socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
   });
@@ -130,6 +138,7 @@ async function startServer() {
   });
 
   // The API does not accept bulk file uploads. Keep JSON request bodies bounded.
+  installSecurityBodies(app);
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ limit: "100kb", extended: true }));
 
@@ -137,6 +146,8 @@ async function startServer() {
     if (!bootstrapReady) return res.status(503).json({ error: "Application startup is in progress" });
     next();
   });
+
+  installArtifactRoutes(app);
 
   // Export only to engineers and admins; the generated file contains the
   // asset hierarchy and identity fields already visible in the dashboard.
@@ -175,8 +186,12 @@ async function startServer() {
     if (!origin) return next();
     const sameOrigin = origin === `${req.protocol}://${req.get("host")}`;
     if (sameOrigin || allowedOrigins.has(origin)) return next();
+    void nativeEvent("auth.authorization_denied",{service:"browser-origin-policy",outcome:"denied",reasonCode:"ORIGIN_DENIED"},"A mutation was rejected by the browser origin policy.");
     return res.status(403).json({ error: "Request origin is not allowed" });
   });
+
+  installSecurityRoutes(app);
+  installEquipmentFiles(app);
 
   // Shared PostgreSQL counters enforce the same login limits across replicas.
   app.use("/api/trpc", (req, res, next) => {
@@ -196,10 +211,11 @@ async function startServer() {
     const expected = Buffer.from(expectedToken);
     const provided = Buffer.from(providedToken);
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+      void nativeEvent("auth.authentication_failed",{service:"internal-ingestion",outcome:"denied",reasonCode:"INVALID_SERVICE_CREDENTIAL"},"An internal ingestion request was rejected by its service credential check.");
       return res.status(401).json({ error: "Unauthorized service" });
     }
     const parsed = edgeTelemetrySchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "Invalid telemetry payload", details: parsed.error.flatten() });
+    if (!parsed.success) { await nativeEvent("input.rejected", { inputRef: "telemetry-ingress", reasonCode: "INVALID_PAYLOAD" }, "Authorized telemetry ingestion rejected an invalid payload."); return res.status(400).json(telemetryRejection(parsed.error)); }
     const timestamp = typeof parsed.data.timestamp === "number" ? parsed.data.timestamp : Date.parse(parsed.data.timestamp);
     if (!Number.isFinite(timestamp) || timestamp <= 0 || timestamp > Date.now() + 300_000) {
       return res.status(400).json({ error: "Telemetry timestamp must be valid and no more than five minutes in the future" });
@@ -221,6 +237,7 @@ async function startServer() {
     const expected = Buffer.from(expectedToken);
     const provided = Buffer.from(providedToken);
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+      void nativeEvent("auth.authentication_failed",{service:"internal-ingestion",outcome:"denied",reasonCode:"INVALID_SERVICE_CREDENTIAL"},"An internal ingestion request was rejected by its service credential check.");
       return res.status(401).json({ error: "Unauthorized service" });
     }
     const parsed = edgeHeartbeatSchema.safeParse(req.body);
@@ -389,6 +406,7 @@ async function startServer() {
             ? "[Bootstrap] Windformer demo asset added without replacing existing records"
             : "[Bootstrap] Live or demo scenario data already exists"))
         .catch((error) => console.warn("[Bootstrap] Demo scenario was not initialized:", error));
+      await initializeLocalEquipmentDemos().catch(() => console.warn("[Equipment] Local demonstrator preparation unavailable"));
     }
 
     await wsManager.initialize(server, "/ws", async (request) => {
@@ -403,6 +421,7 @@ async function startServer() {
     });
 
     bootstrapReady = true;
+    if (process.env.ONESA_ENABLED === "true") startOnesaWorker();
   }
 
   /**

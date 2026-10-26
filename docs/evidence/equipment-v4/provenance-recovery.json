@@ -1,0 +1,24 @@
+{
+  "frontendIngestionProofSource": "30ee4f9da1ef6275a5b3f513fcb3ef03127d30ed",
+  "backend": "fe86aca64aa09f6aca2efa6ad8ee9793f081ab5b",
+  "edge": "700c9a55a211105171a1d58a8a3b3c3ce5832125",
+  "protocol": "actual durable edge publisher / Mosquitto / .NET 8 / authenticated Node; optional export disabled",
+  "outage": {
+    "persisted": 20,
+    "receiverRows": 0,
+    "pending": 20,
+    "maxAttempts": 3
+  },
+  "recovered": {
+    "simulated": 10,
+    "replay": 10,
+    "assetsPerMode": 2,
+    "canonicalUtc": true,
+    "acknowledged": 20,
+    "quarantined": 0
+  },
+  "qualification": "generated data; no physical equipment or external consumer",
+  "reAudit": "Repeated 2026-10-26 after bounded Node rejection diagnostics; actual 20 pending during outage, 20 acknowledged after recovery, 0 quarantined.",
+  "finalFrontendSource": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
+  "ingestionFilesUnchangedBetweenProofAndFinal": true
+}

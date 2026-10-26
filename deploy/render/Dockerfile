@@ -39,6 +39,9 @@ COPY --from=node-dependencies --chown=app:app /app/node_modules ./node_modules
 COPY --from=node-dependencies --chown=app:app /app/package.json ./
 COPY --from=node-build --chown=app:app /compiled/ ./
 COPY --chown=app:app drizzle ./drizzle
+COPY --chown=app:app fixtures/equipment ./fixtures/equipment
+COPY --chown=app:app docs/equipment-view.md ./docs/equipment-view.md
+COPY --chown=app:app docs/onesa ./docs/onesa
 COPY --chown=app:app README.md API_DOCUMENTATION.md AUTHENTICATION.md LOGIN_TROUBLESHOOTING.md IMPLEMENTATION_GUIDE.md RENDER_DEPLOYMENT.md SYSTEM_DIAGRAMS.md ARCHITECTURE_DOCUMENTATION.md ./
 COPY --chown=app:app docs/*.md ./docs/
 COPY --from=backend-build --chown=app:app /published/device /services/device

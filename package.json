@@ -19,7 +19,15 @@
     "docs:check": "node scripts/check-docs.mjs",
     "deployment:check": "node scripts/check-deployment.mjs",
     "e2e:system": "python3 scripts/cross-repo-smoke.py",
-    "vercel:configure": "node scripts/configure-vercel.mjs"
+    "vercel:configure": "node scripts/configure-vercel.mjs",
+    "onesa:contract:check": "node --import tsx scripts/onesa/generate-contract.ts --check",
+    "onesa:contract:generate": "node --import tsx scripts/onesa/generate-contract.ts",
+    "onesa:seed": "node --import tsx scripts/onesa/seed-fixture.ts",
+    "onesa:receiver": "node --import tsx scripts/onesa/run-receiver.ts",
+    "onesa:verify": "node --import tsx scripts/onesa/verify-walkthrough.ts",
+    "e2e:equipment": "bash scripts/equipment/e2e.sh",
+    "equipment:schemas:check": "node --import tsx scripts/equipment/generate-schemas.ts --check",
+    "e2e:security": "bash scripts/security/e2e.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -85,12 +93,13 @@
     "superjson": "^1.13.3",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "three": "0.186.1",
     "tsx": "^4.19.1",
     "vaul": "^1.1.2",
-    "vite": "^7.3.5",
+    "vite": "^7.3.7",
     "wouter": "^3.7.1",
     "ws": "^8.19.0",
-    "zod": "^4.1.12"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
@@ -101,6 +110,7 @@
     "@types/node": "^24.7.0",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
+    "@types/three": "0.186.0",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.0.4",
     "add": "^2.0.6",
@@ -114,7 +124,7 @@
     "tailwindcss": "^4.1.14",
     "tw-animate-css": "^1.4.0",
     "typescript": "5.9.3",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "packageManager": "pnpm@10.34.5",
   "pnpm": {
@@ -129,7 +139,6 @@
       "path-to-regexp@<0.1.13": "0.1.13",
       "picomatch@<2.3.2": "2.3.2",
       "picomatch@>=4.0.0 <4.0.4": "4.0.7",
-      "dompurify@<3.4.16": "3.4.16",
       "lodash-es@<4.18.1": "4.18.1",
       "lodash@<4.18.1": "4.18.1",
       "drizzle-orm@<0.45.2": "0.45.3",
@@ -140,14 +149,15 @@
       "mermaid@<11.16.1": "11.17.2",
       "form-data@<4.0.6": "4.0.6",
       "@babel/core@<7.29.6": "7.29.6",
-      "body-parser@<1.20.8": "1.20.8",
       "proxy-addr@<2.0.8": "2.0.8",
       "source-map-js@<1.2.2": "1.2.2",
       "nanoid@>=4.0.0 <5.1.16": "5.1.16",
       "nanoid@>=3.0.0 <3.3.18": "3.3.18",
       "mysql2@<3.23.1": "3.23.1",
       "baseline-browser-mapping@<2.11.0": "2.11.0",
-      "katex@<0.18.2": "0.18.2"
+      "katex@<0.18.2": "0.18.2",
+      "dompurify@<3.4.17": "3.4.17",
+      "body-parser@<1.20.9": "1.20.9"
     }
   }
 }

@@ -290,6 +290,16 @@ test("gateway detail renders a current child environmental sample", async ({ req
   const denied = await request.post("/api/internal/telemetry", { data: payload });
   expect(denied.status()).toBe(401);
 
+  const rejected = await request.post("/api/internal/telemetry", {
+    headers: { Authorization: "Bearer local-e2e-ingestion-token" },
+    data: { ...payload, integration: { mode: "simulated", scenarioRunId: "invalid".repeat(1000), gatewayReceivedAt: "bad" } },
+  });
+  expect(rejected.status()).toBe(400);
+  const rejection = await rejected.text();
+  expect(Buffer.byteLength(rejection)).toBeLessThan(2048);
+  expect(JSON.parse(rejection)).toMatchObject({ error: "Invalid telemetry payload" });
+  expect(rejection).not.toContain("invalid".repeat(100));
+
   const accepted = await request.post("/api/internal/telemetry", {
     data: payload,
     headers: { Authorization: "Bearer local-e2e-ingestion-token" },

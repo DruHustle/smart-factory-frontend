@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { capture as captureOnesa, recordCaptureFailure } from "./onesa/store";
 import { createHash } from "node:crypto";
 import { eq, and, or, gte, lte, desc, asc, sql, inArray, isNull, getTableColumns } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -783,6 +784,7 @@ export async function ingestTelemetryByDeviceId(input: {
   sensorType?: string;
   sensorStatus?: "ok" | "read_error";
   ingestionId?: string;
+  integration?: unknown;
   temperature?: number | null;
   humidity?: number | null;
   vibration?: number | null;
@@ -794,14 +796,16 @@ export async function ingestTelemetryByDeviceId(input: {
   return withDb(async (db) => db.transaction(async (tx) => {
     // Serialize one source across replicas, including its first registration and alert deduplication.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.deviceId}))`);
+    const streamMode = (input.integration as { mode?: string } | undefined)?.mode;
+    const operational = !streamMode || streamMode === "live";
     let [device] = await tx.select().from(devices).where(eq(devices.deviceId, input.deviceId)).limit(1);
     if (!device) {
       [device] = await tx.insert(devices).values({
         deviceId: input.deviceId,
         name: input.deviceId,
         type: input.gatewayId === input.deviceId ? "gateway" : input.gatewayId ? "edge_device" : "sensor",
-        status: "online",
-        lastSeen: new Date(input.timestamp),
+        status: operational ? "online" : "offline",
+        lastSeen: operational ? new Date(input.timestamp) : null,
         isDemo: false,
         metadata: {
           connectionMode: input.gatewayId ? "gateway" : "direct_mqtt",
@@ -810,7 +814,7 @@ export async function ingestTelemetryByDeviceId(input: {
           ...(input.sensorStatus ? { sensorStatus: input.sensorStatus } : {}),
         },
       }).returning();
-    } else {
+    } else if (operational) {
       const metadata: Record<string, unknown> = { ...(device.metadata ?? {}), connectionMode: input.gatewayId || device.type === "gateway" ? "gateway" : "direct_mqtt" };
       if (input.gatewayId && input.gatewayId !== input.deviceId) metadata.gatewayId = input.gatewayId;
       else delete metadata.gatewayId;
@@ -848,7 +852,10 @@ export async function ingestTelemetryByDeviceId(input: {
       attributedAssetId = connection?.assetId ?? null;
     }
 
-    const ingestionId = input.ingestionId ?? createHash("sha256").update(stableJson({ ...input, ingestionId: undefined })).digest("hex");
+    // Adding optional provenance must not change legacy retry identities.
+    const canonicalInput = { ...input, ingestionId: undefined };
+    if (canonicalInput.integration === undefined) delete canonicalInput.integration;
+    const ingestionId = input.ingestionId ?? createHash("sha256").update(stableJson(canonicalInput)).digest("hex");
     const inserted = await tx.insert(sensorReadings).values({
       deviceId: device.id,
       // Keep the AAS identifier on each reading so asset analytics can
@@ -856,6 +863,7 @@ export async function ingestTelemetryByDeviceId(input: {
       assetId: attributedAssetId,
       assetSignals: input.assetSignals ?? null,
       ingestionId,
+      integration: (input.integration ?? null) as Record<string, unknown> | null,
       temperature: input.temperature ?? null,
       humidity: input.humidity ?? null,
       vibration: input.vibration ?? null,
@@ -865,7 +873,12 @@ export async function ingestTelemetryByDeviceId(input: {
       timestamp: input.timestamp,
     }).onConflictDoNothing({ target: sensorReadings.ingestionId }).returning({ id: sensorReadings.id });
     if (inserted.length === 0) return { deviceId: device.deviceId, receivedAt: new Date(input.timestamp), duplicate: true };
-    if (attributedAssetId) {
+    if (process.env.ONESA_ENABLED === "true" && !device.isDemo) {
+      try {
+        await tx.transaction(async savepoint => captureOnesa(savepoint, { ...input, assetId: attributedAssetId, ingestionId }));
+      } catch { recordCaptureFailure(); }
+    }
+    if (attributedAssetId && operational) {
       const [asset] = await tx.select({ id: assets.id }).from(assets).where(eq(assets.assetId, attributedAssetId)).limit(1);
       const [gateway] = input.gatewayId && input.gatewayId !== input.deviceId
         ? await tx.select({ id: devices.id }).from(devices).where(eq(devices.deviceId, input.gatewayId)).limit(1) : [];
@@ -886,7 +899,9 @@ export async function ingestTelemetryByDeviceId(input: {
     };
     const configuredThresholds = await tx.select().from(alertThresholds).where(eq(alertThresholds.deviceId, device.id));
     for (const threshold of configuredThresholds) {
-      if (!threshold.enabled) continue;
+      // Historical and simulated streams do not create live incidents.
+      const mode = (input.integration as { mode?: string } | undefined)?.mode;
+      if (mode === "replay" || mode === "simulated" || !threshold.enabled) continue;
       const value = metricValues[threshold.metric];
       const breach = evaluateAlertThreshold(value, threshold);
       if (!breach || value === null || value === undefined) continue;
@@ -1137,6 +1152,7 @@ export async function getSensorReadings(
       .where(
         and(
           eq(sensorReadings.deviceId, deviceId),
+          sql`coalesce(${sensorReadings.integration}->>'mode','live')='live'`,
           gte(sensorReadings.timestamp, startTime),
           lte(sensorReadings.timestamp, endTime)
         )
@@ -1151,7 +1167,7 @@ export async function getLatestReading(deviceId: number): Promise<SensorReading 
     const result = await db
       .select()
       .from(sensorReadings)
-      .where(eq(sensorReadings.deviceId, deviceId))
+      .where(and(eq(sensorReadings.deviceId, deviceId), sql`coalesce(${sensorReadings.integration}->>'mode','live')='live'`))
       .orderBy(desc(sensorReadings.timestamp))
       .limit(1);
     return result[0];
@@ -1163,7 +1179,7 @@ export async function getLatestReadings(deviceIds: number[]): Promise<SensorRead
   if (deviceIds.length === 0) return [];
   return withDb(async (db) => db.selectDistinctOn([sensorReadings.deviceId])
     .from(sensorReadings)
-    .where(inArray(sensorReadings.deviceId, deviceIds))
+    .where(and(inArray(sensorReadings.deviceId, deviceIds), sql`coalesce(${sensorReadings.integration}->>'mode','live')='live'`))
     .orderBy(sensorReadings.deviceId, desc(sensorReadings.timestamp)));
 }
 
@@ -1172,7 +1188,7 @@ export async function getLatestAssetReadings(assetIds: string[]): Promise<Sensor
   if (assetIds.length === 0) return [];
   return withDb(async (db) => db.selectDistinctOn([sensorReadings.assetId])
     .from(sensorReadings)
-    .where(inArray(sensorReadings.assetId, assetIds))
+    .where(and(inArray(sensorReadings.assetId, assetIds), sql`coalesce(${sensorReadings.integration}->>'mode','live')='live'`))
     .orderBy(sensorReadings.assetId, desc(sensorReadings.timestamp), desc(sensorReadings.id)));
 }
 
@@ -1200,6 +1216,7 @@ export async function getAggregatedReadings(
       .where(
         and(
           inArray(sensorReadings.deviceId, deviceIds),
+          sql`coalesce(${sensorReadings.integration}->>'mode','live')='live'`,
           gte(sensorReadings.timestamp, startTime),
           lte(sensorReadings.timestamp, endTime)
         )
@@ -1292,6 +1309,7 @@ export async function getAssetTelemetry(
       rpm: sensorReadings.rpm,
     }).from(sensorReadings).where(and(
       inArray(sensorReadings.assetId, assetIds),
+      sql`coalesce(${sensorReadings.integration}->>'mode','live')='live'`,
       gte(sensorReadings.timestamp, startTime),
       lte(sensorReadings.timestamp, endTime),
     )).orderBy(asc(sensorReadings.timestamp)).limit(200_001);
