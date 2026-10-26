@@ -17,7 +17,12 @@ pnpm exec drizzle-kit migrate
 node --import tsx scripts/equipment/provenance-path.ts seed
 "${compose[@]}" up -d onesa-telemetry
 # Keep the receiver absent initially; source acceptance must remain durable.
-node --input-type=module -e 'const end=Date.now()+90000;while(true){try{if((await fetch("http://127.0.0.1:51885/health/ready")).ok)break;}catch{}if(Date.now()>end)throw Error("MQTT subscriber not ready");await new Promise(r=>setTimeout(r,500));}'
+subscriber_ready=false
+for attempt in {1..90};do
+ if curl --fail --silent --max-time 2 http://127.0.0.1:51885/health/ready > /dev/null;then subscriber_ready=true;break;fi
+ sleep 1
+done
+if [[ "$subscriber_ready" != true ]];then echo "Smart Factory MQTT subscriber did not become ready" >&2;exit 1;fi
 ../smart-factory-iot-edge/raspberry-pi/.venv/bin/python scripts/onesa/scenario.py v4-simulated-path simulated
 ../smart-factory-iot-edge/raspberry-pi/.venv/bin/python scripts/onesa/scenario.py v4-replay-path replay
 sleep 8
