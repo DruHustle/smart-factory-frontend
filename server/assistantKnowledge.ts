@@ -227,7 +227,7 @@ async function buildLiveContext(question: string, role: AssistantRole, selectedA
       demoDataEnabled: demoEnabled,
       visibleAssetCount: visibleAssets.length,
       visibleGatewayCount: visibleDevices.filter((device) => device.type === "gateway").length,
-      gatewaysOnline: visibleDevices.filter((device) => device.type === "gateway" && device.status === "online").length,
+      gatewaysOnline: visibleDevices.filter((device) => device.type === "gateway" && device.observedStatus === "live").length,
       activeAlertStats,
       selectedAsset: explicitAsset?.assetId ?? null,
       selectionReason: explicitAsset ? "user-selected" : matching.length ? "matched-question" : "overview-sample",
