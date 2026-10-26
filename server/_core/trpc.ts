@@ -1,3 +1,4 @@
+import { nativeEvent } from "../security/runtime";
 import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
@@ -15,7 +16,13 @@ const t = initTRPC.context<TrpcContext>().create({
 });
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+const observeDecisions = t.middleware(async ({ next, path }) => {
+  const result = await next();
+  if (!result.ok && ["FORBIDDEN", "UNAUTHORIZED"].includes(result.error.code) && path !== "auth.login")
+    await nativeEvent("auth.authorization_denied", { service: path.replace(/[^A-Za-z0-9_.-]/g, "").slice(0, 128), outcome: "denied", reasonCode: result.error.code }, "An application access request was denied.");
+  return result;
+});
+export const publicProcedure = t.procedure.use(observeDecisions);
 
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
@@ -32,7 +39,7 @@ const requireUser = t.middleware(async opts => {
   });
 });
 
-export const protectedProcedure = t.procedure.use(requireUser);
+export const protectedProcedure = t.procedure.use(observeDecisions).use(requireUser);
 
 const roleRank: Record<string, number> = {
   user: 0, // Legacy accounts have viewer permissions.

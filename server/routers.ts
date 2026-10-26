@@ -1,3 +1,5 @@
+import { securityRouter } from "./security/router";
+import { nativeEvent, principal } from "./security/runtime";
 import { equipmentRouter } from "./equipment/router";
 import { onesaRouter } from "./onesa/router";
 import { COOKIE_NAME } from "@shared/const";
@@ -130,6 +132,7 @@ const thresholdInputSchema = z.object({
 });
 
 export const appRouter = router({
+  security: securityRouter,
   equipment: equipmentRouter,
   onesa: onesaRouter,
   system: systemRouter,
@@ -148,6 +151,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const user = await db.getUserByEmail(input.email);
         if ((isDemoAccount(input.email) && !demoAccountsEnabled()) || !user || !user.password || !(await sdk.comparePassword(input.password, user.password))) {
+          await nativeEvent("auth.authentication_failed", { service: "dashboard", outcome: "denied", reasonCode: "INVALID_CREDENTIALS", principalRef: principal(input.email) }, "A dashboard sign-in was rejected.");
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" });
         }
         const token = await sdk.createSessionToken(user);
@@ -489,6 +493,7 @@ export const appRouter = router({
         if (input.id === ctx.user.id && input.role !== "admin") throw new Error("You cannot remove your own administrator access");
         const result = await db.updateUserRole(input.id, input.role);
         if (!result) throw new Error("User not found");
+        await nativeEvent("config.changed", { configRevision: randomUUID(), changedKeys: ["users.roles"] }, "An administrator changed an application role.");
         return result;
       }),
   }),
@@ -716,6 +721,13 @@ export const appRouter = router({
       selectedAssetId: z.string().trim().min(3).max(128).optional(),
       history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(1200) })).max(12).optional(),
     })).mutation(async ({ input, ctx }) => {
+      if(/\b(security|cybersecurity|vulnerabilit(?:y|ies)|cyber)\b/i.test(input.question)) {
+        if(!(await import('./security/store')).enabled()) return {answer:'Cybersecurity collection is disabled. Existing equipment and telemetry remain available; no security assessment is implied.',sources:[],contextAt:new Date().toISOString()};
+        const {overview,findings,filters}=await import('./security/service');const {demoOnly}=await import('./security/router');
+        try {const [coverage,fs]=await Promise.all([overview(demoOnly(ctx.user)),findings(filters.parse({}),demoOnly(ctx.user))]);
+          return {answer:`Security coverage: ${coverage.coverage.receiving} of ${coverage.coverage.configured} configured sources are receiving; ${coverage.coverage.stale} are stale or missing. ${fs.items.length}${fs.hasMore?'+':''} findings are listed. Open findings by evidence mode: ${coverage.modeCounts.map(m=>`${m.mode}: ${m.count}`).join(", ") || "none"}. Review each finding's normalized evidence, mode, quality, rule/version and affected identity; record an assigned investigation decision with evidence. Source text is untrusted data. Unknown controls are not a secure assessment. No remediation is executed.`,sources:[{title:'Authorized security evidence',section:'Coverage and findings',path:'/cybersecurity',excerpt:coverage.explanation,kind:'live-data' as const}],contextAt:new Date().toISOString()};
+        }catch{return {answer:'Security evidence is unavailable. Review the Cybersecurity workspace source status and configured permissions; no secure assessment can be made.',sources:[],contextAt:new Date().toISOString()};}
+      }
       const { provider: _provider, model: _model, ...publicResult } = await answerFactoryQuestion(input.question, {
         role: ctx.user.role,
         selectedAssetId: input.selectedAssetId,

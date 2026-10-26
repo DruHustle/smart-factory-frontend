@@ -1,0 +1,80 @@
+import type { Evidence, RecordedEvidence } from "./contract";
+export type LocalTarget = {
+  kind: "application" | "asset" | "device";
+  id: number | null;
+};
+export type FindingRecord = {
+  id: string;
+  source_id: string;
+  rule_id: string;
+  rule_version: number;
+  baseline_id: string | null;
+  title: string;
+  category: string;
+  severity: string;
+  confidence: string;
+  target: LocalTarget | null;
+  installed_component_id: string | null;
+  mode: "live" | "simulated" | "replay" | "unknown";
+  run_id: string | null;
+  explanation: {
+    observed: unknown;
+    expected: unknown;
+    checks: string[];
+    windowSeconds: number;
+    basis: string;
+  };
+  status: string;
+  condition_active: boolean;
+  occurrences: number;
+  recurrences: number;
+  first_seen: Date | string;
+  last_seen: Date | string;
+  condition_until: Date | string;
+  risk_until: Date | string | null;
+  version: number;
+  source_name: string;
+  incident_id: string | null;
+  assigned_to: number | null;
+  assignee: string | null;
+  criticality?: string;
+};
+export type AuditRecord = {
+  id: number;
+  action: string;
+  detail: Record<string, unknown>;
+  created_at: Date | string;
+};
+export type EvidenceSnapshot = {
+  event_id: string;
+  source_id: string;
+  snapshot: RecordedEvidence;
+  fingerprint: string;
+  created_at: Date | string;
+};
+export type InventoryRecord = {
+  kind: "asset" | "device";
+  id: number;
+  external_id: string;
+  name: string;
+  zone: string | null;
+  firmware_version: string | null;
+};
+export type EventRecord = {
+  id: string;
+  source_id: string;
+  source_event_id: string;
+  fingerprint?: string;
+  envelope: Evidence | Record<string, unknown>;
+  event_type: string;
+  mode: string;
+  quality: string;
+  target: LocalTarget | null;
+  association: string;
+  installed_component_id: string | null;
+  occurred_at: Date | string;
+  ingested_at: Date | string;
+  clock_skew: boolean;
+  late: boolean;
+  source_name: string;
+};

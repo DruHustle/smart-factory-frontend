@@ -1,3 +1,4 @@
+import { useHashLocation } from "wouter/use-hash-location";
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import type { LocalRendererHandle } from "@/components/equipment/LocalEquipmentRenderer";
 const LocalEquipmentRenderer = lazy(
@@ -14,6 +15,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default function EquipmentView() {
+  const [hashLocation] = useHashLocation();
   const { theme, toggleTheme } = useTheme();
   const access = trpc.equipment.access.useQuery();
   const writable = access.data?.canWrite === true;
@@ -21,6 +23,14 @@ export default function EquipmentView() {
   const template = trpc.equipment.template.useQuery();
   const models = trpc.equipment.models.useQuery();
   const [modelRevision, setModelRevision] = useState("");
+  const securityAccess = trpc.security.availability.useQuery();
+  const securityFindingId = new URLSearchParams(
+    hashLocation.split("?")[1] ?? "",
+  ).get("securityFinding");
+  const findingLocation = trpc.security.equipmentForFinding.useQuery(
+    { id: securityFindingId ?? "00000000-0000-0000-0000-000000000000" },
+    { enabled: !!securityFindingId && securityAccess.data?.enabled === true },
+  );
   const assets = trpc.assets.list.useQuery();
   const [existingAssetId, setExistingAssetId] = useState(""),
     [bindingText, setBindingText] = useState("");
@@ -40,7 +50,10 @@ export default function EquipmentView() {
     onError: (e) => setNotice(e.message),
   });
   useEffect(() => {
-    if (!id && catalog.data?.length) {
+    if (findingLocation.data) setId(findingLocation.data.equipmentId);
+  }, [findingLocation.data?.equipmentId]);
+  useEffect(() => {
+    if (!securityFindingId && !id && catalog.data?.length) {
       const requested = new URL(window.location.href).searchParams.get(
         "equipment",
       );
@@ -48,7 +61,7 @@ export default function EquipmentView() {
         catalog.data.find((e) => e.id === requested)?.id ?? catalog.data[0].id,
       );
     }
-  }, [catalog.data, id]);
+  }, [catalog.data, id, securityFindingId]);
   useEffect(() => {
     if (!id) return;
     const url = new URL(window.location.href);
@@ -57,6 +70,14 @@ export default function EquipmentView() {
   }, [id]);
   return (
     <div className="space-y-5 min-w-0">
+      {securityFindingId &&
+        !findingLocation.isLoading &&
+        !findingLocation.data && (
+          <p role="status">
+            No explicit equipment focus is available for this finding. Choose
+            equipment or review the finding in the security list.
+          </p>
+        )}
       <div>
         <h1 className="text-2xl font-bold">Equipment view</h1>
         <p className="text-muted-foreground">
@@ -259,11 +280,35 @@ function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
   const [viewName, setViewName] = useState("");
   const [componentSearch, setComponentSearch] = useState("");
   const w = data.data;
+  const [securityOverlay, setSecurityOverlay] = useState(false);
+  const securityAccess = trpc.security.availability.useQuery();
+  const security = trpc.security.equipmentOverlay.useQuery(
+    { id },
+    { enabled: securityOverlay && securityAccess.data?.enabled === true },
+  );
+  const securityFindingId = new URLSearchParams(
+    window.location.hash.split("?")[1] ?? "",
+  ).get("securityFinding");
+  const linkedFinding = trpc.security.equipmentForFinding.useQuery(
+    { id: securityFindingId ?? "00000000-0000-0000-0000-000000000000" },
+    { enabled: !!securityFindingId && securityAccess.data?.enabled === true },
+  );
   useEffect(() => {
     setSelected(w?.selectedComponent ?? null);
     setNote("");
     setReplayAt(null);
   }, [w?.id, w?.version]);
+  useEffect(() => {
+    if (
+      linkedFinding.data?.equipmentId === id &&
+      w?.components.some(
+        (c) => c.installedComponentId === linkedFinding.data?.componentId,
+      )
+    ) {
+      setSelected(linkedFinding.data.componentId);
+      setSecurityOverlay(true);
+    }
+  }, [linkedFinding.data?.componentId, id, w?.id]);
   const save = trpc.equipment.save.useMutation({
     onSuccess: () => {
       setNote("");
@@ -375,6 +420,57 @@ function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
             <CardTitle>Local 3D equipment</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {securityAccess.data?.enabled && (
+              <div className="space-y-2 rounded border p-3 text-sm">
+                <label className="flex gap-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Equipment security overlay"
+                    checked={securityOverlay}
+                    onChange={(e) => setSecurityOverlay(e.target.checked)}
+                  />
+                  Security overlay · explicit component mappings only
+                </label>
+                {securityOverlay && (
+                  <>
+                    <p>
+                      Blue rings identify mapped security findings for review.
+                      Process alarms keep their own markers. No compromise is
+                      inferred from a shared asset label.
+                    </p>
+                    {security.error ? (
+                      <p>
+                        Security evidence is unavailable; the equipment viewer
+                        remains operational.
+                      </p>
+                    ) : security.data?.mapped.length ? (
+                      security.data.mapped.map((f) => (
+                        <div key={f.id} className="flex flex-wrap gap-2">
+                          <a
+                            className="text-primary underline"
+                            href={`#/cybersecurity?finding=${f.id}`}
+                          >
+                            {f.title} · {f.mode}
+                          </a>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelected(f.componentId)}
+                          >
+                            Select mapped component
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <p>
+                        No explicit component findings. Review unbound security
+                        findings in the list workspace.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
             <Suspense
               fallback={<p role="status">Loading app-owned renderer…</p>}
             >
@@ -384,6 +480,14 @@ function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
                 components={w.components}
                 selected={selected}
                 onSelect={setSelected}
+                focusComponentId={
+                  linkedFinding.data?.equipmentId === id
+                    ? linkedFinding.data.componentId
+                    : undefined
+                }
+                securityFindings={
+                  securityOverlay ? security.data?.mapped : undefined
+                }
                 observations={activeObservations}
                 annotations={w.annotations}
               />

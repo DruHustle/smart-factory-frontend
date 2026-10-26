@@ -198,3 +198,7 @@ See the [production readiness review](docs/production-readiness-review.md) for v
 [Independent equipment monitoring](docs/equipment-view.md) uses this application's own pinned Three.js renderer, models, auth, persistence, simulator and files. It requires no Onesa application, package or account. [Optional producer integration](docs/onesa/OPERATIONS.md) is disabled by default; its proposed-contract verification is distinct from acceptance by an actual Onesa consumer. Run `pnpm e2e:equipment` for the standalone native-view qualification.
 
 Native equipment validation and remaining premium asset gaps: [implementation evidence](docs/equipment-evidence.md).
+
+## OT cybersecurity workspace
+
+The independently owned [cybersecurity workspace](docs/cybersecurity.md) provides source-scoped evidence, deterministic findings and assigned investigations. See its [strict API/import profile](docs/cybersecurity-api.md) and run `pnpm e2e:security` for the disposable standalone workflow. The detailed native equipment view remains available independently.

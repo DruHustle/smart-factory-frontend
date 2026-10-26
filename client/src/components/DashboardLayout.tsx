@@ -36,6 +36,7 @@ import {
   Users,
   Bell,
   Plug,
+  ShieldCheck,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -50,6 +51,7 @@ const menuItems = [
   { icon: Cpu, label: "Devices", path: "/devices" },
   { icon: Layers, label: "Assets", path: "/assets" },
   { icon: Factory, label: "Equipment view", path: "/equipment" },
+  { icon: ShieldCheck, label: "Cybersecurity", path: "/cybersecurity" },
   { icon: AlertTriangle, label: "Alerts", path: "/alerts" },
   { icon: Bell, label: "Notifications", path: "/notifications" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },

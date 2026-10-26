@@ -1,3 +1,4 @@
+import { individualSecurityUser } from "./security/users";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { alerts, assets, devices, notificationInbox } from "../drizzle/schema";
 import { getDb } from "./db";
@@ -16,12 +17,12 @@ function visibleNotificationSourceCondition() {
   const visibleAsset = demoDataEnabled()
     ? eq(assets.assetId, alerts.assetId)
     : and(eq(assets.assetId, alerts.assetId), eq(assets.isDemo, false));
-  return sql`exists (
+  return sql`(exists (
     select 1 from ${alerts}
     where ${alerts.id} = ${notificationInbox.alertId}
       and exists (select 1 from ${devices} where ${visibleDevice})
       and (${alerts.assetId} is null or exists (select 1 from ${assets} where ${visibleAsset}))
-  )`;
+  ) or exists (select 1 from security_findings sf join security_sources ss on ss.id=sf.source_id where sf.id=${notificationInbox.securityFindingId} and ss.is_demo=false and ${process.env.ENABLE_DEMO_ACCOUNTS!=="true"} and exists(select 1 from users su where su.id=${notificationInbox.userId} and ${individualSecurityUser(sql`su`)})))`;
 }
 
 export async function listNotifications(userId: number) {

@@ -155,6 +155,13 @@
       "when": 1792936803000,
       "tag": "0021_equipment_bindings",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793016000000,
+      "tag": "0022_ot_security",
+      "breakpoints": true
     }
   ]
 }

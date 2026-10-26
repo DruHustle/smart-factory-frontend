@@ -96,6 +96,9 @@ jobs:
       - name: Verify independent native equipment view
         run: pnpm e2e:equipment
 
+      - name: Verify independent cybersecurity workspace
+        run: pnpm e2e:security
+
       - name: Build Frontend
         run: pnpm build
 

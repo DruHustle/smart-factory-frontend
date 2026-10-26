@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import DashboardLayout from "./components/DashboardLayout";
 import { canAdministerUsers, canViewEngineering } from "@/lib/access";
 
+const Cybersecurity = lazy(() => import("./pages/Cybersecurity"));
 const EquipmentView = lazy(() => import("./pages/EquipmentView"));
 const OnesaIntegration = lazy(() => import("./pages/OnesaIntegration"));
 const Home = lazy(() => import("./pages/Home"));
@@ -26,12 +27,28 @@ const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
 const Assistant = lazy(() => import("./pages/Assistant"));
 const OTAUpdates = lazy(() => import("./pages/OTAUpdates"));
 const Assets = lazy(() => import("./pages/Assets"));
-const AssetAdministrationShell = lazy(() => import("./pages/AssetAdministrationShell"));
+const AssetAdministrationShell = lazy(
+  () => import("./pages/AssetAdministrationShell"),
+);
 const UserAccess = lazy(() => import("./pages/UserAccess"));
 const ProductPassport = lazy(() => import("./pages/ProductPassport"));
 
+// Keep hash query context available to each workspace while matching the route path.
+function useHashPath(): ReturnType<typeof useHashLocation> {
+  const [location, navigate] = useHashLocation();
+  return [location.split("?")[0], navigate];
+}
+useHashPath.hrefs = useHashLocation.hrefs;
+
 function RouteLoading() {
-  return <div role="status" className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Loading page…</div>;
+  return (
+    <div
+      role="status"
+      className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground"
+    >
+      Loading page…
+    </div>
+  );
 }
 
 function AppRouter() {
@@ -39,9 +56,16 @@ function AppRouter() {
 
   if (isLoading) {
     return (
-      <div role="status" aria-live="polite" className="min-h-screen flex items-center justify-center bg-background text-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="min-h-screen flex items-center justify-center bg-background text-foreground"
+      >
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          <span
+            aria-hidden="true"
+            className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary"
+          />
           <span>Loading your factory workspace…</span>
         </div>
       </div>
@@ -51,7 +75,7 @@ function AppRouter() {
   // Show login page for unauthenticated users
   if (!user) {
     return (
-      <WouterRouter hook={useHashLocation}>
+      <WouterRouter hook={useHashPath}>
         <Suspense fallback={<RouteLoading />}>
           <Switch>
             <Route path="/passport/:id" component={ProductPassport} />
@@ -67,7 +91,7 @@ function AppRouter() {
   }
 
   return (
-    <WouterRouter hook={useHashLocation}>
+    <WouterRouter hook={useHashPath}>
       <Suspense fallback={<RouteLoading />}>
         <Switch>
           {/* Keep the public passport in a standalone shell even when the
@@ -80,18 +104,42 @@ function AppRouter() {
                 <Route path="/monitoring" component={Monitoring} />
                 <Route path="/devices" component={Devices} />
                 <Route path="/devices/:id" component={DeviceDetail} />
+                <Route path="/cybersecurity" component={Cybersecurity} />
                 <Route path="/equipment" component={EquipmentView} />
                 <Route path="/assets" component={Assets} />
-                <Route path="/assets/:id/aas" component={AssetAdministrationShell} />
-                <Route path="/integrations/onesa">{canViewEngineering(user.role) ? <OnesaIntegration /> : <NotFound />}</Route>
-                <Route path="/users">{canAdministerUsers(user.role) ? <UserAccess /> : <NotFound />}</Route>
+                <Route
+                  path="/assets/:id/aas"
+                  component={AssetAdministrationShell}
+                />
+                <Route path="/integrations/onesa">
+                  {canViewEngineering(user.role) ? (
+                    <OnesaIntegration />
+                  ) : (
+                    <NotFound />
+                  )}
+                </Route>
+                <Route path="/users">
+                  {canAdministerUsers(user.role) ? (
+                    <UserAccess />
+                  ) : (
+                    <NotFound />
+                  )}
+                </Route>
                 <Route path="/alerts" component={Alerts} />
                 <Route path="/alerts/:eventId" component={Alerts} />
                 <Route path="/notifications" component={Notifications} />
-                <Route path="/alert-history"><Redirect to="/alerts" /></Route>
+                <Route path="/alert-history">
+                  <Redirect to="/alerts" />
+                </Route>
                 <Route path="/analytics" component={AnalyticsPage} />
                 <Route path="/assistant" component={Assistant} />
-                <Route path="/ota">{canViewEngineering(user.role) ? <OTAUpdates /> : <NotFound />}</Route>
+                <Route path="/ota">
+                  {canViewEngineering(user.role) ? (
+                    <OTAUpdates />
+                  ) : (
+                    <NotFound />
+                  )}
+                </Route>
                 <Route path="/404" component={NotFound} />
                 <Route component={NotFound} />
               </Switch>
@@ -111,7 +159,7 @@ function App() {
           <TooltipProvider>
             <Toaster />
             <AppRouter />
-            <Analytics />
+            {import.meta.env.PROD && <Analytics />}
           </TooltipProvider>
         </ThemeProvider>
       </AuthProvider>

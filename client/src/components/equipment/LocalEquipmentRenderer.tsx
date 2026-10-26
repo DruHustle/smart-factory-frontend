@@ -49,6 +49,13 @@ type Props = {
   onSelect: (id: string | null) => void;
   observations: Observation[];
   annotations: Array<{ componentId: string; text: string }>;
+  focusComponentId?: string;
+  securityFindings?: Array<{
+    id: string;
+    componentId: string;
+    title: string;
+    mode: string;
+  }>;
 };
 function disposeObject(root: THREE.Object3D) {
   const textures = new Set<THREE.Texture>(),
@@ -252,7 +259,10 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                 if (node) {
                   const b = new THREE.Box3().setFromObject(node);
                   marker.position.copy(b.getCenter(new THREE.Vector3()));
-                  marker.position.y = b.max.y + 0.06;
+                  marker.position.y =
+                    b.max.y + (marker.userData.security ? 0.12 : 0.06);
+                  if (marker.userData.security)
+                    marker.quaternion.copy(camera.quaternion);
                 }
               }
               if (label.current) {
@@ -662,10 +672,38 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         marker.visible = visible;
         r.markers.add(marker);
       });
+      const markedSecurityComponents = new Set<string>();
+      for (const finding of props.securityFindings ?? []) {
+        if (markedSecurityComponents.has(finding.componentId)) continue;
+        markedSecurityComponents.add(finding.componentId);
+        const node = r.nodes.get(finding.componentId);
+        if (!node) continue;
+        const box = new THREE.Box3().setFromObject(node),
+          marker = new THREE.Mesh(
+            new THREE.RingGeometry(0.035, 0.045, 24),
+            new THREE.MeshBasicMaterial({
+              color: 0x38bdf8,
+              side: THREE.DoubleSide,
+            }),
+          );
+        marker.position.copy(box.getCenter(new THREE.Vector3()));
+        marker.position.y = box.max.y + 0.12;
+        marker.quaternion.copy(r.camera.quaternion);
+        marker.userData = {
+          installedComponentId: finding.componentId,
+          security: true,
+        };
+        let visible = true;
+        for (let p: THREE.Object3D | null = node; p; p = p.parent)
+          visible &&= p.visible;
+        marker.visible = visible;
+        r.markers.add(marker);
+      }
       r.render();
     }, [
       props.selected,
       props.observations,
+      props.securityFindings,
       props.annotations,
       hidden,
       isolated,
@@ -673,6 +711,13 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       inspection,
       state,
     ]);
+    useEffect(() => {
+      const r = runtime.current;
+      if (state === "ready" && props.focusComponentId) {
+        const n = r?.nodes.get(props.focusComponentId);
+        if (n) r?.focus(n);
+      }
+    }, [state, props.focusComponentId]);
     const focus = () => {
       const r = runtime.current,
         node = props.selected ? r?.nodes.get(props.selected) : null;
@@ -737,6 +782,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           <Button
             variant="outline"
             disabled={state !== "ready" || !props.selected}
+            data-security-focus
             onClick={focus}
           >
             Focus selected

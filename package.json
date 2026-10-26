@@ -26,7 +26,8 @@
     "onesa:receiver": "node --import tsx scripts/onesa/run-receiver.ts",
     "onesa:verify": "node --import tsx scripts/onesa/verify-walkthrough.ts",
     "e2e:equipment": "bash scripts/equipment/e2e.sh",
-    "equipment:schemas:check": "node --import tsx scripts/equipment/generate-schemas.ts --check"
+    "equipment:schemas:check": "node --import tsx scripts/equipment/generate-schemas.ts --check",
+    "e2e:security": "bash scripts/security/e2e.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

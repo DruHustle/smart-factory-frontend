@@ -231,6 +231,7 @@ export type InsertAlert = typeof alerts.$inferInsert;
 export const notificationInbox = pgTable("notification_inbox", {
   id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
   alertId: integer("alertId").references(() => alerts.id, { onDelete: "cascade" }),
+  securityFindingId: uuid("securityFindingId"),
   userId: integer("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
   kind: varchar("kind", { length: 32 }).notNull(),
   title: text("title").notNull(),
