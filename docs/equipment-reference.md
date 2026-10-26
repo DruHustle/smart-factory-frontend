@@ -1,9 +1,9 @@
 # Detailed illustrative reference: source and inspection
 
-The app owns the source and MIT geometry. Rebuild using ordinary, independently installed authoring libraries; none is a runtime peer or custom shared package:
+The app owns the source and MIT geometry. The authoring process is verified with Python 3.14. Rebuild using ordinary, independently installed authoring libraries; none is a runtime peer or custom shared package:
 
 ```sh
-python3 -m venv /tmp/smart-factory-geometry
+python3.14 -m venv /tmp/smart-factory-geometry
 /tmp/smart-factory-geometry/bin/pip install -r scripts/equipment/requirements-geometry.txt
 /tmp/smart-factory-geometry/bin/python scripts/equipment/generate-artifacts.py
 /tmp/smart-factory-geometry/bin/python scripts/equipment/validate-artifacts.py
@@ -11,7 +11,7 @@ python3 -m venv /tmp/smart-factory-geometry
 
 Editable construction is in `scripts/equipment/reference_geometry.py`, with a small local GLB exporter in `geometry_export.py`. Manifold3D 3.5.4 supplies constructive solids and boolean operations. NumPy 2.5.4 supports coordinates; the pinned AAS tools package and independently validate the derivative. Geometry uses metres, right-handed coordinates, +Y up and horizontal X shaft axis. No external texture, environment file, supplier CAD or peer model service is required. Revision 3's asset/template and source are retained; every existing template UUID remains present in revision 4. Private installed models remain immutable until an engineer reviews replacement mappings. Installed IDs, source telemetry, document associations, notes and saved work survive replacement.
 
-`fixtures/equipment/reference-bom.json` distinguishes assemblies, individual parts and repeated selectable sets. `geometry-audit.json` records actual bytes, triangles, model SHA-256, positive-volume manifold checks and measured clearance/continuity results. Counts are inventory, not proof of mechanical correctness. Repeated balls, bars, fins, screws and bundles are combined within their BOM sets, keeping draws bounded without deleting internals. Ordinary glTF meshes retain independent logical selection. No custom compression/instancing extension or runtime authoring tool is required.
+`fixtures/equipment/reference-bom.json` distinguishes assemblies, individual parts and repeated selectable sets. `geometry-audit.json` records actual bytes, triangles, model SHA-256, positive-volume manifold checks, connected-part counts, mating contacts and measured clearance/continuity results. All 2,556 inter-part pairs are screened; the 288 overlapping bounding-box candidates are tested by solid intersection, rejecting overlap above 0.1 mm³. Counts are inventory, not proof of mechanical correctness. Repeated balls, bars, fins, screws and bundles are combined within their BOM sets, keeping draws bounded without deleting internals. Ordinary glTF meshes retain independent logical selection. No custom compression/instancing extension or runtime authoring tool is required.
 
 | Area | Constructed detail and checks |
 | --- | --- |

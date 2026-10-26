@@ -2,7 +2,7 @@
   "status": "proposed mappings; no consumer model contract",
   "revision": "illustrative-4",
   "file": "pump-motor.glb",
-  "sha256": "b01095ebbe7c0cd221466840ced69666391f6e5c0bd88ad9dc6b8195fec15291",
+  "sha256": "cb1d547822ae954d698ae330ee6d2083fa966f6af3aec889c4605c1305d29712",
   "provenance": "Self-authored by Smart Factory integration fixture generator; repository MIT license",
   "units": "m",
   "handedness": "right",

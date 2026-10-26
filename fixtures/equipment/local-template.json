@@ -1,7 +1,7 @@
 {
   "revision": "smart-factory-illustrative-pump-motor-4",
   "status": "Original illustrative constructive reference; no manufacturer verification",
-  "sha256": "b01095ebbe7c0cd221466840ced69666391f6e5c0bd88ad9dc6b8195fec15291",
+  "sha256": "cb1d547822ae954d698ae330ee6d2083fa966f6af3aec889c4605c1305d29712",
   "units": "m",
   "handedness": "right",
   "upAxis": "+Y",
@@ -455,11 +455,11 @@
       "nodePath": "/Assembly/Pump/Wet_end/Impeller/Impeller_hub_and_lock_nut",
       "parentTemplateComponentId": "e8d0f72a-6358-57cd-9561-fd2197511284",
       "designation": "ILL-014",
-      "quantity": 1,
+      "quantity": 2,
       "material": "Machined steel",
       "role": "internal",
       "solid": true,
-      "description": "Illustrative reference geometry.",
+      "description": "Combined repeated parts; select as one set.",
       "explode": {
         "translation": [
           -0.1,
@@ -477,7 +477,7 @@
           0
         ]
       },
-      "inventoryKind": "individual part",
+      "inventoryKind": "repeated part set",
       "source": "scripts/equipment/reference_geometry.py"
     },
     {
@@ -2215,11 +2215,11 @@
       "nodePath": "/Assembly/Motor/Cooling_fan",
       "parentTemplateComponentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5",
       "designation": "ILL-069",
-      "quantity": 13,
+      "quantity": 1,
       "material": "Elastomer",
       "role": "internal",
       "solid": true,
-      "description": "Hub plus 12 radial paddles, inside ventilated cover.",
+      "description": "One moulded fan with hub and 12 integral radial paddles, inside ventilated cover.",
       "explode": {
         "translation": [
           0.33,
@@ -2237,7 +2237,7 @@
           0
         ]
       },
-      "inventoryKind": "repeated part set",
+      "inventoryKind": "individual part",
       "source": "scripts/equipment/reference_geometry.py"
     },
     {
@@ -2279,11 +2279,11 @@
       "nodePath": "/Assembly/Motor/Motor_tie_bolts",
       "parentTemplateComponentId": "6d5a0e0f-aa5f-5646-87c9-45748ec2cad5",
       "designation": "ILL-071",
-      "quantity": 4,
+      "quantity": 16,
       "material": "Machined steel",
       "role": "internal",
       "solid": true,
-      "description": "Combined repeated parts; select as one set.",
+      "description": "Four through bolts, four nuts and eight washers in matching axial passages; thread helices omitted.",
       "explode": {
         "translation": [
           0.32,
@@ -2599,7 +2599,7 @@
       "nodePath": "/Assembly/Pump/Mechanical_seal/Seal_gland_screws",
       "parentTemplateComponentId": "7e3dde43-e613-55d0-8fa8-4c76f60a0848",
       "designation": "ILL-081",
-      "quantity": 8,
+      "quantity": 4,
       "material": "Machined steel",
       "role": "internal",
       "solid": true,
