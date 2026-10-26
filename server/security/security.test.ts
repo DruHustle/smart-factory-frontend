@@ -531,6 +531,41 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       );
       expect(count).toBe(0);
     });
+    it("supports operator-to-engineer handoff without downgrading an active investigation", async () => {
+      const s = await source();
+      await ingest(
+        s.id,
+        Array.from({ length: 5 }, () => event(s)),
+      );
+      const [f] = (await findings(filters.parse({ sourceId: s.id }), false))
+        .items;
+      const decide = async (
+        action: "acknowledge" | "assign" | "investigate",
+        who: { id: number; role: string },
+      ) => {
+        const d = await detail(f.id, false, false);
+        return act(
+          {
+            id: f.id,
+            expectedVersion: d.version,
+            action,
+            reason: "Reviewed case handoff evidence",
+            evidenceIds: [],
+          },
+          who,
+        );
+      };
+      await decide("acknowledge", { id: actor, role: "operator" });
+      await decide("assign", { id: other, role: "engineer" });
+      await decide("investigate", { id: other, role: "engineer" });
+      await decide("acknowledge", { id: actor, role: "operator" });
+      const d = await detail(f.id, false, false);
+      expect(d.assigned_to).toBe(other);
+      expect(d.status).toBe("investigating");
+      await expect(
+        decide("assign", { id: actor, role: "engineer" }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
     it("persists assigned lifecycle decisions, evidence and recurrence without clearing the observed condition", async () => {
       const s = await source();
       await ingest(

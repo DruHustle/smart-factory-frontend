@@ -396,6 +396,11 @@ export async function act(
       !admin &&
       engineer &&
       input.action !== "acknowledge" &&
+      !(
+        input.action === "assign" &&
+        incident.assigned_to === null &&
+        (input.assignee ?? actor.id) === actor.id
+      ) &&
       incident.assigned_to !== actor.id
     )
       throw new SecurityError(403, "assigned_engineer_required");
@@ -448,7 +453,7 @@ export async function act(
     const state =
       (
         {
-          acknowledge: "acknowledged",
+          acknowledge: f.status === "open" ? "acknowledged" : f.status,
           investigate: "investigating",
           resolve: "resolved",
           accept_risk: "accepted_risk",

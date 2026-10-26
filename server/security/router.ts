@@ -60,7 +60,10 @@ export async function run<T>(fn: () => Promise<T>) {
               503: "SERVICE_UNAVAILABLE",
             } as const
           )[e.status as 401] ?? "BAD_REQUEST",
-        message: e.code,
+        message:
+          e.code === "investigation_version_conflict"
+            ? "New evidence or another decision changed this finding. Refresh evidence and review it again."
+            : e.code,
       });
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
