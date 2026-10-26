@@ -70,7 +70,7 @@ Live non-demo findings use the existing inbox/email delivery infrastructure for 
 | Credentials, mappings, rule activation, baseline approval | No | No | No | Yes |
 | Finite risk acceptance, sensitive audit, delivery retry, retention/purge | No | No | No | Yes |
 
-All API boundaries enforce these permissions. Shared demonstration identities remain read-only even if their historical role is engineer/admin; they see authored demo scope. This is a single existing application scope, not new tenant isolation. Sessions remain HttpOnly cookies. Authentication changes and logout clear the authenticated React Query cache so previous-role evidence cannot stay visible.
+All API boundaries enforce these permissions. Shared demonstration sessions cannot list individual assignees. Non-admin policy responses omit administrative rationale, and viewer posture summaries omit reviewer notes/identity. Shared demonstration identities remain read-only even if their historical role is engineer/admin; they see authored demo scope. This is a single existing application scope, not new tenant isolation. Sessions remain HttpOnly cookies. Authentication changes and logout clear the authenticated React Query cache so previous-role evidence cannot stay visible.
 
 ## 3D, optional sources and data boundaries
 
