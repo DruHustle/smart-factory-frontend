@@ -1,5 +1,6 @@
 import * as T from "three";
 import { sectionCap } from "./section";
+import { surfaceVisible } from "./visibility";
 export type InspectionPart = {
   installedComponentId: string;
   name: string;
@@ -90,6 +91,7 @@ export class InspectionScene {
       opacity: number;
       transparent: boolean;
       depthWrite: boolean;
+      alphaTest: number;
       emissive?: T.Color;
       emissiveIntensity?: number;
     }
@@ -144,6 +146,7 @@ export class InspectionScene {
             opacity: m.opacity,
             transparent: m.transparent,
             depthWrite: m.depthWrite,
+            alphaTest: m.alphaTest,
             emissive: standard.emissive?.clone(),
             emissiveIntensity: standard.emissiveIntensity,
           });
@@ -299,6 +302,7 @@ export class InspectionScene {
         material.opacity = opacity;
         material.transparent = transparent;
         material.depthWrite = factor < 1 ? false : base.depthWrite;
+        material.alphaTest = base.alphaTest * factor;
         material.clippingPlanes = clipped ? [this.plane] : [];
         material.clipShadows = true;
         const standard = material as T.MeshStandardMaterial;
@@ -392,6 +396,12 @@ export class InspectionScene {
     this.model.traverse((o) => {
       const mesh = o as T.Mesh;
       if (!mesh.isMesh || !this.visible(mesh)) return;
+      if (
+        !(Array.isArray(mesh.material) ? mesh.material : [mesh.material]).some(
+          surfaceVisible,
+        )
+      )
+        return;
       let owner: T.Object3D | null = mesh;
       while (owner && !owner.userData.installedComponentId)
         owner = owner.parent;

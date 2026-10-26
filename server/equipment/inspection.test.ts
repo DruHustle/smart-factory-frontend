@@ -410,3 +410,64 @@ test("caps inherit saved opacity and report unsupported open surfaces without in
     vi.unstubAllGlobals();
   }
 });
+
+test("fully transparent or alpha-discarded imported surfaces do not affect focus bounds", () => {
+  const model = new T.Group();
+  const shown = new T.Mesh(new T.BoxGeometry());
+  const invisible = new T.Mesh(
+    new T.BoxGeometry(),
+    new T.MeshStandardMaterial({ transparent: true, opacity: 0 }),
+  );
+  invisible.position.x = 100;
+  model.add(shown, invisible);
+  expect(visibleBounds(model).max.x).toBe(0.5);
+  invisible.material.transparent = false;
+  invisible.material.opacity = 0.2;
+  invisible.material.alphaTest = 0.5;
+  expect(visibleBounds(model).max.x).toBe(0.5);
+});
+
+test("picking skips discarded material while inspection transparency preserves an imported alpha mask", async () => {
+  const { hitVisible } =
+    await import("../../client/src/components/equipment/visibility");
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const model = new T.Group(),
+    scene = new T.Scene();
+  const front = new T.Mesh(
+    new T.BoxGeometry(),
+    new T.MeshStandardMaterial({ transparent: true, opacity: 0 }),
+  );
+  front.position.z = 2;
+  front.userData.installedComponentId = "front";
+  const back = new T.Mesh(new T.BoxGeometry());
+  model.add(front, back);
+  model.updateMatrixWorld(true);
+  const ray = new T.Raycaster(new T.Vector3(0, 0, 5), new T.Vector3(0, 0, -1));
+  const pick = () => ray.intersectObject(model, true).find(hitVisible)?.object;
+  expect(pick()).toBe(back);
+  front.material.opacity = 0.2;
+  front.material.alphaTest = 0.5;
+  expect(pick()).toBe(back);
+  front.material.opacity = 0.8;
+  expect(pick()).toBe(front);
+  const inspector = new InspectionScene(
+    model,
+    scene,
+    new Map([["front", front]]),
+    [{ installedComponentId: "front", name: "front", solid: true }],
+    () => {},
+  );
+  try {
+    inspector.set({ ...defaultInspection, opacity: 0.32 });
+    expect(front.material.alphaTest).toBe(0.16);
+    expect(front.material.opacity).toBeCloseTo(0.256);
+    expect(pick()).toBe(front);
+    inspector.set({ ...defaultInspection });
+    expect(front.material.alphaTest).toBe(0.5);
+    expect(front.material.opacity).toBe(0.8);
+  } finally {
+    inspector.dispose();
+    vi.unstubAllGlobals();
+  }
+});

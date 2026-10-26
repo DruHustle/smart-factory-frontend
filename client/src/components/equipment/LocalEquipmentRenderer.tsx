@@ -10,6 +10,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { measureOrbit } from "./benchmark";
 import { frameBounds, visibleBounds } from "./framing";
+import { hitVisible } from "./visibility";
 import { Button } from "@/components/ui/button";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
@@ -379,7 +380,12 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           o.visible && (!o.parent || visible(o.parent));
         const hit = ray
           .intersectObjects([r.model, r.markers, r.inspector.pickObjects], true)
-          .find((h) => visible(h.object) && r.inspector.accepts(h.point));
+          .find(
+            (h) =>
+              visible(h.object) &&
+              hitVisible(h) &&
+              r.inspector.accepts(h.point),
+          );
         let object = hit?.object;
         while (object) {
           const id = object.userData.installedComponentId;

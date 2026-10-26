@@ -1,4 +1,5 @@
 import * as T from "three";
+import { surfaceVisible } from "./visibility";
 /** Bounds of material that remains visible, including edges crossing the cut. */
 export function visibleBounds(root: T.Object3D, plane?: T.Plane): T.Box3 {
   const box = new T.Box3(),
@@ -10,6 +11,12 @@ export function visibleBounds(root: T.Object3D, plane?: T.Plane): T.Box3 {
   root.traverseVisible((o) => {
     const mesh = o as T.Mesh;
     if (!mesh.isMesh) return;
+    if (
+      !(Array.isArray(mesh.material) ? mesh.material : [mesh.material]).some(
+        surfaceVisible,
+      )
+    )
+      return;
     const a = mesh.geometry.getAttribute("position"),
       ix = mesh.geometry.index;
     if (!plane) {
