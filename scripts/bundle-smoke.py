@@ -104,6 +104,7 @@ try:
     print('PASS: AnalyticsService calculates stored sample coverage, gaps and null-safe aggregates.')
     # A QoS 1 subscription also receives QoS 0 publications. QoS 0 has no
     # packet identifier, so manually acknowledging it would disconnect MQTTnet.
+    direct_devices = [trpc(engineer,'devices.create',{'deviceId':f'bundle-qos{qos}','name':f'Bundle direct sensor {qos}','type':'sensor','route':'direct','freshnessSeconds':120}) for qos in [0,1]]
     publisher = '''
 import json, socket, struct, time
 def field(value):
@@ -136,6 +137,12 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     assert 'PubAck packet has no packet identifier' not in mqtt_logs
     assert mqtt_logs.count('Connected to MQTT') == connections_before
     print('PASS: QoS 0 and QoS 1 MQTT messages persist without invalid acknowledgements or reconnects.')
+    wait(lambda: sql('''SELECT count(DISTINCT r."deviceId") FROM sensor_readings r JOIN devices d ON d.id=r."deviceId" WHERE d."deviceId" IN ('bundle-qos0','bundle-qos1') AND r."assetId" IS NULL''')=='2')
+    for direct in direct_devices:
+        item=trpc(engineer,'inventory.item',{'ref':f"device:{direct['id']}"},query=True)
+        assert item['route']=='Direct MQTT' and item['status']=='live' and not item['aas'] and item['sampleAt'] is not None
+        assert trpc(engineer,'assets.getAllForDevice',{'devicePk':direct['id']},query=True)==[]
+    print('PASS: registered standalone sensors traverse real MQTT, .NET durable forwarding and Node inventory without an AAS or gateway.')
     run(COMPOSE+['stop','database'])
     wait(lambda: http(plain,'/health/ready')[0]==503, timeout=30)
     assert http(plain,'/health/live')[0]==200

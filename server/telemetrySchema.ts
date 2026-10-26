@@ -11,7 +11,8 @@ export const edgeTelemetrySchema = z
     gatewayId: z
       .string()
       .regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/)
-      .optional(),
+      .nullish()
+      .transform((value) => value ?? undefined),
     assetId: z
       .string()
       .min(1)
