@@ -1,0 +1,17 @@
+{
+  "api": "https://api.152-70-22-84.sslip.io",
+  "demoDataEnabled": false,
+  "securityEnabled": true,
+  "publicDemoReadOnly": true,
+  "viewerRedaction": true,
+  "demonstrationSources": 0,
+  "findingModes": [],
+  "events": 0,
+  "findings": 0,
+  "sourceCount": 0,
+  "equipmentInstances": 0,
+  "components": 0,
+  "modelSha256": null,
+  "notificationsAndAssetReads": true,
+  "logout": true
+}
