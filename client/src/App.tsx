@@ -38,7 +38,7 @@ function useHashPath(): ReturnType<typeof useHashLocation> {
   const [location, navigate] = useHashLocation();
   return [location.split("?")[0], navigate];
 }
-useHashPath.hrefs = useHashLocation.hrefs;
+useHashPath.hrefs = (href: string) => "#" + href;
 
 function RouteLoading() {
   return (
