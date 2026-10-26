@@ -1,0 +1,66 @@
+
+> smart-factory-iot@1.0.0 build /private/tmp/smart-factory-7f7e332-independent/frontend
+> vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/regexes.js (74:0): A comment
+
+"/** Anchors a pattern source. The interpolation lives here rather than at the call site because
+ * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it
+ * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */"
+
+in "node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/regexes.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/util.js (400:0): A comment
+
+"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle."
+
+in "node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/util.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+✓ 3496 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/public/index.html                                     2.98 kB │ gzip:   0.89 kB
+../dist/public/assets/index-C7Rdl1cB.css                    166.84 kB │ gzip:  24.95 kB
+../dist/public/assets/endOfDay-D-oWbTcB.js                    0.13 kB │ gzip:   0.14 kB
+../dist/public/assets/device-display-C_9wcmkN.js              0.14 kB │ gzip:   0.13 kB
+../dist/public/assets/label-ZII2-Z_B.js                       0.45 kB │ gzip:   0.30 kB
+../dist/public/assets/useComposition-Dk5S_GYE.js              0.76 kB │ gzip:   0.37 kB
+../dist/public/assets/switch-JA3Bzead.js                      0.94 kB │ gzip:   0.48 kB
+../dist/public/assets/textarea-CG3Hn1Oy.js                    1.14 kB │ gzip:   0.60 kB
+../dist/public/assets/badge-BeA9-P1d.js                       1.22 kB │ gzip:   0.60 kB
+../dist/public/assets/table-eZrvGjdM.js                       1.23 kB │ gzip:   0.49 kB
+../dist/public/assets/input-CKJnhzCz.js                       1.31 kB │ gzip:   0.65 kB
+../dist/public/assets/ForgotPassword-Cw0zedhz.js              1.53 kB │ gzip:   0.78 kB
+../dist/public/assets/select-CxKTT9lR.js                      3.69 kB │ gzip:   1.31 kB
+../dist/public/assets/UserAccess-DGSGTSJY.js                  4.69 kB │ gzip:   1.77 kB
+../dist/public/assets/Login-BZ7hGGc6.js                       4.79 kB │ gzip:   2.00 kB
+../dist/public/assets/Register-C3uWtKQI.js                    4.98 kB │ gzip:   1.81 kB
+../dist/public/assets/ThresholdConfigDialog-Clz9gF1G.js       5.04 kB │ gzip:   1.70 kB
+../dist/public/assets/OTAUpdates-Byrxlu0t.js                  5.47 kB │ gzip:   1.99 kB
+../dist/public/assets/Assets-DBFi6xqS.js                      7.43 kB │ gzip:   2.71 kB
+../dist/public/assets/Monitoring-CEUQbX-c.js                  8.49 kB │ gzip:   2.96 kB
+../dist/public/assets/OnesaIntegration-D4IE7rNP.js            9.87 kB │ gzip:   3.33 kB
+../dist/public/assets/Notifications-BqN3KjUm.js              10.36 kB │ gzip:   3.27 kB
+../dist/public/assets/Assistant-CDnYHaoV.js                  11.43 kB │ gzip:   4.16 kB
+../dist/public/assets/Home-C6ihxyj5.js                       14.59 kB │ gzip:   4.24 kB
+../dist/public/assets/icons-vendor-wNQ2c6qE.js               15.33 kB │ gzip:   5.27 kB
+../dist/public/assets/Alerts-BYNUKses.js                     18.12 kB │ gzip:   5.13 kB
+../dist/public/assets/EquipmentView-6lizZR8X.js              18.15 kB │ gzip:   5.72 kB
+../dist/public/assets/CreateAssetDialog-DAm5msvX.js          19.73 kB │ gzip:   5.37 kB
+../dist/public/assets/ProductPassport-BpSVRlU2.js            22.00 kB │ gzip:   8.30 kB
+../dist/public/assets/AssetAdministrationShell-BvvHj4-9.js   30.10 kB │ gzip:   8.91 kB
+../dist/public/assets/DeviceDetail-BCHt-Zjj.js               33.30 kB │ gzip:  10.12 kB
+../dist/public/assets/AnalyticsPage-CBWQjNnR.js              35.66 kB │ gzip:  10.58 kB
+../dist/public/assets/ExportButton-Dzc9L18t.js               74.73 kB │ gzip:  22.39 kB
+../dist/public/assets/radix-vendor-BGj25Gl3.js              121.41 kB │ gzip:  38.69 kB
+../dist/public/assets/Devices-DtNQ2Gnp.js                   122.43 kB │ gzip:  37.72 kB
+../dist/public/assets/framework-PeliBXKs.js                 193.06 kB │ gzip:  60.58 kB
+../dist/public/assets/index-GSJtHc2K.js                     208.22 kB │ gzip:  60.35 kB
+../dist/public/assets/generateCategoricalChart-B6-gkCa-.js  381.64 kB │ gzip: 105.40 kB
+../dist/public/assets/LocalEquipmentRenderer--lizka5W.js    685.33 kB │ gzip: 177.90 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 4.31s

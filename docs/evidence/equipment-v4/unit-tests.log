@@ -1,0 +1,13 @@
+
+> smart-factory-iot@1.0.0 test /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend
+> vitest run --maxWorkers=1
+
+
+ RUN  v4.1.12 /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend
+
+
+ Test Files  34 passed (34)
+      Tests  260 passed (260)
+   Start at  02:03:05
+   Duration  18.88s (transform 380ms, setup 0ms, import 2.26s, tests 14.45s, environment 1ms)
+

@@ -1,0 +1,44 @@
+{
+  "before": {
+    "node": {
+      "failed": 16,
+      "cases": 89
+    },
+    "dotnet": {
+      "failed": 72,
+      "cases": 89
+    },
+    "edge": "invalid forwarding reproduced",
+    "delivery": {
+      "failed": 3,
+      "cases": 8
+    }
+  },
+  "after": {
+    "locallyCopiedPolicyCases": 99,
+    "allThreeImplementationsAgree": true,
+    "backendTests": 207,
+    "edgeTests": 61,
+    "edgePolicyPaths": [
+      "MQTT",
+      "serial"
+    ],
+    "permanentCases": [
+      400,
+      401,
+      403,
+      422,
+      302,
+      "historical invalid metadata"
+    ],
+    "transientRecoveryCases": [
+      "timeout",
+      404,
+      408,
+      409,
+      429,
+      503
+    ]
+  },
+  "fixtureSha256": "cd4012bd0d2c6f82674f743f6f6041c980b5dc17ee0fa35b6455b0174cb7cdf6"
+}

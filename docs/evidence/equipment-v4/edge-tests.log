@@ -1,0 +1,138 @@
+.............................................................
+----------------------------------------------------------------------
+Ran 61 tests in 0.037s
+
+OK
+[MQTT] telemetry queued -> factory/factory-a/line-1/pi-edge-01/telemetry
+[EDGE] gateway started; configured assets: 1; telemetry coalescing: True; snapshot/heartbeat seconds: 60/60
+[EDGE] gateway stopped
+[MQTT] telemetry queued -> factory/factory-a/line-1/pi-edge-01/telemetry
+[EDGE] gateway started; configured assets: 1; telemetry coalescing: True; snapshot/heartbeat seconds: 60/60
+[EDGE] gateway stopped
+[MQTT] rejected edge configuration: Target WROVER is not enabled for control
+[MQTT] rejected edge configuration: GPIO pin is not in the WROVER control allowlist
+[MQTT] rejected edge configuration: GPIO control messages must not be retained
+[MQTT] rejected edge configuration: Command action is not supported
+[LOCAL MQTT] telemetry queued -> factory/factory-a/line-1/esp32-wrover-01/telemetry
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] upstream queue rejected message on factory/factory-a/line-1/esp32-wrover-01/telemetry
+[LOCAL MQTT] delivery failed (LocalDeliveryError); restarting without acknowledging
+[LOCAL MQTT] connected to Pi broker and subscribed to allowlisted sensor topics
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] telemetry queued -> factory/factory-a/line-1/esp32-wrover-01/telemetry
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[SERIAL] failed to open/read /dev/serial/by-id/arm: not enumerated
+[SERIAL] failed to open/read /dev/serial/by-id/arm: not enumerated
+[EDGE] gateway started; configured assets: 0; telemetry coalescing: True; snapshot/heartbeat seconds: 60/60
+[EDGE] gateway stopped
+[EDGE] gateway started; configured assets: 0; telemetry coalescing: True; snapshot/heartbeat seconds: 60/60
+[MQTT] telemetry queued -> factory/factory-a/line-1/pi-edge-01/telemetry
+[EDGE] gateway stopped
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry
+[LOCAL MQTT] rejected message (identity, topic, size, or payload validation failed)
+[LOCAL MQTT] telemetry queued -> factory/fixture/line/sensor/telemetry

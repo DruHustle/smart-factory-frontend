@@ -38,15 +38,15 @@ The browser renderer provides GLB progress/errors, orbit/pan/zoom, fit/reset, sc
 
 Quality, freshness and mode are separate. Missing values remain unavailable. Freshness uses observation time, never a retry/receipt timestamp. Legacy source quality/mode remain unknown unless explicitly declared. Live and simulated stream selection is explicit. Local normal/alarm/recovery/stale scenarios use the existing ingestion function and preserve `mode=simulated`; source alarms are identifiable and never become live incidents. Recorded history replay is a local viewing operation that changes neither current/live state nor incidents. A real MQTT transport carrying generated data remains simulated.
 
-Marker colors show declared source alarm, freshness or annotation state; they do not predict failure. Geometry is illustrative, not dimensional CAD, numerical physics, validated robot collision geometry or kinematics. The detailed reference includes authored 0–100% whole/subassembly explosion, reversible transitions, guides, selected-part labels, X/Y/Z sections with reverse/position/reset, housing ghosting and cover hiding. Saved viewpoints include reveal state, selection and camera. Added model components receive new installed identities only after replacement preview; existing component identities and source bindings remain stable. Imported models expose authored explosion and solid-cap capabilities only when declared; missing internals are not generated.
+Marker colors show declared source alarm, freshness or annotation state; they do not predict failure. Geometry is illustrative, not dimensional CAD, numerical physics, validated robot collision geometry or kinematics. The detailed reference includes authored 0–100% whole/subassembly explosion, reversible transitions, guides, selected-part labels, X/Y/Z sections with reverse/position/reset, housing ghosting and cover hiding. Saved viewpoints include camera, selected component, hidden/isolated state, global opacity, housing reveal, explosion scope/amount and section settings. Added model components receive new installed identities only after replacement preview; existing component identities and source bindings remain stable. Imported models expose authored explosion and solid-cap capabilities only when declared; missing internals are not generated.
 
-Sections intersect closed geometry and triangulate contours with holes separately for each connected solid. Open/ambiguous contours remain uncapped; the renderer does not fill their empty volume. Caps are rebuilt after motion settles and bounded slider debounce. Explosion offsets/rotations/pivots are illustration choreography, not an approved disassembly procedure. See [the source and BOM audit](equipment-reference.md) for design scope and acceptance limits.
+Sections intersect closed geometry and triangulate contours with holes separately for each connected solid. Open/ambiguous contours remain uncapped; the renderer does not fill their empty volume. Caps are rebuilt after explosion motion settles and coalesced while the section plane moves. Slider scrubbing applies the authored pose immediately. Explosion offsets/rotations/pivots are illustration choreography, not an approved disassembly procedure. See [the source and BOM audit](equipment-reference.md) for design scope and acceptance limits.
 
 ## Verification and operation
 
 ```sh
 pnpm check
-pnpm test
+pnpm test --maxWorkers=1
 pnpm build
 pnpm equipment:schemas:check
 pnpm e2e:equipment
@@ -55,3 +55,32 @@ pnpm e2e:equipment
 `e2e:equipment` creates disposable loopback PostgreSQL/Redis, clears all Onesa variables, uses only this repository, provisions a synthetic individual account, and starts the actual app. Fresh browser contexts block every external domain and record attempted requests. Headless Chromium uses explicit software WebGL. Tests cover desktop/tablet/mobile native rendering, controls, simulation, documents, notes/viewpoints after reload, light/dark styling, replay and actual context-loss recovery. Existing optional Vercel analytics attempts are recorded and blocked; they are not required for operation. Real mobile hardware/Safari and real equipment qualification remain separate from emulated viewport/software-WebGL evidence.
 
 Optional exchange configuration/outbox semantics, deterministic MQTT walkthrough and consumer gaps are documented in [the connector runbook](onesa/OPERATIONS.md). Peer failure must affect only that connector. App readiness depends on its own database/Redis, not optional export. To roll back, disable optional export and redeploy the previous reviewed images; additive tables/columns and owned data can remain. Preserve model revisions and database backups. Do not drop new tables or rewrite migration history as a rollback shortcut.
+
+## Reproducible inspection benchmark
+
+The default native suite explicitly uses SwiftShader software WebGL. It does not qualify a real phone or GPU. For an available Apple Metal renderer, use:
+
+```sh
+EQUIPMENT_RENDERER=metal pnpm e2e:equipment --grep 'detailed.*1440'
+```
+
+The viewer's **Run inspection benchmark** measures seven scripted stages: assembled orbit, whole explosion/scrubbing, motor subassembly, moving sections, transparent housings, focused windings and restoration. Each has 1.5 seconds of warm-up and an 8-second active window. A nonblocking GPU fence keeps one completed frame in flight. The report includes raw frame intervals, median/p95, calls/triangles, available heap/resource indicators, renderer/browser, canvas/viewport/DPR, shadows, exposure and initial camera. Model bytes are recorded; external model textures are zero, while generated environment texture byte usage is unavailable and reported null. The shorter **Measure render** uses 0.5 seconds warm-up and 2.5 seconds active orbit for individual inspection captures.
+
+Use approximately 16.7 ms desktop and 33.3 ms mobile as median interaction targets, and report p95 alongside the exact conditions. Test the actual phone separately, keeping fine internals and sectioning enabled. The latest [qualification](equipment-evidence.md) distinguishes Metal hardware acceleration, software viewport evidence, physical equipment and actual external-consumer acceptance.
+
+To retain the strict-origin request audit as a structured Playwright artifact:
+
+```sh
+PLAYWRIGHT_JSON_OUTPUT_FILE=/tmp/smart-factory-network-report.json \
+  pnpm e2e:equipment --grep 'local context' --reporter=json
+```
+
+Each successful workflow attaches `attempted-network-requests.json`, including blocked optional analytics and the peer-request list. The JSON reporter retains its base64 attachment body. This additional run also creates fresh disposable own-service infrastructure and individual browser contexts.
+
+The optional **Smart Factory acquisition** proof requires this application's own backend and edge checkouts and their documented toolchains, including the edge virtual environment. It is separate from native startup and uses no peer consumer or optional export configuration:
+
+```sh
+bash scripts/equipment/provenance-path.sh
+```
+
+It verifies 10 simulated and 10 replay samples through the real durable publisher, Mosquitto, .NET 8 and authenticated Node receiver. The receiver begins unavailable; persisted source samples remain pending, then all are acknowledged after recovery. [The provenance policy](telemetry-provenance-policy.md) records rejection, quarantine and deliberate operator retry behavior.

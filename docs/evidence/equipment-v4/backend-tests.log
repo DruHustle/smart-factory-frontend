@@ -1,0 +1,14 @@
+  TelemetryService -> /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend/src/Services/TelemetryService/bin/Debug/net8.0/TelemetryService.dll
+  DashboardAccess -> /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend/src/BuildingBlocks/DashboardAccess/bin/Debug/net8.0/DashboardAccess.dll
+  AnalyticsService -> /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend/src/Services/AnalyticsService/bin/Debug/net8.0/AnalyticsService.dll
+  DeviceService -> /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend/src/Services/DeviceService/bin/Debug/net8.0/DeviceService.dll
+  IdentityService -> /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend/src/Services/IdentityService/bin/Debug/net8.0/IdentityService.dll
+  NotificationService -> /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend/src/Services/NotificationService/bin/Debug/net8.0/NotificationService.dll
+  SmartFactory.Tests -> /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend/src/SmartFactory.Tests/bin/Debug/net8.0/SmartFactory.Tests.dll
+Test run for /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend/src/SmartFactory.Tests/bin/Debug/net8.0/SmartFactory.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 18.0.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   207, Skipped:     0, Total:   207, Duration: 1 s - SmartFactory.Tests.dll (net8.0)
