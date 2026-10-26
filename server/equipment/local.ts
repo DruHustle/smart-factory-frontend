@@ -18,6 +18,7 @@ const componentSchema = component.extend({ installedComponentId: z.uuid() });
 const viewerStateSchema = z
   .object({
     opacity: z.number().min(0.05).max(1).optional(),
+    labels: z.boolean().optional(),
     immediate: z.boolean().optional(),
     explode: z.number().min(0).max(100),
     scope: z.uuid().nullable(),

@@ -4,6 +4,8 @@ export function visibleBounds(root: T.Object3D, plane?: T.Plane): T.Box3 {
   const box = new T.Box3(),
     p = new T.Vector3(),
     q = new T.Vector3();
+  for (let n: T.Object3D | null = root; n; n = n.parent)
+    if (!n.visible) return box;
   root.updateWorldMatrix(true, true);
   root.traverseVisible((o) => {
     const mesh = o as T.Mesh;

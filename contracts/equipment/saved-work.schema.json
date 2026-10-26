@@ -78,6 +78,9 @@
                 "minimum": 0.05,
                 "maximum": 1
               },
+              "labels": {
+                "type": "boolean"
+              },
               "immediate": {
                 "type": "boolean"
               },

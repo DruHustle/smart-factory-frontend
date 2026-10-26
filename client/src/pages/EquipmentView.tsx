@@ -260,9 +260,7 @@ function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
   const [componentSearch, setComponentSearch] = useState("");
   const w = data.data;
   useEffect(() => {
-    setSelected(
-      w?.selectedComponent ?? w?.components[0]?.installedComponentId ?? null,
-    );
+    setSelected(w?.selectedComponent ?? null);
     setNote("");
     setReplayAt(null);
   }, [w?.id, w?.version]);
@@ -438,16 +436,22 @@ function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="break-all text-xs text-muted-foreground">
-            {component?.designation} · quantity {component?.quantity ?? 1} ·{" "}
-            {component?.material}
-            <br />
-            {component?.description}
-            <br />
-            Template component: {component?.templateComponentId}
-            <br />
-            Installed component: {component?.installedComponentId}
-          </p>
+          {component ? (
+            <p className="break-all text-xs text-muted-foreground">
+              {component.designation} · quantity {component.quantity ?? 1} ·{" "}
+              {component.material}
+              <br />
+              {component.description}
+              <br />
+              Template component: {component.templateComponentId}
+              <br />
+              Installed component: {component.installedComponentId}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Select a component in the model or BOM to inspect its details.
+            </p>
+          )}
           {observations.length ? (
             observations.map((o) => (
               <div
@@ -523,10 +527,13 @@ function LocalWorkspace({ id, writable }: { id: string; writable: boolean }) {
           {canEdit ? (
             <>
               <label className="text-sm" htmlFor="equipment-note">
-                Note for {component?.name}
+                {component
+                  ? `Note for ${component.name}`
+                  : "Select a component to add a note"}
               </label>
               <Textarea
                 id="equipment-note"
+                disabled={!component}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={2000}

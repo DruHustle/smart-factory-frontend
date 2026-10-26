@@ -212,3 +212,201 @@ test("shipped constructive solids section without false open-surface diagnostics
       r.geometry?.dispose();
     });
 }, 10000);
+
+test("animation starts at the current pose, survives selection updates, and reverses without a jump", () => {
+  let now = 0,
+    next = 0;
+  const frames = new Map<number, FrameRequestCallback>();
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    frames.set(++next, callback);
+    return next;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+  const model = new T.Group(),
+    scene = new T.Scene(),
+    part = new T.Mesh(new T.BoxGeometry());
+  part.userData.installedComponentId = "part";
+  model.add(part);
+  const rendered: number[] = [];
+  const inspector = new InspectionScene(
+    model,
+    scene,
+    new Map([["part", part]]),
+    [
+      {
+        name: "part",
+        installedComponentId: "part",
+        solid: true,
+        explode: {
+          translation: [1, 0, 0],
+          rotation: [0, 0, 0],
+          pivot: [0, 0, 0],
+        },
+      },
+    ],
+    () => rendered.push(part.position.x),
+  );
+  const tick = (time: number) => {
+    now = time;
+    const pending = [...frames.values()];
+    frames.clear();
+    pending.forEach((f) => f(time));
+  };
+  try {
+    inspector.set({ ...defaultInspection, explode: 100 });
+    expect(
+      part.position.x,
+      "no target-pose flash before the first animation frame",
+    ).toBe(0);
+    expect(rendered.every((x) => x === 0)).toBe(true);
+    tick(180);
+    expect(part.position.x).toBeCloseTo(0.5);
+    inspector.set({
+      ...defaultInspection,
+      explode: 100,
+      selected: "part",
+      ghost: true,
+    });
+    expect(
+      part.position.x,
+      "selection/telemetry refresh cannot finish an in-flight animation",
+    ).toBeCloseTo(0.5);
+    tick(270);
+    expect(part.position.x).toBeGreaterThan(0.5);
+    expect(part.position.x).toBeLessThan(1);
+    const mid = part.position.x;
+    inspector.set({ ...defaultInspection, explode: 0 });
+    expect(
+      part.position.x,
+      "reversal starts from the actual current transform",
+    ).toBe(mid);
+    tick(630);
+    expect(part.position.x).toBe(0);
+    expect(part.parent).toBe(model);
+    expect(inspector.diagnostics().restorationError).toBe(0);
+  } finally {
+    inspector.dispose();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  }
+});
+
+test("inspection preserves imported alpha and emission, and applies visibility consistently", () => {
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const model = new T.Group(),
+    scene = new T.Scene(),
+    assembly = new T.Group();
+  assembly.userData.installedComponentId = "assembly";
+  const source = new T.MeshStandardMaterial({
+    opacity: 0.6,
+    transparent: true,
+    emissive: 0x884422,
+    emissiveIntensity: 2,
+  });
+  const cover = new T.Mesh(new T.BoxGeometry(), source);
+  cover.userData.installedComponentId = "cover";
+  assembly.add(cover);
+  model.add(assembly);
+  const inspector = new InspectionScene(
+    model,
+    scene,
+    new Map([
+      ["assembly", assembly],
+      ["cover", cover],
+    ]),
+    [
+      { name: "assembly", installedComponentId: "assembly", role: "group" },
+      {
+        name: "cover",
+        installedComponentId: "cover",
+        role: "cover",
+        solid: true,
+      },
+    ],
+    () => {},
+  );
+  try {
+    inspector.set({ ...defaultInspection });
+    expect(cover.material.opacity).toBe(0.6);
+    expect(cover.material.emissive.equals(source.emissive)).toBe(true);
+    expect(cover.material.emissiveIntensity).toBe(2);
+    inspector.set({ ...defaultInspection, selected: "cover", opacity: 0.5 });
+    expect(cover.material.opacity).toBeCloseTo(0.3);
+    inspector.set({ ...defaultInspection, covers: true });
+    expect(cover.visible).toBe(false);
+    inspector.set({ ...defaultInspection });
+    expect(cover.visible).toBe(true);
+    expect(cover.material.emissive.equals(source.emissive)).toBe(true);
+    expect(cover.material.emissiveIntensity).toBe(2);
+    inspector.set({
+      ...defaultInspection,
+      isolated: "assembly",
+      hidden: ["cover"],
+    });
+    expect(cover.visible).toBe(false);
+    inspector.set({ ...defaultInspection, hidden: ["assembly"] });
+    expect(
+      visibleBounds(cover).isEmpty(),
+      "focus cannot reveal a child of a hidden assembly",
+    ).toBe(true);
+  } finally {
+    inspector.dispose();
+    vi.unstubAllGlobals();
+  }
+});
+
+test("caps inherit saved opacity and report unsupported open surfaces without inventing a solid", () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const model = new T.Group(),
+    scene = new T.Scene();
+  const solid = new T.Mesh(new T.BoxGeometry(), new T.MeshStandardMaterial());
+  const open = new T.Mesh(new T.PlaneGeometry(), new T.MeshStandardMaterial());
+  solid.userData.installedComponentId = "solid";
+  open.userData.installedComponentId = "open";
+  model.add(solid, open);
+  const reports: Array<{ openContours: number; degenerateContours: number }> =
+    [];
+  const inspector = new InspectionScene(
+    model,
+    scene,
+    new Map([
+      ["solid", solid],
+      ["open", open],
+    ]),
+    [
+      { name: "solid", installedComponentId: "solid", solid: true },
+      { name: "open", installedComponentId: "open", solid: true },
+    ],
+    () => {},
+    (d) => reports.push(d),
+  );
+  try {
+    inspector.set({
+      ...defaultInspection,
+      section: "X",
+      cut: 60,
+      opacity: 0.23,
+    });
+    vi.advanceTimersByTime(80);
+    expect(inspector.pickObjects.children.length).toBe(1);
+    const cap = inspector.pickObjects.children[0] as T.Mesh<
+      T.BufferGeometry,
+      T.Material
+    >;
+    expect(cap.material.opacity).toBe(0.23);
+    expect(cap.material.transparent).toBe(true);
+    expect(reports.at(-1)?.openContours).toBe(1);
+    inspector.set({ ...defaultInspection });
+    vi.advanceTimersByTime(80);
+    expect(inspector.pickObjects.children.length).toBe(0);
+    expect(reports.at(-1)?.openContours).toBe(0);
+  } finally {
+    inspector.dispose();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  }
+});

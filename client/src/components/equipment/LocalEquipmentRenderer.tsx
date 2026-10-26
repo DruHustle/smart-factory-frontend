@@ -45,7 +45,7 @@ type Props = {
   modelUrl: string;
   components: Component[];
   selected: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
   observations: Observation[];
   annotations: Array<{ componentId: string; text: string }>;
 };
@@ -94,7 +94,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
     const [inspection, setInspection] = useState<InspectionState>({
       ...defaultInspection,
     });
-    const [labels, setLabels] = useState(false);
+    const [sectionNotice, setSectionNotice] = useState("");
     const [performanceReport, setPerformanceReport] = useState("");
     const [measuring, setMeasuring] = useState(false);
     const inspectionRef = useRef(inspection);
@@ -108,10 +108,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       [message, setMessage] = useState(""),
       [attempt, setAttempt] = useState(0),
       [hidden, setHidden] = useState<string[]>([]),
-      [isolated, setIsolated] = useState<string | null>(null),
-      [transparent, setTransparent] = useState(false);
-    const transparentRef = useRef(transparent);
-    transparentRef.current = transparent;
+      [isolated, setIsolated] = useState<string | null>(null);
+    const transparent = (inspection.opacity ?? 1) < 1;
     const hiddenRef = useRef(hidden);
     hiddenRef.current = hidden;
     const isolatedRef = useRef(isolated);
@@ -127,7 +125,6 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                 target: r.controls.target.toArray(),
                 viewer: {
                   ...inspectionRef.current,
-                  opacity: transparentRef.current ? 0.32 : 1,
                   selected: latest.current.selected,
                   hidden: hiddenRef.current,
                   isolated: isolatedRef.current,
@@ -144,11 +141,14 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             [...v.eye, ...v.target].every(Number.isFinite)
           ) {
             if (v.viewer) {
-              setInspection({ ...defaultInspection, ...v.viewer });
-              setTransparent((v.viewer.opacity ?? 1) < 1);
+              setInspection({
+                ...defaultInspection,
+                ...v.viewer,
+                immediate: true,
+              });
               setHidden(v.viewer.hidden);
               setIsolated(v.viewer.isolated);
-              if (v.viewer.selected) latest.current.onSelect(v.viewer.selected);
+              latest.current.onSelect(v.viewer.selected);
             }
             r.camera.position.fromArray(v.eye);
             r.controls.target.fromArray(v.target);
@@ -182,7 +182,6 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       setProgress(0);
       setHidden([]);
       setIsolated(null);
-      setTransparent(false);
       setInspection({ ...defaultInspection });
       try {
         renderer = new THREE.WebGLRenderer({
@@ -536,6 +535,12 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
               currentRenderer.shadowMap.needsUpdate = true;
               render();
             },
+            ({ openContours, degenerateContours }) =>
+              setSectionNotice(
+                openContours || degenerateContours
+                  ? `${openContours} open and ${degenerateContours} ambiguous surfaces could not be capped. Clipping remains available.`
+                  : "",
+              ),
           );
           cleanupCallbacks.push(() => inspector.dispose());
           runtime.current = {
@@ -598,34 +603,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
     useEffect(() => {
       const r = runtime.current;
       if (!r || state !== "ready") return;
-      r.model.traverse((node) => {
-        node.visible = true;
-      });
-      r.nodes.forEach((node, id) => {
-        node.visible = !hidden.includes(id);
-        if (isolated) {
-          const selected = r.nodes.get(isolated);
-          const ancestor = (
-            parent: THREE.Object3D,
-            child: THREE.Object3D,
-          ): boolean =>
-            parent === child ||
-            Boolean(child.parent && ancestor(parent, child.parent));
-          node.visible =
-            !!selected &&
-            (ancestor(node, selected) || ancestor(selected, node));
-        }
-      });
-      if (isolated) {
-        const selected = r.nodes.get(isolated);
-        r.model.traverse((o) => {
-          if ((o as THREE.Mesh).isMesh)
-            o.visible = o.visible && !!selected && descends(o, selected);
-        });
-      }
       r.inspector.set({
         ...inspection,
-        opacity: transparent ? 0.32 : 1,
         selected: props.selected,
         hidden,
         isolated,
@@ -702,7 +681,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         >
           <div
             ref={label}
-            hidden={!labels}
+            hidden={!inspection.labels}
             className="pointer-events-none absolute z-[1] max-w-[75%] rounded bg-background/90 px-2 py-1 text-xs shadow"
             aria-hidden="true"
           />
@@ -745,6 +724,13 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           <Button
             variant="outline"
             disabled={state !== "ready" || !props.selected}
+            onClick={() => latest.current.onSelect(null)}
+          >
+            Clear selection
+          </Button>
+          <Button
+            variant="outline"
+            disabled={state !== "ready" || !props.selected}
             onClick={focus}
           >
             Focus selected
@@ -779,6 +765,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             onClick={() => {
               setHidden([]);
               setIsolated(null);
+              setInspection((v) => ({ ...v, covers: false, ghost: false }));
             }}
           >
             Show all
@@ -787,11 +774,18 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             variant="outline"
             disabled={state !== "ready"}
             aria-pressed={transparent}
-            onClick={() => setTransparent((v) => !v)}
+            onClick={() =>
+              setInspection((v) => ({ ...v, opacity: transparent ? 1 : 0.32 }))
+            }
           >
             Transparency
           </Button>
         </div>
+        {sectionNotice && (
+          <p role="status" className="text-sm">
+            {sectionNotice}
+          </p>
+        )}
         <div
           className="grid gap-3 rounded border p-3 text-sm sm:grid-cols-2"
           aria-label="Internal inspection"
@@ -959,7 +953,6 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
               setInspection({ ...defaultInspection });
               setHidden([]);
               setIsolated(null);
-              setTransparent(false);
             }}
           >
             Restore assembly
@@ -1006,8 +999,10 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           <label className="flex items-center gap-2 text-xs">
             <input
               type="checkbox"
-              checked={labels}
-              onChange={(e) => setLabels(e.target.checked)}
+              checked={inspection.labels ?? false}
+              onChange={(e) =>
+                setInspection((v) => ({ ...v, labels: e.target.checked }))
+              }
             />
             Selection label
           </label>
@@ -1022,7 +1017,6 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                   hidden: [...hidden],
                   isolated,
                   selected: props.selected,
-                  opacity: transparent ? 0.32 : 1,
                 },
                 eye = r.camera.position.clone(),
                 target = r.controls.target.clone();
@@ -1083,7 +1077,6 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                   const apply = (state: InspectionState) => {
                     setHidden(state.hidden);
                     setIsolated(state.isolated);
-                    setTransparent(false);
                     setInspection(state);
                   };
                   apply(stage.state);
@@ -1141,7 +1134,6 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                   setInspection(original);
                   setHidden(original.hidden);
                   setIsolated(original.isolated);
-                  setTransparent((original.opacity ?? 1) < 1);
                   r.camera.position.copy(eye);
                   r.controls.target.copy(target);
                   r.controls.update();

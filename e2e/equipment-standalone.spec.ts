@@ -216,6 +216,42 @@ test.describe("standalone native equipment monitoring", () => {
         page.getByRole("button", { name: "Return to latest" }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Return to latest" }).click();
+      // A saved inspection may deliberately have no selected component.
+      await page
+        .getByRole("button", { name: "Clear selection", exact: true })
+        .click();
+      await page.getByLabel("Selection label", { exact: true }).check();
+      await page.getByLabel("Viewpoint name").fill("Unselected inspection");
+      await page
+        .getByRole("button", { name: "Save viewpoint", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", {
+          name: "Open viewpoint: Unselected inspection",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await page.reload();
+      await expect(page.locator("[data-state=ready]")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Focus selected", exact: true }),
+      ).toBeDisabled();
+      await page.getByRole("button", { name: "Pump", exact: true }).click();
+      await expect(
+        page.getByRole("button", { name: "Focus selected", exact: true }),
+      ).toBeEnabled();
+      await page
+        .getByRole("button", {
+          name: "Open viewpoint: Unselected inspection",
+          exact: true,
+        })
+        .click();
+      await expect(
+        page.getByRole("button", { name: "Focus selected", exact: true }),
+      ).toBeDisabled();
+      await expect(
+        page.getByLabel("Selection label", { exact: true }),
+      ).toBeChecked();
       await page.getByRole("button", { name: "Switch to light theme" }).click();
       await page.screenshot({
         path: testInfo.outputPath(
@@ -645,6 +681,8 @@ for (const viewport of [
         expect(stage.durationMs).toBe(8000);
         expect(stage.warmupMs).toBe(1500);
         expect(stage.frames).toBeGreaterThan(5);
+        expect(stage.completed).toBe(true);
+        expect(stage.elapsedMs).toBeGreaterThanOrEqual(9500);
       }
       stats.sustained = sustained;
     }

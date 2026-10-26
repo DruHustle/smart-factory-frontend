@@ -9,6 +9,7 @@ export type InspectionPart = {
 };
 export type InspectionState = {
   opacity?: number;
+  labels?: boolean;
   immediate?: boolean;
   explode: number;
   scope: string | null;
@@ -32,6 +33,7 @@ export const defaultInspection: InspectionState = {
   covers: false,
   guides: false,
   opacity: 1,
+  labels: false,
   hidden: [],
   isolated: null,
   selected: null,
@@ -82,6 +84,18 @@ export class InspectionScene {
   );
   private owners = new Map<T.Mesh, InspectionPart | undefined>();
   private capKey = "";
+  private materialDefaults = new Map<
+    T.Material,
+    {
+      opacity: number;
+      transparent: boolean;
+      depthWrite: boolean;
+      emissive?: T.Color;
+      emissiveIntensity?: number;
+    }
+  >();
+  private originalMaterials = new Set<T.Material>();
+  private visibility = new Map<T.Object3D, boolean>();
   private state = { ...defaultInspection };
   readonly plane = new T.Plane();
   openContours = 0;
@@ -93,6 +107,10 @@ export class InspectionScene {
     private nodes: Map<string, T.Object3D>,
     private parts: InspectionPart[],
     private render: () => void,
+    private reportSections?: (d: {
+      openContours: number;
+      degenerateContours: number;
+    }) => void,
   ) {
     model.updateMatrixWorld(true);
     this.bounds = new T.Box3().setFromObject(model);
@@ -103,6 +121,7 @@ export class InspectionScene {
     const partsById = new Map(parts.map((p) => [p.installedComponentId, p]));
     const materials = new Map<string, Map<T.Material, T.Material>>();
     model.traverse((o) => {
+      this.visibility.set(o, o.visible);
       const mesh = o as T.Mesh;
       if (!mesh.isMesh) return;
       let n: T.Object3D | null = o,
@@ -116,7 +135,19 @@ export class InspectionScene {
       if (!materials.has(key)) materials.set(key, new Map());
       const cache = materials.get(key)!;
       const clone = (m: T.Material) => {
-        if (!cache.has(m)) cache.set(m, m.clone());
+        if (!cache.has(m)) {
+          const copy = m.clone(),
+            standard = copy as T.MeshStandardMaterial;
+          cache.set(m, copy);
+          this.originalMaterials.add(m);
+          this.materialDefaults.set(copy, {
+            opacity: m.opacity,
+            transparent: m.transparent,
+            depthWrite: m.depthWrite,
+            emissive: standard.emissive?.clone(),
+            emissiveIntensity: standard.emissiveIntensity,
+          });
+        }
         return cache.get(m)!;
       };
       mesh.material = Array.isArray(mesh.material)
@@ -150,6 +181,7 @@ export class InspectionScene {
       { position: T.Vector3; quaternion: T.Quaternion; scale: T.Vector3 }
     >,
     progress = 1,
+    draw = true,
   ) {
     const scope = this.state.scope ? this.nodes.get(this.state.scope) : null;
     for (const p of this.parts) {
@@ -199,13 +231,23 @@ export class InspectionScene {
     positions.needsUpdate = true;
     this.guideLine.geometry.setDrawRange(0, count);
     this.guideLine.visible = count > 0;
-    this.render();
+    if (draw) this.render();
+  }
+  private scheduleCap() {
+    if (!this.timer)
+      this.timer = setTimeout(() => {
+        this.timer = undefined;
+        this.cap();
+      }, 80);
   }
   set(state: InspectionState) {
     const changed =
       state.explode !== this.state.explode || state.scope !== this.state.scope;
     this.state = state;
-    cancelAnimationFrame(this.animation);
+    if (changed) {
+      cancelAnimationFrame(this.animation);
+      this.animation = 0;
+    }
     const capKey = JSON.stringify([
       state.explode,
       state.scope,
@@ -216,11 +258,25 @@ export class InspectionScene {
       state.covers,
       state.hidden,
       state.isolated,
+      state.opacity,
     ]);
     const recut = capKey !== this.capKey;
     this.capKey = capKey;
-    if (recut) this.clear(this.caps);
+    if (recut) {
+      this.clear(this.caps);
+      clearTimeout(this.timer);
+      this.timer = undefined;
+    }
+    const isolated = state.isolated
+      ? this.nodes.get(state.isolated)
+      : undefined;
     this.model.traverse((o) => {
+      const id = o.userData.installedComponentId;
+      o.visible =
+        this.visibility.get(o) !== false && !state.hidden.includes(id);
+      if (state.isolated)
+        o.visible &&=
+          !!isolated && (descends(o, isolated) || descends(isolated, o));
       const m = o as T.Mesh;
       if (!m.material) return;
       const owner = this.owners.get(m);
@@ -230,15 +286,19 @@ export class InspectionScene {
       for (const material of Array.isArray(m.material)
         ? m.material
         : [m.material]) {
-        const opacity = ghost ? 0.15 : (state.opacity ?? 1),
-          transparent = opacity < 1,
+        const base = this.materialDefaults.get(material)!;
+        const factor = ghost
+            ? Math.min(0.15, state.opacity ?? 1)
+            : (state.opacity ?? 1),
+          opacity = base.opacity * factor,
+          transparent = base.transparent || factor < 1,
           clipped = state.section !== "off";
         const update =
           material.transparent !== transparent ||
           !!material.clippingPlanes?.length !== clipped;
         material.opacity = opacity;
         material.transparent = transparent;
-        material.depthWrite = !transparent;
+        material.depthWrite = factor < 1 ? false : base.depthWrite;
         material.clippingPlanes = clipped ? [this.plane] : [];
         material.clipShadows = true;
         const standard = material as T.MeshStandardMaterial;
@@ -252,24 +312,37 @@ export class InspectionScene {
             selected.parent !== null &&
             owner &&
             descends(m, selected);
-          standard.emissive.setHex(emphasis ? 0x153749 : 0);
-          standard.emissiveIntensity = emphasis ? 0.22 : 0;
+          standard.emissive.copy(base.emissive!);
+          standard.emissiveIntensity = base.emissiveIntensity!;
+          if (emphasis) {
+            standard.emissive
+              .multiplyScalar(base.emissiveIntensity!)
+              .add(new T.Color(0x153749).multiplyScalar(0.22));
+            standard.emissiveIntensity = 1;
+          }
         }
         if (update) material.needsUpdate = true;
       }
     });
-    const starts = new Map(
-      [...this.nodes.values()].map((n) => [
-        n,
-        {
-          position: n.position.clone(),
-          quaternion: n.quaternion.clone(),
-          scale: n.scale.clone(),
-        },
-      ]),
-    );
-    this.pose(state.explode / 100);
-    this.bounds = new T.Box3().setFromObject(this.model);
+    const starts = changed
+      ? new Map(
+          [...this.nodes.values()].map((n) => [
+            n,
+            {
+              position: n.position.clone(),
+              quaternion: n.quaternion.clone(),
+              scale: n.scale.clone(),
+            },
+          ]),
+        )
+      : undefined;
+    if (changed) {
+      // Determine the section range at the destination without submitting a
+      // destination frame. Restore the actual in-flight pose before animation.
+      this.pose(state.explode / 100, undefined, 1, false);
+      this.bounds.setFromObject(this.model);
+      this.pose(state.explode / 100, starts, 0, false);
+    }
     const axis = state.section === "X" ? 0 : state.section === "Y" ? 1 : 2;
     const value =
       this.bounds.min.getComponent(axis) +
@@ -288,26 +361,33 @@ export class InspectionScene {
           ease = t * t * (3 - 2 * t);
         this.amount = start + (target - start) * ease;
         this.pose(target, starts, ease);
-        if (t < 1) this.animation = requestAnimationFrame(step);
-        else this.cap();
+        if (t < 1) {
+          this.animation = requestAnimationFrame(step);
+          if (this.state.section !== "off") this.scheduleCap();
+        } else {
+          this.animation = 0;
+          this.cap();
+        }
       };
       this.animation = requestAnimationFrame(step);
-    } else {
+    } else if (!this.animation) {
       this.amount = target;
       this.pose(target);
-      if (recut && !this.timer)
-        this.timer = setTimeout(() => {
-          this.timer = undefined;
-          this.cap();
-        }, 80);
-    }
+    } else this.render();
+    if (recut) this.scheduleCap();
   }
   private cap() {
+    clearTimeout(this.timer);
+    this.timer = undefined;
     this.clear(this.caps);
     this.openContours = 0;
     this.tangentContacts = 0;
     this.degenerateContours = 0;
-    if (this.state.section === "off") return;
+    if (this.state.section === "off") {
+      this.reportSections?.(this.diagnostics());
+      this.render();
+      return;
+    }
     this.model.updateMatrixWorld(true);
     this.model.traverse((o) => {
       const mesh = o as T.Mesh;
@@ -332,6 +412,9 @@ export class InspectionScene {
           result.geometry,
           new T.MeshStandardMaterial({
             color: 0xe3ab65,
+            opacity: this.state.opacity ?? 1,
+            transparent: (this.state.opacity ?? 1) < 1,
+            depthWrite: (this.state.opacity ?? 1) === 1,
             roughness: 0.72,
             metalness: 0.15,
             side: T.DoubleSide,
@@ -344,6 +427,7 @@ export class InspectionScene {
         this.caps.add(cap);
       }
     });
+    this.reportSections?.(this.diagnostics());
     this.render();
   }
   accepts(point: T.Vector3) {
@@ -386,5 +470,6 @@ export class InspectionScene {
     this.clear(this.caps);
     this.clear(this.guides);
     this.scene.remove(this.caps, this.guides);
+    this.originalMaterials.forEach((m) => m.dispose());
   }
 }
