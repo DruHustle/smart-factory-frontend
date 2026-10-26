@@ -10,6 +10,16 @@ export default defineConfig({
     ...devices["Desktop Chrome"],
     baseURL: process.env.WORKSPACE_E2E_BASE_URL ?? "http://127.0.0.1:3118",
     trace: "retain-on-failure",
+    launchOptions: {
+      args:
+        process.env.EQUIPMENT_RENDERER === "metal"
+          ? ["--use-gl=angle", "--use-angle=metal"]
+          : [
+              "--use-gl=angle",
+              "--use-angle=swiftshader",
+              "--enable-unsafe-swiftshader",
+            ],
+    },
   },
   timeout: 60000,
 });
