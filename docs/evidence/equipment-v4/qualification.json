@@ -1,6 +1,6 @@
 {
   "recordedDate": "2026-10-26",
-  "testedFrontendSource": "7f7e3324845ebcae50759681adabb873db9cd087",
+  "testedFrontendSource": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
   "backend": "fe86aca64aa09f6aca2efa6ad8ee9793f081ab5b",
   "edge": "700c9a55a211105171a1d58a8a3b3c3ce5832125",
   "model": {
@@ -581,7 +581,7 @@
   },
   "beforeGeometry": {
     "revision": 3,
-    "viewerSource": "7f7e3324845ebcae50759681adabb873db9cd087",
+    "viewerSource": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
     "method": "Archived owned v3 GLB/template imported through the authorized UI. Matching view direction and controls; bounds fitted per revision. Exact camera coordinates are retained in each per-view JSON."
   },
   "originalWorkspaceBeforeSource": "0a7601694c14aea9a09585cc5188c08fe17cdcfa",
@@ -592,14 +592,15 @@
     "mode": "Headless Chromium / ANGLE Metal; physical phone and field equipment separate"
   },
   "freshCheckout": {
-    "path": "/private/tmp/smart-factory-7f7e332-independent/frontend",
+    "path": "/private/tmp/smart-factory-ed7b0f3-independent/frontend",
     "siblings": [
       "frontend"
     ],
     "install": "pnpm install --offline --frozen-lockfile",
     "privateEnvFiles": false,
     "optionalPeerConfiguration": false,
-    "browserNetwork": "Every non-app origin blocked; raw audited requests recorded separately. Unrelated existing host services were left untouched."
+    "browserNetwork": "Every non-app origin blocked; raw audited requests recorded separately. Unrelated existing host services were left untouched.",
+    "manifest": "fresh-checkout.json"
   },
   "provenanceFixtureSha256": "cd4012bd0d2c6f82674f743f6f6041c980b5dc17ee0fa35b6455b0174cb7cdf6",
   "geometryRegeneration": "Pinned authoring toolchain reproduced identical GLB bytes; AAS 3.0 metamodel, AASX contents, hashes/BOM and stable v3 IDs independently verified.",
@@ -616,24 +617,24 @@
   },
   "browserRuns": {
     "native": {
-      "startTime": "2026-10-26T00:52:03.535Z",
-      "duration": 325807.80799999996,
+      "startTime": "2026-10-26T01:51:24.098Z",
+      "duration": 342674.472,
       "expected": 5,
       "skipped": 1,
       "unexpected": 0,
       "flaky": 0
     },
     "metal": {
-      "startTime": "2026-10-26T00:57:35.687Z",
-      "duration": 133424.35199999998,
+      "startTime": "2026-10-26T01:57:21.208Z",
+      "duration": 134161.426,
       "expected": 1,
       "skipped": 0,
       "unexpected": 0,
       "flaky": 0
     },
     "before": {
-      "startTime": "2026-10-26T00:59:55.419Z",
-      "duration": 63186.071,
+      "startTime": "2026-10-26T12:05:58.333Z",
+      "duration": 63697.337,
       "expected": 1,
       "skipped": 0,
       "unexpected": 0,
@@ -642,23 +643,23 @@
   },
   "network": {
     "1440": {
-      "attempted": 232,
+      "attempted": 342,
       "peer": 0,
-      "blockedOptionalAnalytics": 2
+      "blockedOptionalAnalytics": 3
     },
     "768": {
-      "attempted": 230,
+      "attempted": 339,
       "peer": 0,
-      "blockedOptionalAnalytics": 2
+      "blockedOptionalAnalytics": 3
     },
     "390": {
-      "attempted": 230,
+      "attempted": 339,
       "peer": 0,
-      "blockedOptionalAnalytics": 2
+      "blockedOptionalAnalytics": 3
     }
   },
   "regressionResults": {
-    "frontendTests": 260,
+    "frontendTests": 266,
     "frontendFiles": 34,
     "backendTests": 207,
     "edgeTests": 61,
@@ -669,13 +670,25 @@
   "ci": {
     "backend": "https://github.com/DruHustle/smart-factory-iot-backend/actions/runs/40246092902",
     "edge": "https://github.com/DruHustle/smart-factory-iot-edge/actions/runs/40246096767",
-    "frontendFunctional": "https://github.com/DruHustle/smart-factory-iot-frontend/actions/runs/40252041091"
+    "frontendFunctional": "https://github.com/DruHustle/smart-factory-iot-frontend/actions/runs/40256170189"
   },
   "regressionSources": {
-    "frontendUnit": "cf2ba304bf367caf9da58a6e2f289b18b61e87f6",
-    "frontendPublicBrowser": "cf5039be6196c74828c0fc270745ccd37be923bf",
-    "frontendNativeAndMetal": "7f7e3324845ebcae50759681adabb873db9cd087",
+    "frontendUnit": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
+    "frontendPublicBrowser": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
+    "frontendNativeAndMetal": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
     "backend": "fe86aca64aa09f6aca2efa6ad8ee9793f081ab5b",
     "edge": "700c9a55a211105171a1d58a8a3b3c3ce5832125"
+  },
+  "reAudit": {
+    "failuresAndRegressionCoverage": "inspection-regressions.json",
+    "priorQualificationSource": "7f7e3324845ebcae50759681adabb873db9cd087",
+    "focusedTests": 131,
+    "focusedFiles": 3,
+    "modelBytesUnchanged": true,
+    "notes": "New immutable source checkout replaces prior captures/measurements; no source changes while qualification ran.",
+    "captureManifest": "capture-manifest.json",
+    "localFinalRegressionCommand": "E2E_PORT=3116 E2E_DATABASE_PORT=55439 E2E_REDIS_PORT=56386 E2E_COMPOSE_PROJECT=smart-factory-reaudit-regressions pnpm e2e",
+    "finalRegressionLog": "public-browser-regressions.log",
+    "independentIngestionProofSource": "30ee4f9da1ef6275a5b3f513fcb3ef03127d30ed"
   }
 }

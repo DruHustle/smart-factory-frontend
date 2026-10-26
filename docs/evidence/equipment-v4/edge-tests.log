@@ -1,6 +1,6 @@
 .............................................................
 ----------------------------------------------------------------------
-Ran 61 tests in 0.037s
+Ran 61 tests in 0.058s
 
 OK
 [MQTT] telemetry queued -> factory/factory-a/line-1/pi-edge-01/telemetry

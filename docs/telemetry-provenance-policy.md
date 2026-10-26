@@ -19,3 +19,5 @@ Migration `20261026_telemetry_quarantine.sql` adds DeliveryQuarantinedAt and Del
 ## Verification
 
 Before the fix, the locally owned fixture suite reproduced 16 Node and 72 .NET disagreements; edge forwarded invalid metadata. Focused backend queue tests also failed for historical invalid metadata, repeated 422 and timeout recovery. After alignment all 99 policy cases pass in each implementation; delivery regressions cover permanent quarantine and transient recovery without source identity changes. The repository evidence records exact final tests, source commits and actual Smart Factory MQTT simulated/replay traversal separately.
+
+The Node HTTP receiver returns at most eight field/code diagnostics, with each path restricted to 96 ASCII characters. It never echoes invalid field values or arbitrary unknown keys. Oversized invalid-field regression responses remain below 2 KiB; the provenance acceptance limits above are unchanged.

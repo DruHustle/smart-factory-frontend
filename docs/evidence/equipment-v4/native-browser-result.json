@@ -1,0 +1,11 @@
+{
+  "testedSource": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
+  "stats": {
+    "startTime": "2026-10-26T01:51:24.098Z",
+    "duration": 342674.472,
+    "expected": 5,
+    "skipped": 1,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

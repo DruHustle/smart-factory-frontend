@@ -1,0 +1,93 @@
+
+> smart-factory-iot@1.0.0 e2e:equipment /private/tmp/smart-factory-ed7b0f3-independent/frontend
+> bash scripts/equipment/e2e.sh --reporter=json
+
+ Network smart-factory-native-e2e_default Creating
+ Network smart-factory-native-e2e_default Creating
+ Network smart-factory-native-e2e_default Created
+ Network smart-factory-native-e2e_default Created
+ Container smart-factory-native-e2e-redis-1 Creating
+ Container smart-factory-native-e2e-database-1 Creating
+ Container smart-factory-native-e2e-redis-1 Created
+ Container smart-factory-native-e2e-database-1 Created
+ Container smart-factory-native-e2e-redis-1 Starting
+ Container smart-factory-native-e2e-database-1 Starting
+ Container smart-factory-native-e2e-redis-1 Started
+ Container smart-factory-native-e2e-database-1 Started
+ Container smart-factory-native-e2e-database-1 Waiting
+ Container smart-factory-native-e2e-redis-1 Waiting
+ Container smart-factory-native-e2e-redis-1 Healthy
+ Container smart-factory-native-e2e-database-1 Healthy
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/private/tmp/smart-factory-ed7b0f3-independent/frontend/drizzle.config.ts'
+Using 'postgres' driver for database querying
+[⣷] applying migrations...[✓] migrations applied successfully!Individual local equipment fixture account ready
+Server running on http://localhost:3113 (Port: 3113)
+[Bootstrap] API demo scenario initialized
+[WebSocket] Redis fan-out connected
+[WebSocket] Server initialized
+
+Running 6 tests using 1 worker
+
+[1/6] e2e/equipment-standalone.spec.ts:36:5 › standalone native equipment monitoring › local context, files, simulation and saved work at 1440px without peer access
+[2/6] e2e/equipment-standalone.spec.ts:36:5 › standalone native equipment monitoring › local context, files, simulation and saved work at 768px without peer access
+[3/6] e2e/equipment-standalone.spec.ts:36:5 › standalone native equipment monitoring › local context, files, simulation and saved work at 390px without peer access
+[4/6] e2e/equipment-standalone.spec.ts:307:1 › public equipment demonstration is read-only and local files require authentication
+[5/6] e2e/equipment-standalone.spec.ts:342:3 › detailed reference inspection and measurement at 1440px
+e2e/equipment-standalone.spec.ts:342:3 › detailed reference inspection and measurement at 1440px
+workspace dimensions { width: 1440, height: 2453 }
+
+(node:7459) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+workspace dimensions { width: 1440, height: 2453 }
+
+workspace dimensions { width: 1440, height: 2497 }
+
+workspace dimensions { width: 1440, height: 2497 }
+
+workspace dimensions { width: 1440, height: 2497 }
+
+workspace dimensions { width: 1440, height: 2513 }
+
+workspace dimensions { width: 1440, height: 2557 }
+
+workspace dimensions { width: 1440, height: 2541 }
+
+workspace dimensions { width: 1440, height: 2541 }
+
+workspace dimensions { width: 1440, height: 2541 }
+
+workspace dimensions { width: 1440, height: 2673 }
+
+[6/6] e2e/equipment-standalone.spec.ts:342:3 › detailed reference inspection and measurement at 390px
+e2e/equipment-standalone.spec.ts:342:3 › detailed reference inspection and measurement at 390px
+workspace dimensions { width: 390, height: 3717 }
+
+workspace dimensions { width: 390, height: 3717 }
+
+workspace dimensions { width: 390, height: 3305 }
+
+workspace dimensions { width: 390, height: 3305 }
+
+workspace dimensions { width: 390, height: 3305 }
+
+workspace dimensions { width: 390, height: 3353 }
+
+workspace dimensions { width: 390, height: 3865 }
+
+workspace dimensions { width: 390, height: 3349 }
+
+workspace dimensions { width: 390, height: 3517 }
+
+workspace dimensions { width: 390, height: 3349 }
+
+workspace dimensions { width: 390, height: 3985 }
+
+  Slow test file: e2e/equipment-standalone.spec.ts (5.7m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 skipped
+  5 passed (5.7m)
+SIGTERM signal received: closing HTTP server
+[WebSocket] Server shut down
+HTTP server and database pool closed

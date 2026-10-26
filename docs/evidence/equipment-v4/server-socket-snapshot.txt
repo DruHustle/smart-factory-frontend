@@ -1,0 +1,8 @@
+COMMAND  PID         USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    7411 andrewgotora   26u  IPv4 0xeecaf218ebebc9a2      0t0  TCP 127.0.0.1:52501->127.0.0.1:56383 (ESTABLISHED)
+node    7411 andrewgotora   29u  IPv4 0xc633cbc29db20ee7      0t0  TCP *:3113 (LISTEN)
+node    7411 andrewgotora   59u  IPv4 0x9d8a4bafa455fc1f      0t0  TCP 127.0.0.1:52499->127.0.0.1:55436 (ESTABLISHED)
+node    7411 andrewgotora   60u  IPv4 0xee9f9b89d5c862e9      0t0  TCP 127.0.0.1:52502->127.0.0.1:56383 (ESTABLISHED)
+node    7411 andrewgotora   63u  IPv4 0xa0034adfab93ed2e      0t0  TCP 127.0.0.1:3113->127.0.0.1:52602 (ESTABLISHED)
+node    7411 andrewgotora   64u  IPv4 0x484b917ab36e8980      0t0  TCP 127.0.0.1:52514->127.0.0.1:55436 (ESTABLISHED)
+node    7411 andrewgotora   67u  IPv4 0x3a87cc00a756685b      0t0  TCP 127.0.0.1:3113->127.0.0.1:52605 (ESTABLISHED)

@@ -1,6 +1,6 @@
 # Independent equipment workspace: final evidence
 
-Recorded 2026-10-26. Tested frontend source **`7f7e3324845ebcae50759681adabb873db9cd087`**, model revision **4**, SHA-256 **`cb1d547822ae954d698ae330ee6d2083fa966f6af3aec889c4605c1305d29712`**. Evidence committed afterward identifies this tested source explicitly. Backend: `fe86aca64aa09f6aca2efa6ad8ee9793f081ab5b`; edge: `700c9a55a211105171a1d58a8a3b3c3ce5832125`. [Machine-readable qualification](evidence/equipment-v4/qualification.json) retains source, model, device and run details. No merge or manual production deployment occurred.
+Recorded 2026-10-26. Tested frontend source **`ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8`**, model revision **4**, SHA-256 **`cb1d547822ae954d698ae330ee6d2083fa966f6af3aec889c4605c1305d29712`**. Evidence committed afterward identifies this tested source explicitly. Backend: `fe86aca64aa09f6aca2efa6ad8ee9793f081ab5b`; edge: `700c9a55a211105171a1d58a8a3b3c3ce5832125`. [Machine-readable qualification](evidence/equipment-v4/qualification.json) retains source, model, device and run details. No merge or manual production deployment occurred.
 
 ## Acceptance
 
@@ -13,6 +13,12 @@ Recorded 2026-10-26. Tested frontend source **`7f7e3324845ebcae50759681adabb873d
 | 5. Target hardware performance | Pending mobile; desktop target observed | Apple M3 Metal desktop has approximately 60 FPS median across all seven stages; raw p95/settings below. A representative physical phone's 30 FPS target remains unqualified. |
 | 6. Actual external consumer | Pending | No accepted actual Onesa twin ingestion endpoint/access was available. Mock/proposed protocol results do not establish consumer compatibility. |
 | 7. Physical-device qualification | Pending | No physical phone, field gateway, PLC or factory equipment was exercised. Generated MQTT data remains simulated/replay. |
+
+## Re-audit corrections
+
+The follow-up audit reproduced a destination-frame flash in explosion and loss of imported material opacity. It also found that selection/telemetry refreshes finished in-flight motion, empty saved selections restored incorrectly, hidden ancestors affected focus, and uniformly transparent/alpha-discarded imported surfaces could affect selection and framing. These are corrected, with actual raycasting and transition/reversal regression coverage. Imported emission/alpha and alpha-mask thresholds restore correctly; section caps obey global opacity and skip invisible material. Cover/isolation visibility is applied in one place. Saved views retain optional labels and an intentionally empty selection across reload, and open/ambiguous section surfaces receive a concise diagnostic.
+
+The HTTP telemetry boundary now returns at most eight bounded field/code diagnostics without echoing invalid values or arbitrary unknown keys. A large invalid payload is rejected through the authenticated real route. The setup guide now names revision 4 and retained revisions 1–3. [Reproduced failures and regression coverage](evidence/equipment-v4/inspection-regressions.json) distinguish these corrections from the earlier qualification.
 
 ## Mechanical asset and completed geometry checklist
 
@@ -36,6 +42,7 @@ The comparison imports archived v3 geometry and its original mapping through the
 
 | Inspection | Archived v3 geometry | Final v4 geometry |
 | --- | --- | --- |
+| Full workspace | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-workspace-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-workspace-1440.png) |
 | Assembled | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-1440.png) |
 | Whole explosion | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/fully-exploded-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/fully-exploded-1440.png) |
 | Seal | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/seal-subassembly-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/seal-subassembly-1440.png) |
@@ -44,6 +51,7 @@ The comparison imports archived v3 geometry and its original mapping through the
 | Bearing internals | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/bearing-closeup-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/bearing-closeup-1440.png) |
 | Winding bundles | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-1440.png) |
 | Motor internals | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/motor-closeup-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/motor-closeup-1440.png) |
+| Focused winding phase | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-1440.png) |
 | Ghosted housing | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/ghost-housings-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/ghost-housings-1440.png) |
 | Hollow section | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/sectioned-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/sectioned-1440.png) |
 | Exact restoration | [Before](evidence/equipment-v4/revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/restored-1440.png) | [After](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/restored-1440.png) |
@@ -58,13 +66,13 @@ Each scripted stage has **1.5 s warm-up + 8 s sustained interaction**, totaling 
 
 | Stage | M3 Metal desktop | SwiftShader desktop viewport | SwiftShader narrow viewport |
 | --- | ---: | ---: | ---: |
-| assembled orbit | 16.7 / 18.3 | 149.9 / 199 | 33.3 / 34.8 |
-| whole assembly explosion and immediate scrub | 16.7 / 18.4 | 233.2 / 300.4 | 16.7 / 67.4 |
-| motor subassembly inspection | 16.7 / 18.3 | 98.9 / 184.1 | 16.7 / 33.1 |
-| moving hollow section | 16.7 / 33.3 | 498.7 / 584.4 | 66.7 / 216.6 |
-| transparent housings | 16.7 / 18.5 | 148.3 / 183.8 | 33.3 / 34.9 |
-| focused winding bundles | 16.7 / 18.3 | 66.7 / 83.9 | 16.7 / 18.5 |
-| exact restoration | 16.7 / 18.3 | 133.8 / 198.4 | 33.3 / 34.6 |
+| assembled orbit | 16.7 / 18.3 | 134.7 / 167.3 | 33.3 / 34.9 |
+| whole assembly explosion and immediate scrub | 16.7 / 18.4 | 250 / 299.8 | 33.3 / 67 |
+| motor subassembly inspection | 16.7 / 18.4 | 100 / 150.7 | 16.7 / 33.4 |
+| moving hollow section | 16.7 / 33.3 | 700.7 / 1050.2 | 66.6 / 184.7 |
+| transparent housings | 16.7 / 18.4 | 166.6 / 266.5 | 33.3 / 35 |
+| focused winding bundles | 16.7 / 18.4 | 50.1 / 100.9 | 16.7 / 18.1 |
+| exact restoration | 16.7 / 18.4 | 149.9 / 183.9 | 33.3 / 34.9 |
 
 Approximately 16.7 ms desktop / 33.3 ms mobile are median interaction targets, with p95 reported separately. The M3 run meets the approximate desktop median target under these conditions. Software-renderer timings do not qualify hardware or a physical phone. The narrow 390×844 viewport is emulated on the same host. [Metal raw data](evidence/equipment-v4/metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/reference-performance.json), [software desktop](evidence/equipment-v4/software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/reference-performance.json) and [software narrow](evidence/equipment-v4/software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/reference-performance.json) retain intervals, draw counts and settings.
 
@@ -76,12 +84,14 @@ The [owned policy](telemetry-provenance-policy.md) defines exact mode/run types,
 
 Focused before-tests reproduced upstream/downstream disagreement and rejected-delivery retries. After alignment, all 99 cases pass in each implementation; edge tests both MQTT and serial. Historical invalid and permanent receiver failures enter bounded diagnostic quarantine without a false acknowledgement; deliberate transient statuses and unconfirmed timeouts retry the same source identity and recover. [Regression evidence](evidence/equipment-v4/provenance-regressions.json) distinguishes those cases.
 
-The committed proof traversed the existing durable edge publisher, real Mosquitto, .NET 8 persistence/bridge and authenticated Node receiver with optional peer export disabled. During receiver outage, all 20 source samples persisted and remained pending (up to three attempts); after recovery, 10 simulated and 10 replay samples across two assets per mode were acknowledged, with canonical UTC metadata and zero quarantine. [Recovery evidence](evidence/equipment-v4/provenance-recovery.json) records exact ingestion-source revisions, which are unchanged in the final asset/renderer revision. This proves the available Smart Factory path, not physical machinery or actual Onesa acceptance.
+The repeated proof at frontend ingestion source `30ee4f9da1ef6275a5b3f513fcb3ef03127d30ed` traversed the existing durable edge publisher, real Mosquitto, .NET 8 persistence/bridge and authenticated Node receiver with optional peer export disabled. During receiver outage, all 20 source samples persisted and remained pending (up to three attempts); after recovery, 10 simulated and 10 replay samples across two assets per mode were acknowledged, with canonical UTC metadata and zero quarantine. [Recovery evidence](evidence/equipment-v4/provenance-recovery.json) records exact ingestion-source revisions, whose ingestion files are unchanged in the final renderer revision. This proves the available Smart Factory path, not physical machinery or actual Onesa acceptance.
 
 ## Independent startup, tests and rollout boundary
 
-The final-source clone contains only the frontend repository, no sibling checkout, private environment file, peer credentials, cached peer model or custom peer package. Frozen installation uses the ordinary local pnpm cache. The app starts with optional integration variables unset and its own disposable PostgreSQL/Redis. Unrelated existing host services were left untouched. Every browser origin except the exact app origin is blocked: 1440px: 232 attempts, zero peer requests, 2 blocked analytics attempts; 768px: 230 attempts, zero peer requests, 2 blocked analytics attempts; 390px: 230 attempts, zero peer requests, 2 blocked analytics attempts. Blocked attempts are optional Vercel analytics (`va.vercel-scripts.com`), not required peer traffic. Raw [desktop](evidence/equipment-v4/network-audit-1440.json), [tablet](evidence/equipment-v4/network-audit-768.json) and [narrow](evidence/equipment-v4/network-audit-390.json) audits retain sanitized URLs.
+The [fresh-checkout manifest and server TCP snapshot](evidence/equipment-v4/fresh-checkout.json) supplement the complete browser request audit. The final-source clone contains only the frontend repository, no sibling checkout, private environment file, peer credentials, cached peer model or custom peer package. Frozen installation uses the ordinary local pnpm cache. The app starts with optional integration variables unset and its own disposable PostgreSQL/Redis. Unrelated existing host services were left untouched. Every browser origin except the exact app origin is blocked: 1440px: 342 attempts, zero peer requests, 3 blocked analytics attempts; 768px: 339 attempts, zero peer requests, 3 blocked analytics attempts; 390px: 339 attempts, zero peer requests, 3 blocked analytics attempts. Blocked attempts are optional Vercel analytics (`va.vercel-scripts.com`), not required peer traffic. Raw [desktop](evidence/equipment-v4/network-audit-1440.json), [tablet](evidence/equipment-v4/network-audit-768.json) and [narrow](evidence/equipment-v4/network-audit-390.json) audits retain sanitized URLs.
 
-Validation: 260 frontend tests across 34 files; 207 backend tests; 61 edge tests; public/auth/dashboard/AAS browser regressions 26 passed / 7 expected opt-in skips; final native suite 5 passed / 1 public-only skip, plus the Metal and archived-comparison workflows. Type checking/build, schema drift checks, AAS 3.0/AASX/hash/BOM validation, documentation/deployment checks and repository CI are recorded with their exact revisions. [Frontend tests](evidence/equipment-v4/unit-tests.log), [backend](evidence/equipment-v4/backend-tests.log), [edge](evidence/equipment-v4/edge-tests.log), [type check](evidence/equipment-v4/typecheck.log) and [build](evidence/equipment-v4/build.log) are retained.
+Validation: 266 frontend tests across 34 files; 207 backend tests; 61 edge tests; public/auth/dashboard/AAS browser regressions 26 passed / 7 expected opt-in skips; final native suite 5 passed / 1 public-only skip, plus the Metal and archived-comparison workflows. Type checking/build, schema drift checks, AAS 3.0/AASX/hash/BOM validation, documentation/deployment checks and repository CI are recorded with their exact revisions. [Frontend tests](evidence/equipment-v4/unit-tests.log), [backend](evidence/equipment-v4/backend-tests.log), [edge](evidence/equipment-v4/edge-tests.log), [type check](evidence/equipment-v4/typecheck.log) and [build](evidence/equipment-v4/build.log) are retained.
+
+CI at the tested sources passed: [frontend](https://github.com/DruHustle/smart-factory-iot-frontend/actions/runs/40256170189), [backend](https://github.com/DruHustle/smart-factory-iot-backend/actions/runs/40246092902), [edge](https://github.com/DruHustle/smart-factory-iot-edge/actions/runs/40246096767). The [capture manifest](evidence/equipment-v4/capture-manifest.json) records hashes for every refreshed capture and performance file.
 
 Use the actual [startup/auth/import/view instructions](equipment-view.md), [geometry regeneration](equipment-reference.md) and [quarantine/retry policy](telemetry-provenance-policy.md). Individual engineer/admin authorization is required for edits; shared demonstrations remain read-only and file delivery authenticated. Preserve immutable revisions, installed IDs, backups and additive migrations on rollback. PRs remain drafts; no production merge or manual deployment is part of this qualification.

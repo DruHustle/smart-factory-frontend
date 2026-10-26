@@ -1,0 +1,5 @@
+
+> smart-factory-iot@1.0.0 equipment:schemas:check /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend
+> node --import tsx scripts/equipment/generate-schemas.ts --check
+
+App-owned equipment schemas verified

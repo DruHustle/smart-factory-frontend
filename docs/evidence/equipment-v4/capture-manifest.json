@@ -1,0 +1,496 @@
+{
+  "source": "ed7b0f3d4f792c00008c2fd750f8f1bcf50137a8",
+  "modelSha256": "cb1d547822ae954d698ae330ee6d2083fa966f6af3aec889c4605c1305d29712",
+  "files": [
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-1440.png",
+      "bytes": 82035,
+      "sha256": "044e01908638053d21f47206eea325379aaa9f8d8b419e9709583700027b7cbf"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-workspace-1440.png",
+      "bytes": 349861,
+      "sha256": "49e540b5b4dd439440e8037717ce0d37d6079564618d633d1e3b2605dfe3d193"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/bearing-closeup-1440.png",
+      "bytes": 52585,
+      "sha256": "3df2d403d1f64268a1fe8cfe82b52f64bc8f699385a3331f6b7d905c3652c58b"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/bearing-closeup-workspace-1440.png",
+      "bytes": 329612,
+      "sha256": "2d8f24e1476e2686a87933223bcf69add26e412088c84f38a5903a6ec404f2c0"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/coupling-closeup-1440.png",
+      "bytes": 41402,
+      "sha256": "316fd716942e34a3e9c609f881923b5c9dc6432919b1bc4ce2b26e2c7caab2e3"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/coupling-closeup-workspace-1440.png",
+      "bytes": 304712,
+      "sha256": "0eefa2c11fce465cd0379024b105f5f3b09f720b85d62447ad1ee306b1773e72"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/fully-exploded-1440.png",
+      "bytes": 84412,
+      "sha256": "6b168d0a00bec01433ec3f4a60d618e2815897a80b08e55a0e947f5486fe8d48"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/fully-exploded-workspace-1440.png",
+      "bytes": 351400,
+      "sha256": "8a04d870d4ad9bb72499e7948b5b267948d8968cdfcd9be7d14b9178a451df7d"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/ghost-housings-1440.png",
+      "bytes": 92159,
+      "sha256": "4f4a17bd635ac48de5fac6072c585f9e1e4aa430ee010dacf9f3249ad847070b"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/ghost-housings-workspace-1440.png",
+      "bytes": 352796,
+      "sha256": "78774789f622753ddf2657363d4772aa09af6eec4968438aa0825468f1812847"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-1440.png",
+      "bytes": 63527,
+      "sha256": "9e4b8da58b2a1e106bd153d0bc5742b75e21db2e755699ff08eac2d6ab6aa680"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-workspace-1440.png",
+      "bytes": 330804,
+      "sha256": "1cec78fed6a3dfb61e7a02dc8d608ddffe7bead88dfc97b86d212d957f0b514c"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/motor-closeup-1440.png",
+      "bytes": 79899,
+      "sha256": "b67984fc22a19d01ae9488aa00296ba30002878b7b9632b01bdd27e3776ebfda"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/motor-closeup-workspace-1440.png",
+      "bytes": 366514,
+      "sha256": "940b92f0a4a3801620564f9546b8658ec8dfa8687597b9ad340076c36061a2bf"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/pump-closeup-1440.png",
+      "bytes": 37317,
+      "sha256": "d71ea07f86c4c4aa09dd8c2a26e800ccce6487ffc412db185f7628fb1d1c39e6"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/pump-closeup-workspace-1440.png",
+      "bytes": 295744,
+      "sha256": "820f880c9776ed7f7b666b8293dddb409616e2f1835e7ae7a84d230f641c3ee6"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/reference-performance.json",
+      "bytes": 251519,
+      "sha256": "62e0fb3b0fcaa05118f86628e4cbf58590ddc17662b1a6749dfcb86fa83eb2db"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/restored-1440.png",
+      "bytes": 81710,
+      "sha256": "db2c1e5559106a33296ac9a839782247056c98a680d9744bf94253fdbc4ed6c0"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/restored-workspace-1440.png",
+      "bytes": 372230,
+      "sha256": "db5cb292c38904ea9a9650dccb835bce1025a8221ecfdf8b38c42540fbab50f7"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/seal-subassembly-1440.png",
+      "bytes": 49324,
+      "sha256": "d10958a887c7826d1edaa5760660cef0a3672d478939375ad20ea99c045212c8"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/seal-subassembly-workspace-1440.png",
+      "bytes": 308044,
+      "sha256": "643a578187c85ed9c188c961d9d71e807c6b917407b385180c0c9cc436d74b5e"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/sectioned-1440.png",
+      "bytes": 56372,
+      "sha256": "d9d34c6a0f246a782516c710e832a48eacb8a4b786ab9c85d49a71931d61389b"
+    },
+    {
+      "path": "software/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/sectioned-workspace-1440.png",
+      "bytes": 314388,
+      "sha256": "72a0cdfb3cd2f70a0336b5a2f26b5e30eb70bc087f5454cf29e00afe14e733c9"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/assembled-390.png",
+      "bytes": 20196,
+      "sha256": "bd2b9b4a07045c9832f14fd672c14ef3e9a20d67a110ccb654cdf08282f8267c"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/assembled-workspace-390.png",
+      "bytes": 231939,
+      "sha256": "5556e168553f4f9c6c0136968b8189be4f1cf7d31d097abe4dfa4f35212579af"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/bearing-closeup-390.png",
+      "bytes": 22943,
+      "sha256": "b21b13a26109d9d16cfb10a4f20f7ade9f8996db9c8824e12d652b889631c84b"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/bearing-closeup-workspace-390.png",
+      "bytes": 238581,
+      "sha256": "46b6b275d81836e609f83ebb33464d565b5f977c243ede71b06255cf41788bcf"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/coupling-closeup-390.png",
+      "bytes": 17802,
+      "sha256": "42afb19b63e28a86a0c87b29fac328b7fa6ae72e7c36a7e80f77f892c6e4b20c"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/coupling-closeup-workspace-390.png",
+      "bytes": 225333,
+      "sha256": "83b97f07cfb7b27549a6419069c8571c1a7e3a15e57299c2f0ffb58b0ee6a95f"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/fully-exploded-390.png",
+      "bytes": 21585,
+      "sha256": "e47f30e9989ca16729d9fe152fcb06401489db8847461fd982a9f8ed1a28aea2"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/fully-exploded-workspace-390.png",
+      "bytes": 233628,
+      "sha256": "06c0c977837419a1662e071d40edc87287fcdb6e0b8c78a9b16f7000b13cd27c"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/ghost-housings-390.png",
+      "bytes": 21007,
+      "sha256": "da41965b3e49b9d663b3c6b609ff9d4c3d381e461db17f1ae3cc1898ebf200e6"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/ghost-housings-workspace-390.png",
+      "bytes": 222774,
+      "sha256": "e619172e2fe36d569c8e6101cf13fbdf5668316c6dd88e44dff3575f51a40ce8"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/internal-closeup-390.png",
+      "bytes": 19911,
+      "sha256": "9790661dc088d3a4a05081e84b9be94f720a8dd3b91228da407293bfe48c4ff9"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/internal-closeup-workspace-390.png",
+      "bytes": 231136,
+      "sha256": "98a4d5529d2f554e6fb4b00e6811424aad6a4486c30bf1a1c95b5d2662e0e428"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/motor-closeup-390.png",
+      "bytes": 32390,
+      "sha256": "6d2c5a60cf6b8ede0a524a16cc7752008f40637f1ef01cbbdc298a129f6074b2"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/motor-closeup-workspace-390.png",
+      "bytes": 267222,
+      "sha256": "b37d86acbef0b395b7945ac1cc9a5fcc24152078652a917e1ed76d8c9d9f2738"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/pump-closeup-390.png",
+      "bytes": 16274,
+      "sha256": "0eaae47b0b475b3a4ea3b66177e1aa5e104e7a229a4c62b4de5814802b31fa66"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/pump-closeup-workspace-390.png",
+      "bytes": 219719,
+      "sha256": "8f1beae97874edf2f9fa61292ba39114eee40609d6435b55fb21f20aa8230e6f"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/reference-performance.json",
+      "bytes": 314615,
+      "sha256": "228c797251ac07939b5e98f4646525b7b63cdb7dbf784e8643b1f9f6cf3896e9"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/restored-390.png",
+      "bytes": 20275,
+      "sha256": "4126523cbdfc999cb9e26616be95499a80856f8f46c1965d499042f27f5350de"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/restored-workspace-390.png",
+      "bytes": 253115,
+      "sha256": "5861ee123cf65a52bfe015dec0790f0e4b4885f513e8f8687dfadba05a25633a"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/seal-subassembly-390.png",
+      "bytes": 17910,
+      "sha256": "6e7038e4380c87f437f03533f3e9b8e9e54dd87278091eaa5f4aaccbe285ebcd"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/seal-subassembly-workspace-390.png",
+      "bytes": 219945,
+      "sha256": "61da343bffb72ff11c8bce133c89c98676108bbcdff2bd2bdd7f1d5581a41d87"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/sectioned-390.png",
+      "bytes": 12028,
+      "sha256": "d1e8f07b6dbb08ea14a1fc1890961e24125e4560eaa493facfbf225d2fb9c907"
+    },
+    {
+      "path": "software/equipment-standalone-detai-f5751-on-and-measurement-at-390px/sectioned-workspace-390.png",
+      "bytes": 213181,
+      "sha256": "cf2085b3131dc267a6dbd6a7c325cff5deb0de6553d48c54480bf8db4632555c"
+    },
+    {
+      "path": "software/equipment-standalone-stand-44665-t-390px-without-peer-access/local-equipment-390.png",
+      "bytes": 243770,
+      "sha256": "45d1a73a8e07c0d000822cbb67851647408a9ad7fe63383de498313d827069a8"
+    },
+    {
+      "path": "software/equipment-standalone-stand-44665-t-390px-without-peer-access/local-equipment-light-390.png",
+      "bytes": 244293,
+      "sha256": "b2964a0d9d03717a291576682cae09c8bb8ebbf5259da7217a914b34e7ce112e"
+    },
+    {
+      "path": "software/equipment-standalone-stand-51966-t-768px-without-peer-access/local-equipment-768.png",
+      "bytes": 301224,
+      "sha256": "2e39dab16967815fc28f03eb86834da0fbc8558e5b8b568fce02c7d905c30752"
+    },
+    {
+      "path": "software/equipment-standalone-stand-51966-t-768px-without-peer-access/local-equipment-light-768.png",
+      "bytes": 301581,
+      "sha256": "d6fb3993569e2c13f55f5e9c900867b2a589d195ae928c6f4eaf8814844ebcb9"
+    },
+    {
+      "path": "software/equipment-standalone-stand-ffc4a--1440px-without-peer-access/local-equipment-1440.png",
+      "bytes": 349086,
+      "sha256": "12a7b95518e0acebcbca5c00e04ad9ea42cae455b1423bc14910dac3f7599680"
+    },
+    {
+      "path": "software/equipment-standalone-stand-ffc4a--1440px-without-peer-access/local-equipment-light-1440.png",
+      "bytes": 353006,
+      "sha256": "adda813bf44aba2a648502b0df48e703e79627cf9f8addf4cd5bb95b2374ccc5"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-1440.png",
+      "bytes": 84523,
+      "sha256": "d96f825fc7ad676e77880eb14fb89faef4cb8eb9481e7d10f665e6d01544fce5"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-workspace-1440.png",
+      "bytes": 352071,
+      "sha256": "a42c25cad4e95ec0d499329d6c3c9c169b8795760d4664ad58d00083dc7c53f7"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/bearing-closeup-1440.png",
+      "bytes": 55042,
+      "sha256": "830a9817737676c7a770942cbb53f241ec0a514dad23b404ab8544a797dc5024"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/bearing-closeup-workspace-1440.png",
+      "bytes": 331691,
+      "sha256": "b21f453b9f40b000d1f5930f5ceafddbe0e13f715831b8c0b4164740f3e20125"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/coupling-closeup-1440.png",
+      "bytes": 43282,
+      "sha256": "d7bb45411339cbb43730c808a5e2ae78f5739721015391a0a8f64ca341531dc1"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/coupling-closeup-workspace-1440.png",
+      "bytes": 306089,
+      "sha256": "4c65ae0af9ba942c1b25135bb6b23c42758289cbb04fe91f9cdc8d6a6e863b7f"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/fully-exploded-1440.png",
+      "bytes": 89175,
+      "sha256": "122e8de24f4b788d0f8a126032fda86882a6de45219db923fac34245da84ff9b"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/fully-exploded-workspace-1440.png",
+      "bytes": 355993,
+      "sha256": "7e4b34885c20a7bc4134683b1438240cd8d413fa08a2f18fe301a5ef4e81b2e9"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/ghost-housings-1440.png",
+      "bytes": 97035,
+      "sha256": "0a443073dd0f67280129594ea3e0edb7585ff1745fd76a5d4a7dc4e000a6a964"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/ghost-housings-workspace-1440.png",
+      "bytes": 357775,
+      "sha256": "6c110417d5e453eb5efafae5d32b4163ed5776c3ab68209d4e26ac999d4468fc"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-1440.png",
+      "bytes": 63635,
+      "sha256": "59bbcfea2e2f263dd19f3a71a6a7f5c7668efe5740102619b3b487768d8f589d"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-workspace-1440.png",
+      "bytes": 330040,
+      "sha256": "8b156d2d941935136068b4283bed14d19b90a8bd9a1169d7751df73402947b84"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/motor-closeup-1440.png",
+      "bytes": 82301,
+      "sha256": "34e0d61f94b9c96c31446a8e49ff73c3fe2ee5c465b4ae5e2ee1ce857d6d9404"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/motor-closeup-workspace-1440.png",
+      "bytes": 367902,
+      "sha256": "998e2a14673ad5e0191e62460d065a78a7e0476776d24621d1072a7146db1214"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/pump-closeup-1440.png",
+      "bytes": 40728,
+      "sha256": "acfdcd07af313dade265c3980c48bbea9a5ece756757a5352acee4a99b8f8859"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/pump-closeup-workspace-1440.png",
+      "bytes": 298466,
+      "sha256": "a18399f4a516fc72c23ecb5c1df4d432447efee239d099ba47f970122eba9d58"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/reference-performance.json",
+      "bytes": 359898,
+      "sha256": "90afd4fd599b2821268a441a3f53b004ed1abb4d6f14af87c419e6b85f85cfef"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/restored-1440.png",
+      "bytes": 84594,
+      "sha256": "67fce173a97a5d634820f204a17130e30ccf6caaa26380bdc2fd0326c797e660"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/restored-workspace-1440.png",
+      "bytes": 374468,
+      "sha256": "54811fd7a9b37602b2f72546a0e2b839e20d2c1f02f9d1ad6690158145faee97"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/seal-subassembly-1440.png",
+      "bytes": 52840,
+      "sha256": "1e155bb95157a3bc9574d6fe5192575f1528267fda19839dfc29716048a1f0e1"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/seal-subassembly-workspace-1440.png",
+      "bytes": 311266,
+      "sha256": "ec0ea2a0ae72ac3894920e0395233c31bcccc3189c403619fc570e9456af1300"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/sectioned-1440.png",
+      "bytes": 60460,
+      "sha256": "2cb508ceb60ae51f2b8c02653d0276e1e752f426785a057decc32159d9c6219e"
+    },
+    {
+      "path": "metal/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/sectioned-workspace-1440.png",
+      "bytes": 318339,
+      "sha256": "9b21a72778a2ed48aa76fcc4181b36155169e80dec7eb2295f3a71577b2f4b8c"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-1440.png",
+      "bytes": 74806,
+      "sha256": "3704dbee1aa7b32c15a961887d729264f3b6c14a97349b4aea6631923d4d4ec0"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/assembled-workspace-1440.png",
+      "bytes": 340424,
+      "sha256": "75481ec104bc87ff26f2f1e833e3a6406810c5856937108440f2b9acf96733ba"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/bearing-closeup-1440.png",
+      "bytes": 50556,
+      "sha256": "e2ba9f9530c558401ed6b2e39a84b5c479dddd7b597c99ff6d76d96053507922"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/bearing-closeup-workspace-1440.png",
+      "bytes": 326654,
+      "sha256": "d7332657f751007b954d840748764d3343519877dcedc9b2bf6e721353c71f9e"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/coupling-closeup-1440.png",
+      "bytes": 54069,
+      "sha256": "39797db1944228379a36dec688b4b7dc01ca53c290e3470f3f8e5cf7f370d339"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/coupling-closeup-workspace-1440.png",
+      "bytes": 319493,
+      "sha256": "e3e893d7939c47989440c45a2dbe0817db595b8e860332c67dacd698375dcfed"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/fully-exploded-1440.png",
+      "bytes": 83292,
+      "sha256": "74246229186ce001345bd636a4cbf00e532dc0e001208ff1947152d3ba89002f"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/fully-exploded-workspace-1440.png",
+      "bytes": 350016,
+      "sha256": "f7d63a2138c577d6000b772d2a9915b02d1cbeb6142d9664c3c9334336eaf55d"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/ghost-housings-1440.png",
+      "bytes": 81444,
+      "sha256": "1ff183d462916dcf5a886bfb51a9589f15a6aae00e6b2f54a8c69c78c6a3911e"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/ghost-housings-workspace-1440.png",
+      "bytes": 339686,
+      "sha256": "59541a943e3d969ae8b43a465a93de0bf9ffbedabf8c033098fc213abbf12652"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-1440.png",
+      "bytes": 85702,
+      "sha256": "f77f5c3a7db61a99bfee848e513807849f670aa4d2e00e238216246c59c87e7c"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/internal-closeup-workspace-1440.png",
+      "bytes": 350092,
+      "sha256": "ce9494073fc837870645f6c54c0b0893a1d8bd13ff46ab70881c919e08cabb1d"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/motor-closeup-1440.png",
+      "bytes": 78324,
+      "sha256": "13be1beae3e4b39ed19630f946b06b26193ae597d56ceec9211accfcd24308ad"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/motor-closeup-workspace-1440.png",
+      "bytes": 364937,
+      "sha256": "5d58dac2cddb0b46bd3e6f2af42b011a7c579ac1b6ad670735d457ec13214832"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/pump-closeup-1440.png",
+      "bytes": 36957,
+      "sha256": "2922d99fc4beac56a12ddf77f0f5055bd093eff9b964924eb2e51600822a7362"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/pump-closeup-workspace-1440.png",
+      "bytes": 294309,
+      "sha256": "a475384fb7d3bcced5832f75099130874351685c24793e3182a2b74bf13e0961"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/reference-performance.json",
+      "bytes": 797866,
+      "sha256": "5a7cfb5e621b6c7d3b1c474c60e24d597471d9501f9dab91a6c73c21a4023980"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/restored-1440.png",
+      "bytes": 74763,
+      "sha256": "475d56345976b75be3970ea74635ed91b06116208a271d193ddc467540724ae6"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/restored-workspace-1440.png",
+      "bytes": 358137,
+      "sha256": "72bdd574fdd6019a231965659ad483484cadff59c310ed86d48cc7dbb7244488"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/seal-subassembly-1440.png",
+      "bytes": 55325,
+      "sha256": "8434f2fdd23f76dd7fc5ba9cba62d7b63317c394b1c541ef3d088cf392a76cee"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/seal-subassembly-workspace-1440.png",
+      "bytes": 313198,
+      "sha256": "98fd487ba6f86f95540028ecbf5ad13cb9ce7712f53c2617c0afd6aeca3befa0"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/sectioned-1440.png",
+      "bytes": 55746,
+      "sha256": "eedddd3c8d055a89816d06ae62e05daf9e83a9941c075a1861780437f4296681"
+    },
+    {
+      "path": "revision-3-comparison/equipment-standalone-detai-cfe7b-n-and-measurement-at-1440px/sectioned-workspace-1440.png",
+      "bytes": 320214,
+      "sha256": "5e8907106d7fc9e3538e59206af11453ca39267a3c3a521af5ed881f8c5f12d0"
+    }
+  ]
+}

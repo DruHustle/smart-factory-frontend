@@ -1,13 +1,85 @@
 
-> smart-factory-iot@1.0.0 test /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend
+> smart-factory-iot@1.0.0 e2e /private/tmp/smart-factory-ed7b0f3-independent/frontend
+> bash scripts/e2e.sh
+
+ Network smart-factory-reaudit-regressions_default Creating
+ Network smart-factory-reaudit-regressions_default Creating
+ Network smart-factory-reaudit-regressions_default Created
+ Network smart-factory-reaudit-regressions_default Created
+ Container smart-factory-reaudit-regressions-redis-1 Creating
+ Container smart-factory-reaudit-regressions-database-1 Creating
+ Container smart-factory-reaudit-regressions-redis-1 Created
+ Container smart-factory-reaudit-regressions-database-1 Created
+ Container smart-factory-reaudit-regressions-database-1 Starting
+ Container smart-factory-reaudit-regressions-redis-1 Starting
+ Container smart-factory-reaudit-regressions-database-1 Started
+ Container smart-factory-reaudit-regressions-redis-1 Started
+ Container smart-factory-reaudit-regressions-redis-1 Waiting
+ Container smart-factory-reaudit-regressions-database-1 Waiting
+ Container smart-factory-reaudit-regressions-database-1 Healthy
+ Container smart-factory-reaudit-regressions-redis-1 Healthy
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/private/tmp/smart-factory-ed7b0f3-independent/frontend/drizzle.config.ts'
+Using 'postgres' driver for database querying
+[⣷] applying migrations...[⣯] applying migrations...[✓] migrations applied successfully!
+> smart-factory-iot@1.0.0 test /private/tmp/smart-factory-ed7b0f3-independent/frontend
 > vitest run --maxWorkers=1
 
 
- RUN  v4.1.12 /Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-frontend
+ RUN  v4.1.12 /private/tmp/smart-factory-ed7b0f3-independent/frontend
 
 
  Test Files  34 passed (34)
-      Tests  260 passed (260)
-   Start at  02:03:05
-   Duration  18.88s (transform 380ms, setup 0ms, import 2.26s, tests 14.45s, environment 1ms)
+      Tests  266 passed (266)
+   Start at  13:07:56
+   Duration  20.88s (transform 462ms, setup 0ms, import 2.56s, tests 16.00s, environment 1ms)
 
+[WebServer] (node:99520) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:99538) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:99544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 33 tests using 1 worker
+
+[1/33] [chromium] › e2e/equipment-standalone.spec.ts:36:5 › standalone native equipment monitoring › local context, files, simulation and saved work at 1440px without peer access
+[2/33] [chromium] › e2e/equipment-standalone.spec.ts:36:5 › standalone native equipment monitoring › local context, files, simulation and saved work at 768px without peer access
+[3/33] [chromium] › e2e/equipment-standalone.spec.ts:36:5 › standalone native equipment monitoring › local context, files, simulation and saved work at 390px without peer access
+[4/33] [chromium] › e2e/equipment-standalone.spec.ts:307:1 › public equipment demonstration is read-only and local files require authentication
+[5/33] [chromium] › e2e/equipment-standalone.spec.ts:342:3 › detailed reference inspection and measurement at 1440px
+[6/33] [chromium] › e2e/equipment-standalone.spec.ts:342:3 › detailed reference inspection and measurement at 390px
+[7/33] [chromium] › e2e/onesa.spec.ts:12:5 › private Onesa integration › operator status, mappings and protected artifacts at 1440px
+[8/33] [chromium] › e2e/onesa.spec.ts:12:5 › private Onesa integration › operator status, mappings and protected artifacts at 390px
+[9/33] [chromium] › e2e/onesa.spec.ts:100:1 › public demo engineering identity cannot read private integration configuration
+[10/33] [chromium] › e2e/passport-ada031.spec.ts:27:1 › public EUDPP exposes a valid QR target and isolated print layout
+[11/33] [chromium] › e2e/passport-ada031.spec.ts:81:1 › EUDPP distinguishes a service failure from a missing passport
+[12/33] [chromium] › e2e/passport-ada031.spec.ts:93:1 › ADA031 controls stay interlocked and publish only to the safe E2E mock
+[13/33] [chromium] › e2e/system.spec.ts:25:1 › account routes and the signed-out flow render
+[14/33] [chromium] › e2e/system.spec.ts:38:1 › login and dashboard render without uncaught browser errors
+[15/33] [chromium] › e2e/system.spec.ts:51:1 › login demo shortcuts follow the server-side environment flag
+[16/33] [chromium] › e2e/system.spec.ts:57:1 › Dashboard, Monitoring, alerts, and Assistant have distinct useful views
+[17/33] [chromium] › e2e/system.spec.ts:126:1 › Assistant answers from approved guides and the current API snapshot
+[18/33] [chromium] › e2e/system.spec.ts:157:1 › engineers assign incidents, record downtime, and resolve with a measured duration
+[19/33] [chromium] › e2e/system.spec.ts:197:1 › engineers can control demo data while viewers cannot
+[20/33] [chromium] › e2e/system.spec.ts:213:1 › administrator creates an account without exposing its password
+[21/33] [chromium] › e2e/system.spec.ts:231:1 › OTA page clearly reports that firmware delivery is unavailable
+[22/33] [chromium] › e2e/system.spec.ts:240:1 › viewer opens event details by keyboard and receives an assignment permission notice
+[23/33] [chromium] › e2e/system.spec.ts:255:1 › analytics displays a failed data request without healthy-looking totals
+[24/33] [chromium] › e2e/system.spec.ts:263:1 › gateway detail renders a current child environmental sample
+[25/33] [chromium] › e2e/system.spec.ts:357:1 › AASX upload is private and role protected
+[26/33] [chromium] › e2e/system.spec.ts:371:1 › standard AAS gateway requires a session and rejects foreign cookie origins
+[27/33] [chromium] › e2e/system.spec.ts:382:1 › engineer session reaches the IDTA API through the OAuth-backed gateway
+[28/33] [chromium] › e2e/system.spec.ts:393:1 › admin can inspect demo AAS data and manage user access
+[WebServer] [AASX import] Duplicate shell identifier rejected; the existing asset was preserved.
+
+[29/33] [chromium] › e2e/system.spec.ts:520:1 › viewer sees asset summaries while engineering and admin screens stay hidden
+[30/33] [chromium] › e2e/system.spec.ts:536:1 › operator can acknowledge alerts but cannot open AAS or user administration
+[31/33] [chromium] › e2e/system.spec.ts:547:1 › engineer can open AAS while user administration remains admin-only
+[32/33] [chromium] › e2e/ui-audit.spec.ts:56:1 › signed-out and authenticated routes expose named controls and sound landmarks
+[33/33] [chromium] › e2e/ui-audit.spec.ts:93:1 › core operational routes remain within a mobile viewport
+  7 skipped
+  26 passed (1.8m)
