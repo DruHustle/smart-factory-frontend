@@ -64,12 +64,12 @@ const statusColors: Record<DeviceStatus, string> = {
 };
 
 const metricColors = {
-  temperature: "#f97316",
-  humidity: "#3b82f6",
-  vibration: "#8b5cf6",
-  power: "#eab308",
-  rpm: "#10b981",
-  pressure: "#ec4899",
+  temperature: "var(--series-temperature)",
+  humidity: "var(--series-humidity)",
+  vibration: "var(--series-vibration)",
+  power: "var(--series-power)",
+  rpm: "var(--series-rpm)",
+  pressure: "var(--series-pressure)",
 };
 
 const metricUnits: Record<keyof typeof metricColors, string> = {
@@ -822,8 +822,15 @@ export default function DeviceDetail({
               )}
           </div>
 
-          <p className="rounded border p-3 text-xs text-muted-foreground">{device.isDemo?"Simulated device data":`Latest evidence mode: ${String(latestReading?.integration?.mode??"unknown")}`} · Historical charts include live and unclassified legacy samples; explicit simulation and replay remain in their separate observation streams. Past values do not prove current connectivity.</p>
-      {/* Historical Data */}
+          <p className="rounded border p-3 text-xs text-muted-foreground">
+            {device.isDemo
+              ? "Simulated device data"
+              : `Latest evidence mode: ${String(latestReading?.integration?.mode ?? "unknown")}`}{" "}
+            · Historical charts include live and unclassified legacy samples;
+            explicit simulation and replay remain in their separate observation
+            streams. Past values do not prove current connectivity.
+          </p>
+          {/* Historical Data */}
           <Card>
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

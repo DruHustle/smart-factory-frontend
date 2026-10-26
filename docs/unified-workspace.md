@@ -39,7 +39,7 @@ AAS registration uses identity, manufacturer and optional connection steps, reta
 
 ## Status and provenance policy
 
-Configuration, observed connectivity, sample freshness, lifecycle and security coverage are separate fields. A stored link means **Connection configured**, never proof that a machine is live. A receiving gateway does not establish child availability.
+Configuration, observed connectivity, sample freshness, lifecycle and security coverage are separate fields. A stored link means **Connection configured**, never proof that a machine is live. Overview and Monitoring consume the same derived observation state and preserve unknown/stale states; the old stored-status field remains a compatibility API. A receiving gateway does not establish child availability.
 
 - No connectivity observation: **Unknown / No observations**, even if the record starts with a stored offline value.
 - An explicit offline report after an observation: **Offline**.

@@ -11,7 +11,7 @@ import { getImportedAssetSummary } from "./aasImportMapping";
 import { getAllowedAssetTransitions, type AssetLifecycleStage } from "../shared/asset-lifecycle";
 import { getAlertErrorCode } from "../shared/alert-codes";
 import { evaluateAlertThreshold } from "../shared/alert-thresholds";
-import { deviceWithCurrentStatus } from "./deviceConnectivity";
+import { deviceWithCurrentStatus,type ObservedDevice } from "./deviceConnectivity";
 import { demoDataEnabled, setRuntimeDemoDataEnabled, visibleWhenDemoDataEnabled } from "./demoData";
 
 const {
@@ -284,7 +284,7 @@ export async function getDevices(filters?: {
   status?: Device["status"];
   type?: Device["type"];
   zone?: string;
-}): Promise<Device[]> {
+}): Promise<ObservedDevice[]> {
   return withDb(async (db) => {
     let query = db.select().from(devices);
     const conditions = [];
@@ -301,7 +301,7 @@ export async function getDevices(filters?: {
   });
 }
 
-export async function getDeviceById(id: number): Promise<Device | undefined> {
+export async function getDeviceById(id: number): Promise<ObservedDevice | undefined> {
   return withDb(async (db) => {
     const result = await db.select().from(devices).where(eq(devices.id, id)).limit(1);
     const device = result[0];
@@ -319,7 +319,7 @@ export async function getDeviceByDeviceId(deviceId: string): Promise<Device | un
 }
 
 /** Devices whose telemetry identifies the selected edge gateway as its parent. */
-export async function getDevicesForGateway(gatewayDeviceId: string): Promise<Device[]> {
+export async function getDevicesForGateway(gatewayDeviceId: string): Promise<ObservedDevice[]> {
   return withDb(async (db) => {
     const rows = await db.select().from(devices)
       .where(sql`${devices.metadata}->>'gatewayId' = ${gatewayDeviceId}`)
@@ -379,8 +379,10 @@ export async function getDeviceStats() {
       .map((device) => deviceWithCurrentStatus(device, now));
     const stats = {
       total: allDevices.length,
-      online: allDevices.filter(d => d.status === 'online').length,
-      offline: allDevices.filter(d => d.status === 'offline').length,
+      online: allDevices.filter(d => d.observedStatus === 'live').length,
+      offline: allDevices.filter(d => d.observedStatus === 'offline').length,
+      stale:allDevices.filter(d=>d.observedStatus==='stale').length,
+      unknown:allDevices.filter(d=>d.observedStatus==='unknown').length,
       maintenance: allDevices.filter(d => d.status === 'maintenance').length,
       error: allDevices.filter(d => d.status === 'error').length,
       byType: {} as Record<string, number>

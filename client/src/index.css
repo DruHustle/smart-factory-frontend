@@ -435,3 +435,9 @@
 #dashboard-main th { font-weight: 500; font-size: .75rem; }
 #dashboard-main td { vertical-align: top; }
 .workspace-page-header { width: 100%; }
+
+:root { --series-temperature:#fb923c; --series-humidity:#60a5fa; --series-vibration:#c4b5fd; --series-power:#facc15; --series-pressure:#38bdf8; --series-rpm:#2dd4bf; }
+:root:not(.dark) { --series-temperature:#c2410c; --series-humidity:#1d4ed8; --series-vibration:#6d28d9; --series-power:#854d0e; --series-pressure:#0369a1; --series-rpm:#0f766e; }
+.recharts-legend-item-text,.recharts-tooltip-item { color:var(--foreground)!important; }
+.recharts-cartesian-axis-tick-value { fill:var(--muted-foreground); }
+.recharts-default-tooltip { background:var(--popover)!important; border-color:var(--border)!important; color:var(--popover-foreground)!important; }
