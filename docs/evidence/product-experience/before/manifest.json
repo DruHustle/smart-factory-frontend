@@ -1,0 +1,211 @@
+{
+  "phase": "before-visual-redesign",
+  "uiSourceBase": "81bdd2f5f2a1449f903c22bef5539aa7e79ec013",
+  "accessSessionCandidate": "8f1204d7985356edf01ed405b3b8d4e36030f198",
+  "fixtures": "Guarded local PostgreSQL/Redis; independently authenticated synthetic accounts and synthetic workspace records; no production data or commands",
+  "viewportWidths": [
+    390,
+    1440
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "journeysPassed": 4,
+  "analyticsMobileHeight": 9217,
+  "captureNote": "Oversized before analytics captures show the first viewport and record the full document height. The after design must meet explicit height and first-viewport budgets.",
+  "screenshots": [
+    {
+      "file": "analytics-dark-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 5513,
+      "pageHeight": 5513,
+      "fullPage": true,
+      "sha256": "4c34fee44b1055b18b239966e694b9fea72835d1c498d891e4ff05a4194d488d"
+    },
+    {
+      "file": "analytics-dark-390.png",
+      "imageWidth": 390,
+      "imageHeight": 960,
+      "pageHeight": 9217,
+      "fullPage": false,
+      "sha256": "199f562c21efd96f0c2633b177c268f52b4f5a58be2675acbcd13c7a67050088"
+    },
+    {
+      "file": "analytics-light-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 5513,
+      "pageHeight": 5513,
+      "fullPage": true,
+      "sha256": "12405eeb70b1f9e5c5a491ef21b7d7149575041a14a20cf6c5674eb6b9a6fc21"
+    },
+    {
+      "file": "analytics-light-390.png",
+      "imageWidth": 390,
+      "imageHeight": 960,
+      "pageHeight": 9217,
+      "fullPage": false,
+      "sha256": "4f322bcf5733170590d4561abe0e849ccebd3f4eaadb71a2c6d11e8c8dcf7292"
+    },
+    {
+      "file": "cybersecurity-dark-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 1066,
+      "pageHeight": 1066,
+      "fullPage": true,
+      "sha256": "ce13a0707dfb75593aec8304ce976ee07dcb0f0090fd23ea3075e1db36edec27"
+    },
+    {
+      "file": "cybersecurity-dark-390.png",
+      "imageWidth": 390,
+      "imageHeight": 1831,
+      "pageHeight": 1831,
+      "fullPage": true,
+      "sha256": "79879a6ea599ba1de8ffa5958b155a5dd73603c838312e8c2fede3c24ab81d4d"
+    },
+    {
+      "file": "cybersecurity-light-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 1066,
+      "pageHeight": 1066,
+      "fullPage": true,
+      "sha256": "db138e64626bf6a3cee84f529a341225f09d4d73ae10d122234e1ea3d422311f"
+    },
+    {
+      "file": "cybersecurity-light-390.png",
+      "imageWidth": 390,
+      "imageHeight": 1831,
+      "pageHeight": 1831,
+      "fullPage": true,
+      "sha256": "31bc5bae475665b9f2652461428bfbd08082884499607f8bfe97098a9fef65fb"
+    },
+    {
+      "file": "equipment-dark-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 1875,
+      "pageHeight": 1875,
+      "fullPage": true,
+      "sha256": "334a415081b38fb4a9e51530900c55b8a64804e5baaaf1ddaf9e0d6ef359a466"
+    },
+    {
+      "file": "equipment-dark-390.png",
+      "imageWidth": 390,
+      "imageHeight": 3020,
+      "pageHeight": 3020,
+      "fullPage": true,
+      "sha256": "9ba1c21f54b9e14f389c689860756e15f99befeb0bae482f7e1abad8dff3703c"
+    },
+    {
+      "file": "equipment-light-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 1875,
+      "pageHeight": 1875,
+      "fullPage": true,
+      "sha256": "a0080e103f2f589f812deef571d4693c65e900a348bc9ca0f84341e6cd681fea"
+    },
+    {
+      "file": "equipment-light-390.png",
+      "imageWidth": 390,
+      "imageHeight": 3020,
+      "pageHeight": 3020,
+      "fullPage": true,
+      "sha256": "a78f761e1645ff8ecb6f3ebd599886cd49b3fe5bd9a75671534ba7eaaaed1250"
+    },
+    {
+      "file": "inventory-dark-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 1083,
+      "pageHeight": 1083,
+      "fullPage": true,
+      "sha256": "185963b5b53ca2dd6d0d48f79822843c904efec6af1b86926576149229704830"
+    },
+    {
+      "file": "inventory-dark-390.png",
+      "imageWidth": 390,
+      "imageHeight": 2604,
+      "pageHeight": 2604,
+      "fullPage": true,
+      "sha256": "559ad9fa44bf0bbdadffe78e9b04f5594b5cf0cbc0770275bcbbfbd4d8e39322"
+    },
+    {
+      "file": "inventory-light-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 1083,
+      "pageHeight": 1083,
+      "fullPage": true,
+      "sha256": "2529fd0b4db6b488622eab301287a8e550892b7b8e4def234ad834991ca96a22"
+    },
+    {
+      "file": "inventory-light-390.png",
+      "imageWidth": 390,
+      "imageHeight": 2604,
+      "pageHeight": 2604,
+      "fullPage": true,
+      "sha256": "a75daca9e7bb06e8bef8b89293cd75ef0ef69ff40ee50f522fd998677217c77a"
+    },
+    {
+      "file": "item-aas-dark-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 960,
+      "pageHeight": 960,
+      "fullPage": true,
+      "sha256": "05e23f407e8122770d76374750dcfa41c7b340e16fc458bf756a2ec323715e00"
+    },
+    {
+      "file": "item-aas-dark-390.png",
+      "imageWidth": 390,
+      "imageHeight": 960,
+      "pageHeight": 960,
+      "fullPage": true,
+      "sha256": "655040539b87588f66ad1a6e7d3a3b9177e4554955c65d7f2b8f108809f18d68"
+    },
+    {
+      "file": "item-aas-light-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 960,
+      "pageHeight": 960,
+      "fullPage": true,
+      "sha256": "b57d868bde3fd77cf4a513cb0c5dc2ff92b76e3c76cc9a62ab9f40329c0bd52f"
+    },
+    {
+      "file": "item-aas-light-390.png",
+      "imageWidth": 390,
+      "imageHeight": 960,
+      "pageHeight": 960,
+      "fullPage": true,
+      "sha256": "df580b1e04d23c0e08f30c6ee516ace11394cc24432274b497ee0d6bbcadd549"
+    },
+    {
+      "file": "overview-dark-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 1357,
+      "pageHeight": 1357,
+      "fullPage": true,
+      "sha256": "a3ec26f2938cbbfe973f03fa38aa658b8990a9727ee1bfaaa22b617158e65d49"
+    },
+    {
+      "file": "overview-dark-390.png",
+      "imageWidth": 390,
+      "imageHeight": 3295,
+      "pageHeight": 3295,
+      "fullPage": true,
+      "sha256": "29cec1f6d2ec4fcbc3ec4b796cac7fadfa5ec1c80bd70090ed4dd45c201f5e49"
+    },
+    {
+      "file": "overview-light-1440.png",
+      "imageWidth": 1440,
+      "imageHeight": 1357,
+      "pageHeight": 1357,
+      "fullPage": true,
+      "sha256": "8d3435bb00e820b2cc5759a0ed1f50d5185a7a63bda41c3fac22a44d598ea4b9"
+    },
+    {
+      "file": "overview-light-390.png",
+      "imageWidth": 390,
+      "imageHeight": 3295,
+      "pageHeight": 3295,
+      "fullPage": true,
+      "sha256": "ddd2a36365607c73a54b0698a22f20598b3970f20f88ea290601d3c326ce45fe"
+    }
+  ]
+}

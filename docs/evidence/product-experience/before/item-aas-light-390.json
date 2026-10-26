@@ -1,0 +1,9 @@
+{
+  "phase": "before",
+  "width": 390,
+  "height": 960,
+  "theme": "light",
+  "fullPage": true,
+  "dataset": "isolated synthetic workspace fixtures",
+  "uiBase": "81bdd2f5f2a1449f903c22bef5539aa7e79ec013"
+}
