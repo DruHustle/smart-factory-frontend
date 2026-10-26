@@ -163,7 +163,7 @@ export default function Inventory() {
         onChange={(view) => update({ view })}
       >
         <FilterToolbar>
-          <label className="min-w-40 flex-1 text-xs">
+          <label className="basis-full flex-1 text-xs sm:basis-48">
             Search inventory
             <Input
               aria-label="Search inventory"
