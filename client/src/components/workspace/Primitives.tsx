@@ -105,7 +105,7 @@ export function StatusBadge({ status }: { status: string }) {
         aria-hidden="true"
         className={`h-1.5 w-1.5 rounded-full ${status === "live" ? "bg-emerald-600" : status === "error" || status === "offline" ? "bg-red-600" : status === "stale" ? "bg-amber-600" : "bg-slate-500"}`}
       />
-      {status === "unknown" ? "Unknown · no current proof" : status}
+      {status}
     </Badge>
   );
 }
@@ -145,7 +145,7 @@ export function FilterToolbar({ children }: { children: ReactNode }) {
   return (
     <div
       role="search"
-      className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3"
+      className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3 [&>label]:flex [&>label]:min-w-0 [&>label]:flex-col [&>label]:gap-1"
     >
       {children}
     </div>

@@ -295,6 +295,11 @@ test.describe("unified item workspace", () => {
     await expect(
       page.getByText("No inventory items yet", { exact: true }),
     ).toHaveCount(0);
+    await page.screenshot({
+      path: "docs/evidence/workspace-20261026/inventory-error.png",
+      fullPage: true,
+      animations: "disabled",
+    });
     await page.unroute(/\/api\/trpc\/.*inventory\.list/);
     await page.getByRole("button", { name: "Try again", exact: true }).click();
     await expect(page.getByText(/matching items · View filters/)).toBeVisible();
@@ -396,5 +401,75 @@ test.describe("unified item workspace", () => {
     await expect(
       page.getByText("No matching items", { exact: true }),
     ).toBeVisible();
+    for (const [width, theme] of [
+      [390, "dark"],
+      [1440, "light"],
+    ] as const) {
+      await page.setViewportSize({ width, height: 960 });
+      if (
+        (await page.locator("html").getAttribute("class"))?.includes("dark") !==
+        (theme === "dark")
+      )
+        await page
+          .getByRole("button", { name: `Switch to ${theme} theme` })
+          .click();
+      await inventory(page, "Workspace imported");
+      await open(page, "Workspace imported asset");
+      await page
+        .getByRole("tab", { name: "AAS & submodels", exact: true })
+        .click();
+      await page
+        .locator("summary")
+        .getByText("VendorNameplate", { exact: true })
+        .click();
+      await expect(
+        page.getByText("Isolated fixture manufacturer", { exact: true }),
+      ).toBeVisible();
+      await page.screenshot({
+        path: `docs/evidence/workspace-20261026/aas-${theme}-${width}.png`,
+        fullPage: true,
+        animations: "disabled",
+      });
+      await page.goto("/#/cybersecurity");
+      await page.getByText("Demonstration / setup", { exact: true }).click();
+      await page
+        .getByRole("button", {
+          name: "Load local security demonstration",
+          exact: true,
+        })
+        .click();
+      await expect(
+        page.getByText("Authored simulation and replay evidence is ready.", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await page.getByLabel("Filter evidence mode").selectOption("simulated");
+      await expect(
+        page.getByRole("button", { name: "Open high findings" }),
+      ).toBeVisible();
+      await page.screenshot({
+        path: `docs/evidence/workspace-20261026/security-${theme}-${width}.png`,
+        fullPage: true,
+        animations: "disabled",
+      });
+      await inventory(page, "Workspace standalone");
+      await open(page, "Workspace standalone pump");
+      await page
+        .getByRole("tab", { name: "3D inspection", exact: true })
+        .click();
+      await expect(page.locator("[data-state=ready]")).toBeVisible();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        )
+        .toBe(true);
+      await page.screenshot({
+        path: `docs/evidence/workspace-20261026/equipment-${theme}-${width}.png`,
+        fullPage: true,
+        animations: "disabled",
+      });
+    }
   });
 });

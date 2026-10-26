@@ -917,7 +917,7 @@ test("admin can inspect demo AAS data and manage user access", async ({
 
   await navigate(page, "User Access");
   await expect(
-    page.getByRole("heading", { name: /user access/i }),
+    page.getByRole("heading", { name: "Users & access", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("tech@dev.local")).toBeVisible();
 });
