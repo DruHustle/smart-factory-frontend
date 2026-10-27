@@ -150,7 +150,13 @@ export default function Monitoring() {
         latest.has(d.id) &&
         currentSample(latest.get(d.id)!),
     ) ??
-    sources.data?.items.find((d) => d.type !== "gateway" && latest.has(d.id)) ??
+    sources.data?.items
+      .filter((d) => d.type !== "gateway" && latest.has(d.id))
+      .sort(
+        (a, b) =>
+          (latest.get(b.id)?.timestamp ?? 0) -
+          (latest.get(a.id)?.timestamp ?? 0),
+      )[0] ??
     sources.data?.items.find((d) => d.type !== "gateway");
   const selectedReading = selected ? latest.get(selected.id) : undefined;
   const context = `/monitoring${params.size ? `?${params}` : ""}`;

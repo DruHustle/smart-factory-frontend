@@ -22,7 +22,7 @@ async function typography(page: Page, width: number) {
   if (width < 768)
     await page
       .getByRole("button", { name: "Toggle navigation", exact: true })
-      .click();
+      .tap();
   const labels = page
     .locator("[data-navigation-heading]")
     .filter({ visible: true });
@@ -120,6 +120,8 @@ for (const width of [390, 1440])
           baseURL:
             process.env.EXPERIENCE_E2E_BASE_URL ?? "http://127.0.0.1:3123",
           viewport: { width, height: 960 },
+          hasTouch: width < 768,
+          isMobile: width < 768,
           colorScheme: theme,
           recordVideo: {
             dir: `${directory}/raw-video`,
@@ -203,17 +205,42 @@ for (const width of [390, 1440])
             timeout: 30000,
           });
           const box = (await canvas.boundingBox())!;
-          await page.mouse.move(
-            box.x + box.width * 0.45,
-            box.y + box.height * 0.5,
-          );
-          await page.mouse.down();
-          await page.mouse.move(
-            box.x + box.width * 0.65,
-            box.y + box.height * 0.6,
-            { steps: 15 },
-          );
-          await page.mouse.up();
+          if (width < 768) {
+            const touch = await context.newCDPSession(page);
+            await touch.send("Input.dispatchTouchEvent", {
+              type: "touchStart",
+              touchPoints: [
+                { x: box.x + box.width * 0.45, y: box.y + box.height * 0.5 },
+              ],
+            });
+            for (let step = 1; step <= 12; step++)
+              await touch.send("Input.dispatchTouchEvent", {
+                type: "touchMove",
+                touchPoints: [
+                  {
+                    x: box.x + box.width * (0.45 + (0.2 * step) / 12),
+                    y: box.y + box.height * (0.5 + (0.1 * step) / 12),
+                  },
+                ],
+              });
+            await touch.send("Input.dispatchTouchEvent", {
+              type: "touchEnd",
+              touchPoints: [],
+            });
+            await touch.detach();
+          } else {
+            await page.mouse.move(
+              box.x + box.width * 0.45,
+              box.y + box.height * 0.5,
+            );
+            await page.mouse.down();
+            await page.mouse.move(
+              box.x + box.width * 0.65,
+              box.y + box.height * 0.6,
+              { steps: 15 },
+            );
+            await page.mouse.up();
+          }
           await page
             .getByRole("button", { name: "Reset model preview", exact: true })
             .click();
@@ -300,6 +327,19 @@ for (const width of [390, 1440])
             await expect(
               page.getByRole("heading", { name: heading, exact: true }),
             ).toBeVisible();
+            if (name === "monitoring") {
+              await expect(
+                page.getByRole("heading", {
+                  name: "Workspace direct sensor",
+                  exact: true,
+                }),
+              ).toBeVisible();
+              await expect(
+                page
+                  .getByRole("img", { name: /temperature in °C/ })
+                  .locator(".recharts-line-dot"),
+              ).toBeVisible();
+            }
             if (name === "assistant") {
               await page
                 .getByLabel("Ask the Smart Factory Assistant")
@@ -338,6 +378,8 @@ for (const width of [390, 1440])
       const context = await browser.newContext({
         baseURL: process.env.EXPERIENCE_E2E_BASE_URL ?? "http://127.0.0.1:3123",
         viewport: { width, height: 960 },
+        hasTouch: width < 768,
+        isMobile: width < 768,
         colorScheme: width === 390 ? "dark" : "light",
         recordVideo: {
           dir: `${directory}/raw-video`,

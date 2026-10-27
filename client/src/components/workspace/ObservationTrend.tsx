@@ -284,7 +284,12 @@ export function ObservationTrend({
                     stroke="var(--chart-2)"
                     strokeWidth={2}
                     connectNulls={false}
-                    dot={false}
+                    dot={
+                      data.buckets.filter((bucket) => bucket.value != null)
+                        .length === 1
+                        ? { r: 4, fill: "var(--chart-2)", strokeWidth: 0 }
+                        : false
+                    }
                     isAnimationActive={active && !reduceMotion}
                     animationDuration={300}
                   />
