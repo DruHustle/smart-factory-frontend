@@ -176,8 +176,8 @@ export default function Home() {
             : `${stats?.alerts.open ?? "…"} open process incidents`}
         </span>
         <span>
-          {stats?.alerts.activeDowntime ?? "…"} explicitly confirmed downtime
-          events
+          <span>Confirmed downtime</span> ·{" "}
+          {stats?.alerts.activeDowntime ?? "…"} explicitly confirmed events
         </span>
         {user?.access?.demoOnly && (
           <Badge variant="outline">
@@ -493,6 +493,7 @@ export default function Home() {
                       <li key={item.ref}>
                         <Link
                           href={itemHref(item.ref, "overview", context)}
+                          aria-label={`Open ${item.name}`}
                           className="flex h-full items-center gap-3 rounded-md border p-3 hover:border-primary focus-visible:outline-2 focus-visible:outline-ring"
                         >
                           <EquipmentSymbol

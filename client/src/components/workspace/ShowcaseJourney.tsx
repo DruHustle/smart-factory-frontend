@@ -40,7 +40,9 @@ export function ShowcaseJourney() {
           ["Open independent sensor", `/inventory/${s.sensorRef}/telemetry`],
         ].map(([label, href]) => (
           <Button key={href} asChild size="sm" variant="outline">
-            <Link href={href}>{label}</Link>
+            <Link href={href} aria-label={label}>
+              {label}
+            </Link>
           </Button>
         ))}
       </div>

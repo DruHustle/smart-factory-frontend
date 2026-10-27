@@ -1,0 +1,8 @@
+{
+  "dataset": "isolated synthetic workspace fixtures",
+  "source": "b865621de132a5828a6218505b084b97b50d7b9f",
+  "appSourceClean": true,
+  "metadata": {
+    "route": "/analytics?asset=urn%3Asmart-factory%3Ashowcase%3Apump-01&scope=simulated&from=2026-10-27T14%3A00&to=2026-10-27T15%3A00"
+  }
+}

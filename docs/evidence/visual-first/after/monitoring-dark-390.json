@@ -1,0 +1,8 @@
+{
+  "dataset": "isolated synthetic workspace fixtures",
+  "source": "b865621de132a5828a6218505b084b97b50d7b9f",
+  "appSourceClean": true,
+  "metadata": {
+    "route": "/monitoring"
+  }
+}

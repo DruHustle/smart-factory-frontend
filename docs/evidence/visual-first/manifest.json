@@ -1,0 +1,260 @@
+{
+  "evidence": "actual rendered application with isolated synthetic fixtures",
+  "generatedAt": "2026-10-27T15:55:27.259962+00:00",
+  "sources": {
+    "before": "d307f9319c06a6c460f7c1fb874521c077108ad7",
+    "responsiveMatrix": "7410a5d32ce4f24af476a37f82939f01dbb9e8bd",
+    "after": "b865621de132a5828a6218505b084b97b50d7b9f"
+  },
+  "physicalHardware": false,
+  "viewports": [
+    390,
+    1440
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "files": [
+    {
+      "path": "before/overview-light-390.png",
+      "bytes": 154834,
+      "sha256": "13d77bfb61fc63a545c4a9dcc097704ae42f6c076c332d016c9224134c856932"
+    },
+    {
+      "path": "before/overview-light-390.json",
+      "bytes": 290,
+      "sha256": "9cb7a4452b60f658b3ead3d22a0f5636ff7385fd596e660256f4ab655973f8bb"
+    },
+    {
+      "path": "before/overview-dark-390.png",
+      "bytes": 154498,
+      "sha256": "25640bc8a76a55d6c840467d3004194a7c9ab6b0a52c97054cfe291b956dee6f"
+    },
+    {
+      "path": "before/overview-dark-390.json",
+      "bytes": 289,
+      "sha256": "4efb30a71057a7d67adbaef4fc5b0326c790dc09cb658f30a37bb948e8b8e409"
+    },
+    {
+      "path": "before/overview-light-1440.png",
+      "bytes": 180839,
+      "sha256": "0c5e73f9c730df093fa1848068a2d98155ac0fbb343c374b47011440424241e4"
+    },
+    {
+      "path": "before/overview-light-1440.json",
+      "bytes": 291,
+      "sha256": "9ef6ae956994c493b81588fbfb40361b9ab14c8b7e3e627a2c482390ad107420"
+    },
+    {
+      "path": "before/overview-dark-1440.png",
+      "bytes": 179450,
+      "sha256": "b47e8ca1437e72c6b4d68ca2e68cd3cd5153a2faaa2997d3924f0e4922f1f829"
+    },
+    {
+      "path": "before/overview-dark-1440.json",
+      "bytes": 290,
+      "sha256": "07f2e07f3574391dc84360c870182ebed97e84746973d4e154e847eaf57e9bf1"
+    },
+    {
+      "path": "after/overview-light-390.png",
+      "bytes": 243152,
+      "sha256": "1375bde25236b03ab894ba0b7135be0aee2bac225147e97088d75f90bd9fb8f4"
+    },
+    {
+      "path": "after/overview-light-390.json",
+      "bytes": 1185,
+      "sha256": "7cff81f9876de9e68671875b295ceb07b5a4077e53808ec67e7bc01d9ca1bd65"
+    },
+    {
+      "path": "after/overview-dark-390.png",
+      "bytes": 243885,
+      "sha256": "a6dcd55641cde2e9d182c3c3949fa1f0f44ccc06cb32349d2b14f2d3249eb2c7"
+    },
+    {
+      "path": "after/overview-dark-390.json",
+      "bytes": 1185,
+      "sha256": "7cff81f9876de9e68671875b295ceb07b5a4077e53808ec67e7bc01d9ca1bd65"
+    },
+    {
+      "path": "after/overview-light-1440.png",
+      "bytes": 311702,
+      "sha256": "46679157ba143ca7cd9057563eba0b64cc362c85feafc8e89a79f17cda85336b"
+    },
+    {
+      "path": "after/overview-light-1440.json",
+      "bytes": 1185,
+      "sha256": "7cff81f9876de9e68671875b295ceb07b5a4077e53808ec67e7bc01d9ca1bd65"
+    },
+    {
+      "path": "after/overview-dark-1440.png",
+      "bytes": 313363,
+      "sha256": "6aaac8de9463504e56bf0b33898bf7d4ad5bb0a5fbff30b4822d881279e256f6"
+    },
+    {
+      "path": "after/overview-dark-1440.json",
+      "bytes": 1185,
+      "sha256": "7cff81f9876de9e68671875b295ceb07b5a4077e53808ec67e7bc01d9ca1bd65"
+    },
+    {
+      "path": "after/inventory-light-1440.png",
+      "bytes": 323158,
+      "sha256": "8eafbd12a5d29e1f7877a3dfe215376403dcdd783135cfee7f449ec3d3a35770"
+    },
+    {
+      "path": "after/inventory-light-1440.json",
+      "bytes": 186,
+      "sha256": "f75c891c8d7e94f0f7f91d97053931b4507277d5623f5d48e173554936762baf"
+    },
+    {
+      "path": "after/inventory-dark-390.png",
+      "bytes": 72128,
+      "sha256": "9175033d1f2a18ce32471a396e2ac8217c5e998c268715dd76a2538890bd7710"
+    },
+    {
+      "path": "after/inventory-dark-390.json",
+      "bytes": 186,
+      "sha256": "f75c891c8d7e94f0f7f91d97053931b4507277d5623f5d48e173554936762baf"
+    },
+    {
+      "path": "after/monitoring-light-1440.png",
+      "bytes": 302048,
+      "sha256": "f869cc745d90510573d4982717a8b72041236f5a5d81421328dfc4dc893edcf3"
+    },
+    {
+      "path": "after/monitoring-light-1440.json",
+      "bytes": 187,
+      "sha256": "6f2cf236b3f8c041771fc1fb8be4ea1223ef7c1d5359c592ddca4a57a7f1c0c9"
+    },
+    {
+      "path": "after/monitoring-dark-390.png",
+      "bytes": 244726,
+      "sha256": "ddb1e7bc91f647135015e084d1314c748b5f3aa4d71d596dda464e0aa7fca3b4"
+    },
+    {
+      "path": "after/monitoring-dark-390.json",
+      "bytes": 187,
+      "sha256": "6f2cf236b3f8c041771fc1fb8be4ea1223ef7c1d5359c592ddca4a57a7f1c0c9"
+    },
+    {
+      "path": "after/security-light-1440.png",
+      "bytes": 266571,
+      "sha256": "a964fe7b348929092c0db4c1959a96f9f825d69e0f1ff98c03ec6120f18a945a"
+    },
+    {
+      "path": "after/security-light-1440.json",
+      "bytes": 190,
+      "sha256": "919f1483641e3d86b46d194be2032a71e379295117bc5cb955bc1e41b6bc54aa"
+    },
+    {
+      "path": "after/security-dark-390.png",
+      "bytes": 215298,
+      "sha256": "c5cb99ca997cdb15f2c8f816fd97f661e376db11bd84de6ab7e439785cff78c9"
+    },
+    {
+      "path": "after/security-dark-390.json",
+      "bytes": 190,
+      "sha256": "919f1483641e3d86b46d194be2032a71e379295117bc5cb955bc1e41b6bc54aa"
+    },
+    {
+      "path": "after/analytics-light-1440.png",
+      "bytes": 159805,
+      "sha256": "3cc66d26c5cede7b727c3e213bd6d43b91cb8fcf48f01e3d8d1bd2ee883470e6"
+    },
+    {
+      "path": "after/analytics-light-1440.json",
+      "bytes": 295,
+      "sha256": "9aa54db53edd85303b1da865230c3ecd464296e72bd10f0b5c220768bad59d2d"
+    },
+    {
+      "path": "after/analytics-dark-390.png",
+      "bytes": 122532,
+      "sha256": "45c087c9c10d87d1dced8b1f28d42548365e59556a179ccf18cb176b575e3869"
+    },
+    {
+      "path": "after/analytics-dark-390.json",
+      "bytes": 295,
+      "sha256": "9aa54db53edd85303b1da865230c3ecd464296e72bd10f0b5c220768bad59d2d"
+    },
+    {
+      "path": "after/assistant-light-1440.png",
+      "bytes": 218565,
+      "sha256": "3313fa1ff26632c53d963d06f696392a1ea5fd565c6951b2066f9fd507b92fcd"
+    },
+    {
+      "path": "after/assistant-light-1440.json",
+      "bytes": 186,
+      "sha256": "744a2289756b8ff62bcd2d5b3cdfcce791ec185ba47828df896a7e90509c1883"
+    },
+    {
+      "path": "after/assistant-dark-390.png",
+      "bytes": 70118,
+      "sha256": "f8829d915abde59b6517a7ed7d06003cc4ac21262d70c82a9af62a76178ed527"
+    },
+    {
+      "path": "after/assistant-dark-390.json",
+      "bytes": 186,
+      "sha256": "744a2289756b8ff62bcd2d5b3cdfcce791ec185ba47828df896a7e90509c1883"
+    },
+    {
+      "path": "after/administration-light-1440.png",
+      "bytes": 139405,
+      "sha256": "5b1d0327f0fea12189d82b11dda441d4b9c892d44ca357e0a9b94c57b33a23ae"
+    },
+    {
+      "path": "after/administration-light-1440.json",
+      "bytes": 204,
+      "sha256": "f9d850b1bc17937c7e1579eb7234682423fa41139c5cf700aaacb6e91cb00f56"
+    },
+    {
+      "path": "after/administration-dark-390.png",
+      "bytes": 257149,
+      "sha256": "9da68a1c997b8225e32d5d60788b0f8abc1b2bc994070e56d9494ac8ceebfab5"
+    },
+    {
+      "path": "after/administration-dark-390.json",
+      "bytes": 204,
+      "sha256": "f9d850b1bc17937c7e1579eb7234682423fa41139c5cf700aaacb6e91cb00f56"
+    },
+    {
+      "path": "after/inspection-390.png",
+      "bytes": 211989,
+      "sha256": "702d26cfe2c20a705ee9f3a56bfc6e17336632a2f7cfb0af3c15261e498158f9"
+    },
+    {
+      "path": "after/inspection-390.json",
+      "bytes": 253,
+      "sha256": "ca9a64b5ffaf8437f245886256b5f4d765cf5db283b87ce604679a7b76f2095e"
+    },
+    {
+      "path": "after/inspection-1440.png",
+      "bytes": 490180,
+      "sha256": "4c558fd2f55a947247b586eabf311be0095e7d312c9f7cf97c656fa150edf340"
+    },
+    {
+      "path": "after/inspection-1440.json",
+      "bytes": 253,
+      "sha256": "ca9a64b5ffaf8437f245886256b5f4d765cf5db283b87ce604679a7b76f2095e"
+    },
+    {
+      "path": "recordings/navigation-light-1440.webm",
+      "bytes": 2166158,
+      "sha256": "f3c3386c75abbe687e7f09212c62dd2a79334e7a3967fc8f2f0f657bd3c5375e"
+    },
+    {
+      "path": "recordings/navigation-dark-390.webm",
+      "bytes": 1717710,
+      "sha256": "6e89e0c9f7a056e05e95c1cc3be445803cfdfa75e459546480045a485d30dd8f"
+    },
+    {
+      "path": "recordings/inspection-1440.webm",
+      "bytes": 1679423,
+      "sha256": "02a38d61682594907c51e654a7db036efd3893ae4f76209112a8e83b7ce0e22f"
+    },
+    {
+      "path": "recordings/inspection-390.webm",
+      "bytes": 1275180,
+      "sha256": "7b1761be5a7b0ed4feb858ef80e1e3a039214dbcea0bfab345b9a2f70e7354a5"
+    }
+  ]
+}
