@@ -109,8 +109,11 @@ export default function Login() {
   };
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-background p-4 sm:p-6">
-      {/* Dark Overlay */}
+    <main className="relative flex min-h-screen items-center justify-center bg-background bg-[url('/images/industrial-blur-bg.webp')] bg-cover bg-center p-4 sm:p-6">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
 
       {/* Login Card */}
       <Card className="relative z-10 w-full max-w-md animate-in fade-in zoom-in duration-500">
