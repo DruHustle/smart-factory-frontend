@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 const labels: Record<string, string> = {
+  demo_only: "Simulation · email not requested",
   pending: "Email queued",
   processing: "Email request in progress",
   retrying: "Email retry scheduled",
@@ -85,6 +86,12 @@ export default function Notifications() {
           </Button>
         }
       />
+      {user?.access?.demoOnly && (
+        <p className="rounded-md border border-info/40 bg-info/5 p-3 text-sm">
+          Read-only simulated inbox. These updates are isolated to this shared
+          demonstration identity. No email was sent.
+        </p>
+      )}
       <SectionNav
         label="Notification views"
         value={view}
@@ -175,7 +182,7 @@ export default function Notifications() {
                           </Link>
                         </Button>
                       ) : null}
-                      {!n.readAt && (
+                      {!user?.access?.demoOnly && !n.readAt && (
                         <Button
                           variant="outline"
                           disabled={read.isPending}

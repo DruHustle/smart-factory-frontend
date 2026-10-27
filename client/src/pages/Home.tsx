@@ -63,6 +63,9 @@ export default function Home() {
   const metric = metrics.includes(params.get("metric") as Metric)
     ? (params.get("metric") as Metric)
     : "temperature";
+  const showcase = trpc.system.showcase.useQuery(undefined, {
+    staleTime: 300000,
+  });
   const at = Number(params.get("at"));
   const end =
     params.has("at") &&
@@ -70,7 +73,9 @@ export default function Home() {
     at > 0 &&
     at <= Date.now() + 300000
       ? at
-      : anchor;
+      : user?.access?.demoOnly && showcase.data
+        ? Date.parse(showcase.data.anchor)
+        : anchor;
   const gatewayPage = Math.min(
     100000,
     Math.max(0, Math.floor(Number(params.get("gatewayPage")) || 0)),
@@ -117,9 +122,6 @@ export default function Home() {
       fleet.data?.items.find((i) => i.sampleAt != null) ??
       fleet.data?.items[0]);
   const incidents = trpc.alerts.list.useQuery({ openOnly: true, limit: 5 });
-  const showcase = trpc.system.showcase.useQuery(undefined, {
-    staleTime: 300000,
-  });
   const utils = trpc.useUtils();
   const refresh = () => {
     setAnchor(Date.now());
@@ -180,9 +182,12 @@ export default function Home() {
           {stats?.alerts.activeDowntime ?? "…"} explicitly confirmed events
         </span>
         {user?.access?.demoOnly && (
-          <Badge variant="outline">
-            Read-only demonstration · historical / simulated evidence
-          </Badge>
+          <Link
+            href="/demo"
+            className="rounded border border-info/40 bg-info/5 px-3 py-2 text-foreground underline"
+          >
+            Read-only simulation · Explore all demo chapters
+          </Link>
         )}
       </div>
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(18rem,1fr)]">

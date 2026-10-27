@@ -10,8 +10,11 @@ const requestVisibility = new AsyncLocalStorage<VisibilityPolicy>();
 /** Resolve from PostgreSQL for each authenticated request, never a replica-local toggle. */
 export async function resolveVisibility(
   user: AccessIdentity | null,
+  workspace?: import("../shared/data-workspace").DataWorkspace,
 ): Promise<VisibilityPolicy> {
   if (demonstrationOnly(user)) return { demoOnly: true, includeDemo: true };
+  if (workspace === "demo") return { demoOnly: true, includeDemo: true };
+  if (workspace === "live") return { demoOnly: false, includeDemo: false };
   const { refreshDemoDataSetting } = await import("./db");
   try {
     return { demoOnly: false, includeDemo: await refreshDemoDataSetting() };

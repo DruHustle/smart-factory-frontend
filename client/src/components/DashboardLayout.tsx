@@ -1,3 +1,4 @@
+import { DataWorkspaceSwitch } from "./DataWorkspaceSwitch";
 import { trpc } from "@/lib/trpc";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { ThemeMenu } from "@/components/workspace/ThemeMenu";
@@ -87,6 +88,7 @@ const groups: {
     label: "WORKSPACE",
     items: [
       { icon: Bot, label: "Assistant", path: "/assistant" },
+      { icon: Factory, label: "Demo guide", path: "/demo" },
       {
         icon: Plug,
         label: "Administration",
@@ -186,7 +188,7 @@ function DashboardLayoutContent({
   const { user, logout } = useAuth();
   const documentActive = useDocumentActive();
   const inbox = trpc.notifications.summary.useQuery(undefined, {
-    enabled: !!user && !user.access?.demoOnly,
+    enabled: !!user,
     refetchInterval: documentActive ? 30000 : false,
     refetchIntervalInBackground: false,
   });
@@ -264,9 +266,10 @@ function DashboardLayoutContent({
   function renderGroup(group: (typeof groups)[number]) {
     const items = group.items.filter(
       (i) =>
-        (!i.minRole || hasMinimumRole(user?.role, i.minRole)) &&
-        (!["/administration", "/ota"].includes(i.path) ||
-          !user?.access?.demoOnly),
+        (i.path !== "/demo" || user?.access?.demoOnly) &&
+        (user?.access?.demoOnly ||
+          !i.minRole ||
+          hasMinimumRole(user?.role, i.minRole)),
     );
     if (!items.length) return null;
     return (
@@ -475,6 +478,7 @@ function DashboardLayoutContent({
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <DataWorkspaceSwitch />
             <ThemeMenu />
             <Button asChild variant="ghost" size="icon">
               <Link

@@ -1,3 +1,4 @@
+import { demoOnlyRead } from "../demoData";
 import { operatorAction } from "../equipment/errors";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -7,9 +8,7 @@ import * as store from "./store";
 import { registrationSchema, mappingSchema, CONTRACT } from "./contract";
 import { integrationConfig } from "./config";
 const privateEngineer = engineerProcedure.use(({ ctx, next }) => {
-  if (
-    demonstrationOnly(ctx.user)
-  )
+  if (demonstrationOnly(ctx.user) || demoOnlyRead())
     throw new TRPCError({
       code: "FORBIDDEN",
       message:
@@ -18,9 +17,7 @@ const privateEngineer = engineerProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 const privateAdmin = adminProcedure.use(({ ctx, next }) => {
-  if (
-    demonstrationOnly(ctx.user)
-  )
+  if (demonstrationOnly(ctx.user) || demoOnlyRead())
     throw new TRPCError({
       code: "FORBIDDEN",
       message:
@@ -30,8 +27,7 @@ const privateAdmin = adminProcedure.use(({ ctx, next }) => {
 });
 export const onesaRouter = router({
   availability: engineerProcedure.query(({ ctx }) => ({
-    privateAccess:
-      !demonstrationOnly(ctx.user),
+    privateAccess: !(demonstrationOnly(ctx.user) || demoOnlyRead()),
   })),
   status: privateEngineer.query(() => operatorAction(() => store.status())),
   history: privateEngineer.query(() => operatorAction(() => store.history())),

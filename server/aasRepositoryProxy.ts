@@ -1,3 +1,4 @@
+import { requestedDataWorkspace } from "../shared/data-workspace";
 import type { Request, Response } from "express";
 import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
@@ -213,13 +214,14 @@ export async function aasRepositoryProxy(req: Request, res: Response) {
   }
   // Repository credentials grant private upstream access, including raw exports.
   if (user.passwordChangeRequired)
-    return res
-      .status(403)
-      .json({
-        error:
-          "Change your temporary password before opening the factory workspace",
-      });
-  if (demonstrationOnly(user))
+    return res.status(403).json({
+      error:
+        "Change your temporary password before opening the factory workspace",
+    });
+  if (
+    demonstrationOnly(user) ||
+    requestedDataWorkspace(req.headers?.cookie) === "demo"
+  )
     return res.status(403).json({ error: DEMONSTRATION_READ_ONLY });
   if ((roleRank[user.role] ?? -1) < roleRank.engineer) {
     return res.status(403).json({ error: "Requires engineer access" });
@@ -241,12 +243,10 @@ export async function aasRepositoryProxy(req: Request, res: Response) {
       identifier &&
       (await db.findManagedAasShellId(identifier))
     ) {
-      return res
-        .status(409)
-        .json({
-          error:
-            "This AAS belongs to a managed asset. Use the versioned asset workflow to preserve its history.",
-        });
+      return res.status(409).json({
+        error:
+          "This AAS belongs to a managed asset. Use the versioned asset workflow to preserve its history.",
+      });
     }
   }
 

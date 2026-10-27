@@ -1,3 +1,4 @@
+import { demoOnlyRead } from "../demoData";
 import { individualSecurityUser } from "./users";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -23,7 +24,7 @@ import {
 } from "./contract";
 import { captureHealth } from "./runtime";
 import type { User } from "../../drizzle/schema";
-export const demoOnly = (u: User) => demonstrationOnly(u);
+export const demoOnly = (u: User) => demonstrationOnly(u) || demoOnlyRead();
 const write = (procedure: typeof operatorProcedure) =>
   procedure.use(({ ctx, next }) => {
     if (demoOnly(ctx.user))
@@ -162,9 +163,11 @@ export const securityRouter = router({
     .query(({ ctx, input }) =>
       run(() => service.equipmentForFinding(input.id, demoOnly(ctx.user))),
     ),
-  overview: viewerProcedure.input(service.filters.optional()).query(({ ctx,input }) =>
-    run(() => service.overview(demoOnly(ctx.user),input)),
-  ),
+  overview: viewerProcedure
+    .input(service.filters.optional())
+    .query(({ ctx, input }) =>
+      run(() => service.overview(demoOnly(ctx.user), input)),
+    ),
   events: viewerProcedure
     .input(service.filters)
     .query(({ ctx, input }) =>
@@ -192,15 +195,17 @@ export const securityRouter = router({
         ),
       ),
     ),
-  posture: viewerProcedure.input(service.filters.optional()).query(({ ctx,input }) =>
-    run(() =>
-      service.posture(
-        demoOnly(ctx.user),
-        !["operator", "engineer", "admin"].includes(ctx.user.role),
-        input,
+  posture: viewerProcedure
+    .input(service.filters.optional())
+    .query(({ ctx, input }) =>
+      run(() =>
+        service.posture(
+          demoOnly(ctx.user),
+          !["operator", "engineer", "admin"].includes(ctx.user.role),
+          input,
+        ),
       ),
     ),
-  ),
   sources: viewerProcedure.query(({ ctx }) =>
     run(() =>
       service.sources(

@@ -29,6 +29,10 @@ export default function AnalyticsPage() {
   const { user } = useAuth(),
     [location, navigate] = useWorkspaceLocation(),
     params = new URLSearchParams(location.split("?")[1] ?? "");
+  const showcase = trpc.system.showcase.useQuery(undefined, {
+    enabled: !!user?.access?.demoOnly,
+    staleTime: 300000,
+  });
   const [anchor, setAnchor] = useState(() => Date.now()),
     [sourceSearch, setSourceSearch] = useState("");
   const assetId = params.get("asset") ?? "",
@@ -59,7 +63,11 @@ export default function AnalyticsPage() {
       "7d": 604800000,
       "30d": 2592000000,
     },
-    endTime = params.get("to") ? Date.parse(params.get("to")! + "Z") : anchor,
+    endTime = params.get("to")
+      ? Date.parse(params.get("to")! + "Z")
+      : user?.access?.demoOnly && showcase.data
+        ? Date.parse(showcase.data.anchor)
+        : anchor,
     startTime = params.get("from")
       ? Date.parse(params.get("from")! + "Z")
       : endTime - (durations[range] ?? durations["7d"]),
@@ -133,6 +141,16 @@ export default function AnalyticsPage() {
           ) : undefined
         }
       />
+      {user?.access?.demoOnly && showcase.data && (
+        <p
+          data-demo-anchor={showcase.data.anchor}
+          className="rounded-md border border-info/40 bg-info/5 p-3 text-sm"
+        >
+          Recorded simulation window · {new Date(startTime).toLocaleString()} –{" "}
+          {new Date(endTime).toLocaleString()}. Gaps are retained; current
+          physical connectivity is not inferred.
+        </p>
+      )}
       <div className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-2">
         <label className="space-y-1 text-xs">
           <span>Asset scope</span>

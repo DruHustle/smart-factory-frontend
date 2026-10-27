@@ -16,7 +16,9 @@ export INGESTION_API_TOKEN=isolated-workspace-ingestion-token
 pnpm exec drizzle-kit migrate
 node --import tsx scripts/security/seed-test-accounts.ts
 node --import tsx scripts/workspace/seed.ts
-SHOWCASE_SEED=true node --import tsx scripts/showcase/seed.ts
+node --import tsx --input-type=module -e 'const {initializeDemoAccounts}=await import("./server/initDemoAccounts.ts");await initializeDemoAccounts();const {closeDatabase}=await import("./server/db.ts");await closeDatabase();'
+SHOWCASE_SEED=true SHOWCASE_COMPLETE=true node --import tsx scripts/showcase/seed.ts
+SHOWCASE_SEED=true node --import tsx scripts/showcase/verify.ts
 node --import tsx server/_core/index.ts > "${TMPDIR:-/tmp}/public-demo-e2e-server.log" 2>&1 &
 server_pid=$!
 node --input-type=module -e 'const end=Date.now()+60000;while(true){try{if((await fetch(process.env.PUBLIC_DEMO_E2E_BASE_URL+"/health/ready")).ok)break;}catch{}if(Date.now()>end)throw new Error("Workspace fixture app not ready");await new Promise(r=>setTimeout(r,250));}'

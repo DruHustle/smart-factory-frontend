@@ -47,6 +47,14 @@ export function ObservationTrend({
   openHref?: string;
 }) {
   const { user } = useAuth();
+  const showcase = trpc.system.showcase.useQuery(undefined, {
+    enabled: !!user?.access?.demoOnly,
+    staleTime: 300000,
+  });
+  const recordedEnd =
+    user?.access?.demoOnly && scope === "simulated" && showcase.data
+      ? Date.parse(showcase.data.anchor)
+      : undefined;
   const active = useDocumentActive();
   const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const [metric, setMetric] = useState<Metric>(controlled ?? "temperature"),
@@ -59,8 +67,8 @@ export function ObservationTrend({
         assetIds,
         metric: selected,
         scope,
-        startTime: startTime ?? end - range,
-        endTime: endTime ?? end,
+        startTime: startTime ?? (endTime ?? recordedEnd ?? end) - range,
+        endTime: endTime ?? recordedEnd ?? end,
         intervalMs,
       }),
       [
@@ -70,6 +78,7 @@ export function ObservationTrend({
         scope,
         startTime,
         endTime,
+        recordedEnd,
         end,
         range,
         intervalMs,
@@ -183,6 +192,13 @@ export function ObservationTrend({
           </Button>
         </div>
       </div>
+      {recordedEnd && !endTime && (
+        <p className="text-xs text-muted-foreground">
+          Recorded simulation window ending{" "}
+          {new Date(recordedEnd).toLocaleString()}. Current physical
+          connectivity is not inferred.
+        </p>
+      )}
       {query.isLoading ? (
         <EmptyState title="Loading observations…" />
       ) : query.error ? (

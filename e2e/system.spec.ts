@@ -1139,3 +1139,63 @@ test("administrator recovery enforces first password change, revocation and disa
   ).toBeVisible();
   await userContext.close();
 });
+
+test("individual Demo/Live switch scopes data without changing factory settings", async ({
+  page,
+}) => {
+  await loginAs(page, "admin");
+  const input = encodeURIComponent(
+    JSON.stringify({ json: { page: 0, pageSize: 50 } }),
+  );
+  await page
+    .getByRole("combobox", { name: "Data workspace", exact: true })
+    .selectOption("demo");
+  await expect(
+    page.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Data workspace", exact: true }),
+  ).toHaveValue("demo");
+  let data = (
+    await (
+      await page.request.get("/api/trpc/inventory.list?input=" + input)
+    ).json()
+  ).result.data.json;
+  expect(data.items.length).toBeGreaterThan(0);
+  expect(data.items.every((i: any) => i.isDemo)).toBe(true);
+  expect(
+    (
+      await page.request.post("/api/trpc/devices.update", {
+        data: { json: { id: 1, name: "Denied by preview" } },
+      })
+    ).status(),
+  ).toBe(403);
+  expect((await page.request.get("/api/trpc/users.list")).status()).toBe(403);
+  await page
+    .getByRole("combobox", { name: "Data workspace", exact: true })
+    .selectOption("live");
+  await expect(
+    page.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Data workspace", exact: true }),
+  ).toHaveValue("live");
+  data = (
+    await (
+      await page.request.get("/api/trpc/inventory.list?input=" + input)
+    ).json()
+  ).result.data.json;
+  expect(data.items.length).toBeGreaterThan(0);
+  expect(data.items.every((i: any) => !i.isDemo)).toBe(true);
+  const audit = (
+    await (
+      await page.request.get(
+        "/api/trpc/system.audit?input=" +
+          encodeURIComponent(
+            JSON.stringify({ json: { page: 0, search: "demo" } }),
+          ),
+      )
+    ).json()
+  ).result.data.json;
+  expect(JSON.stringify(audit)).not.toContain("Denied by preview");
+});

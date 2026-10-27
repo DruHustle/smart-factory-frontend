@@ -18,6 +18,23 @@ for (const role of ["Admin", "Engineer", "Operator", "Viewer"]) {
       canEngineer: false,
       canAdminister: false,
     });
+    await expect(
+      page.getByRole("combobox", { name: "Data workspace", exact: true }),
+    ).toHaveValue("demo");
+    await expect(
+      page
+        .getByRole("combobox", { name: "Data workspace", exact: true })
+        .locator('option[value="live"]'),
+    ).toBeDisabled();
+    await page
+      .context()
+      .addCookies([
+        {
+          name: "smart_factory_data_workspace",
+          value: "live",
+          url: new URL(page.url()).origin,
+        },
+      ]);
     const inventory = await page.request.get(
       "/api/trpc/inventory.list?input=" +
         encodeURIComponent(JSON.stringify({ json: { page: 0, pageSize: 50 } })),
@@ -77,7 +94,7 @@ for (const role of ["Admin", "Engineer", "Operator", "Viewer"]) {
     ).toHaveCount(0);
     await expect(
       page.getByRole("link", { name: "Administration", exact: true }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     await page.goto("/#/assistant");
     await page
       .getByLabel("Ask the Smart Factory Assistant")

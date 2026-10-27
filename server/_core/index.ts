@@ -1,3 +1,4 @@
+import { requestedDataWorkspace } from "../../shared/data-workspace";
 import { installOperatingEvidence } from "../operatingEvidence";
 import { getRuntimeContract } from "../runtimeContract";
 import { TelemetryPolicyError } from "../observationPolicy";
@@ -43,7 +44,7 @@ import { edgeTelemetrySchema, telemetryRejection } from "../telemetrySchema";
 const edgeHeartbeatSchema = z
   .object({
     transportRetained: z.boolean().optional(),
-    transportRetainVerified:z.boolean().optional(),
+    transportRetainVerified: z.boolean().optional(),
     deviceId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/),
     timestamp: z.number().int().positive().max(8_640_000_000_000_000),
     status: z.enum(["online", "offline"]),
@@ -234,10 +235,16 @@ async function startServer() {
     next();
   });
 
-  app.get("/api/runtime/contract", async (_req,res)=>{
-    res.setHeader("Cache-Control","no-store");
-    try {const contract=await getRuntimeContract();return res.status(contract.schema.ready?200:503).json(contract);}
-    catch {return res.status(503).json({error:"Runtime identity or schema verification unavailable"});}
+  app.get("/api/runtime/contract", async (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const contract = await getRuntimeContract();
+      return res.status(contract.schema.ready ? 200 : 503).json(contract);
+    } catch {
+      return res
+        .status(503)
+        .json({ error: "Runtime identity or schema verification unavailable" });
+    }
   });
 
   installOperatingEvidence(app);
@@ -253,15 +260,16 @@ async function startServer() {
       return res.status(401).json({ error: "Authentication is required" });
     }
     if (user.passwordChangeRequired)
-      return res
-        .status(403)
-        .json({
-          error:
-            "Change your temporary password before opening the factory workspace",
-        });
+      return res.status(403).json({
+        error:
+          "Change your temporary password before opening the factory workspace",
+      });
     if (user.role !== "engineer" && user.role !== "admin")
       return res.status(403).json({ error: "Requires engineer access" });
-    if (demonstrationOnly(user))
+    if (
+      demonstrationOnly(user) ||
+      requestedDataWorkspace(req.headers.cookie) === "demo"
+    )
       return res.status(403).json({ error: DEMONSTRATION_READ_ONLY });
 
     try {
@@ -463,15 +471,16 @@ async function startServer() {
       return res.status(401).json({ error: "Authentication is required" });
     }
     if (user.passwordChangeRequired)
-      return res
-        .status(403)
-        .json({
-          error:
-            "Change your temporary password before opening the factory workspace",
-        });
+      return res.status(403).json({
+        error:
+          "Change your temporary password before opening the factory workspace",
+      });
     if (user.role !== "engineer" && user.role !== "admin")
       return res.status(403).json({ error: "Requires engineer access" });
-    if (demonstrationOnly(user))
+    if (
+      demonstrationOnly(user) ||
+      requestedDataWorkspace(req.headers.cookie) === "demo"
+    )
       return res.status(403).json({ error: DEMONSTRATION_READ_ONLY });
 
     const contentType = req.get("content-type") ?? "";
@@ -756,6 +765,7 @@ async function startServer() {
         );
         if (
           demonstrationOnly(user) ||
+          requestedDataWorkspace(request.headers.cookie) === "demo" ||
           user.passwordChangeRequired ||
           !session.sessionId ||
           !session.expiresAt

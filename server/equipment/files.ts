@@ -1,3 +1,4 @@
+import { requestedDataWorkspace } from "../../shared/data-workspace";
 import { resolveVisibility, withVisibility } from "../demoData";
 import express from "express";
 import { readFile } from "node:fs/promises";
@@ -19,6 +20,7 @@ export function installEquipmentFiles(app: express.Express) {
     if (
       !["engineer", "admin"].includes(user.role) ||
       demonstrationOnly(user) ||
+      requestedDataWorkspace(req.headers.cookie) === "demo" ||
       user.passwordChangeRequired
     )
       return res
@@ -91,16 +93,18 @@ export function installEquipmentFiles(app: express.Express) {
       return res.status(401).json({ error: "Authentication required" });
     }
     if (user.passwordChangeRequired)
-      return res
-        .status(403)
-        .json({
-          error: "Change your temporary password before opening factory files",
-        });
+      return res.status(403).json({
+        error: "Change your temporary password before opening factory files",
+      });
     if (!["model", "document"].includes(req.params.resource))
       return res.status(404).end();
     try {
-      const w = await withVisibility(await resolveVisibility(user), () =>
-          workspace(req.params.id),
+      const w = await withVisibility(
+          await resolveVisibility(
+            user,
+            requestedDataWorkspace(req.headers.cookie),
+          ),
+          () => workspace(req.params.id),
         ),
         t = await template(w.templateRevision);
       if (

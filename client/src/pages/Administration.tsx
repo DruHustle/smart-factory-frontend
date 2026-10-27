@@ -1,3 +1,4 @@
+import { DemoAdministration } from "@/components/workspace/DemoAdministration";
 import { lazy, Suspense, useState } from "react";
 import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { Link, useParams } from "wouter";
@@ -24,6 +25,7 @@ export default function Administration() {
   const { user } = useAuth(),
     { section = "integrations" } = useParams<{ section?: string }>(),
     [, navigate] = useWorkspaceLocation();
+  if (user?.access?.demoOnly) return <DemoAdministration section={section} />;
   if (!user?.access?.canEngineer)
     return (
       <EmptyState
