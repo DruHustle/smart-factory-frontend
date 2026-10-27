@@ -40,7 +40,7 @@ console.log(
   JSON.stringify(
     {
       verification: "protocol and proposed contract; NOT Onesa twin acceptance",
-      protocol: "MQTT via existing edge relay and .NET 8 subscriber",
+      protocol: "MQTT via existing edge relay and .NET 10 subscriber",
       sourceSamples: Number(source[0].n),
       persistedReceiverEvents: history.length,
       equipmentInstances: equipment.size,

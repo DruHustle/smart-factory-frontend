@@ -42,6 +42,16 @@ const [gateway] = await db
     name: "Simulated Onesa scenario gateway",
     type: "gateway",
     status: "offline",
+    metadata: {
+      commissioning: {
+        route: "direct",
+        revision: 1,
+        maxLatenessSeconds: 120,
+        clockSkewSeconds: 30,
+        legacyCurrent: false,
+        legacyUnits: {},
+      },
+    },
     isDemo: false,
   })
   .onConflictDoUpdate({

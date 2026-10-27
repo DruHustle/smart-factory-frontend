@@ -29,10 +29,10 @@ services:
       }
     tmpfs: [/var/lib/postgresql/data]
   onesa-telemetry:
-    image: mcr.microsoft.com/dotnet/sdk:8.0
+    image: mcr.microsoft.com/dotnet/aspnet:10.0.14-noble
     working_dir: /app
     volumes:
-      - ../smart-factory-iot-backend/src/Services/TelemetryService/bin/Release/net8.0:/app:ro
+      - ../smart-factory-iot-backend/src/Services/TelemetryService/bin/Release/net10.0:/app:ro
       - ../smart-factory-iot-backend/deploy/migrations:/migrations:ro
     command:
       [

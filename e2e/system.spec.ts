@@ -211,11 +211,15 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
     .fill("Synthetic service inspection; physical cause is not established.");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(
-    page.getByText(
-      "Synthetic service inspection; physical cause is not established.",
-      { exact: true },
-    ),
+    page
+      .locator("p")
+      .filter({
+        hasText:
+          /^Synthetic service inspection; physical cause is not established\.$/,
+      })
+      .first(),
   ).toBeVisible();
+  await expect(page.getByLabel("Add a review note")).toHaveValue("");
   await page
     .getByRole("button", { name: "Record downtime", exact: true })
     .click();

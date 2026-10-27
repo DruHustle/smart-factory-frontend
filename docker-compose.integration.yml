@@ -2,10 +2,10 @@
 services:
   database:
     image: postgres:16-alpine
-    environment: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: dashboard }
+    environment: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: dashboard_e2e }
     ports: ["127.0.0.1:55433:5432"]
     volumes: ["dashboard_test_data:/var/lib/postgresql/data"]
-    healthcheck: { test: [CMD-SHELL, "pg_isready -U postgres -d dashboard"], interval: 2s, timeout: 3s, retries: 30 }
+    healthcheck: { test: [CMD-SHELL, "pg_isready -U postgres -d dashboard_e2e"], interval: 2s, timeout: 3s, retries: 30 }
   backend-database:
     image: postgres:16-alpine
     environment: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: telemetry }
@@ -26,6 +26,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       JWT_SECRET: isolated-review-jwt-secret-at-least-32-bytes
+      DASHBOARD_DATABASE_CONNECTION: Host=database;Database=dashboard_e2e;Username=postgres;Password=postgres;SSL Mode=Disable
       AAS_PROVISIONING_TOKEN: isolated-review-provisioner-at-least-32-bytes
       REDIS_URL: redis://redis:6379
       MqttBrokerHost: broker
@@ -43,9 +44,10 @@ services:
       AASX_FILE_SERVER_URL: http://aasx-file-server:8086
     ports: ["127.0.0.1:55101:8080"]
     depends_on: { broker: { condition: service_healthy }, redis: { condition: service_healthy } }
-    networks: [default, aas]
   telemetry-service:
     build: { context: ../smart-factory-iot-backend, dockerfile: src/Services/TelemetryService/Dockerfile }
+    entrypoint: [sh, -c]
+    command: ["dotnet TelemetryService.dll --migrate && exec dotnet TelemetryService.dll"]
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       DOTNET_ENVIRONMENT: Development
@@ -60,8 +62,6 @@ services:
       INGESTION_API_TOKEN: isolated-review-ingestion-token
     extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on: { broker: { condition: service_healthy }, backend-database: { condition: service_healthy } }
-networks:
-  aas: { external: true, name: smart-factory-iot-shared }
 volumes:
   dashboard_test_data:
   backend_test_data:

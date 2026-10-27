@@ -189,6 +189,54 @@ describe("Smart Factory documentation assistant", () => {
     ).toBe(true);
   });
 
+  it("reports an attributed child observation without pretending the child is a configured asset connection", async () => {
+    const gateway = (await database.getDevices())[0];
+    database.getDevices.mockResolvedValue([
+      gateway,
+      {
+        ...gateway,
+        id: 9,
+        deviceId: "child.temp:01",
+        name: "Attributed child",
+        type: "sensor",
+      },
+    ]);
+    const reading = (await database.getLatestAssetReadings())[0];
+    database.getLatestAssetReadings.mockResolvedValue([
+      {
+        ...reading,
+        deviceId: 9,
+        temperature: 43.5,
+        measurements: {
+          temperature: {
+            sourceValue: 43.5,
+            sourceUnit: "°C",
+            canonicalValue: 43.5,
+            canonicalUnit: "°C",
+            conversionVersion: "sf-units-v1",
+            quality: "good",
+          },
+        },
+      },
+    ]);
+    const result = await answerFactoryQuestion(
+      "What is the latest temperature of Compressor 01?",
+    );
+    expect(result.answer).toContain("43.5");
+    expect(result.answer).toContain("child.temp:01");
+    expect(
+      result.sources.some(
+        (source) => source.href === "/inventory/asset:1/telemetry",
+      ),
+    ).toBe(true);
+    database.getDevices.mockResolvedValue([gateway]);
+    const hidden = await answerFactoryQuestion(
+      "What is the latest temperature of Compressor 01?",
+    );
+    expect(hidden.answer).not.toContain("43.5");
+    expect(JSON.stringify(hidden)).not.toContain("child.temp:01");
+  });
+
   it("does not substitute another asset's reading when a shared gateway has no attributed sample", async () => {
     database.getLatestAssetReadings.mockResolvedValue([
       {

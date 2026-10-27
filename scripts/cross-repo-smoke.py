@@ -2,7 +2,7 @@
 """Exercise real local Node/.NET/MQTT/Pi paths with a simulated serial controller.
 
 Requires sibling repositories, pnpm, Docker and Python edge dependencies. Start
-the dashboard's local BaSyx profile first. Test data uses unique AAS IDs and is
+its own disposable BaSyx repositories. Test data uses unique AAS IDs and is
 cleaned up; databases, Redis and MQTT are disposable and loopback-only.
 """
 from __future__ import annotations
@@ -37,12 +37,12 @@ if importlib.util.find_spec('paho') is None:
 
 sys.path.insert(0, str(EDGE))
 import paho.mqtt.client as mqtt
-from sensor_gateway import make_mqtt_client, command_topic, forward_local_message
+from sensor_gateway import make_mqtt_client, command_topic, forward_local_message, gateway_observation
 from asset_adapters import load_asset_connections, save_asset_profile
 from ada031_control import Ada031SerialCommandManager, validate_command
 from durable_state import DurableState, DurablePublisher
 
-COMPOSE = ['docker', 'compose', '--env-file', '/dev/null', '-p', 'smart-factory-review', '-f', str(ROOT / 'docker-compose.integration.yml')]
+COMPOSE = ['docker', 'compose', '--env-file', '/dev/null', '-p', 'smart-factory-review', '-f', str(ROOT / 'docker-compose.integration.yml'), '-f', str(ROOT / 'scripts/qualification/compose.aas.yaml')]
 BASE = 'http://127.0.0.1:3101'
 TOKEN = 'isolated-review-provisioner-at-least-32-bytes'
 
@@ -90,12 +90,13 @@ def main():
         mqtt_client_id=gateway_id, mqtt_username='review', mqtt_password='isolated-review-broker',
         mqtt_use_tls=False, mqtt_ca_cert='', local_mqtt_device_ids=('review-sensor',),
         ada031_control_asset_ids=(asset_id,))
-    env = os.environ.copy()
-    env.update(DATABASE_URL='postgres://postgres:postgres@127.0.0.1:55433/dashboard', DATABASE_SSL_MODE='disable',
+    env = {k:v for k,v in os.environ.items() if not k.startswith(('AAS_', 'ONESA_', 'ASSISTANT_', 'SMTP_', 'RESEND_'))}
+    env['DOTENV_CONFIG_PATH'] = '/dev/null'
+    env.update(DATABASE_URL='postgres://postgres:postgres@127.0.0.1:55433/dashboard_e2e', DATABASE_SSL_MODE='disable',
         REDIS_URL='redis://127.0.0.1:56380', JWT_SECRET='isolated-review-jwt-secret-at-least-32-bytes',
-        ENABLE_DEMO_ACCOUNTS='true', ENABLE_DEMO_DATA='false', ASSISTANT_PROVIDER='disabled',
+        ENABLE_DEMO_ACCOUNTS='false', ENABLE_DEMO_DATA='false', ASSISTANT_PROVIDER='disabled',
         AAS_PROVISIONING_API_URL='http://127.0.0.1:55101/api/assets', AAS_PROVISIONING_TOKEN=TOKEN,
-        AAS_REPOSITORY_URL='http://127.0.0.1:8081', AAS_ALLOW_UNAUTHENTICATED_LOCAL='true',
+        AAS_REPOSITORY_URL='http://127.0.0.1:60401', AAS_ALLOW_UNAUTHENTICATED_LOCAL='true',
         AAS_OIDC_TOKEN_URL='', AAS_OIDC_DISCOVERY_URL='', AAS_OIDC_CLIENT_SECRET='',
         PORT='3101', NODE_ENV='development', INGESTION_API_TOKEN='isolated-review-ingestion-token')
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
@@ -124,11 +125,17 @@ def main():
 
         try:
             run(COMPOSE + ['up', '-d', '--build', '--wait'], stdout=log, stderr=subprocess.STDOUT)
-            run(['pnpm', 'exec', 'drizzle-kit', 'migrate'], env=env, stdout=log, stderr=subprocess.STDOUT)
+            for port, path in [(60401,'shells'),(60402,'shell-descriptors'),(60403,'submodels'),(60404,'submodel-descriptors'),(60405,'concept-descriptions'),(60406,'packages')]:
+                eventually(lambda p=port, route=path: http(plain, f'http://127.0.0.1:{p}/{route}')[0] == 200, 'disposable BaSyx readiness')
+            aas_env = {**env, 'AAS_LIVE_TESTS':'true', 'AAS_REPOSITORY_URL':'http://127.0.0.1:60401', 'AAS_REGISTRY_URL':'http://127.0.0.1:60402', 'AAS_SUBMODEL_REPOSITORY_URL':'http://127.0.0.1:60403', 'AAS_SUBMODEL_REGISTRY_URL':'http://127.0.0.1:60404', 'AAS_CONCEPT_DESCRIPTION_REPOSITORY_URL':'http://127.0.0.1:60405', 'AASX_FILE_SERVER_URL':'http://127.0.0.1:60406'}
+            run([os.environ.get('QUALIFICATION_DOTNET','dotnet'), 'test', str(ROOT.parent/'smart-factory-iot-backend/src/SmartFactory.Tests/SmartFactory.Tests.csproj'), '-c', 'Release', '--filter', 'FullyQualifiedName~AasxLiveIntegrationTests'], env=aas_env, stdout=log, stderr=subprocess.STDOUT)
+            print('PASS: .NET 10 AASX import, 3.2 administrative metadata, semantic submodel and embedded attachment against disposable BaSyx', flush=True)
+            run(['node', '--import', 'tsx', 'scripts/migrate-dashboard.ts'], env=env, stdout=log, stderr=subprocess.STDOUT)
+            run(['node', '--import', 'tsx', 'scripts/security/seed-test-accounts.ts'], env=env, stdout=log, stderr=subprocess.STDOUT)
             server = start_dashboard()
-            watcher = mqtt.Client(client_id='review-watch-' + suffix)
+            watcher = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id='review-watch-' + suffix)
             watcher.username_pw_set('review', 'isolated-review-broker')
-            watcher.on_connect = lambda client, userdata, flags, rc: client.subscribe(command_topic(settings.site_id, settings.line_id, gateway_id) + '/ack', qos=1)
+            watcher.on_connect = lambda client, userdata, flags, rc, properties: client.subscribe(command_topic(settings.site_id, settings.line_id, gateway_id) + '/ack', qos=1)
             watcher.on_message = lambda client, userdata, message: acknowledgements.put(json.loads(message.payload))
             watcher.connect('127.0.0.1', 51883)
             watcher.loop_start()
@@ -139,8 +146,8 @@ def main():
             clients.append(gateway)
             eventually(lambda: gateway.is_connected(), 'gateway MQTT connection')
             time.sleep(1)
-            trpc(opener, 'auth.login', {'email': 'tech@dev.local', 'password': '@agqJmbpaPtJ#5SM1#vJ'})
-            device = trpc(opener, 'devices.create', {'deviceId': gateway_id, 'name': 'Review Pi'})
+            trpc(opener, 'auth.login', {'email': 'security-engineer@example.test', 'password': 'Synthetic-security-only-2026!'})
+            device = trpc(opener, 'devices.create', {'deviceId': gateway_id, 'name': 'Review Pi', 'type': 'gateway', 'route': 'direct'})
             identity = dict(assetId=asset_id, name='Review Arm', assetType='robotic_arm', manufacturer='Review Works', model='Bench fixture',
                 manufacturerStreet='Test 1', manufacturerZipcode='10000', manufacturerCityTown='Test', manufacturerNationalCode='DE',
                 manufacturerArticleNumber='TEST-1', orderCodeOfManufacturer='TEST-1')
@@ -159,8 +166,9 @@ def main():
             })
             eventually(lambda: writes == [b'o'], 'exact serial command byte')
             eventually(lambda: any_ack(acknowledgements, result['commandId'], 'serial_write_accepted'), 'serial acknowledgement')
+            trpc(opener, 'devices.create', {'deviceId': 'review-sensor', 'name': 'Review sensor', 'type': 'sensor', 'route': 'gateway', 'gatewayId': gateway_id})
             trpc(opener, 'auth.logout', None)
-            trpc(opener, 'auth.login', {'email': 'demo@dev.local', 'password': '@agqJmbpaPtJ#5SM1#vJ'})
+            trpc(opener, 'auth.login', {'email': 'security-viewer@example.test', 'password': 'Synthetic-security-only-2026!'})
             status, _ = http(opener, '/api/trpc/assets.controlAda031', {'json': {
                 'id': asset['id'],
                 'command': {'action': 'jog', 'joint': 'base', 'direction': 'increase'},
@@ -173,7 +181,8 @@ def main():
             sample = {
                 'deviceId': 'review-sensor', 'assetId': asset_id, 'timestamp': timestamp,
                 'sensorType': 'DHT11', 'sensorStatus': 'ok',
-                'temperature': 42.5, 'humidity': 55.0,
+                'temperature': 42.5, 'humidity': 55.0, 'units': {'temperature': '°C', 'humidity': '%'},
+                'integration': {**gateway_observation(), 'sessionId':'synthetic-cross-service','sequence':1},
                 'assetSignals': {'bearingTemp': 74.5},
             }
             message = types.SimpleNamespace(topic='factory/factory-a/line-1/review-sensor/telemetry', payload=json.dumps(sample).encode())
@@ -189,12 +198,13 @@ def main():
             server = None
             sample['timestamp'] = int(time.time() * 1000)
             sample['temperature'] = 43.5
+            sample['integration'] = {**gateway_observation(), 'sessionId':'synthetic-cross-service','sequence':2}
             message.payload = json.dumps(sample).encode()
             assert forward_local_message(settings, producer, message)
             eventually(producer.drain_one, 'second sample broker acceptance during dashboard outage')
             time.sleep(3)
             server = start_dashboard()
-            trpc(opener, 'auth.login', {'email': 'demo@dev.local', 'password': '@agqJmbpaPtJ#5SM1#vJ'})
+            trpc(opener, 'auth.login', {'email': 'security-viewer@example.test', 'password': 'Synthetic-security-only-2026!'})
             input['endTime'] = int(time.time() * 1000) + 1000
             eventually(lambda: trpc(opener, 'analytics.getAssetTelemetry', input, query=True)['overall']['sampleCount'] == 2, 'persisted backend retry after dashboard restart')
             print('PASS: dashboard outage/restart -> backend outbox retries -> both samples recovered without duplication', flush=True)

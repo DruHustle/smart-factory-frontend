@@ -393,6 +393,74 @@ async function buildLiveContext(
       )
       .slice(0, MAX_ALERTS_IN_CONTEXT);
 
+    // Asset attribution and configured connections are separate: a commissioned
+    // child can report an asset through its linked gateway without becoming a
+    // second configured asset connection. Preserve the actual visible source.
+    const telemetryFor = (
+      reading: (typeof latestReadings)[number] | undefined,
+    ) =>
+      reading
+        ? {
+            timestamp: new Date(reading.timestamp).toISOString(),
+            receivedAt: reading.createdAt.toISOString(),
+            mode: String(reading.integration?.mode ?? "unknown"),
+            sourceQuality: String(
+              reading.integration?.sourceQuality ?? "unknown",
+            ),
+            eligibility: reading.integration?.evidence ?? null,
+            measurements: metrics
+              .filter((m) => reading[m] != null || reading.measurements?.[m])
+              .map((m) => ({
+                metric: m,
+                value: measurementValue(reading, m),
+                unit: measurementUnit(reading, m),
+                quality: reading.measurements?.[m]?.quality ?? "unknown",
+              })),
+            temperature:
+              measurementUnit(reading, "temperature") &&
+              reading.measurements?.temperature?.quality === "good"
+                ? measurementValue(reading, "temperature")
+                : null,
+            humidity:
+              measurementUnit(reading, "humidity") &&
+              reading.measurements?.humidity?.quality === "good"
+                ? measurementValue(reading, "humidity")
+                : null,
+            vibration:
+              measurementUnit(reading, "vibration") &&
+              reading.measurements?.vibration?.quality === "good"
+                ? measurementValue(reading, "vibration")
+                : null,
+            power:
+              measurementUnit(reading, "power") &&
+              reading.measurements?.power?.quality === "good"
+                ? measurementValue(reading, "power")
+                : null,
+            pressure:
+              measurementUnit(reading, "pressure") &&
+              reading.measurements?.pressure?.quality === "good"
+                ? measurementValue(reading, "pressure")
+                : null,
+            rpm:
+              measurementUnit(reading, "rpm") &&
+              reading.measurements?.rpm?.quality === "good"
+                ? measurementValue(reading, "rpm")
+                : null,
+            signals: Object.fromEntries(
+              Object.entries(reading.assetSignals ?? {})
+                .filter(
+                  ([name, value]) =>
+                    /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name) &&
+                    !/(secret|token|password|credential|auth|key)/i.test(
+                      name,
+                    ) &&
+                    Number.isFinite(value),
+                )
+                .slice(0, 8),
+            ),
+          }
+        : null;
+
     const assetsInContext = connectionSets.map(({ asset, connections }) => ({
       id: asset.id,
       name: asset.name,
@@ -405,6 +473,16 @@ async function buildLiveContext(
       lifecycleStage: asset.lifecycleStage,
       aasRevision: asset.aasVersion,
       demoData: asset.isDemo,
+      latestObservation: (() => {
+        const reading = readingsByAsset.get(asset.assetId);
+        const source = reading && visibleDeviceByPk.get(reading.deviceId);
+        return source
+          ? {
+              sourceDeviceId: source.deviceId,
+              telemetry: telemetryFor(reading),
+            }
+          : null;
+      })(),
       connectedDevices: connections
         .filter((connection) => relevantDeviceIds.has(connection.deviceId))
         .slice(0, MAX_DEVICES_IN_CONTEXT)
@@ -423,69 +501,7 @@ async function buildLiveContext(
             gatewayId: connection.gatewayDeviceId,
             gatewayName: connection.gatewayName,
             connectionLastSeen: iso(connection.lastSeen),
-            latestTelemetry: reading
-              ? {
-                  timestamp: new Date(reading.timestamp).toISOString(),
-                  receivedAt: reading.createdAt.toISOString(),
-                  mode: String(reading.integration?.mode ?? "unknown"),
-                  sourceQuality: String(
-                    reading.integration?.sourceQuality ?? "unknown",
-                  ),
-                  eligibility: reading.integration?.evidence ?? null,
-                  measurements: metrics
-                    .filter(
-                      (m) => reading[m] != null || reading.measurements?.[m],
-                    )
-                    .map((m) => ({
-                      metric: m,
-                      value: measurementValue(reading, m),
-                      unit: measurementUnit(reading, m),
-                      quality: reading.measurements?.[m]?.quality ?? "unknown",
-                    })),
-                  temperature:
-                    measurementUnit(reading, "temperature") &&
-                    reading.measurements?.temperature?.quality === "good"
-                      ? measurementValue(reading, "temperature")
-                      : null,
-                  humidity:
-                    measurementUnit(reading, "humidity") &&
-                    reading.measurements?.humidity?.quality === "good"
-                      ? measurementValue(reading, "humidity")
-                      : null,
-                  vibration:
-                    measurementUnit(reading, "vibration") &&
-                    reading.measurements?.vibration?.quality === "good"
-                      ? measurementValue(reading, "vibration")
-                      : null,
-                  power:
-                    measurementUnit(reading, "power") &&
-                    reading.measurements?.power?.quality === "good"
-                      ? measurementValue(reading, "power")
-                      : null,
-                  pressure:
-                    measurementUnit(reading, "pressure") &&
-                    reading.measurements?.pressure?.quality === "good"
-                      ? measurementValue(reading, "pressure")
-                      : null,
-                  rpm:
-                    measurementUnit(reading, "rpm") &&
-                    reading.measurements?.rpm?.quality === "good"
-                      ? measurementValue(reading, "rpm")
-                      : null,
-                  signals: Object.fromEntries(
-                    Object.entries(reading.assetSignals ?? {})
-                      .filter(
-                        ([name, value]) =>
-                          /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name) &&
-                          !/(secret|token|password|credential|auth|key)/i.test(
-                            name,
-                          ) &&
-                          Number.isFinite(value),
-                      )
-                      .slice(0, 8),
-                  ),
-                }
-              : null,
+            latestTelemetry: telemetryFor(reading),
             recentIncidents: selectedAlerts
               .filter((alert) =>
                 alert.assetId
@@ -576,9 +592,7 @@ function buildSources(
     });
   }
   for (const asset of runtime.payload?.assets.slice(0, 4) ?? []) {
-    const observed = asset.connectedDevices.find(
-      (d) => !!d.latestTelemetry,
-    )?.latestTelemetry;
+    const observed = asset.latestObservation?.telemetry;
     if (observed)
       sources.push({
         title: `${asset.name} observations`,
@@ -642,7 +656,7 @@ function localGroundedAnswer(
     );
     const latest = runtime.payload.assets.slice(0, 4).map((asset) => {
       const device = asset.connectedDevices[0];
-      const telemetry = device?.latestTelemetry;
+      const telemetry = asset.latestObservation?.telemetry;
       const measurementText = telemetry
         ? telemetry.measurements
             .map(
@@ -657,7 +671,7 @@ function localGroundedAnswer(
             `${incident.code} (${incident.severity}, ${incident.status}): ${incident.message}`,
         )
         .join("; ");
-      return `- **${asset.name}${asset.demoData ? " (simulated)" : ""}**: ${asset.lifecycleStage}, AAS revision ${asset.aasRevision}${device ? `; gateway/device ${device.gatewayId ?? "direct"}/${device.deviceId} ${device.status}; ${measurementText}${telemetry ? `; sample recorded ${telemetry.timestamp} (${telemetry.mode} evidence; quality ${telemetry.sourceQuality}; stored observation)` : ""}${incidents ? `\n  Open incidents: ${incidents}` : ""}` : "; no linked device"}`;
+      return `- **${asset.name}${asset.demoData ? " (simulated)" : ""}**: ${asset.lifecycleStage}, AAS revision ${asset.aasRevision}${device ? `; gateway/device ${device.gatewayId ?? "direct"}/${device.deviceId} ${device.status}; observation source ${asset.latestObservation?.sourceDeviceId ?? "unobserved"}; ${measurementText}${telemetry ? `; sample recorded ${telemetry.timestamp} (${telemetry.mode} evidence; quality ${telemetry.sourceQuality}; stored observation)` : ""}${incidents ? `\n  Open incidents: ${incidents}` : ""}` : "; no linked device"}`;
     });
     if (latest.length) paragraphs.push(latest.join("\n"));
   } else if (runtime.status === "unavailable") {

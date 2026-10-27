@@ -1,0 +1,38 @@
+{
+  "method": "WCAG sRGB relative luminance of resolved rendered theme tokens",
+  "values": {
+    "background": "#0a0e27",
+    "foreground": "#e8ecf1",
+    "card": "#111d3d",
+    "card-foreground": "#e8ecf1",
+    "muted-foreground": "#a3b3c7",
+    "primary": "#ff8c42",
+    "primary-foreground": "#0a0e27",
+    "accent": "#2d2540",
+    "accent-foreground": "#ffb372",
+    "success": "#75d5b4",
+    "warning": "#f2c66d",
+    "destructive": "#ff8a96",
+    "info": "#67e8f9",
+    "chart-1": "#ff8c42",
+    "chart-2": "#67e8f9",
+    "input": "#6c7e97",
+    "ring": "#ff8c42"
+  },
+  "ratios": {
+    "foreground/background": 16.017403679119557,
+    "card-foreground/card": 13.97001861728669,
+    "muted-foreground/card": 7.758741936967737,
+    "primary-foreground/primary": 8.218783988376169,
+    "accent-foreground/accent": 8.235214835820692,
+    "primary/card": 7.168238225696267,
+    "success/card": 9.41868501323271,
+    "warning/card": 10.31908034088147,
+    "destructive/card": 7.36231653342727,
+    "info/card": 11.434629261009935,
+    "chart-1/card": 7.168238225696267,
+    "chart-2/card": 11.434629261009935,
+    "ring/card": 7.168238225696267,
+    "input/card": 4.000778383429533
+  }
+}

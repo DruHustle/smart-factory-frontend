@@ -1,0 +1,113 @@
+# Disposable AAS repositories only; no existing shared network or operator environment.
+services:
+  aas-database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: basyx
+      POSTGRES_USER: basyx
+      POSTGRES_PASSWORD: synthetic-aas-qualification-only
+    volumes:
+      - aas_database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U basyx -d basyx"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [default]
+
+  basyx-configuration:
+    image: eclipsebasyx/basyxconfigurationservice-go:1.1.0
+    restart: "no"
+    environment: &basyx-database-environment
+      POSTGRES_HOST: aas-database
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: basyx
+      POSTGRES_PASSWORD: synthetic-aas-qualification-only
+      POSTGRES_DBNAME: basyx
+      POSTGRES_SSLMODE: disable
+      POSTGRES_MAXOPENCONNECTIONS: 3
+      POSTGRES_MAXIDLECONNECTIONS: 1
+    depends_on:
+      aas-database:
+        condition: service_healthy
+    networks: [default]
+
+  aas-repository:
+    image: eclipsebasyx/aasrepository-go:1.1.0
+    environment:
+      <<: *basyx-database-environment
+      SERVER_PORT: 8081
+      ABAC_ENABLED: "false"
+      GENERAL_AASREGISTRYINTEGRATION: "true"
+      GENERAL_EXTERNALURL: http://aas-repository:8081
+    ports: ["127.0.0.1:60401:8081"]
+    depends_on:
+      basyx-configuration:
+        condition: service_completed_successfully
+    networks: [default]
+
+  aas-registry:
+    image: eclipsebasyx/aasregistry-go:1.1.0
+    environment:
+      <<: *basyx-database-environment
+      SERVER_PORT: 8082
+      ABAC_ENABLED: "false"
+    ports: ["127.0.0.1:60402:8082"]
+    depends_on:
+      basyx-configuration:
+        condition: service_completed_successfully
+    networks: [default]
+
+  submodel-repository:
+    image: eclipsebasyx/submodelrepository-go:1.1.0
+    environment:
+      <<: *basyx-database-environment
+      SERVER_PORT: 8083
+      ABAC_ENABLED: "false"
+      GENERAL_SUBMODELREGISTRYINTEGRATION: "true"
+      GENERAL_EXTERNALURL: http://submodel-repository:8083
+    ports: ["127.0.0.1:60403:8083"]
+    depends_on:
+      basyx-configuration:
+        condition: service_completed_successfully
+    networks: [default]
+
+  submodel-registry:
+    image: eclipsebasyx/submodelregistry-go:1.1.0
+    environment:
+      <<: *basyx-database-environment
+      SERVER_PORT: 8084
+      ABAC_ENABLED: "false"
+    ports: ["127.0.0.1:60404:8084"]
+    depends_on:
+      basyx-configuration:
+        condition: service_completed_successfully
+    networks: [default]
+
+  concept-description-repository:
+    image: eclipsebasyx/conceptdescriptionrepository-go:1.1.0
+    environment:
+      <<: *basyx-database-environment
+      SERVER_PORT: 8085
+      ABAC_ENABLED: "false"
+    ports: ["127.0.0.1:60405:8085"]
+    depends_on:
+      basyx-configuration:
+        condition: service_completed_successfully
+    networks: [default]
+
+  aasx-file-server:
+    image: eclipsebasyx/aasxfileserver-go:1.1.0
+    environment:
+      <<: *basyx-database-environment
+      SERVER_PORT: 8086
+      ABAC_ENABLED: "false"
+    ports: ["127.0.0.1:60406:8086"]
+    depends_on:
+      basyx-configuration:
+        condition: service_completed_successfully
+    networks: [default]
+
+
+volumes:
+  aas_database:

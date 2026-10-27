@@ -83,4 +83,4 @@ The optional **Smart Factory acquisition** proof requires this application's own
 bash scripts/equipment/provenance-path.sh
 ```
 
-It verifies 10 simulated and 10 replay samples through the real durable publisher, Mosquitto, .NET 8 and authenticated Node receiver. The receiver begins unavailable; persisted source samples remain pending, then all are acknowledged after recovery. [The provenance policy](telemetry-provenance-policy.md) records rejection, quarantine and deliberate operator retry behavior.
+It verifies 10 simulated and 10 replay samples through the real durable publisher, Mosquitto, .NET 10 and authenticated Node receiver. The receiver begins unavailable; persisted source samples remain pending, then all are acknowledged after recovery. [The provenance policy](telemetry-provenance-policy.md) records rejection, quarantine and deliberate operator retry behavior.
