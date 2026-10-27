@@ -531,8 +531,23 @@ test.describe("unified item workspace", () => {
           animations: "disabled",
         });
         await inventory(page, "Workspace standalone");
+        // Standalone equipment opens directly in 3D; observe delivery before navigation.
+        // Authenticate and finish model transfer before checking renderer readiness.
+        // The renderer keeps its original 5s assertion and the journey its 60s budget.
+        const modelTransfer = page.waitForResponse((response) =>
+          /^\/api\/equipment\/[^/]+\/model$/.test(
+            new URL(response.url()).pathname,
+          ),
+        );
         await open(page, "Workspace standalone pump");
         await selectSection(page, "3D inspection");
+        const modelResponse = await modelTransfer;
+        expect(modelResponse.status()).toBe(200);
+        // The streamed fetch has finished when the viewer records its admitted byte count.
+        await expect(page.locator("[data-model-bytes]")).toHaveAttribute(
+          "data-model-bytes",
+          /^[1-9]\d*$/,
+        );
         await expect(page.locator("[data-state=ready]")).toBeVisible();
         await expect
           .poll(() =>

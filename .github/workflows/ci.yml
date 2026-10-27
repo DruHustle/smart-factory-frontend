@@ -140,6 +140,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e:workspace
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: workspace-rendered-evidence
+          path: test-results/
+          if-no-files-found: warn
 
   trusted-cross-service:
     name: Broker, evidence and restore contracts

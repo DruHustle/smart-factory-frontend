@@ -46,6 +46,25 @@ const selectClass = "rounded border bg-background p-2 text-sm max-w-full";
 const time = (s: unknown) =>
   s ? new Date(String(s)).toLocaleString() : "Not observed";
 const json = (s: unknown) => JSON.stringify(s, null, 2);
+const investigationLabels: Record<string, string> = {
+  finding_opened: "Finding opened",
+  condition_repeated: "Condition observed again",
+  investigation_acknowledge: "Finding acknowledged",
+  investigation_assign: "Review assigned",
+  investigation_investigate: "Investigation started",
+  investigation_note: "Review note added",
+  investigation_resolve: "Investigation resolved",
+  investigation_dismiss: "Finding dismissed",
+  investigation_accept_risk: "Time-limited risk accepted",
+  risk_acceptance_expired: "Risk acceptance expired",
+};
+const sourceLabel = (name: string) =>
+  name === "node-app"
+    ? "Application audit"
+    : name === "dotnet-services"
+      ? "Service audit"
+      : name;
+
 function download(name: string, content: string, type = "application/json") {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const a = document.createElement("a");
@@ -445,7 +464,7 @@ function Workspace({
                 </div>
                 <Card>
                   <CardHeader>
-                    <CardTitle>Monitoring coverage</CardTitle>
+                    <CardTitle>Source coverage · live receipts</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <p>
@@ -476,7 +495,7 @@ function Workspace({
                         key={s.id}
                         className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
                       >
-                        <span>{s.name}</span>
+                        <span>{sourceLabel(s.name)}</span>
                         <Badge variant="outline">{s.state}</Badge>
                         <span>
                           Last live receipt: {time(s.last_received_at)}
@@ -1168,10 +1187,32 @@ function Workspace({
                             key={t.id}
                             className="rounded border p-2 text-sm"
                           >
-                            <strong>{t.action}</strong> · {time(t.created_at)}
-                            <pre className="whitespace-pre-wrap break-all text-xs">
-                              {json(t.detail)}
-                            </pre>
+                            <p className="font-medium capitalize">
+                              {investigationLabels[t.action] ??
+                                t.action.replaceAll("_", " ")}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {time(t.created_at)}
+                            </p>
+                            {typeof (t.detail as Record<string, unknown>)
+                              ?.reason === "string" && (
+                              <p className="mt-2 whitespace-pre-wrap">
+                                {String(
+                                  (t.detail as Record<string, unknown>).reason,
+                                )}
+                              </p>
+                            )}
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-xs text-muted-foreground">
+                                Exact decision details
+                              </summary>
+                              <p className="mt-2 break-all font-mono text-xs">
+                                {t.action}
+                              </p>
+                              <pre className="whitespace-pre-wrap break-all text-xs">
+                                {json(t.detail)}
+                              </pre>
+                            </details>
                           </div>
                         ))}
                       </CardContent>
@@ -1351,7 +1392,7 @@ function SourcePolicies({
         <CardContent className="space-y-3">
           {sources?.items.map((s: any) => (
             <div key={s.id} className="space-y-2 rounded border p-3">
-              <strong>{s.name}</strong>
+              <strong>{sourceLabel(s.name)}</strong>
               <p className="break-all text-xs">
                 {s.namespace} · {s.active ? "enabled" : "paused"} · last live
                 receipt {time(s.last_received_at)}

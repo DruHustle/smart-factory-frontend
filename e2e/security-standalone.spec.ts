@@ -243,12 +243,22 @@ test.describe("independent cybersecurity workspace", () => {
         .click();
       expect((await saved).ok()).toBe(true);
       await expect(
-        page.getByText(`investigation_${decision}`, { exact: true }),
+        page.getByText(
+          (
+            {
+              acknowledge: "Finding acknowledged",
+              assign: "Review assigned",
+              investigate: "Investigation started",
+              resolve: "Investigation resolved",
+            } as Record<string, string>
+          )[decision],
+          { exact: true },
+        ),
       ).toBeVisible();
     }
     await page.reload();
     await expect(
-      page.getByText("investigation_resolve", { exact: true }),
+      page.getByText("Investigation resolved", { exact: true }),
     ).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath("investigation-dark.png"),
@@ -455,8 +465,12 @@ test.describe("independent cybersecurity workspace", () => {
     const fs = (
       await call(request, "security.findings", { mode: "simulated" }, true)
     ).data.items;
+    const authFinding = fs.find(
+      (finding: any) => finding.rule_id === "authentication-burst",
+    );
+    expect(authFinding).toBeTruthy();
     await browserLogin(page);
-    await page.goto(`/#/cybersecurity?finding=${fs[0].id}`);
+    await page.goto(`/#/cybersecurity?finding=${authFinding.id}`);
     await expect(
       page
         .locator("details > summary")
@@ -466,7 +480,7 @@ test.describe("independent cybersecurity workspace", () => {
     await page.getByRole("button", { name: "Open account menu" }).click();
     await page.getByRole("menuitem", { name: "Sign out" }).click();
     await browserLogin(page, "viewer");
-    await page.goto(`/#/cybersecurity?finding=${fs[0].id}`);
+    await page.goto(`/#/cybersecurity?finding=${authFinding.id}`);
     await expect(
       page.getByText("Detailed evidence is unavailable to this role.", {
         exact: true,
