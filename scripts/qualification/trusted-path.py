@@ -29,9 +29,12 @@ from sensor_gateway import make_local_mqtt_client,connect_local_mqtt
 from mqtt_topics import topic as encoded_topic
 COMPOSE=['docker','compose','--env-file','/dev/null','-p','smart-factory-trusted-path','-f',str(ROOT/'scripts/qualification/compose.yaml')]
 BROKER=os.environ.get('MQTT_PROOF_BROKER','rabbitmq')
+PROTOCOL=os.environ.get('MQTT_PROOF_PROTOCOL','5')
+if PROTOCOL not in {'5','3.1.1-historical'}:raise ValueError('Unsupported qualification protocol mode')
+LEGACY=PROTOCOL=='3.1.1-historical'
 if BROKER not in {'rabbitmq','mosquitto'}:raise ValueError('Only disposable RabbitMQ/Mosquitto qualification is supported')
 if BROKER=='mosquitto':COMPOSE.extend(['-f',str(ROOT/'scripts/qualification/compose.mosquitto.yaml')])
-BASE='http://127.0.0.1:3124' 
+BASE='http://127.0.0.1:3124'
 TOKEN='synthetic-trusted-path-ingestion-credential-32bytes'
 
 def run(args,**kw):
@@ -69,7 +72,7 @@ def main():
          'INTERNAL_TELEMETRY_SINK_URL':BASE+'/api/internal/telemetry','DOTNET_ENVIRONMENT':'Development',
          'PostgresConnectionString':'Host=127.0.0.1;Port=55452;Database=telemetry_trusted_e2e;Username=postgres;Password=postgres;SSL Mode=Disable',
          'TELEMETRY_MIGRATIONS_DIR':str(BACKEND/'deploy/migrations'),'MqttBrokerHost':'127.0.0.1','MqttBrokerPort':'51889',
-         'MqttUseTls':'false','MqttClientId':'trusted-path-singleton','MqttUsername':'review','MqttPassword':'isolated-review-broker'}
+         'MqttUseTls':'false','MqttProtocolVersion':PROTOCOL,'MqttClientId':'trusted-path-singleton','MqttUsername':'review','MqttPassword':'isolated-review-broker'}
     for key in list(env):
         if key.startswith('ONESA_')or key.startswith('ASSISTANT_')and key!='ASSISTANT_PROVIDER' or key.startswith('AAS_') or key.startswith('SMTP_') or key.startswith('RESEND_'):env.pop(key,None)
     dotnet=os.environ.get('QUALIFICATION_DOTNET','dotnet')
@@ -86,7 +89,7 @@ def main():
     def snapshot():
         return json.loads(subprocess.check_output(['node','--import','tsx','scripts/qualification/trusted-fixture.mts','status'],cwd=ROOT,env=env,text=True))
     def pending():return int(sql('select count(*) from "TelemetryRecords" where "DashboardForwardedAt" is null and "DeliveryQuarantinedAt" is null'))
-    evidence={'environment':'disposable-local','broker':BROKER,'physicalEquipment':False,'consumerAcceptance':False,'productionPromotion':False,'checks':[]}
+    evidence={'environment':'disposable-local','broker':BROKER,'protocol':PROTOCOL,'physicalEquipment':False,'consumerAcceptance':False,'productionPromotion':False,'checks':[]}
     def passed(name,**details):
         evidence['checks'].append({'name':name,**details});print('PASS: '+name,flush=True)
     try:
@@ -137,11 +140,20 @@ def main():
         node=launch_node();worker=launch_worker()
         eventually(lambda:pending()==0,'outbox delivery after worker and receiver restart')
         first=snapshot();assert len(first['readings'])==5,first
-        assert len(first['incidents'])==1 and first['incidents'][0]['occurrences']==1,first['incidents']
+        if LEGACY:assert first['incidents']==[],first['incidents']
+        else:assert len(first['incidents'])==1 and first['incidents'][0]['occurrences']==1,first['incidents']
         primary=next(r for r in first['readings']if int(r['timestamp'])==now)
         assert primary['temperature']==25 and primary['power']==1500,primary
         assert primary['measurements']['power']['sourceUnit']=='kW' and primary['measurements']['power']['sourceValue']==1.5
         assert first['liveInventory'][0]['mode']=='live',first['liveInventory']
+        if LEGACY:
+            assert primary['integration']['evidence']['reason']=='transport_flags_unverified',primary
+            assert all(r['integration']['evidence']['eligible']is False for r in first['readings'])
+            publish({'deviceId':'gateway:01','timestamp':int(time.time()*1000),'status':'online'},encoded_topic('site:01','line.01','gateway:01','heartbeat'))
+            eventually(lambda:int(sql('select count(*) from gateway_observations','smart_factory_trusted_e2e'))==1,'legacy heartbeat historical storage')
+            assert sql("select reason from gateway_observations limit 1",'smart_factory_trusted_e2e')=='transport_flags_unverified'
+            assert all(r['lastSeen']is None for r in snapshot()['sources'])
+            passed('explicit MQTT 3.1.1 keeps good-quality telemetry and heartbeats historical; no current state or incidents')
         passed('punctuated and legacy IDs cross actual MQTT/.NET/Node; conversions and scoped latest survive restart',stored=5,canonicalPowerW=1500,canonicalTemperatureC=25)
         local_retained=sample(45,power=8);local_retained.pop('gatewayId');local_retained.pop('transportRetainVerified')
         info=source_client.publish(topic,json.dumps(local_retained),qos=1,retain=True);info.wait_for_publish(timeout=5)
@@ -168,10 +180,11 @@ def main():
         assert len(final['sources'])==3
         retained_row=next(r for r in final['readings']if int(r['timestamp'])==now+50)
         assert retained_row['integration']['evidence']['eligible']is False,retained_row
-        assert retained_row['integration']['observedRoute']['transportRetained']is True,retained_row
+        if LEGACY:assert retained_row['integration']['evidence']['reason']=='transport_flags_unverified',retained_row
+        else:assert retained_row['integration']['observedRoute']['transportRetained']is True,retained_row
         unverified=next(r for r in final['readings']if int(r['timestamp'])==now+55)
         assert unverified['integration']['evidence']['reason']=='transport_flags_unverified',unverified
-        passed('retained, delayed, bad quality and mixed modes never assert new current incidents or rewrite topology',currentIncidents=1,storedHistorical=9,quarantined=2)
+        passed('retained, delayed, bad quality and mixed modes never assert new current incidents or rewrite topology',currentIncidents=len(first['incidents']),storedHistorical=9,quarantined=2)
         publish(live);eventually(lambda:pending()==0,'duplicate retry drain');assert len(snapshot()['readings'])==9
         passed('duplicate redelivery after restart preserves one reading and one current effect')
         # Backup only owned disposable storage, restore into new names, compare evidence.
