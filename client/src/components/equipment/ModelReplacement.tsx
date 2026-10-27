@@ -46,11 +46,11 @@ export default function ModelReplacement({
           }}
         >
           <option value="">Choose local model</option>
-          {models.data && (
-            <option value={models.data.bundled.revision}>
-              Bundled illustrative pump/motor
+          {models.data?.bundledModels.map((m) => (
+            <option key={m.revision} value={m.revision}>
+              {m.name}
             </option>
-          )}
+          ))}
           {models.data?.imported.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name} · {m.id.slice(-12)}

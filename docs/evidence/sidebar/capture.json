@@ -1,0 +1,40 @@
+{
+  "dataset": "isolated synthetic showcase; no operational mutations",
+  "base": "bf748871a632e59f03f04d83659df2121af9e2f3",
+  "sourceSha256": {
+    "client/src/lib/navigation.ts": "5f4c949034d9d38a75d935200a8ccedd77113247e20a40ee2fb387af923e6778",
+    "client/src/components/workspace/NavigationLabel.tsx": "b649431fa0fcff15efded6ce0e6c1bf9eb3e0ce82fd23ebb1f75d0da44af485d",
+    "client/src/components/DashboardLayout.tsx": "beb3bb74c0686f796750e914dcb67b79963e262e92f68da8eafa76bd88134041",
+    "client/src/components/ui/sidebar.tsx": "ab54f30d733ea768c85404b33a594278a71df2bae8478bd2e3302bc4baadebc5"
+  },
+  "viewportWidths": [
+    360,
+    390,
+    768,
+    1024,
+    1440
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "individualRoles": [
+    "user",
+    "viewer",
+    "operator",
+    "engineer",
+    "admin"
+  ],
+  "sharedDemoRoles": [
+    "viewer",
+    "operator",
+    "engineer",
+    "admin"
+  ],
+  "iconPixels": 16,
+  "strokeWidth": 1.75,
+  "labelPixels": 12,
+  "lineHeightPixels": 16,
+  "iconToLabelGapPixels": 11,
+  "submenuIndentPixels": 12
+}

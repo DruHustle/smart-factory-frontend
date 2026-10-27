@@ -13,6 +13,7 @@ import {
   ChartNoAxesCombined,
   PanelsTopLeft,
   Server,
+  HeartPulse,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,7 +59,7 @@ export const navigationGroups: NavigationGroup[] = [
     label: "Infrastructure",
     items: [
       {
-        icon: Server,
+        icon: HeartPulse,
         label: "Service health",
         path: "/infrastructure/service-health",
         minRole: "admin",

@@ -1,0 +1,282 @@
+{
+  "revision": "smart-factory-illustrative-raspberry-pi-4b-1",
+  "sha256": "423f210f487c1e933dd593aa5c8b0fd61cda33c6fd000d92c5cbdcdb0be3e6de",
+  "bytes": 288440,
+  "components": 61,
+  "triangles": 5406,
+  "outlineMm": [
+    85,
+    56
+  ],
+  "mountingPatternMm": [
+    58,
+    49
+  ],
+  "gpioContacts": 40,
+  "usbSockets": 4,
+  "solids": [
+    {
+      "name": "PCB substrate and mounting holes",
+      "positiveVolumeMm3": 7566.940273936586,
+      "triangles": 708,
+      "manifold": true
+    },
+    {
+      "name": "Mounting hole annular pads",
+      "positiveVolumeMm3": 2.224966104529528,
+      "triangles": 1024,
+      "manifold": true
+    },
+    {
+      "name": "Processor package substrate",
+      "positiveVolumeMm3": 460.79999999999967,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Processor heat spreader",
+      "positiveVolumeMm3": 137.2000000000006,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "LPDDR4 memory package",
+      "positiveVolumeMm3": 257.4,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Wireless module shield",
+      "positiveVolumeMm3": 353.4725565860695,
+      "triangles": 164,
+      "manifold": true
+    },
+    {
+      "name": "USB controller package",
+      "positiveVolumeMm3": 78.4000000000001,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Ethernet PHY package",
+      "positiveVolumeMm3": 42.34999999999991,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Power management package",
+      "positiveVolumeMm3": 36.300000000000026,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Power inductors",
+      "positiveVolumeMm3": 47.03999999999994,
+      "triangles": 36,
+      "manifold": true
+    },
+    {
+      "name": "Passive component banks",
+      "positiveVolumeMm3": 5.28000000000002,
+      "triangles": 192,
+      "manifold": true
+    },
+    {
+      "name": "GPIO insulating body",
+      "positiveVolumeMm3": 621.7919999999998,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "GPIO contact pins",
+      "positiveVolumeMm3": 155.64800000000025,
+      "triangles": 480,
+      "manifold": true
+    },
+    {
+      "name": "PoE header body",
+      "positiveVolumeMm3": 62.42400000000001,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "PoE header contacts",
+      "positiveVolumeMm3": 14.745599999999992,
+      "triangles": 48,
+      "manifold": true
+    },
+    {
+      "name": "Ethernet shield",
+      "positiveVolumeMm3": 1805.5800000000006,
+      "triangles": 28,
+      "manifold": true
+    },
+    {
+      "name": "Ethernet socket insert",
+      "positiveVolumeMm3": 192.00000000000003,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Ethernet contacts",
+      "positiveVolumeMm3": 11.200000000000015,
+      "triangles": 96,
+      "manifold": true
+    },
+    {
+      "name": "Ethernet indicator lenses",
+      "positiveVolumeMm3": 2.3999999999999995,
+      "triangles": 24,
+      "manifold": true
+    },
+    {
+      "name": "USB 2 dual socket shield",
+      "positiveVolumeMm3": 1589.3280000000013,
+      "triangles": 44,
+      "manifold": true
+    },
+    {
+      "name": "USB 2 dual socket tongues",
+      "positiveVolumeMm3": 305.7600000000006,
+      "triangles": 24,
+      "manifold": true
+    },
+    {
+      "name": "USB 2 dual socket contacts",
+      "positiveVolumeMm3": 6.599999999999949,
+      "triangles": 96,
+      "manifold": true
+    },
+    {
+      "name": "USB 3 dual socket shield",
+      "positiveVolumeMm3": 1589.3280000000018,
+      "triangles": 44,
+      "manifold": true
+    },
+    {
+      "name": "USB 3 dual socket tongues",
+      "positiveVolumeMm3": 305.7600000000006,
+      "triangles": 24,
+      "manifold": true
+    },
+    {
+      "name": "USB 3 dual socket contacts",
+      "positiveVolumeMm3": 6.5999999999999215,
+      "triangles": 96,
+      "manifold": true
+    },
+    {
+      "name": "USB-C power shield",
+      "positiveVolumeMm3": 85.34497114097083,
+      "triangles": 188,
+      "manifold": true
+    },
+    {
+      "name": "USB-C power insert",
+      "positiveVolumeMm3": 17.640000000000093,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Micro HDMI 0 shield",
+      "positiveVolumeMm3": 67.36138454764196,
+      "triangles": 190,
+      "manifold": true
+    },
+    {
+      "name": "Micro HDMI 0 insert",
+      "positiveVolumeMm3": 13.608000000000025,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Micro HDMI 1 shield",
+      "positiveVolumeMm3": 67.36138454764207,
+      "triangles": 188,
+      "manifold": true
+    },
+    {
+      "name": "Micro HDMI 1 insert",
+      "positiveVolumeMm3": 13.608000000000033,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Audio jack body",
+      "positiveVolumeMm3": 592.0200000000001,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Audio jack aperture",
+      "positiveVolumeMm3": 39.767211239767576,
+      "triangles": 256,
+      "manifold": true
+    },
+    {
+      "name": "Camera CSI ribbon connector body",
+      "positiveVolumeMm3": 196.80000000000015,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Camera CSI ribbon connector latch",
+      "positiveVolumeMm3": 35.280000000000086,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Camera CSI ribbon connector contact bank",
+      "positiveVolumeMm3": 1.7999999999999812,
+      "triangles": 180,
+      "manifold": true
+    },
+    {
+      "name": "Display DSI ribbon connector body",
+      "positiveVolumeMm3": 196.80000000000027,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Display DSI ribbon connector latch",
+      "positiveVolumeMm3": 35.28000000000024,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Display DSI ribbon connector contact bank",
+      "positiveVolumeMm3": 1.7999999999999818,
+      "triangles": 180,
+      "manifold": true
+    },
+    {
+      "name": "MicroSD metal holder",
+      "positiveVolumeMm3": 247.97499999999994,
+      "triangles": 28,
+      "manifold": true
+    },
+    {
+      "name": "MicroSD socket contacts",
+      "positiveVolumeMm3": 7.200000000000013,
+      "triangles": 96,
+      "manifold": true
+    },
+    {
+      "name": "Illustrative PCB routing",
+      "positiveVolumeMm3": 0.7947499999999624,
+      "triangles": 120,
+      "manifold": true
+    },
+    {
+      "name": "Board reference silkscreen",
+      "positiveVolumeMm3": 0.25874100000000205,
+      "triangles": 648,
+      "manifold": true
+    }
+  ],
+  "limitations": [
+    "Illustration, not manufacturing CAD.",
+    "Connector interiors, package exteriors and routing are simplified.",
+    "No silicon internals, circuitry, measured state or installed hardware revision is asserted."
+  ]
+}

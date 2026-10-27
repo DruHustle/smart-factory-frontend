@@ -45,6 +45,7 @@ type Observation = {
 };
 type Props = {
   preview?: boolean;
+  initialViewDirection?: [number, number, number];
   modelUrl: string;
   components: Component[];
   selected: string | null;
@@ -99,6 +100,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         markers: THREE.Group;
         inspector: InspectionScene;
         renderer: THREE.WebGLRenderer;
+        indicatorScale: number;
       } | null>(null);
     const cameraMotion = useRef<(() => void) | null>(null);
     const [cameraMoving, setCameraMoving] = useState(false);
@@ -117,6 +119,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         "loading" | "ready" | "error" | "unsupported" | "lost"
       >("loading"),
       [progress, setProgress] = useState(0),
+      [loadPhase, setLoadPhase] = useState("Starting 3D view"),
       [message, setMessage] = useState(""),
       [attempt, setAttempt] = useState(0),
       [hidden, setHidden] = useState<string[]>([]),
@@ -186,7 +189,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       const container = host.current;
       if (!container) return;
       let disposed = false,
-        frame = 0;
+        frame = 0,
+        scenePrepared = false;
       let renderer: THREE.WebGLRenderer | undefined,
         controls: OrbitControls | undefined,
         scene: THREE.Scene | undefined,
@@ -195,6 +199,11 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       let firstModelRender: (() => void) | undefined;
       let initialFrameComplete = false;
       const loadStarted = performance.now();
+      const timing: Record<string, number> = {};
+      const mark = (phase: string) => {
+        timing[phase] = Math.round(performance.now() - loadStarted);
+        container.dataset.loadTimings = JSON.stringify(timing);
+      };
       const abort = new AbortController();
       const timeout = setTimeout(() => abort.abort(), 20000);
       const cleanupCallbacks: Array<() => void> = [];
@@ -203,7 +212,10 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         firstModelRender = undefined;
       });
       setState("loading");
+      delete container.dataset.modelBytes;
+      delete container.dataset.loadInteractiveMs;
       setProgress(0);
+      setLoadPhase("Starting 3D view");
       setHidden([]);
       setIsolated(null);
       setInspection({ ...defaultInspection });
@@ -234,10 +246,29 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         renderer.dispose();
         renderer.forceContextLoss();
         renderer = new THREE.WebGLRenderer({
-          antialias: false, alpha: false, stencil: true, powerPreference: "low-power",
+          antialias: false,
+          alpha: false,
+          stencil: true,
+          powerPreference: "low-power",
         });
         gl = renderer.getContext() as WebGL2RenderingContext;
       }
+      // Start delivery alongside lighting setup. This retains the same
+      // authenticated, same-origin route and 20 MiB admission limit below.
+      const responsePromise = (async () => {
+        const url = new URL(props.modelUrl, window.location.origin);
+        if (
+          url.origin !== window.location.origin ||
+          !url.pathname.startsWith("/api/equipment/")
+        )
+          throw new Error(
+            "Model must use authorized Smart Factory file delivery",
+          );
+        mark("downloadStarted");
+        setLoadPhase("Downloading 3D model");
+        return fetch(url, { credentials: "same-origin", signal: abort.signal });
+      })();
+      void responsePromise.catch(() => {});
       renderer.localClippingEnabled = true;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.05;
@@ -266,7 +297,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         currentControls = controls;
       let gpuFence: WebGLSync | null = null;
       const render = () => {
-        if (disposed || frame) return;
+        if (disposed || frame || !scenePrepared) return;
         const draw = () => {
           if (gpuFence && !gl.isContextLost()) {
             const status = gl.clientWaitSync(gpuFence, 0, 0);
@@ -291,7 +322,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                   const b = new THREE.Box3().setFromObject(node);
                   marker.position.copy(b.getCenter(new THREE.Vector3()));
                   marker.position.y =
-                    b.max.y + (marker.userData.security ? 0.12 : 0.06);
+                    b.max.y +
+                    (marker.userData.security ? 0.12 : 0.06) * r.indicatorScale;
                   if (marker.userData.security)
                     marker.quaternion.copy(camera.quaternion);
                 }
@@ -466,25 +498,19 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       );
       void (async () => {
         try {
-          const url = new URL(props.modelUrl, window.location.origin);
-          if (
-            url.origin !== window.location.origin ||
-            !url.pathname.startsWith("/api/equipment/")
-          )
-            throw new Error(
-              "Model must use authorized Smart Factory file delivery",
-            );
-          const response = await fetch(url, {
-            credentials: "same-origin",
-            signal: abort.signal,
-          });
+          const response = await responsePromise;
           if (!response.ok)
             throw new Error(`Model delivery returned HTTP ${response.status}`);
           const reader = response.body?.getReader();
           if (!reader) throw new Error("Model data missing");
           const chunks: Uint8Array[] = [];
           let received = 0;
-          const total = Number(response.headers.get("content-length"));
+          // A compressed Content-Length is not the decoded GLB byte count.
+          const total =
+            response.headers.get("content-encoding") &&
+            response.headers.get("content-encoding") !== "identity"
+              ? 0
+              : Number(response.headers.get("content-length"));
           while (true) {
             const item = await reader.read();
             if (item.done) break;
@@ -497,11 +523,13 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             if (!disposed)
               setProgress(
                 total > 0
-                  ? Math.min(95, Math.round((received / total) * 95))
-                  : 5,
+                  ? Math.min(100, Math.round((received / total) * 100))
+                  : 0,
               );
           }
           container.dataset.modelBytes = String(received);
+          mark("downloadCompleted");
+          setLoadPhase("Preparing model geometry");
           const bytes = new Uint8Array(received);
           let offset = 0;
           chunks.forEach((c) => {
@@ -514,6 +542,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             throw new Error("External model resources are prohibited");
           });
           const gltf = await loader.parseAsync(bytes.buffer, "");
+          mark("geometryParsed");
           loaded = gltf.scene;
           if (disposed) {
             disposeObject(loaded);
@@ -547,14 +576,28 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             }
           });
           currentScene.add(loaded);
+          const modelBounds = new THREE.Box3().setFromObject(loaded),
+            modelExtent = modelBounds.getSize(new THREE.Vector3()).length(),
+            indicatorScale = modelExtent < 0.5 ? modelExtent / 2 : 1;
+          ground.position.y = modelBounds.min.y - modelExtent * 0.002;
           const fitBox = (box: THREE.Box3, direction?: THREE.Vector3) => {
             cameraMotion.current?.();
             const previousEye = camera.position.clone(),
               previousTarget = currentControls.target.clone();
-            if (!frameBounds(camera, currentControls.target, box, direction))
+            if (
+              !frameBounds(
+                camera,
+                currentControls.target,
+                box,
+                direction ??
+                  (props.initialViewDirection
+                    ? new THREE.Vector3(...props.initialViewDirection)
+                    : undefined),
+              )
+            )
               return;
             const size = box.getSize(new THREE.Vector3()).length();
-            currentControls.minDistance = Math.max(0.005, size * 0.025);
+            currentControls.minDistance = Math.max(0.00001, size * 0.025);
             currentControls.maxDistance = size * 30;
             if (runtime.current && initialFrameComplete) {
               const eye = camera.position.clone(),
@@ -628,20 +671,27 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             markers,
             inspector,
             renderer: currentRenderer,
+            indicatorScale,
           };
           // On-demand Metal rendering must have linked PBR programs and an
           // initialized shadow map before its first visible frame.
+          mark("inspectionPrepared");
+          setLoadPhase("Preparing 3D graphics");
           await currentRenderer.compileAsync(currentScene, camera);
+          mark("graphicsCompiled");
           if (disposed) return;
+          scenePrepared = true;
           currentRenderer.shadowMap.needsUpdate =
             currentRenderer.shadowMap.enabled;
           const initialFrame = new Promise<void>((resolve) => {
             firstModelRender = resolve;
           });
+          setLoadPhase("Drawing 3D model");
           fit();
           await initialFrame;
           if (disposed) return;
           initialFrameComplete = true;
+          mark("firstFrame");
           container.dataset.loadInteractiveMs = String(
             performance.now() - loadStarted,
           );
@@ -710,9 +760,13 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                 : 0x94a3b8;
         const box = new THREE.Box3().setFromObject(node),
           center = box.getCenter(new THREE.Vector3());
-        center.y = box.max.y + 0.06;
+        center.y = box.max.y + 0.06 * r.indicatorScale;
         const marker = new THREE.Mesh(
-          new THREE.SphereGeometry(note ? 0.035 : 0.025, 12, 8),
+          new THREE.SphereGeometry(
+            (note ? 0.035 : 0.025) * r.indicatorScale,
+            12,
+            8,
+          ),
           new THREE.MeshBasicMaterial({
             color: note && !alarm ? 0x8b5cf6 : color,
           }),
@@ -739,14 +793,18 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         if (!node) continue;
         const box = new THREE.Box3().setFromObject(node),
           marker = new THREE.Mesh(
-            new THREE.RingGeometry(0.035, 0.045, 24),
+            new THREE.RingGeometry(
+              0.035 * r.indicatorScale,
+              0.045 * r.indicatorScale,
+              24,
+            ),
             new THREE.MeshBasicMaterial({
               color: 0x38bdf8,
               side: THREE.DoubleSide,
             }),
           );
         marker.position.copy(box.getCenter(new THREE.Vector3()));
-        marker.position.y = box.max.y + 0.12;
+        marker.position.y = box.max.y + 0.12 * r.indicatorScale;
         marker.quaternion.copy(r.camera.quaternion);
         marker.userData = {
           installedComponentId: finding.componentId,
@@ -805,11 +863,20 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           >
             {state === "loading" ? (
               <>
-                <span>Loading local GLB · {progress}%</span>
+                <span>
+                  {loadPhase}
+                  {loadPhase === "Downloading 3D model" && progress > 0
+                    ? ` · ${progress}%`
+                    : ""}
+                </span>
                 <progress
                   aria-label="Model loading progress"
                   max={100}
-                  value={progress}
+                  value={
+                    loadPhase === "Downloading 3D model" && progress > 0
+                      ? progress
+                      : undefined
+                  }
                 />
               </>
             ) : (

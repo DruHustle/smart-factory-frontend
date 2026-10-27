@@ -28,24 +28,8 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import {
-  LayoutDashboard,
-  LogOut,
-  PanelLeft,
-  Activity,
-  Cpu,
-  AlertTriangle,
-  BarChart3,
-  Bot,
-  Download,
-  Factory,
-  Layers,
-  Users,
-  Bell,
-  Plug,
-  ShieldCheck,
-} from "lucide-react";
-import { Fragment, CSSProperties, useEffect, useRef, useState } from "react";
+import { LogOut, PanelLeft, Factory, Bell } from "lucide-react";
+import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
@@ -238,8 +222,16 @@ function DashboardLayoutContent({
     if (!items.length) return null;
     return (
       <li className="list-none pt-3" key={group.label}>
-        <h2 title={isCollapsed ? group.label : undefined} className="mb-1 flex min-h-10 items-center px-2 text-muted-foreground">
-          <NavigationLabel icon={group.icon} label={group.label} heading collapsed={isCollapsed} />
+        <h2
+          title={isCollapsed ? group.label : undefined}
+          className="mb-1 flex h-10 items-center px-2 text-muted-foreground"
+        >
+          <NavigationLabel
+            icon={group.icon}
+            label={group.label}
+            heading
+            collapsed={isCollapsed}
+          />
         </h2>
         <ul className="space-y-1 pl-3 group-data-[collapsible=icon]:pl-0">
           {items.map((item) => (
@@ -258,7 +250,11 @@ function DashboardLayoutContent({
                   }
                   onClick={selectDestination}
                 >
-                  <NavigationLabel icon={item.icon} label={item.label} collapsed={isCollapsed} />
+                  <NavigationLabel
+                    icon={item.icon}
+                    label={item.label}
+                    collapsed={isCollapsed}
+                  />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -318,28 +314,31 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-1 py-3">
             <SidebarMenu className="px-2">
-              {visibleMenuItems.map((item, index) => (
-                <Fragment key={item.path}>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isMenuItemActive(item.path)}
-                      tooltip={item.label}
-                      className="h-10"
+              {visibleMenuItems.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isMenuItemActive(item.path)}
+                    tooltip={item.label}
+                    className="h-10"
+                  >
+                    <Link
+                      href={item.path}
+                      aria-label={item.label}
+                      aria-current={
+                        isMenuItemActive(item.path) ? "page" : undefined
+                      }
+                      onClick={selectDestination}
                     >
-                      <Link
-                        href={item.path}
-                        aria-label={item.label}
-                        aria-current={
-                          isMenuItemActive(item.path) ? "page" : undefined
-                        }
-                        onClick={selectDestination}
-                      >
-                        <NavigationLabel icon={item.icon} label={item.label} heading collapsed={isCollapsed} />
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </Fragment>
+                      <NavigationLabel
+                        icon={item.icon}
+                        label={item.label}
+                        heading
+                        collapsed={isCollapsed}
+                      />
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               ))}
               {groups.map(renderGroup)}
             </SidebarMenu>
@@ -450,7 +449,9 @@ function DashboardLayoutContent({
             </Button>
           </div>
         </header>
-        <div className="workspace-content min-w-0 flex-1 p-4 md:p-6">{children}</div>
+        <div className="workspace-content min-w-0 flex-1 p-4 md:p-6">
+          {children}
+        </div>
       </SidebarInset>
     </>
   );

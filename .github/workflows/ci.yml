@@ -179,6 +179,31 @@ jobs:
           path: test-results/
           if-no-files-found: warn
 
+  sidebar-navigation:
+    name: Sidebar roles and responsive layout
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { persist-credentials: false }
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with: { version: 10.34.5 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify individual roles on a private installation
+        run: pnpm e2e:workspace --config=playwright.navigation.config.ts
+      - name: Verify read-only shared demo roles
+        run: pnpm e2e:public-demo --config=playwright.navigation.config.ts
+      - name: Retain isolated sidebar evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sidebar-navigation-evidence
+          path: test-results/navigation/
+          if-no-files-found: ignore
+
   trusted-cross-service:
     name: Broker, evidence and restore contracts
     runs-on: ubuntu-24.04

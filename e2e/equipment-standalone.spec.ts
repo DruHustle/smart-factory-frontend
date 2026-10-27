@@ -467,6 +467,7 @@ for (const viewport of [
     ).toBeVisible();
     await page.goto("/#/equipment");
     const baseline = process.env.EQUIPMENT_COMPARE_REVISION === "3";
+    let importedRevision: string | undefined;
     if (viewport.width === 1440 || baseline) {
       await page
         .getByText("Import local GLB and component manifest", { exact: true })
@@ -514,6 +515,15 @@ for (const viewport of [
       await expect(
         page.getByText(/Validated model stored locally: local-import:/),
       ).toBeVisible({ timeout: 30000 });
+      importedRevision = (
+        await page
+          .getByText(/Validated model stored locally: local-import:/)
+          .textContent()
+      )?.match(/local-import:[a-f0-9]{64}/)?.[0];
+      expect(
+        importedRevision,
+        "The imported pump revision must be explicitly identified",
+      ).toBeTruthy();
     }
     await page.getByText("Create local equipment", { exact: true }).click();
     await page
@@ -522,10 +532,17 @@ for (const viewport of [
     await page
       .getByLabel("Serial number", { exact: true })
       .fill(`DETAIL-${viewport.width}-${Date.now()}`);
-    if (viewport.width === 1440 || baseline)
+    if (viewport.width === 1440 || baseline) {
       await page
         .getByRole("combobox", { name: "Local model/template", exact: true })
-        .selectOption({ index: 1 });
+        .selectOption(importedRevision!);
+      await expect(
+        page.getByRole("combobox", {
+          name: "Local model/template",
+          exact: true,
+        }),
+      ).toHaveValue(importedRevision!);
+    }
     await submitEquipment(page, "Detailed inspection " + viewport.width);
     await expect(
       page.getByRole("heading", {

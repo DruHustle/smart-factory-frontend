@@ -189,14 +189,14 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     # Freeze only this disposable notification worker to retain the exact queue baseline.
     run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','stop','notification'])
     queued_before=sql("SELECT count(*) FROM notification_inbox WHERE \"emailStatus\" IN('pending','processing','retrying')")
-    installer=COMPOSE+['exec','-T','-e','PUBLIC_DEMO_DEPLOYMENT=true','-e','SHOWCASE_INSTALL_APPROVED=read-only-showcase-v2','bundle','node','scripts/showcase/install.mjs']
-    plan=json.loads(run(installer+['--plan'],True).splitlines()[-1]);assert plan['version']==2 and not plan['emailRequests']
+    installer=COMPOSE+['exec','-T','-e','PUBLIC_DEMO_DEPLOYMENT=true','-e','SHOWCASE_INSTALL_APPROVED=read-only-showcase-v3','bundle','node','scripts/showcase/install.mjs']
+    plan=json.loads(run(installer+['--plan'],True).splitlines()[-1]);assert plan['version']==3 and not plan['emailRequests']
     for _ in range(2):
-        installed=json.loads(run(installer+['--apply'],True).splitlines()[-1]);assert installed['chapters']==12 and installed['externalDeliveryRequests']==0
-    claim=sql("SELECT value::text FROM system_settings WHERE key='showcase_install_v2'")
-    sql("UPDATE system_settings SET value=jsonb_set(value::jsonb,'{state}','\"installing\"') WHERE key='showcase_install_v2'")
+        installed=json.loads(run(installer+['--apply'],True).splitlines()[-1]);assert installed['chapters']==13 and installed['externalDeliveryRequests']==0
+    claim=sql("SELECT value::text FROM system_settings WHERE key='showcase_install_v3'")
+    sql("UPDATE system_settings SET value=jsonb_set(value::jsonb,'{state}','\"installing\"') WHERE key='showcase_install_v3'")
     refused=subprocess.run(installer+['--apply'],cwd=ROOT,capture_output=True,text=True);assert refused.returncode!=0
-    sql("UPDATE system_settings SET value="+"'"+claim.replace("'","''")+"'::jsonb WHERE key='showcase_install_v2'")
+    sql("UPDATE system_settings SET value="+"'"+claim.replace("'","''")+"'::jsonb WHERE key='showcase_install_v3'")
     assert sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(d) ORDER BY id)::text,'')) FROM devices d WHERE \"isDemo\"=false")==private_before
     assert sql("SELECT count(*) FROM notification_inbox WHERE \"emailStatus\" IN('pending','processing','retrying')")==queued_before
     assert trpc(admin,'system.demoData',query=True)['enabled'] is False

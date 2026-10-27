@@ -7,9 +7,8 @@ import { itemHref, type InventoryItem } from "@shared/inventory";
 import { Button } from "@/components/ui/button";
 import { EmptyState, SampleTime, StatusBadge } from "./Primitives";
 import { EquipmentSymbol, StateDistribution } from "./VisualEvidence";
-const Renderer = lazy(
-  () => import("@/components/equipment/LocalEquipmentRenderer"),
-);
+import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
+const Renderer = lazy(loadEquipmentRenderer);
 
 export function SourceStates({
   stats,
@@ -325,6 +324,7 @@ export function LinkedModelPreview({
           <Renderer
             preview
             modelUrl={query.data.modelUrl}
+            initialViewDirection={query.data.renderer.initialViewDirection}
             components={query.data.components}
             selected={interactiveSelection ? validSelection : null}
             onSelect={(id) =>
