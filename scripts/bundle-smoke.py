@@ -165,9 +165,27 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','start','analytics'])
     wait(lambda: http(plain,'/health/ready')[0]==200)
     print('PASS: database/service failures produce readiness 503 while liveness stays available, and recover.')
+    rollback_evidence=None
+    rollback_image=os.environ.get('BUNDLE_ROLLBACK_IMAGE')
+    if rollback_image:
+        current_image=os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')
+        user=next(u for u in trpc(admin,'users.list',query=True) if u['id']==engineer_id)
+        trpc(admin,'users.setEnabled',{'id':engineer_id,'enabled':False,'expectedVersion':user['accessVersion']})
+        assert http(engineer,'/api/trpc/assets.list')[0]==401
+        for image_reference in [rollback_image,current_image]:
+            os.environ['BUNDLE_IMAGE']=image_reference
+            run(COMPOSE+['up','-d','--no-deps','bundle'])
+            wait(lambda:http(plain,'/health/ready')[0]==200)
+            wait(lambda:(http(plain,'/api/runtime/contract')[1].get('worker') or {}).get('compatible') is True)
+            assert trpc(viewer,'auth.me',query=True)['id']==viewer_id
+            assert http(engineer,'/api/trpc/assets.list')[0]==401
+            assert sql('SELECT count(*) FROM sensor_readings WHERE "assetId" IS NULL')=='2'
+        runtime=http(plain,'/api/runtime/contract')[1]
+        rollback_evidence={'qualifiedPriorImage':rollback_image,'restoredCandidateImage':current_image,'revokedAccountStayedRejected':True,'activeViewerPreserved':True,'telemetryIdentitiesPreserved':True,'schemaCompatible':True}
+        print('PASS: rollback and roll-forward to a compatible hardened image preserve sessions, revocation, schema and telemetry identities.')
     image=json.loads(run(['docker','image','inspect',os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')],True))[0]
     output=Path(os.environ.get('QUALIFICATION_EVIDENCE_DIR',str(Path(tempfile.gettempdir())/'factory-arm64-bundle-evidence')));output.mkdir(parents=True,exist_ok=True)
-    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
+    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'compatibleRollback':rollback_evidence,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
     completed = True
 finally:
     try:

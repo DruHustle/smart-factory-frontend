@@ -8,7 +8,7 @@ Use Overview attention links, then the affected item. Inspect acquisition time, 
 
 Missing observations mean unknown or stale; a configured record and a ready API do not prove equipment availability.
 
-Monitoring pause stops periodic requests; Refresh performs a deliberate update. Hidden/offline pages pause unnecessary polling. Arm telemetry normally backs off to 30 seconds when stale; an individual authorized operator may select a one-minute bounded fast mode for an active task. Navigation does not issue commands.
+Monitoring pause stops periodic requests; Refresh performs a deliberate update. Hidden/offline pages pause unnecessary polling. Arm telemetry normally backs off to 30 seconds when stale; an individual engineer or administrator may select a one-minute bounded fast mode for an active task. Navigation does not issue commands.
 
 In Administration → Integrations, administrators can inspect the latest authenticated telemetry-worker receipt, pending/quarantined delivery counts, oldest known queue acceptance, ingestion quarantine, security delivery queue, collector receipt times and email failures. Receipts become stale after 90 seconds. A missing receipt means queue depth is unknown. Old legacy queue entries with no acceptance timestamp retain unknown age. Provider acceptance is distinct from recipient delivery. Backup age stays unknown unless independently established; this release does not invent a successful backup receipt.
 
