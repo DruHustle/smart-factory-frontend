@@ -193,6 +193,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         observer: ResizeObserver | undefined,
         loaded: THREE.Group | undefined;
       let firstModelRender: (() => void) | undefined;
+      let initialFrameComplete = false;
       const loadStarted = performance.now();
       const abort = new AbortController();
       const timeout = setTimeout(() => abort.abort(), 20000);
@@ -543,7 +544,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             const size = box.getSize(new THREE.Vector3()).length();
             currentControls.minDistance = Math.max(0.005, size * 0.025);
             currentControls.maxDistance = size * 30;
-            if (runtime.current) {
+            if (runtime.current && initialFrameComplete) {
               const eye = camera.position.clone(),
                 target = currentControls.target.clone();
               camera.position.copy(previousEye);
@@ -628,6 +629,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           fit();
           await initialFrame;
           if (disposed) return;
+          initialFrameComplete = true;
           container.dataset.loadInteractiveMs = String(
             performance.now() - loadStarted,
           );
