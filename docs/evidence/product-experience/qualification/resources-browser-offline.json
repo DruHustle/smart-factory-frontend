@@ -1,0 +1,13 @@
+{
+  "source": "6f4475b2d3efee148e77dcf83ffe7437bd2f52fa",
+  "dirty": false,
+  "state": "browser-offline",
+  "visibilityMethod": "actual browser network/state fixture",
+  "durationMs": 35027,
+  "calls": {},
+  "rendererTaskSeconds": 0.027362,
+  "heapUsedBefore": 20885424,
+  "heapUsedAfter": 15744228,
+  "commands": 0,
+  "physicalEquipment": false
+}

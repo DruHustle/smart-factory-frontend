@@ -1,0 +1,92 @@
+{
+  "environment": "disposable-local",
+  "broker": "rabbitmq",
+  "physicalEquipment": false,
+  "consumerAcceptance": false,
+  "productionPromotion": false,
+  "checks": [
+    {
+      "name": "punctuated and legacy IDs cross actual MQTT/.NET/Node; conversions and scoped latest survive restart",
+      "stored": 5,
+      "canonicalPowerW": 1500,
+      "canonicalTemperatureC": 25
+    },
+    {
+      "name": "Pi-local MQTT 5 retains the original delivery flag through its durable cloud forwarding"
+    },
+    {
+      "name": "retained, delayed, bad quality and mixed modes never assert new current incidents or rewrite topology",
+      "currentIncidents": 1,
+      "storedHistorical": 9,
+      "quarantined": 2
+    },
+    {
+      "name": "duplicate redelivery after restart preserves one reading and one current effect"
+    },
+    {
+      "name": "disposable dashboard and telemetry backup/restore preserves evidence identities and restarts services",
+      "restores": [
+        {
+          "database": "smart_factory_trusted_e2e",
+          "tables": [
+            {
+              "table": "sensor_readings",
+              "identity": "9:2f475db331ab7bbd101c6327b6c5f104"
+            },
+            {
+              "table": "alerts",
+              "identity": "1:f473f8f1a9a881ee7673be48a399a991"
+            },
+            {
+              "table": "devices",
+              "identity": "3:6b0cbb82b44a6eafe2dd49d835f67a49"
+            },
+            {
+              "table": "asset_devices",
+              "identity": "3:8202407538713d1911afd3947341cf53"
+            },
+            {
+              "table": "incident_activity",
+              "identity": "0:empty"
+            }
+          ],
+          "sha256": "ef62b76f21a3576175853641e2166ab669c97780bd7101e6262e7686100f0156"
+        },
+        {
+          "database": "telemetry_trusted_e2e",
+          "tables": [
+            {
+              "table": "\"TelemetryRecords\"",
+              "identity": "11:cbe58051cfaa26e9cef3c79615a6d597"
+            },
+            {
+              "table": "telemetry_schema_migrations",
+              "identity": "8:a67285f7bfb57da8d97aa12778ea98fd"
+            }
+          ],
+          "sha256": "44787c3b06bdde6bba2a16886d0e95d46eb15b0e04331491629ef74e2eca2329"
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "frontend": {
+      "sha": "18a7fa95c5e32ed7e8ee9497022281cc53cdaf68",
+      "dirty": false
+    },
+    "backend": {
+      "sha": "dce17d0f2a0d27253d8730f08e81e6f7f4150926",
+      "dirty": false
+    },
+    "edge": {
+      "sha": "be917a4082ff70ded322bd2ac4cf982014b2346e",
+      "dirty": false
+    }
+  },
+  "versions": {
+    "node": "v20.20.1",
+    "dotnet": "10.0.403",
+    "python": "3.14.8"
+  },
+  "completedAt": "2026-10-27T06:04:35Z"
+}

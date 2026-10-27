@@ -1,0 +1,18 @@
+{
+  "source": "6f4475b2d3efee148e77dcf83ffe7437bd2f52fa",
+  "dirty": false,
+  "state": "active",
+  "visibilityMethod": "actual browser network/state fixture",
+  "durationMs": 35029,
+  "calls": {
+    "analytics.getLatestAssetTelemetry": 7,
+    "notifications.summary": 1,
+    "inventory.item": 1,
+    "assets.getConnections": 1
+  },
+  "rendererTaskSeconds": 0.12914499999999998,
+  "heapUsedBefore": 17163624,
+  "heapUsedAfter": 17355784,
+  "commands": 0,
+  "physicalEquipment": false
+}

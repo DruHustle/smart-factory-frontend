@@ -1,0 +1,15 @@
+{
+  "source": "6f4475b2d3efee148e77dcf83ffe7437bd2f52fa",
+  "dirty": false,
+  "state": "visibility-event",
+  "visibilityMethod": "simulated document visibility event; this browser keeps background tabs visible",
+  "durationMs": 35020,
+  "calls": {
+    "inventory.item": 1
+  },
+  "rendererTaskSeconds": 0.039351,
+  "heapUsedBefore": 20984416,
+  "heapUsedAfter": 15807736,
+  "commands": 0,
+  "physicalEquipment": false
+}

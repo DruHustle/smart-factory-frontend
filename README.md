@@ -4,6 +4,8 @@ One industrial workspace for AAS-backed assets, independent devices, gateways, n
 
 Production topology is **Vercel UI → Oracle ARM64 API**, with a separate **singleton Oracle telemetry/notification worker** and the existing private BaSyx stack. Render workflows are retained only for gated rollback history. See the [current deployment runbook](deploy/oracle/README.md), [architecture](docs/architecture.md) and [operating guide](docs/operations.md). Dated qualification documents establish only their recorded revision and environment; they do not establish the current runtime.
 
+[Product redesign, F01–F20 disposition and acceptance](docs/product-experience-qualification.md) · [Before/after screenshots](docs/evidence/product-experience/README.md)
+
 ## Local development
 
 Use Node 22.12+, pnpm 10, PostgreSQL 16 and Redis. Companion services use the pinned .NET 10 LTS SDK in the backend repository; edge dependencies are pinned in the edge repository.

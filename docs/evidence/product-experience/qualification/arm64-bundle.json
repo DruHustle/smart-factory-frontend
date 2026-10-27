@@ -1,0 +1,64 @@
+{
+  "completedAt": "2026-10-27T07:02:54Z",
+  "runtime": {
+    "worker": {
+      "fresh": true,
+      "compatible": true
+    },
+    "contractVersion": 2,
+    "source": "6f4475b2d3efee148e77dcf83ffe7437bd2f52fa",
+    "backendSource": "43ad1f3153326424e97d1e1fd1844a86598e99b9",
+    "edgeSource": "be917a4082ff70ded322bd2ac4cf982014b2346e",
+    "schema": {
+      "ready": true,
+      "revision": "0028_operating_evidence",
+      "digest": "feb145e1f34f79c582f154f22d23cd14008c9bcb99c27c63b87dc454d26a989f"
+    },
+    "capabilities": [
+      "isolated-demo-v1",
+      "persisted-session-v1",
+      "scoped-evidence-v1",
+      "canonical-units-v1",
+      "verified-transport-v1",
+      "encoded-topic-v1",
+      "commissioned-routes-v1",
+      "complete-reports-v1",
+      "published-passports-v1",
+      "inventory-v1",
+      "native-equipment-v1",
+      "native-security-v1"
+    ],
+    "deployment": "bundle",
+    "versioned": true
+  },
+  "compatibleRollback": {
+    "qualifiedPriorImage": "smart-factory-product-experience:18a7fa9",
+    "restoredCandidateImage": "smart-factory-product-experience:6f4475b",
+    "revokedAccountStayedRejected": true,
+    "activeViewerPreserved": true,
+    "telemetryIdentitiesPreserved": true,
+    "schemaCompatible": true
+  },
+  "image": {
+    "id": "sha256:85842ef7b12968f94dafc3e82930a691e99997a21edcf7e6140c65ce0e66946e",
+    "platform": "linux/arm64",
+    "labels": {
+      "io.smartfactory.backend.revision": "43ad1f3153326424e97d1e1fd1844a86598e99b9",
+      "io.smartfactory.edge.revision": "be917a4082ff70ded322bd2ac4cf982014b2346e",
+      "org.opencontainers.image.revision": "6f4475b2d3efee148e77dcf83ffe7437bd2f52fa",
+      "org.opencontainers.image.version": "24.04"
+    }
+  },
+  "sixServicesNonRoot": true,
+  "migrationsIdempotent": true,
+  "bootstrapBoundary": true,
+  "individualAuthorization": true,
+  "nativeSecurityOutbox": true,
+  "notificationOwnershipAndRestart": true,
+  "coverageUnitsAndScope": true,
+  "mqttQos0AndQos1": true,
+  "standaloneSensorTraversal": true,
+  "dependencyFailureRecovery": true,
+  "physicalEquipment": false,
+  "productionPromotion": false
+}

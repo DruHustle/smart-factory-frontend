@@ -1,0 +1,7 @@
+PASS: .NET 10 AASX import, 3.2 administrative metadata, semantic submodel and embedded attachment against disposable BaSyx
+PASS: Node asset creation -> .NET -> live BaSyx registration -> MQTT -> persisted Pi profile
+PASS: engineer command -> MQTT -> allowlisted simulated serial write/ack; viewer receives 403
+PASS: Pi-local sensor -> durable Pi queue -> real MQTT/.NET/PostgreSQL -> dashboard asset analytics, including signals
+PASS: dashboard outage/restart -> backend outbox retries -> both samples recovered without duplication
+PASS: Assistant retrieves the recovered asset-specific latest sample
+PASS: telemetry database outage removes readiness while liveness remains responsive; readiness recovers
