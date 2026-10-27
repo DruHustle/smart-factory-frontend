@@ -11,7 +11,11 @@ export function DataWorkspaceSwitch() {
           ? "Switch between isolated demonstration and operational data"
           : "Live data requires an individual operational account on a private installation"
       }
-      value={user?.access?.demoOnly ? "demo" : "live"}
+      value={
+        user?.access?.demoOnly
+          ? "demo"
+          : (user?.access?.workspaceView ?? "configured")
+      }
       className="h-9 w-28 rounded-md border border-input bg-card px-2 text-xs"
       onChange={(e) => {
         if (!canSwitch) return;
@@ -20,6 +24,11 @@ export function DataWorkspaceSwitch() {
         window.location.reload();
       }}
     >
+      {canSwitch && user?.access?.workspaceView === "configured" && (
+        <option value="configured" disabled>
+          Workspace data
+        </option>
+      )}
       <option value="demo">Demo data</option>
       <option value="live" disabled={!canSwitch}>
         Live data

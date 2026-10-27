@@ -19,6 +19,8 @@ The explicit showcase provides twelve linked chapters through **Demo guide**. It
 
 The shell exposes one compact selector on desktop and mobile. An individual account can select **Demo data** for approved fixtures or **Live data** for operational records. Changing the view reloads the application and clears the previous view's in-memory cache and item context. The non-sensitive cookie is a view preference; it grants no authority. The server enforces the selected data scope, and demo viewing denies mutations and private administration/file routes. Shared demo identities and public-demo deployments always remain in the demonstration scope, even if a client forges a `live` preference. Their Live option explains the need for an individual account on a private installation.
 
+Before an individual chooses a scope, “Workspace data” retains the existing deployment visibility policy. Selecting Demo or Live establishes an explicit scope for that browser.
+
 The selector never changes the persisted deployment-wide visibility setting, seeds records, commands equipment or requests email. An existing private administrator's separate deployment setting remains available for compatibility.
 
 ## Explicit installation

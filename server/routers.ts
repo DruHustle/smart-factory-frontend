@@ -226,6 +226,12 @@ function publicUser(
     access: {
       ...base,
       canSwitchData: !base.demoOnly,
+      workspaceView: (base.demoOnly
+        ? "demo"
+        : (requestedDataWorkspace(req?.headers?.cookie) ?? "configured")) as
+        | "demo"
+        | "live"
+        | "configured",
       ...(preview
         ? {
             demoOnly: true,
