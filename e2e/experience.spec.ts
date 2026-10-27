@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { selectSection, setTheme } from "./experience-helpers";
 import { measureThemeContrast } from "./contrast-helpers";
@@ -20,7 +22,8 @@ test.describe("product experience rendered evidence", () => {
               : "after";
         const folder =
           phase === "preview"
-            ? "/private/tmp/product-ui-preview"
+            ? (process.env.EXPERIENCE_PREVIEW_DIR ??
+              join(tmpdir(), "product-ui-preview"))
             : `docs/evidence/product-experience/${phase}`;
         mkdirSync(folder, { recursive: true });
         await page.setViewportSize({ width, height: 960 });
@@ -71,6 +74,11 @@ test.describe("product experience rendered evidence", () => {
                 fullPage,
                 dataset: "isolated synthetic workspace fixtures",
                 source,
+                appSourceClean: !execFileSync(
+                  "git",
+                  ["diff", "HEAD", "--", "client", "server", "shared"],
+                  { encoding: "utf8" },
+                ).trim(),
                 uiBase: "81bdd2f5f2a1449f903c22bef5539aa7e79ec013",
               },
               null,
@@ -185,3 +193,79 @@ test.describe("product experience rendered evidence", () => {
       });
     }
 });
+
+for (const theme of ["light", "dark"] as const)
+  test(`desktop at 200 percent scale keeps readable keyboard workflows in ${theme}`, async ({
+    browser,
+    baseURL,
+  }) => {
+    // 720 CSS px at DPR 2 models a 1440px desktop at 200% browser zoom.
+    const context = await browser.newContext({
+      baseURL,
+      viewport: { width: 720, height: 450 },
+      deviceScaleFactor: 2,
+    });
+    const page = await context.newPage();
+    await page.goto("/#/login");
+    await page.getByLabel("Email").fill("security-admin@example.test");
+    await page
+      .getByLabel("Password", { exact: true })
+      .fill("Synthetic-security-only-2026!");
+    await page.getByRole("button", { name: /^sign in$/i }).click();
+    await expect(
+      page.getByRole("heading", { name: "Overview", exact: true }),
+    ).toBeVisible();
+    await setTheme(page, theme);
+    for (const route of [
+      "/inventory",
+      "/monitoring",
+      "/analytics",
+      "/administration/users",
+    ]) {
+      await page.goto("/#" + route);
+      await page.waitForLoadState("networkidle");
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        )
+        .toBe(true);
+      await page.keyboard.press("Tab");
+      expect(
+        await page.evaluate(() => {
+          const el = document.activeElement as HTMLElement;
+          const r = el.getBoundingClientRect();
+          return el !== document.body && r.width > 0 && r.height > 0;
+        }),
+      ).toBe(true);
+    }
+    await measureThemeContrast(page);
+    const folder =
+      process.env.EXPERIENCE_CAPTURE_PHASE === "preview"
+        ? (process.env.EXPERIENCE_PREVIEW_DIR ??
+          join(tmpdir(), "product-ui-preview"))
+        : "docs/evidence/product-experience/after";
+    mkdirSync(folder, { recursive: true });
+    await page.screenshot({
+      path: `${folder}/zoom-${theme}-1440.png`,
+      fullPage: true,
+    });
+    writeFileSync(
+      `${folder}/zoom-${theme}-1440.json`,
+      JSON.stringify(
+        {
+          method:
+            "200% layout emulation: 720 CSS pixels at DPR 2 for a 1440px desktop",
+          theme,
+          viewport: { width: 720, height: 450 },
+          deviceScaleFactor: 2,
+          keyboardFocus: true,
+          horizontalOverflow: false,
+        },
+        null,
+        2,
+      ),
+    );
+    await context.close();
+  });

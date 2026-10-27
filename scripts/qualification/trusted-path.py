@@ -195,6 +195,8 @@ def main():
         node=launch_node();worker=launch_worker();eventually(ready_worker,'worker readiness on restored databases')
         assert http('/api/runtime/contract')[1]['schema']['ready'] is True
         passed('disposable dashboard and telemetry backup/restore preserves evidence identities and restarts services',restores=restores)
+        evidence['sources']={name:{'sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=path,text=True).strip(),'dirty':bool(subprocess.check_output(['git','status','--porcelain'],cwd=path,text=True).strip())}for name,path in [('frontend',ROOT),('backend',BACKEND),('edge',EDGE.parents[1])]}
+        evidence['versions']={'node':subprocess.check_output(['node','--version'],text=True).strip(),'dotnet':subprocess.check_output([dotnet,'--version'],cwd=BACKEND,text=True).strip(),'python':sys.version.split()[0]}
         evidence['completedAt']=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime());(output/'result.json').write_text(json.dumps(evidence,indent=2)+'\n')
         print('Evidence: '+str(output/'result.json'),flush=True)
     finally:

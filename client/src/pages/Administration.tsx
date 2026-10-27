@@ -142,8 +142,8 @@ function Integrations() {
         <summary className="cursor-pointer font-medium">
           Optional Onesa exchange
         </summary>
-        <div className="mt-4 [&_.workspace-page-header]:hidden">
-          <OnesaIntegration />
+        <div className="mt-4">
+          <OnesaIntegration embedded />
         </div>
       </details>
     </div>

@@ -2,7 +2,7 @@
 """Acceptance checks for the real six-process image with disposable dependencies."""
 from pathlib import Path
 from http.cookiejar import CookieJar
-import json, os, subprocess, time, urllib.request, urllib.error, urllib.parse
+import json, os, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ['docker', 'compose', '--env-file', '/dev/null', '-p', 'smart-factory-bundle-test', '-f', str(ROOT / 'docker-compose.bundle-test.yml')]
@@ -149,7 +149,7 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
         assert item['route']=='Direct MQTT' and item['status']=='live' and not item['aas'] and item['sampleAt'] is not None
         assert trpc(engineer,'assets.getAllForDevice',{'devicePk':direct['id']},query=True)==[]
     print('PASS: registered standalone sensors traverse real MQTT, .NET durable forwarding and Node inventory without an AAS or gateway.')
-    wait(lambda: http(plain,'/api/runtime/contract')[1].get('worker',{}).get('compatible') is True)
+    wait(lambda: (http(plain,'/api/runtime/contract')[1].get('worker') or {}).get('compatible') is True)
     runtime=http(plain,'/api/runtime/contract')[1]
     assert runtime['schema']['ready'] is True
     assert all(isinstance(runtime[key],str) and len(runtime[key])==40 for key in ['source','backendSource','edgeSource'])
@@ -165,6 +165,9 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','start','analytics'])
     wait(lambda: http(plain,'/health/ready')[0]==200)
     print('PASS: database/service failures produce readiness 503 while liveness stays available, and recover.')
+    image=json.loads(run(['docker','image','inspect',os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')],True))[0]
+    output=Path(os.environ.get('QUALIFICATION_EVIDENCE_DIR',str(Path(tempfile.gettempdir())/'factory-arm64-bundle-evidence')));output.mkdir(parents=True,exist_ok=True)
+    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
     completed = True
 finally:
     try:

@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 for (const state of [
@@ -82,7 +84,7 @@ for (const state of [
       data.metrics.find((m: any) => m.name === name)?.value ?? null;
     const folder =
       process.env.RESOURCE_EVIDENCE_DIR ??
-      "/private/tmp/factory-product-experience/resource-budget";
+      join(tmpdir(), "factory-product-resource-budget");
     mkdirSync(folder, { recursive: true });
     writeFileSync(
       `${folder}/${state}.json`,

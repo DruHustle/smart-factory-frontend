@@ -1,3 +1,4 @@
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Link } from "wouter";
 import { PageHeader } from "@/components/workspace/Primitives";
 import { FormEvent, useEffect, useRef, useState } from "react";
@@ -103,13 +104,23 @@ export default function Assistant() {
   const questionTooLong = question.length > 500;
   const ask = trpc.assistant.ask.useMutation();
   const { data: assets = [] } = trpc.assets.list.useQuery();
-  const conversationEndRef = useRef<HTMLDivElement>(null);
+  const conversationRef = useRef<HTMLElement>(null);
+  const latestArticleRef = useRef<HTMLElement>(null);
+  const wide = useMediaQuery("(min-width:1280px)");
 
   useEffect(() => {
-    conversationEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-    });
+    const panel = conversationRef.current,
+      latest = latestArticleRef.current;
+    if (panel && latest)
+      panel.scrollTo({
+        top:
+          panel.scrollTop +
+          latest.getBoundingClientRect().top -
+          panel.getBoundingClientRect().top,
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+      });
   }, [exchanges.length, ask.isPending]);
 
   const submit = async (event?: FormEvent, suggestedQuestion?: string) => {
@@ -162,7 +173,7 @@ export default function Assistant() {
               <Bot className="h-4 w-4" />
             </span>
             <CardTitle className="min-w-0 truncate text-base sm:text-lg">
-              Chat with the Factory Assistant
+              Conversation
             </CardTitle>
             <div className="ml-auto flex items-center gap-2">
               {exchanges.length > 0 && (
@@ -185,6 +196,7 @@ export default function Assistant() {
 
           <CardContent className="flex min-h-0 flex-1 flex-col p-0">
             <section
+              ref={conversationRef}
               aria-label="Conversation"
               aria-live="polite"
               aria-busy={ask.isPending}
@@ -220,6 +232,11 @@ export default function Assistant() {
                 <div className="space-y-6">
                   {exchanges.map((exchange, index) => (
                     <article
+                      ref={
+                        index === exchanges.length - 1
+                          ? latestArticleRef
+                          : undefined
+                      }
                       key={`${index}-${exchange.question}`}
                       className="space-y-3"
                     >
@@ -229,14 +246,14 @@ export default function Assistant() {
                         </div>
                         <UserRound className="mt-3 h-4 w-4 shrink-0 text-muted-foreground" />
                       </div>
-                      <Card className="max-w-[94%] gap-0 overflow-hidden rounded-lg rounded-tl-md border-border sm:max-w-[88%]">
+                      <Card className="max-w-full gap-0 overflow-hidden rounded-lg rounded-tl-md border-border sm:max-w-[88%]">
                         <CardHeader className="flex flex-row items-center gap-3 border-b bg-muted/15 px-5 py-3">
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                             <Bot className="h-4 w-4" />
                           </span>
                           <div className="min-w-0">
                             <CardTitle className="text-sm">Answer</CardTitle>
-                            <CardDescription>
+                            <CardDescription className="hidden sm:block">
                               Smart Factory Assistant
                             </CardDescription>
                           </div>
@@ -290,7 +307,6 @@ export default function Assistant() {
                       Thinking…
                     </div>
                   )}
-                  <div ref={conversationEndRef} />
                 </div>
               )}
             </section>
@@ -376,71 +392,83 @@ export default function Assistant() {
             </form>
           </CardContent>
         </Card>
-        <aside className="space-y-3 rounded-lg border bg-card p-4">
-          <h2 className="text-lg font-semibold">Evidence used</h2>
-          <p className="text-sm text-muted-foreground">
-            Authorized workspace context and operator guides. Each answer
-            retains its own snapshot.
-          </p>
-          {exchanges.at(-1)?.result.sources.length ? (
-            <div className="space-y-3">
-              {exchanges.at(-1)!.result.sources.map((source, i) => (
-                <div
-                  className="rounded-md border p-3"
-                  key={`${source.path}-${i}`}
-                >
-                  <p className="text-xs text-info">
-                    [{i + 1}]{" "}
-                    {source.kind === "live-data"
-                      ? "Stored workspace evidence"
-                      : "Operator guide"}
-                  </p>
-                  {source.href?.startsWith("/") ? (
-                    <Link
-                      className="mt-1 block font-medium text-primary underline"
-                      href={source.href}
-                    >
-                      {source.title}
-                    </Link>
-                  ) : source.href?.startsWith(
-                      "https://github.com/DruHustle/smart-factory-iot-frontend/",
-                    ) ? (
-                    <a
-                      className="mt-1 block font-medium text-primary underline"
-                      href={source.href}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {source.title}
-                    </a>
-                  ) : (
-                    <p className="mt-1 font-medium">{source.title}</p>
-                  )}
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {source.section}
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed">
-                    {source.excerpt}
-                  </p>
-                  {source.timestamp && (
-                    <time
-                      dateTime={source.timestamp}
-                      className="mt-2 block text-xs text-muted-foreground"
-                    >
-                      {new Date(source.timestamp).toLocaleString(undefined, {
-                        timeZoneName: "short",
-                      })}
-                    </time>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
+        <aside className="rounded-lg border bg-card p-4">
+          <details open={wide} className="space-y-3">
+            <summary className="cursor-pointer text-base font-semibold">
+              Evidence used
+              {exchanges.at(-1)?.result.sources.length
+                ? ` · ${exchanges.at(-1)!.result.sources.length} sources`
+                : ""}
+            </summary>
             <p className="text-sm text-muted-foreground">
-              Ask a question to see the sources behind the answer. Evidence
-              cannot establish a physical cause by itself.
+              Authorized workspace context and operator guides. Each answer
+              retains its own snapshot.
             </p>
-          )}
+            {exchanges.at(-1)?.result.sources.length ? (
+              <div className="space-y-3">
+                {exchanges.at(-1)!.result.sources.map((source, i) => (
+                  <div
+                    className="rounded-md border p-3"
+                    key={`${source.path}-${i}`}
+                  >
+                    <p className="text-xs text-info">
+                      [{i + 1}]{" "}
+                      {source.kind === "live-data"
+                        ? "Stored workspace evidence"
+                        : "Operator guide"}
+                    </p>
+                    {source.href?.startsWith("/") ? (
+                      <Link
+                        className="mt-1 block font-medium text-primary underline"
+                        href={source.href}
+                      >
+                        {source.title}
+                      </Link>
+                    ) : source.href?.startsWith(
+                        "https://github.com/DruHustle/smart-factory-iot-frontend/",
+                      ) ? (
+                      <a
+                        className="mt-1 block font-medium text-primary underline"
+                        href={source.href}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {source.title}
+                      </a>
+                    ) : (
+                      <p className="mt-1 font-medium">{source.title}</p>
+                    )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {source.section}
+                    </p>
+                    <details className="mt-2 text-sm">
+                      <summary className="cursor-pointer text-muted-foreground">
+                        Read source excerpt
+                      </summary>
+                      <p className="mt-2 whitespace-pre-line leading-relaxed">
+                        {source.excerpt}
+                      </p>
+                    </details>
+                    {source.timestamp && (
+                      <time
+                        dateTime={source.timestamp}
+                        className="mt-2 block text-xs text-muted-foreground"
+                      >
+                        {new Date(source.timestamp).toLocaleString(undefined, {
+                          timeZoneName: "short",
+                        })}
+                      </time>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Ask a question to see the sources behind the answer. Evidence
+                cannot establish a physical cause by itself.
+              </p>
+            )}
+          </details>
         </aside>
       </div>
     </div>

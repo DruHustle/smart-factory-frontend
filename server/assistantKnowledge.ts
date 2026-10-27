@@ -618,13 +618,13 @@ function localGroundedAnswer(
   runtime: Awaited<ReturnType<typeof buildLiveContext>>,
   remoteConfigured: boolean,
 ) {
-  const paragraphs = [
-    remoteConfigured
-      ? "## Answer\n\nThe AI service is unavailable right now. Here is the relevant information I can verify from the application guides and current data."
-      : "## Answer\n\nI can answer from the application guides and current system data.",
-  ];
+  const paragraphs = remoteConfigured
+    ? [
+        "The configured answer service is unavailable. This response uses authorized guides and stored evidence.",
+      ]
+    : [];
   const asksForState =
-    /\b(latest|current|right now|how many|reading|incidents? need|alerts? need)\b/i.test(
+    /\b(latest|current|right now|how many|reading|evidence|observations?|attention|stale|incidents? need|alerts? need)\b/i.test(
       question,
     );
   if (!asksForState)
@@ -669,12 +669,9 @@ function localGroundedAnswer(
     paragraphs.push(
       "I could not find a matching guide. Try asking about assets, AASX import, gateway connectivity, analytics, incidents, roles, or deployment.",
     );
-  if (matches.length)
+  if (asksForState && runtime.payload)
     paragraphs.push(
-      `### Sources\n\n${matches
-        .slice(0, 3)
-        .map(({ section }) => `- ${section.source.title} · ${section.heading}`)
-        .join("\n")}`,
+      "Review the linked observation or incident evidence. These records do not establish a physical cause.",
     );
   return paragraphs.join("\n\n");
 }

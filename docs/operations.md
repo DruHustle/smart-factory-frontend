@@ -28,7 +28,9 @@ Use the [Oracle runbook](../deploy/oracle/README.md). Build from clean immutable
 
 The UI checks API contract version, required capabilities and applied migration hashes. Deployment verification additionally compares the exact schema digest and current compatible singleton-worker receipt. The Vercel workflow repeats compatibility and current-main checks immediately after the build and before promotion. No branch-protection claim is inferred from workflow configuration; inspect repository settings separately without changing them.
 
-Keep the prior image and static artifact. Additive schema compatibility allows application rollback; never reverse/drop data as part of routine rollback. Stop the candidate worker before starting a prior worker. Recheck the prior application's schema/capability contract, role/session policy, ingest compatibility and queue health before changing the UI.
+Pre-hardening .NET 8 images do not establish the current access/session/capability contract and are not qualified rollback targets. Retain an independently qualified compatible image and UI; halt promotion if no safe rollback target exists.
+
+Keep the prior compatible image and static artifact. Additive schema compatibility allows application rollback; never reverse/drop data as part of routine rollback. Stop the candidate worker before starting a prior worker. Recheck the prior application's schema/capability contract, role/session policy, ingest compatibility and queue health before changing the UI.
 
 ## Disposable qualification
 

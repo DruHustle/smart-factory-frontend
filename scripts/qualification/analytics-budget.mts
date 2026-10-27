@@ -1,5 +1,7 @@
 /** Measured disposable large-history acceptance; no factory data or live services. */
 import postgres from "postgres";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -108,7 +110,7 @@ try {
   };
   const folder =
     process.env.QUALIFICATION_EVIDENCE_DIR ??
-    "/private/tmp/factory-product-experience/analytics-budget";
+    join(tmpdir(), "factory-analytics-budget");
   mkdirSync(folder, { recursive: true });
   writeFileSync(folder + "/result.json", JSON.stringify(evidence, null, 2));
   console.log(

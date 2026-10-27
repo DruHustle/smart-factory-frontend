@@ -125,18 +125,30 @@ test.describe("unified item workspace", () => {
         deviceId: "workspace-browser-direct",
         timestamp: Date.now(),
         temperature: 24,
-        units:{temperature:"°C"},
-        integration:{mode:"live",sourceQuality:"good",sourceConnection:"online",gatewayReceivedAt:new Date().toISOString()},
+        units: { temperature: "°C" },
+        integration: {
+          mode: "live",
+          sourceQuality: "good",
+          sourceConnection: "online",
+          gatewayReceivedAt: new Date().toISOString(),
+        },
       },
     });
     expect(ingress.ok()).toBe(true);
     await page.reload();
     await expect(page.getByText("Direct MQTT", { exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "Telemetry", exact: true }).click();
-    const trend=page.getByRole("region",{name:"Workspace browser direct observations",exact:true});
+    const trend = page.getByRole("region", {
+      name: "Workspace browser direct observations",
+      exact: true,
+    });
     await expect(trend).toBeVisible();
     await expect(trend).toContainText(/24(?:\.0)? °C/);
-    await expect(page.getByText("No verified measurements in this period",{exact:true})).toHaveCount(0);
+    await expect(
+      page.getByText("No verified measurements in this period", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("tab", { name: "AAS & submodels" }),
     ).toHaveCount(0);
@@ -382,7 +394,7 @@ test.describe("unified item workspace", () => {
       page.getByText("No inventory items yet", { exact: true }),
     ).toHaveCount(0);
     await page.screenshot({
-      path: "/private/tmp/workspace-product-preview/inventory-error.png",
+      path: test.info().outputPath("inventory-error.png"),
       fullPage: true,
       animations: "disabled",
     });
@@ -439,7 +451,7 @@ test.describe("unified item workspace", () => {
         await page.setViewportSize({ width, height: 960 });
         await inventory(page);
         await setTheme(page, theme);
-        const folder = "/private/tmp/workspace-product-preview";
+        const folder = test.info().outputPath("preview");
         mkdirSync(folder, { recursive: true });
         await expect
           .poll(() =>

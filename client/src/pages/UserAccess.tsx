@@ -190,10 +190,10 @@ export default function UserAccess({
               {accounts.map((a) => (
                 <li
                   key={a.id}
-                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                  className="flex flex-col items-start justify-between gap-3 py-3 sm:flex-row sm:items-center"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">
+                  <div className="w-full min-w-0 flex-1">
+                    <p className="break-words font-medium">
                       {a.name || a.email}
                       {a.id === currentUser.id && (
                         <Badge variant="secondary" className="ml-2">
@@ -202,7 +202,7 @@ export default function UserAccess({
                       )}
                     </p>
                     <p
-                      className="truncate text-sm text-muted-foreground"
+                      className="break-all text-sm text-muted-foreground"
                       title={a.email ?? ""}
                     >
                       {a.email || "No email"}
