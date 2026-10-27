@@ -47,7 +47,7 @@ Resolved light-theme text/background contrast is 14.49:1, muted text/card 6.13:1
 
 ## Software verification and identities
 
-The qualified application source is frontend `6f4475b2d3efee148e77dcf83ffe7437bd2f52fa`, backend `43ad1f3153326424e97d1e1fd1844a86598e99b9`, edge `be917a4082ff70ded322bd2ac4cf982014b2346e`. Later documentation/evidence commits do not change the application source. The actual candidate runs Node 22.23.4 and ASP.NET/.NET 10.0.14; local browser/query profiling used Node 20.20.1 and the immutable CI qualification uses Node 22. The generated manifest records the actual Linux ARM64 image and schema 0028 digest.
+The qualified API/bundle source is frontend `6f4475b2d3efee148e77dcf83ffe7437bd2f52fa`, backend `43ad1f3153326424e97d1e1fd1844a86598e99b9`, edge `be917a4082ff70ded322bd2ac4cf982014b2346e`. Later documentation/evidence commits and the client incident-save pending guard do not change this API/bundle source. The final client guard is covered by a delayed-response browser regression: assignment, note editing and downtime/resolution actions stay disabled until the note is saved. The actual candidate runs Node 22.23.4 and ASP.NET/.NET 10.0.14; local browser/query profiling used Node 20.20.1 and the immutable CI qualification uses Node 22. The generated manifest records the actual Linux ARM64 image and schema 0028 digest.
 
 - Frontend: 398 tests in 44 files pass, plus typecheck, production build, schema/contract checks and dependency audit.
 - ARM64: all six services, repeated migration, bootstrap/session policy, durable notifications/security, .NET coverage/units, real QoS 0/1 and standalone sensor traversal, failure/recovery and compatible rollback/roll-forward pass. The exact image audit reports zero high/critical findings.

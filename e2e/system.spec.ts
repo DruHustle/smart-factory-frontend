@@ -209,7 +209,28 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
   await page
     .getByLabel("Add a review note")
     .fill("Synthetic service inspection; physical cause is not established.");
-  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  let releaseNote!: () => void;
+  const noteReceipt = new Promise<void>((resolve) => {
+    releaseNote = resolve;
+  });
+  await page.route("**/api/trpc/alerts.addNote**", async (route) => {
+    const response = await route.fetch();
+    await noteReceipt;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.getByRole("button", { name: "Save note", exact: true }).click();
+    await expect(page.getByLabel("Add a review note")).toBeDisabled();
+    await expect(page.getByLabel("Assign technician")).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Record downtime", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Resolve", exact: true }),
+    ).toBeDisabled();
+  } finally {
+    releaseNote();
+  }
   await expect(
     page
       .locator("p")
@@ -220,6 +241,8 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
       .first(),
   ).toBeVisible();
   await expect(page.getByLabel("Add a review note")).toHaveValue("");
+  await expect(page.getByLabel("Add a review note")).toBeEnabled();
+  await page.unroute("**/api/trpc/alerts.addNote**");
   await page
     .getByRole("button", { name: "Record downtime", exact: true })
     .click();

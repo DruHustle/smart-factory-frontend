@@ -99,6 +99,7 @@ export function IncidentInvestigation({
     busy =
       ack.isPending ||
       assign.isPending ||
+      addNote.isPending ||
       downtime.isPending ||
       resolve.isPending,
     sourceReturn = `/alerts/${id}?return=${encodeURIComponent(returnTo)}`;
@@ -405,6 +406,7 @@ export function IncidentInvestigation({
           )}
           {canRespond ? (
             <form
+              aria-busy={addNote.isPending}
               className="space-y-2 border-t pt-4"
               onSubmit={(ev) => {
                 ev.preventDefault();
@@ -419,6 +421,7 @@ export function IncidentInvestigation({
               </label>
               <textarea
                 id={`incident-note-${id}`}
+                disabled={busy}
                 className="min-h-24 w-full rounded-md border border-input bg-card p-3 text-sm"
                 maxLength={2000}
                 value={note}
@@ -428,7 +431,7 @@ export function IncidentInvestigation({
               <Button
                 type="submit"
                 variant="outline"
-                disabled={addNote.isPending || !note.trim()}
+                disabled={busy || !note.trim()}
               >
                 Save note
               </Button>
