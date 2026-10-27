@@ -25,6 +25,7 @@ import { DEMO_ACCOUNTS } from "../../shared/demo-accounts";
 import { PASSPORT_DISCLAIMER } from "../../shared/passport";
 import type { Showcase } from "../../shared/showcase";
 import { seedBasicShowcase, showcaseUuid as uuid } from "./basic";
+import { addRaspberryPiShowcase, raspberryPiShowcaseId } from "./raspberry-pi";
 
 const standaloneId = uuid("standalone-v2");
 const ids = [
@@ -40,7 +41,7 @@ export async function planShowcase() {
     sql`select "deviceId" as identity from devices where "deviceId" in ('smart-factory-public-simulator','showcase.temp:01','showcase-disconnected',${sql.join(
       ids.map((id) => sql`${id}`),
       sql`,`,
-    )}) and "isDemo"=false union all select "assetId" from assets where "assetId" like 'urn:smart-factory:showcase:%' and "isDemo"=false union all select id::text from equipment_workspaces where id in(${uuid("pump")}::uuid,${standaloneId}::uuid) and is_demo=false`,
+    )}) and "isDemo"=false union all select "assetId" from assets where "assetId" like 'urn:smart-factory:showcase:%' and "isDemo"=false union all select id::text from equipment_workspaces where id in(${uuid("pump")}::uuid,${standaloneId}::uuid,${raspberryPiShowcaseId}::uuid) and is_demo=false`,
   );
   const protectedCollisions = await db.execute(
     sql`select id::text from security_sources where (id=${uuid("mapped-security")}::uuid or namespace='smart-factory-showcase-components' or system_key='showcase-components-v2') and (is_demo=false or id<>${uuid("mapped-security")}::uuid) union all select p.id::text from asset_passport_publications p join assets a on a.id=p.asset_id where p.id=${uuid("public-passport")}::uuid and a."isDemo"=false`,
@@ -65,16 +66,16 @@ export async function planShowcase() {
       "Unrecognized showcase metadata. Review it without replacing it.",
     );
   return {
-    version: 2,
+    version: 3,
     installedVersion: (current?.value as Showcase | undefined)?.version ?? 0,
     isolated: true,
     operationalWrites: false,
     emailRequests: false,
     visibilityChange: false,
-    equipment: 2,
+    equipment: 3,
     telemetryMetrics: 6,
     evidenceModes: ["simulated", "replay"],
-    chapters: 12,
+    chapters: 13,
   };
 }
 export async function seedCompleteShowcase(persistDemoVisibility = false) {
@@ -83,7 +84,7 @@ export async function seedCompleteShowcase(persistDemoVisibility = false) {
   const db = (await getDb())!;
   if (base.version >= 2) {
     await seedInboxes(base);
-    return base;
+    return addRaspberryPiShowcase(base);
   }
   const anchor = Date.parse(base.anchor),
     at = (offset: number) => new Date(anchor + offset),
@@ -745,7 +746,7 @@ export async function seedCompleteShowcase(persistDemoVisibility = false) {
     .set({ value: full })
     .where(eq(systemSettings.key, "showcase_v1"));
   await seedInboxes(full);
-  return full;
+  return addRaspberryPiShowcase(full);
 }
 async function seedInboxes(s: Showcase) {
   const db = (await getDb())!;

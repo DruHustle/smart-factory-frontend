@@ -8,15 +8,20 @@ import {
   SheetDescription,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { EquipmentBindingEditor } from "@/components/workspace/MappingEditors";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import type { LocalRendererHandle } from "@/components/equipment/LocalEquipmentRenderer";
-const LocalEquipmentRenderer = lazy(
-  () => import("@/components/equipment/LocalEquipmentRenderer"),
+import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
+const LocalEquipmentRenderer = lazy(loadEquipmentRenderer);
+const ModelImport = lazy(() => import("@/components/equipment/ModelImport"));
+const ModelReplacement = lazy(
+  () => import("@/components/equipment/ModelReplacement"),
 );
-import ModelImport from "@/components/equipment/ModelImport";
-import ModelReplacement from "@/components/equipment/ModelReplacement";
+const EquipmentBindingEditor = lazy(() =>
+  import("@/components/workspace/MappingEditors").then((m) => ({
+    default: m.EquipmentBindingEditor,
+  })),
+);
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -256,6 +261,13 @@ export default function EquipmentView({
                     <option value="">
                       Bundled illustrative pump and motor
                     </option>
+                    {models.data?.bundledModels
+                      .filter((m) => m.revision !== template.data?.revision)
+                      .map((m) => (
+                        <option key={m.revision} value={m.revision}>
+                          {m.name}
+                        </option>
+                      ))}
                     {models.data?.imported.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name} · {m.id.slice(-12)}
@@ -270,11 +282,15 @@ export default function EquipmentView({
                   </p>
                 )}
                 {existingAssetId && (
-                  <EquipmentBindingEditor
-                    value={bindingText || "[]"}
-                    onChange={setBindingText}
-                    components={bindingModel?.components ?? []}
-                  />
+                  <Suspense
+                    fallback={<p role="status">Loading mapping editor…</p>}
+                  >
+                    <EquipmentBindingEditor
+                      value={bindingText || "[]"}
+                      onChange={setBindingText}
+                      components={bindingModel?.components ?? []}
+                    />
+                  </Suspense>
                 )}
                 <Button
                   disabled={
@@ -293,7 +309,11 @@ export default function EquipmentView({
               </p>
             </details>
           )}
-          {writable && <ModelImport />}
+          {writable && (
+            <Suspense fallback={<p role="status">Loading model tools…</p>}>
+              <ModelImport />
+            </Suspense>
+          )}
         </>
       )}
       {id ? (
@@ -333,6 +353,7 @@ function LocalWorkspace({
   const data = trpc.equipment.get.useQuery(
     { id, mode: stream },
     {
+      staleTime: 15000,
       refetchInterval: active && documentActive ? 30000 : false,
       refetchIntervalInBackground: false,
     },
@@ -624,6 +645,7 @@ function LocalWorkspace({
               <LocalEquipmentRenderer
                 ref={renderer}
                 modelUrl={w.modelUrl}
+                initialViewDirection={w.renderer.initialViewDirection}
                 components={w.components}
                 selected={selected}
                 onSelect={setSelected}
@@ -816,7 +838,7 @@ function LocalWorkspace({
                 explicit source binding. Missing data is unavailable.
               </p>
             )}
-            {canEdit && w.kind === "simulated" && (
+            {canEdit && w.kind === "simulated" && w.observations.length > 0 && (
               <div>
                 <p className="mb-2 text-sm font-medium">
                   Run local simulated scenario
@@ -948,7 +970,11 @@ function LocalWorkspace({
           </CardContent>
         </Card>
       )}
-      {canEdit && <ModelReplacement id={id} version={w.version} />}
+      {canEdit && (
+        <Suspense fallback={<p role="status">Loading model tools…</p>}>
+          <ModelReplacement id={id} version={w.version} />
+        </Suspense>
+      )}
       {(!section || section === "observations") && (
         <details className="rounded border p-4">
           <summary className="cursor-pointer font-medium">

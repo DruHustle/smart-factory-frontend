@@ -4,6 +4,7 @@ export default defineConfig({
   testMatch: [
     "public-demo.spec.ts",
     "showcase.spec.ts",
+    "raspberry-pi.spec.ts",
     "onesa.spec.ts",
     "equipment-standalone.spec.ts",
   ],

@@ -4,7 +4,7 @@ import express from "express";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { sdk } from "../_core/sdk";
-import { workspace, template, modelBytes } from "./local";
+import { modelIdentity, template, modelBytes } from "./local";
 import { importModel } from "./packages";
 import { demonstrationOnly } from "../../shared/access-policy";
 const root = new URL("../../fixtures/equipment/", import.meta.url);
@@ -104,7 +104,7 @@ export function installEquipmentFiles(app: express.Express) {
             user,
             requestedDataWorkspace(req.headers.cookie),
           ),
-          () => workspace(req.params.id),
+          () => modelIdentity(req.params.id),
         ),
         t = await template(w.templateRevision);
       if (

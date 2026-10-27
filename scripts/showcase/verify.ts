@@ -27,7 +27,18 @@ try {
     before,
     "Installation must retain original evidence and avoid duplicate rows",
   );
-  assert.equal(s.chapters?.length, 12);
+  assert.equal(s.chapters?.length, 13);
+  assert.ok(s.raspberryPiRef);
+  const pi = await withVisibility({ demoOnly: true, includeDemo: true }, () =>
+    workspace(s.raspberryPiRef!.slice("equipment:".length)),
+  );
+  assert.equal(pi.components.length, 61);
+  assert.deepEqual(pi.observations, []);
+  assert.equal(pi.kind, "simulated");
+  const [gatewayIdentity] = await db.execute<{ name: string }>(
+    sql`select name from devices where "deviceId"='smart-factory-public-simulator' and "isDemo"=true`,
+  );
+  assert.equal(gatewayIdentity.name, "Showcase gateway 01");
   const w = await withVisibility({ demoOnly: true, includeDemo: true }, () =>
     workspace(s.equipmentId, "simulated"),
   );
@@ -93,7 +104,7 @@ try {
     );
   }
   console.log(
-    "Complete showcase verified: idempotence, 12 chapters, 87 components, bound measurements, histories, mapped evidence, no email queue or live connectivity claim.",
+    "Complete showcase verified: idempotence, 13 chapters, detailed pump and Raspberry Pi, bound measurements, histories, mapped evidence, no email queue or live connectivity claim.",
   );
 } finally {
   await closeDatabase();

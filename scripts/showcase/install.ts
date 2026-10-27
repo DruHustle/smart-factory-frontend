@@ -6,10 +6,10 @@ import { planShowcase, seedCompleteShowcase } from "./complete";
 const apply = process.argv.includes("--apply");
 if (
   !publicDemoDeployment() ||
-  process.env.SHOWCASE_INSTALL_APPROVED !== "read-only-showcase-v2"
+  process.env.SHOWCASE_INSTALL_APPROVED !== "read-only-showcase-v3"
 )
   throw Error(
-    "Explicit public-demo deployment and SHOWCASE_INSTALL_APPROVED=read-only-showcase-v2 are required. No records were changed.",
+    "Explicit public-demo deployment and SHOWCASE_INSTALL_APPROVED=read-only-showcase-v3 are required. No records were changed.",
   );
 try {
   const plan = await planShowcase();
@@ -26,14 +26,14 @@ try {
       );
     // A retained claim prevents concurrent/partial retries from silently overwriting evidence.
     const claims = await db.execute(
-      sql`insert into system_settings(key,value) values('showcase_install_v2',${JSON.stringify({ state: "installing", startedAt: new Date().toISOString() })}::jsonb) on conflict(key) do nothing returning key`,
+      sql`insert into system_settings(key,value) values('showcase_install_v3',${JSON.stringify({ state: "installing", startedAt: new Date().toISOString() })}::jsonb) on conflict(key) do nothing returning key`,
     );
     const [retainedClaim] = await db.execute<{ value: { state?: string } }>(
-      sql`select value from system_settings where key='showcase_install_v2'`,
+      sql`select value from system_settings where key='showcase_install_v3'`,
     );
     if (
       !claims.length &&
-      (plan.installedVersion < 2 || retainedClaim?.value.state !== "complete")
+      (plan.installedVersion < 3 || retainedClaim?.value.state !== "complete")
     )
       throw Error(
         "A prior install needs operator review. Retain the original evidence and review its protected backup; do not delete records to retry.",
@@ -50,7 +50,7 @@ try {
         "External delivery queue increased; review before declaring the installation complete.",
       );
     await db.execute(
-      sql`update system_settings set value=${JSON.stringify({ state: "complete", version: result.version, anchor: result.anchor })}::jsonb where key='showcase_install_v2'`,
+      sql`update system_settings set value=${JSON.stringify({ state: "complete", version: result.version, anchor: result.anchor })}::jsonb where key='showcase_install_v3'`,
     );
     console.log(
       JSON.stringify({

@@ -7,7 +7,8 @@ import {
   ItemTelemetry,
   AssetTelemetry,
 } from "@/components/workspace/ItemEvidence";
-import { lazy, Suspense, useRef } from "react";
+import { lazy, Suspense, useRef, useEffect } from "react";
+import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
 import { Link, useParams } from "wouter";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { trpc } from "@/lib/trpc";
@@ -27,7 +28,8 @@ import { Badge } from "@/components/ui/badge";
 import SecuritySummary from "@/components/SecuritySummary";
 const Aas = lazy(() => import("./AssetAdministrationShell"));
 const Device = lazy(() => import("./DeviceDetail"));
-const Equipment = lazy(() => import("./EquipmentView"));
+const loadEquipment = () => import("./EquipmentView");
+const Equipment = lazy(loadEquipment);
 export default function ItemWorkspace() {
   const opened3D = useRef<string | null>(null);
   const params = useParams<{ ref: string; section?: string }>();
@@ -66,6 +68,22 @@ export default function ItemWorkspace() {
     { enabled: ref.startsWith("asset:") && canViewEngineering(user?.role) },
   );
   const security = trpc.security.availability.useQuery();
+  const utils = trpc.useUtils();
+  const inspectionRequested = params.section === "3d";
+  useEffect(() => {
+    if (!inspectionRequested) return;
+    // Fetch code alongside authorized item metadata instead of three serial
+    // chunk/API round trips. No model bytes are fetched before authorization.
+    void loadEquipment().catch(() => {});
+    void loadEquipmentRenderer().catch(() => {});
+  }, [inspectionRequested]);
+  useEffect(() => {
+    if (inspectionRequested && item.data?.equipmentId)
+      void utils.equipment.get.prefetch(
+        { id: item.data.equipmentId, mode: undefined },
+        { staleTime: 15000 },
+      );
+  }, [inspectionRequested, item.data?.equipmentId, utils]);
   if (item.isLoading) return <EmptyState title="Loading item workspace…" />;
   if (item.error || !item.data)
     return (
