@@ -57,7 +57,7 @@ async function checkLayout(nav: Locator, collapsed = false) {
         const icon = icons[0];
         const style = getComputedStyle(label);
         const box = icon.getBoundingClientRect();
-        const row = node.closest("a,h2")!;
+        const row = node.closest("a,button")!;
         const rowStyle = getComputedStyle(row);
         const bounds = row.getBoundingClientRect();
         return {
