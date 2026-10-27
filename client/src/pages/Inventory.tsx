@@ -1,4 +1,5 @@
 import { currentSample } from "@shared/measurements";
+import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
   metrics,
@@ -351,9 +352,13 @@ export default function Inventory() {
                               id={"inventory-desktop-" + item.ref}
                               aria-label={item.name}
                               onClick={() => remember(item)}
-                              className="font-medium text-foreground underline-offset-4 hover:underline"
+                              className="inline-flex items-center gap-2 font-medium text-foreground underline-offset-4 hover:underline"
                               href={href(item)}
                             >
+                              <EquipmentSymbol
+                                type={item.itemType}
+                                className="size-6 text-info"
+                              />
                               {item.name}
                             </Link>
                             <p
@@ -446,8 +451,12 @@ export default function Inventory() {
                             aria-label={item.name}
                             onClick={() => remember(item)}
                             href={href(item)}
-                            className="break-words font-semibold"
+                            className="flex items-start gap-2 break-words font-semibold"
                           >
+                            <EquipmentSymbol
+                              type={item.itemType}
+                              className="size-6 text-info"
+                            />
                             {item.name}
                           </Link>
                           <p

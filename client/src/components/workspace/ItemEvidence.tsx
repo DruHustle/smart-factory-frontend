@@ -5,6 +5,8 @@ import { useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { EmptyState, SampleTime } from "./Primitives";
 import type { InventoryItem } from "@shared/inventory";
+import { useWorkspaceLocation } from "@/lib/hashLocation";
+import { metrics, type Metric } from "@shared/measurements";
 export function ItemActivity({ item }: { item: InventoryItem }) {
   const device = trpc.devices.getById.useQuery(
     { id: Number(item.id) },
@@ -71,10 +73,39 @@ export function AssetTelemetry({ item }: { item: InventoryItem }) {
   return <ItemTelemetry item={item} />;
 }
 export function ItemTelemetry({ item }: { item: InventoryItem }) {
+  const [location] = useWorkspaceLocation();
+  const params = new URLSearchParams(location.split("?")[1] ?? "");
+  const scopes: TrendScope[] = [
+    "operational",
+    "live",
+    "simulated",
+    "replay",
+    "unknown",
+    "all",
+  ];
   const { user } = useAuth(),
     [scope, setScope] = useState<TrendScope>(
-      user?.access?.demoOnly ? "simulated" : "operational",
+      scopes.includes(params.get("scope") as TrendScope)
+        ? (params.get("scope") as TrendScope)
+        : user?.access?.demoOnly
+          ? "simulated"
+          : "operational",
     );
+  const [metric, setMetric] = useState<Metric>(
+    metrics.includes(params.get("metric") as Metric)
+      ? (params.get("metric") as Metric)
+      : "temperature",
+  );
+  const from = Number(params.get("from")),
+    to = Number(params.get("to"));
+  const validRange =
+    params.has("from") &&
+    params.has("to") &&
+    Number.isFinite(from) &&
+    Number.isFinite(to) &&
+    from > 0 &&
+    to > from &&
+    to - from <= 93 * 86400000;
   return (
     <div className="space-y-3">
       <label className="flex items-center gap-3 text-sm">
@@ -97,6 +128,10 @@ export function ItemTelemetry({ item }: { item: InventoryItem }) {
         deviceId={item.kind === "device" ? Number(item.id) : undefined}
         assetIds={item.kind !== "device" ? [item.identifier] : undefined}
         scope={scope}
+        metric={metric}
+        onMetricChange={setMetric}
+        startTime={validRange ? from : undefined}
+        endTime={validRange ? to : undefined}
         title={`${item.name} observations`}
       />
       <p className="text-xs text-muted-foreground">

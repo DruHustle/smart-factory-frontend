@@ -1,4 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "wouter";
+import { useDocumentActive } from "@/hooks/useDocumentActive";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -30,6 +33,7 @@ export function ObservationTrend({
   metric: controlled,
   onMetricChange,
   intervalMs = 60000,
+  openHref,
 }: {
   deviceId?: number;
   assetIds?: string[];
@@ -40,8 +44,11 @@ export function ObservationTrend({
   metric?: Metric;
   onMetricChange?: (m: Metric) => void;
   intervalMs?: number;
+  openHref?: string;
 }) {
   const { user } = useAuth();
+  const active = useDocumentActive();
+  const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const [metric, setMetric] = useState<Metric>(controlled ?? "temperature"),
     [end, setEnd] = useState(() => Date.now()),
     [range, setRange] = useState(3600000);
@@ -126,6 +133,11 @@ export function ObservationTrend({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
         <h2 className="font-semibold">{title}</h2>
         <div className="flex flex-wrap gap-2">
+          {openHref && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={openHref}>Open telemetry</Link>
+            </Button>
+          )}
           <select
             aria-label="Trend metric"
             className="h-10 rounded-md border border-input bg-card px-2 capitalize"
@@ -209,11 +221,30 @@ export function ObservationTrend({
             </p>
             <div
               className="h-64 w-full"
-              role="img"
+              role={openHref ? "link" : "img"}
+              tabIndex={openHref ? 0 : undefined}
+              onClick={
+                openHref
+                  ? () => {
+                      window.location.hash = openHref;
+                    }
+                  : undefined
+              }
+              onKeyDown={
+                openHref
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        window.location.hash = openHref;
+                      }
+                    }
+                  : undefined
+              }
               aria-label={`${selected} in ${data.unit}. Missing observations are gaps; a data table follows.`}
             >
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
+                  accessibilityLayer={!openHref}
                   data={data.buckets}
                   margin={{ top: 8, right: 12, bottom: 8, left: 0 }}
                 >
@@ -253,8 +284,14 @@ export function ObservationTrend({
                     stroke="var(--chart-2)"
                     strokeWidth={2}
                     connectNulls={false}
-                    dot={false}
-                    isAnimationActive={false}
+                    dot={
+                      data.buckets.filter((bucket) => bucket.value != null)
+                        .length === 1
+                        ? { r: 4, fill: "var(--chart-2)", strokeWidth: 0 }
+                        : false
+                    }
+                    isAnimationActive={active && !reduceMotion}
+                    animationDuration={300}
                   />
                 </LineChart>
               </ResponsiveContainer>

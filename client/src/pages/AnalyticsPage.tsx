@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { MetricComparison } from "@/components/workspace/MetricComparison";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
@@ -347,6 +348,14 @@ export default function AnalyticsPage() {
               <Link href="/monitoring">Review sources</Link>
             </Button>
           </div>
+          <MetricComparison
+            title={`Observed ${metric} by ${groupBy}`}
+            unit={canonicalUnits[metric]}
+            items={Array.from(groups, ([name, group]) => ({
+              name,
+              value: group.count ? group.sum / group.count : null,
+            }))}
+          />
           {!!analytics.data?.overall.sampleCount && (
             <details className="rounded-lg border bg-card p-4">
               <summary className="cursor-pointer font-medium">

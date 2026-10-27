@@ -3,6 +3,38 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@keyframes receipt-change {
+  from {
+    background-color: color-mix(in srgb, var(--info) 24%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+@keyframes workflow-change {
+  from {
+    opacity: 0.65;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.workflow-change {
+  animation: workflow-change 180ms ease-out 1;
+}
+.receipt-change {
+  animation: receipt-change 800ms ease-out 1;
+  border-radius: 0.25rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .receipt-change,
+  .workflow-change {
+    animation: none;
+  }
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -239,11 +271,16 @@
     color: black !important;
   }
 
-  .eudpp-page, .eudpp-page [data-slot="card"], .eudpp-page [data-slot="card-header"], .eudpp-page [data-slot="card-content"] {
+  .eudpp-page,
+  .eudpp-page [data-slot="card"],
+  .eudpp-page [data-slot="card-header"],
+  .eudpp-page [data-slot="card-content"] {
     background: white !important;
     color: black !important;
   }
-  .eudpp-page .text-muted-foreground { color: #374151 !important; }
+  .eudpp-page .text-muted-foreground {
+    color: #374151 !important;
+  }
 
   .eudpp-page {
     print-color-adjust: exact;

@@ -1,5 +1,9 @@
 import { currentSample } from "@shared/measurements";
-import { ObservationTrend } from "@/components/workspace/ObservationTrend";
+import { metrics, type Metric } from "@shared/measurements";
+import {
+  ObservationTrend,
+  type TrendScope,
+} from "@/components/workspace/ObservationTrend";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { SectionNav, CopyIdentifier } from "@/components/workspace/Primitives";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
@@ -174,6 +178,22 @@ export default function AssetAdministrationShell({
   embedded = false,
 }: { itemId?: number; section?: string; embedded?: boolean } = {}) {
   const [hash, navigate] = useHashLocation();
+  const trendParams = new URLSearchParams(hash.split("?")[1] ?? "");
+  const [trendMetric, setTrendMetric] = useState<Metric>(
+    metrics.includes(trendParams.get("metric") as Metric)
+      ? (trendParams.get("metric") as Metric)
+      : "temperature",
+  );
+  const trendFrom = Number(trendParams.get("from")),
+    trendTo = Number(trendParams.get("to"));
+  const trendRange =
+    trendParams.has("from") &&
+    trendParams.has("to") &&
+    Number.isFinite(trendFrom) &&
+    Number.isFinite(trendTo) &&
+    trendFrom > 0 &&
+    trendTo > trendFrom &&
+    trendTo - trendFrom <= 93 * 86400000;
   const section =
     providedSection ??
     new URLSearchParams(hash.split("?")[1] ?? "").get("section") ??
@@ -899,7 +919,24 @@ export default function AssetAdministrationShell({
         {section === "telemetry" && !armConnection && asset && (
           <ObservationTrend
             assetIds={[asset.assetId]}
-            scope={user?.access?.demoOnly ? "simulated" : "operational"}
+            scope={
+              [
+                "operational",
+                "live",
+                "simulated",
+                "replay",
+                "unknown",
+                "all",
+              ].includes(trendParams.get("scope") ?? "")
+                ? (trendParams.get("scope") as TrendScope)
+                : user?.access?.demoOnly
+                  ? "simulated"
+                  : "operational"
+            }
+            metric={trendMetric}
+            onMetricChange={setTrendMetric}
+            startTime={trendRange ? trendFrom : undefined}
+            endTime={trendRange ? trendTo : undefined}
             title={`${asset.name} observations`}
           />
         )}

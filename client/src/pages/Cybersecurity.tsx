@@ -9,6 +9,7 @@ import {
 import SecurityAdministration from "@/components/security/SecurityAdministration";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { useEffect, useRef, useState } from "react";
+import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -432,36 +433,62 @@ function Workspace({
           ) : (
             overview.data && (
               <>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {["critical", "high", "medium", "low"].map((severity) => (
-                    <Card key={severity}>
-                      <button
-                        className="w-full rounded-lg text-left focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-label={`Open ${severity} findings`}
-                        onClick={() => {
-                          setFilters({
-                            severity: severity as Filter["severity"],
-                            status: undefined,
-                          });
-                          changeTab("Findings");
-                        }}
-                      >
-                        <CardHeader>
-                          <CardTitle className="text-sm capitalize">
-                            Open {severity} findings
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <strong className="text-3xl">
-                            {overview.data.counts.find(
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Open findings by severity</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      aria-label="Security finding severity profile"
+                      className="space-y-3"
+                    >
+                      {["critical", "high", "medium", "low"].map(
+                        (severity, index) => {
+                          const count = Number(
+                            overview.data.counts.find(
                               (c) => c.severity === severity,
-                            )?.count ?? 0}
-                          </strong>
-                        </CardContent>
-                      </button>
-                    </Card>
-                  ))}
-                </div>
+                            )?.count ?? 0,
+                          );
+                          const maximum = Math.max(
+                            1,
+                            ...overview.data.counts.map((c) => Number(c.count)),
+                          );
+                          return (
+                            <button
+                              key={severity}
+                              aria-label={`Open ${severity} findings`}
+                              onClick={() => {
+                                setFilters({
+                                  severity: severity as Filter["severity"],
+                                  status: undefined,
+                                });
+                                changeTab("Findings");
+                              }}
+                              className="grid min-h-11 w-full grid-cols-[5rem_minmax(0,1fr)_2rem] items-center gap-3 rounded px-2 text-left text-sm hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
+                            >
+                              <span className="capitalize">{severity}</span>
+                              <span className="h-2 rounded-full bg-muted">
+                                <span
+                                  className="block h-2 rounded-full"
+                                  style={{
+                                    width: `${(count / maximum) * 100}%`,
+                                    background: [
+                                      "var(--destructive)",
+                                      "var(--primary)",
+                                      "var(--warning)",
+                                      "var(--info)",
+                                    ][index],
+                                  }}
+                                />
+                              </span>
+                              <strong className="text-right">{count}</strong>
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
                 <Card>
                   <CardHeader>
                     <CardTitle>Source coverage · live receipts</CardTitle>
@@ -490,18 +517,37 @@ function Workspace({
                         remain unknown.
                       </p>
                     )}
-                    {overview.data.sources.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
-                      >
-                        <span>{sourceLabel(s.name)}</span>
-                        <Badge variant="outline">{s.state}</Badge>
-                        <span>
-                          Last live receipt: {time(s.last_received_at)}
-                        </span>
-                      </div>
-                    ))}
+                    <div
+                      aria-label="Security collector coverage matrix"
+                      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+                    >
+                      {overview.data.sources.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => {
+                            setFilters({ sourceId: s.id });
+                            changeTab("Events");
+                          }}
+                          className={`flex min-h-28 items-start gap-3 rounded-md border p-3 text-left text-sm hover:border-primary focus-visible:outline-2 focus-visible:outline-ring ${s.state === "receiving" ? "border-info/50 bg-info/5" : ["stale", "missing"].includes(s.state) ? "border-warning/50 bg-warning/5" : "bg-muted/20"}`}
+                        >
+                          <EquipmentSymbol
+                            type="device"
+                            className="size-7 text-info"
+                          />
+                          <span className="min-w-0">
+                            <strong className="block break-words">
+                              {sourceLabel(s.name)}
+                            </strong>
+                            <span className="mt-1 block capitalize">
+                              {s.state}
+                            </span>
+                            <span className="mt-2 block text-xs text-muted-foreground">
+                              Last live receipt: {time(s.last_received_at)}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
                 <Card>

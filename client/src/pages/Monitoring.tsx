@@ -1,4 +1,9 @@
 import { currentSample } from "@shared/measurements";
+import {
+  EvidencePath,
+  EquipmentSymbol,
+  ReceiptChange,
+} from "@/components/workspace/VisualEvidence";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { ObservationTrend } from "@/components/workspace/ObservationTrend";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -121,10 +126,12 @@ export default function Monitoring() {
           available.map((m) => (
             <div key={m}>
               <p className="text-xs capitalize text-muted-foreground">{m}</p>
-              <Measurement
-                value={measurementValue(r, m)}
-                unit={measurementUnit(r, m)}
-              />
+              <ReceiptChange at={r.timestamp} eligible={currentSample(r)}>
+                <Measurement
+                  value={measurementValue(r, m)}
+                  unit={measurementUnit(r, m)}
+                />
+              </ReceiptChange>
             </div>
           ))
         ) : (
@@ -137,6 +144,19 @@ export default function Monitoring() {
   };
   const selected =
     sources.data?.items.find((d) => d.id === Number(params.get("selected"))) ??
+    sources.data?.items.find(
+      (d) =>
+        d.type !== "gateway" &&
+        latest.has(d.id) &&
+        currentSample(latest.get(d.id)!),
+    ) ??
+    sources.data?.items
+      .filter((d) => d.type !== "gateway" && latest.has(d.id))
+      .sort(
+        (a, b) =>
+          (latest.get(b.id)?.timestamp ?? 0) -
+          (latest.get(a.id)?.timestamp ?? 0),
+      )[0] ??
     sources.data?.items.find((d) => d.type !== "gateway");
   const selectedReading = selected ? latest.get(selected.id) : undefined;
   const context = `/monitoring${params.size ? `?${params}` : ""}`;
@@ -298,11 +318,15 @@ export default function Monitoring() {
                   <div className="flex min-w-0 items-start justify-between gap-3">
                     <div className="min-w-0">
                       <button
-                        className="block max-w-full truncate text-left font-medium hover:underline"
+                        className="flex max-w-full items-center gap-2 text-left font-medium hover:underline"
                         onClick={() => update("selected", String(d.id))}
                         title={d.name}
                       >
-                        {d.name}
+                        <EquipmentSymbol
+                          type={d.type}
+                          className="size-6 text-info"
+                        />
+                        <span className="truncate">{d.name}</span>
                       </button>
                       <Link
                         href={href}
@@ -354,81 +378,107 @@ export default function Monitoring() {
               );
             })}
           </div>
-          {wide && (
-            <aside className="min-w-0 space-y-3">
-              {selected && selected.type !== "gateway" ? (
-                <>
-                  <div className="rounded-lg border bg-card p-4">
-                    <h2 className="font-semibold">{selected.name}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {selected.location ?? selected.deviceId}
-                    </p>
-                    <div className="mt-3">
-                      <StatusBadge status={selected.observedStatus} />
-                    </div>
-                    <dl className="mt-3 space-y-2 text-xs">
-                      <div>
-                        <dt className="text-muted-foreground">
-                          Sample acquisition
-                        </dt>
-                        <dd>
-                          <SampleTime
-                            value={selectedReading?.timestamp}
-                            historical
-                          />
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">
-                          Received by application
-                        </dt>
-                        <dd>
-                          <SampleTime
-                            value={selectedReading?.createdAt?.toISOString()}
-                          />
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">
-                          Source quality
-                        </dt>
-                        <dd>
-                          {String(
-                            selectedReading?.integration?.sourceQuality ??
-                              "Unknown",
-                          )}
-                        </dd>
-                      </div>
-                    </dl>
+          <aside className="order-first min-w-0 space-y-3 xl:order-none">
+            {selected && selected.type !== "gateway" ? (
+              <>
+                <div className="rounded-lg border bg-card p-4">
+                  <h2 className="font-semibold">{selected.name}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {selected.location ?? selected.deviceId}
+                  </p>
+                  <div className="mt-3">
+                    <StatusBadge status={selected.observedStatus} />
                   </div>
-                  <ObservationTrend
-                    deviceId={selected.id}
-                    title={`${selected.name} trend`}
-                    scope={scope}
-                  />
-                  <Button className="w-full" asChild>
-                    <Link
-                      href={observationHref(
+                  <dl className="mt-3 space-y-2 text-xs">
+                    <div>
+                      <dt className="text-muted-foreground">
+                        Sample acquisition
+                      </dt>
+                      <dd>
+                        <SampleTime
+                          value={selectedReading?.timestamp}
+                          historical
+                        />
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">
+                        Received by application
+                      </dt>
+                      <dd>
+                        <SampleTime
+                          value={selectedReading?.createdAt?.toISOString()}
+                        />
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Source quality</dt>
+                      <dd>
+                        {String(
+                          selectedReading?.integration?.sourceQuality ??
+                            "Unknown",
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                <EvidencePath
+                  label="Recorded source path"
+                  nodes={[
+                    ...(typeof selected.metadata?.gatewayId === "string"
+                      ? [
+                          {
+                            label: selected.metadata.gatewayId,
+                            type: "gateway",
+                            detail: "Configured parent",
+                          },
+                        ]
+                      : []),
+                    {
+                      label: selected.name,
+                      type: selected.type,
+                      detail:
+                        selected.metadata?.connectionMode === "direct_mqtt"
+                          ? "Direct MQTT configuration"
+                          : "Registered source",
+                      href: observationHref(
                         {
                           ref: `device:${selected.id}`,
                           kind: "device",
                           itemType: selected.type,
                         },
                         context,
-                      )}
-                    >
-                      Open telemetry
-                    </Link>
-                  </Button>
-                </>
-              ) : (
-                <EmptyState
-                  title="Select a measurement source"
-                  description="Gateways provide connectivity evidence in their workspace."
+                      ),
+                    },
+                  ]}
                 />
-              )}
-            </aside>
-          )}
+                <ObservationTrend
+                  deviceId={selected.id}
+                  title={`${selected.name} trend`}
+                  scope={scope}
+                />
+                <Button className="w-full" asChild>
+                  <Link
+                    href={observationHref(
+                      {
+                        ref: `device:${selected.id}`,
+                        kind: "device",
+                        itemType: selected.type,
+                      },
+                      context,
+                    )}
+                  >
+                    Open telemetry
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <EmptyState
+                title="Select a measurement source"
+                description="Gateways provide connectivity evidence in their workspace."
+              />
+            )}
+          </aside>
         </div>
       )}
       {!!sources.data && sources.data.total > 25 && (

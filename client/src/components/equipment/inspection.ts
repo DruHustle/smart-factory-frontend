@@ -357,11 +357,18 @@ export class InspectionScene {
     this.plane.normal.set(0, 0, 0).setComponent(axis, state.flip ? -1 : 1);
     this.plane.constant = -value * (state.flip ? -1 : 1);
     const target = state.explode / 100;
-    if (changed && !state.immediate) {
+    const reducedMotion =
+      typeof matchMedia === "function" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const hidden = typeof document !== "undefined" && document.hidden;
+    if (changed && !state.immediate && !reducedMotion && !hidden) {
       const start = this.amount,
         time = performance.now();
       const step = () => {
-        const t = Math.min(1, (performance.now() - time) / 360),
+        const t =
+            typeof document !== "undefined" && document.hidden
+              ? 1
+              : Math.min(1, (performance.now() - time) / 360),
           ease = t * t * (3 - 2 * t);
         this.amount = start + (target - start) * ease;
         this.pose(target, starts, ease);

@@ -53,6 +53,9 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
   { icon: Layers, label: "Assets & devices", path: "/inventory" },
 ];
+// Keep all five uppercase destinations/section labels at the established section size.
+const navigationHeadingTypography =
+  "text-xs font-medium tracking-normal leading-4 uppercase";
 const groups: {
   label: string;
   items: {
@@ -269,7 +272,8 @@ function DashboardLayoutContent({
     return (
       <li className="list-none pt-4" key={group.label}>
         <h2
-          className={`mb-2 px-3 text-xs font-medium text-muted-foreground ${isCollapsed ? "sr-only" : ""}`}
+          data-navigation-heading
+          className={`mb-2 px-3 ${navigationHeadingTypography} text-muted-foreground ${isCollapsed ? "sr-only" : ""}`}
         >
           {group.label}
         </h2>
@@ -366,7 +370,12 @@ function DashboardLayoutContent({
                         }}
                       >
                         <item.icon className="h-4 w-4" />
-                        <span className="uppercase">{item.label}</span>
+                        <span
+                          data-navigation-heading
+                          className={navigationHeadingTypography}
+                        >
+                          {item.label}
+                        </span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
