@@ -8,7 +8,13 @@ if (
   !url.pathname.endsWith("_e2e")
 )
   throw new Error("Security fixtures require a disposable local _e2e database");
-for (const role of ["admin", "engineer", "operator", "viewer"] as const) {
+for (const role of [
+  "admin",
+  "engineer",
+  "operator",
+  "viewer",
+  "user",
+] as const) {
   const email = `security-${role}@example.test`;
   if (!(await getUserByEmail(email)))
     await createUser({
