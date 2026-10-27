@@ -192,9 +192,10 @@ export function assistantLink(
   if (!raw || raw.length > 2048 || /[\u0000-\u0020\\]/.test(raw)) return null;
   const route = raw.replace(/^\/#/, "").replace(/^#/, "");
   if (
-    /^\/(?:inventory|assets|devices|equipment|monitoring|alerts|notifications|analytics|cybersecurity|assistant|administration|demo|ota|passport)(?:[/?#]|$)/.test(
-      route,
-    ) &&
+    (route === "/" ||
+      /^\/(?:inventory|assets|devices|equipment|monitoring|alerts|notifications|analytics|cybersecurity|assistant|administration|infrastructure|demo|ota|passport)(?:[/?#]|$)/.test(
+        route,
+      )) &&
     !route.startsWith("//")
   )
     return { kind: "internal", href: route };

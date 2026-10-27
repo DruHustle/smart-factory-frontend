@@ -79,8 +79,24 @@ export async function buildAssistantPresentation(
         );
         if (w) {
           result.context!.equipmentId = w.id;
-          modelBindings = w.bindings ?? [];
-          modelComponents = w.components ?? [];
+          modelBindings = Array.isArray(w.bindings)
+            ? w.bindings.filter(
+                (b) =>
+                  b &&
+                  typeof b.sourceKey === "string" &&
+                  typeof b.templateComponentId === "string" &&
+                  typeof b.unit === "string",
+              )
+            : [];
+          modelComponents = Array.isArray(w.components)
+            ? w.components.filter(
+                (c) =>
+                  c &&
+                  typeof c.templateComponentId === "string" &&
+                  typeof c.installedComponentId === "string" &&
+                  typeof c.name === "string",
+              )
+            : [];
           modelSource = w.source_device_id;
           if (w.is_standalone) result.context!.ref = `equipment:${w.id}`;
         }

@@ -106,6 +106,16 @@ describe("trusted graphical answer contracts", () => {
         kind: "internal",
         href: "/inventory/asset:1/3d",
       });
+    for (const route of [
+      "/",
+      "#/",
+      "/#/",
+      "/infrastructure/service-health/history?event=abc",
+    ])
+      expect(assistantLink(route)).toEqual({
+        kind: "internal",
+        href: route.replace(/^\/#/, "").replace(/^#/, ""),
+      });
     for (const bad of [
       "javascript:alert(1)",
       "data:text/html,test",

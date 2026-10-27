@@ -44,7 +44,7 @@ export function apiProcessResources(now = Date.now()): ResourceEvidence[] {
       ? performance.eventLoopUtilization(loop, previous.loop).utilization * 100
       : null;
   previous = { at: now, cpu, loop };
-  const recent = requests.filter((r) => now - r.at <= 300000),
+  const recent = requests.filter((r) => r.at <= now && now - r.at <= 300000),
     sorted = recent.map((r) => r.ms).sort((a, b) => a - b);
   const make = (
     id: string,
