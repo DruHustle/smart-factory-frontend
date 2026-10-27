@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from "react";
+import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { Link, useParams } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { trpc } from "@/lib/trpc";
@@ -96,6 +97,44 @@ function Integrations() {
                 Profiles describe saved configuration. Observation times and
                 collector health establish whether a source is receiving.
               </p>
+              {!!summary.data?.profiles.length && (
+                <figure
+                  className="mb-4 grid items-center gap-4 rounded-md border bg-info/5 p-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]"
+                  aria-label="Integration configuration map"
+                >
+                  <div className="space-y-2">
+                    {summary.data.profiles.map((p) => (
+                      <div
+                        key={p.protocol}
+                        className="flex items-center gap-2 rounded border bg-card p-2 text-sm"
+                      >
+                        <EquipmentSymbol
+                          type="network"
+                          className="size-5 text-info"
+                        />
+                        <span>
+                          {p.protocol.replaceAll("_", " ").toUpperCase()} ·{" "}
+                          {p.count} profiles
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <span
+                    aria-hidden
+                    className="h-6 border-l-2 border-info sm:h-0 sm:w-8 sm:border-t-2 sm:border-l-0"
+                  />
+                  <figcaption className="flex items-center gap-3 rounded-md border border-info/50 bg-card p-4">
+                    <EquipmentSymbol className="size-9 text-info" />
+                    <span className="text-sm font-medium">
+                      Smart Factory workspace
+                      <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                        Saved integration routes · delivery health is verified
+                        separately
+                      </span>
+                    </span>
+                  </figcaption>
+                </figure>
+              )}
               <ul className="divide-y">
                 {summary.data?.profiles.map((p) => (
                   <li

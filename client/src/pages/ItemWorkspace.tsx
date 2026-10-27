@@ -1,4 +1,5 @@
 import { currentSample } from "@shared/measurements";
+import { LinkedModelPreview } from "@/components/workspace/OverviewGraphics";
 import { ObservationValues } from "@/components/workspace/ObservationValues";
 import DeviceActions from "@/components/workspace/DeviceActions";
 import {
@@ -41,6 +42,7 @@ export default function ItemWorkspace() {
   const query = new URLSearchParams(location.split("?")[1] ?? "");
   const returnTo = query.get("return");
   const safeReturn =
+    returnTo?.startsWith("/?") ||
     returnTo?.startsWith("/inventory?") ||
     returnTo?.startsWith("/cybersecurity?") ||
     returnTo?.startsWith("/monitoring?") ||
@@ -131,20 +133,22 @@ export default function ItemWorkspace() {
     !!i.equipmentId;
   if (is3D) opened3D.current = i.equipmentId;
   return (
-    <div className={`min-w-0 ${is3D?"space-y-3":"space-y-5"}`}>
+    <div className={`min-w-0 ${is3D ? "space-y-3" : "space-y-5"}`}>
       <PageHeader
         title={i.name}
         eyebrow={
           <Link href={safeReturn} className="underline underline-offset-4">
-            {safeReturn.startsWith("/cybersecurity")
-              ? "Cybersecurity / Return to investigation"
-              : safeReturn.startsWith("/monitoring")
-                ? "Monitoring / Return to observations"
-                : safeReturn.startsWith("/alerts")
-                  ? "Alerts / Return to investigation"
-                  : safeReturn === "/analytics"
-                    ? "Analytics / Return to analysis"
-                    : "Assets & devices / Return to results"}
+            {safeReturn === "/" || safeReturn.startsWith("/?")
+              ? "Overview / Return to overview"
+              : safeReturn.startsWith("/cybersecurity")
+                ? "Cybersecurity / Return to investigation"
+                : safeReturn.startsWith("/monitoring")
+                  ? "Monitoring / Return to observations"
+                  : safeReturn.startsWith("/alerts")
+                    ? "Alerts / Return to investigation"
+                    : safeReturn === "/analytics"
+                      ? "Analytics / Return to analysis"
+                      : "Assets & devices / Return to results"}
           </Link>
         }
         description={`${i.itemType} · ${i.zone || i.location || "Location unspecified"}`}
@@ -166,7 +170,9 @@ export default function ItemWorkspace() {
           <p className="mt-1 text-muted-foreground">{i.ref}</p>
         </div>
       </details>
-      <div className={`flex flex-wrap items-center rounded-lg border bg-card ${is3D?"gap-2 p-2 text-xs":"gap-3 p-3 text-sm"}`}>
+      <div
+        className={`flex flex-wrap items-center rounded-lg border bg-card ${is3D ? "gap-2 p-2 text-xs" : "gap-3 p-3 text-sm"}`}
+      >
         <Badge variant="outline" className="capitalize">
           {i.mode} evidence
         </Badge>
@@ -193,6 +199,11 @@ export default function ItemWorkspace() {
           />
         ) : section === "overview" ? (
           <div className="space-y-5">
+            {i.equipmentId && (
+              <section className="rounded-lg border bg-card p-4">
+                <LinkedModelPreview item={i} returnTo={location} />
+              </section>
+            )}
             <ItemOverview
               item={i}
               engineering={engineering}

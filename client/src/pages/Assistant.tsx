@@ -1,4 +1,5 @@
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { Link } from "wouter";
 import { PageHeader } from "@/components/workspace/Primitives";
 import { FormEvent, useEffect, useRef, useState } from "react";
@@ -280,6 +281,39 @@ export default function Assistant() {
                           </time>
                         </CardHeader>
                         <CardContent className="px-5 py-5 sm:px-6">
+                          {exchange.result.sources.some(
+                            (source) =>
+                              source.href?.startsWith("#/inventory/") ||
+                              source.href?.startsWith("/inventory/"),
+                          ) && (
+                            <nav
+                              aria-label="Equipment evidence for this answer"
+                              className="mb-4 flex flex-wrap gap-2 border-b pb-4"
+                            >
+                              {exchange.result.sources
+                                .filter(
+                                  (source) =>
+                                    source.href?.startsWith("#/inventory/") ||
+                                    source.href?.startsWith("/inventory/"),
+                                )
+                                .slice(0, 3)
+                                .map((source, index) => (
+                                  <Link
+                                    key={source.href}
+                                    href={source.href!.replace(/^#/, "")}
+                                    className="flex min-w-0 items-center gap-2 rounded-full border border-info/50 bg-info/5 px-3 py-2 text-sm hover:border-primary"
+                                  >
+                                    <EquipmentSymbol
+                                      type="equipment"
+                                      className="size-5 text-info"
+                                    />
+                                    <span className="break-words">
+                                      [{index + 1}] {source.section}
+                                    </span>
+                                  </Link>
+                                ))}
+                            </nav>
+                          )}
                           <div
                             data-testid="assistant-answer-content"
                             className="min-w-0 text-sm"

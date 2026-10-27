@@ -123,7 +123,11 @@ export function IncidentInvestigation({
           <Badge variant="outline" className="capitalize">
             {e.severity}
           </Badge>
-          <Badge variant="secondary" className="capitalize">
+          <Badge
+            key={e.status}
+            variant="secondary"
+            className="workflow-change capitalize"
+          >
             {e.status}
           </Badge>
           {e.occurrences > 1 && (
@@ -278,12 +282,15 @@ export function IncidentInvestigation({
         <div className="space-y-4">
           <h3 className="font-semibold">Investigation timeline</h3>
           <ol className="space-y-3 border-l border-info/40 pl-4 text-sm">
-            <li>
+            <li className="relative before:absolute before:-left-[1.35rem] before:top-1.5 before:size-2.5 before:rounded-full before:bg-info">
               <p className="font-medium">Observed event recorded</p>
               <SampleTime value={e.createdAt.toISOString()} historical />
             </li>
             {history.data?.items.map((a) => (
-              <li key={a.id}>
+              <li
+                key={a.id}
+                className="relative before:absolute before:-left-[1.35rem] before:top-1.5 before:size-2.5 before:rounded-full before:bg-info"
+              >
                 <p className="font-medium capitalize">
                   {a.kind.replaceAll("_", " ")}
                 </p>

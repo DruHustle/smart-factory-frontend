@@ -10,6 +10,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { measureOrbit } from "./benchmark";
 import { frameBounds, visibleBounds } from "./framing";
+import { moveCamera } from "./cameraMotion";
 import { hitVisible } from "./visibility";
 import { Button } from "@/components/ui/button";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
@@ -43,6 +44,7 @@ type Observation = {
   alarmActive?: boolean;
 };
 type Props = {
+  preview?: boolean;
   modelUrl: string;
   components: Component[];
   selected: string | null;
@@ -98,6 +100,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         inspector: InspectionScene;
         renderer: THREE.WebGLRenderer;
       } | null>(null);
+    const cameraMotion = useRef<(() => void) | null>(null);
+    const [cameraMoving, setCameraMoving] = useState(false);
     const label = useRef<HTMLDivElement>(null);
     const [inspection, setInspection] = useState<InspectionState>({
       ...defaultInspection,
@@ -158,10 +162,21 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
               setIsolated(v.viewer.isolated);
               latest.current.onSelect(v.viewer.selected);
             }
-            r.camera.position.fromArray(v.eye);
-            r.controls.target.fromArray(v.target);
-            r.controls.update();
-            r.render();
+            cameraMotion.current?.();
+            host.current?.setAttribute("data-camera-moving", "true");
+            setCameraMoving(true);
+            cameraMotion.current = moveCamera(
+              r.camera,
+              r.controls,
+              new THREE.Vector3().fromArray(v.eye),
+              new THREE.Vector3().fromArray(v.target),
+              r.render,
+              300,
+              () => {
+                host.current?.setAttribute("data-camera-moving", "false");
+                setCameraMoving(false);
+              },
+            );
           }
         },
       }),
@@ -227,6 +242,11 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 100);
       controls = new OrbitControls(camera, canvas);
+      const cancelCameraMotion = () => cameraMotion.current?.();
+      controls.addEventListener("start", cancelCameraMotion);
+      cleanupCallbacks.push(() =>
+        controls?.removeEventListener("start", cancelCameraMotion),
+      );
       controls.enableDamping = false;
       controls.enablePan = true;
       controls.screenSpacePanning = true;
@@ -515,13 +535,37 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           });
           currentScene.add(loaded);
           const fitBox = (box: THREE.Box3, direction?: THREE.Vector3) => {
+            cameraMotion.current?.();
+            const previousEye = camera.position.clone(),
+              previousTarget = currentControls.target.clone();
             if (!frameBounds(camera, currentControls.target, box, direction))
               return;
             const size = box.getSize(new THREE.Vector3()).length();
             currentControls.minDistance = Math.max(0.005, size * 0.025);
             currentControls.maxDistance = size * 30;
-            currentControls.update();
-            render();
+            if (runtime.current) {
+              const eye = camera.position.clone(),
+                target = currentControls.target.clone();
+              camera.position.copy(previousEye);
+              currentControls.target.copy(previousTarget);
+              host.current?.setAttribute("data-camera-moving", "true");
+              setCameraMoving(true);
+              cameraMotion.current = moveCamera(
+                camera,
+                currentControls,
+                eye,
+                target,
+                render,
+                300,
+                () => {
+                  host.current?.setAttribute("data-camera-moving", "false");
+                  setCameraMoving(false);
+                },
+              );
+            } else {
+              currentControls.update();
+              render();
+            }
           };
           const fit = () =>
             fitBox(
@@ -602,6 +646,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       })();
       return () => {
         disposed = true;
+        cameraMotion.current?.();
         abort.abort();
         clearTimeout(timeout);
         cancelAnimationFrame(frame);
@@ -723,47 +768,68 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         node = props.selected ? r?.nodes.get(props.selected) : null;
       if (r && node) r.focus(node);
     };
+    const viewport = (
+      <div
+        className={
+          props.preview
+            ? "relative h-64 overflow-hidden rounded border sm:h-80"
+            : "relative h-[320px] overflow-hidden rounded border sm:h-[420px] lg:h-[500px]"
+        }
+        ref={host}
+        data-state={state}
+      >
+        <div
+          ref={label}
+          hidden={!inspection.labels}
+          className="pointer-events-none absolute z-[1] max-w-[75%] rounded bg-background/90 px-2 py-1 text-xs shadow"
+          aria-hidden="true"
+        />
+        {state !== "ready" && (
+          <div
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/95 p-5 text-center text-sm"
+            role={state === "loading" ? "status" : "alert"}
+          >
+            {state === "loading" ? (
+              <>
+                <span>Loading local GLB · {progress}%</span>
+                <progress
+                  aria-label="Model loading progress"
+                  max={100}
+                  value={progress}
+                />
+              </>
+            ) : (
+              <>
+                <span>{message}</span>
+                <Button
+                  variant="outline"
+                  onClick={() => setAttempt((a) => a + 1)}
+                >
+                  Retry graphics
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+    if (props.preview)
+      return (
+        <div className="space-y-2">
+          {viewport}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={state !== "ready"}
+            onClick={() => runtime.current?.fit()}
+          >
+            Reset model preview
+          </Button>
+        </div>
+      );
     return (
       <div className="space-y-3">
-        <div
-          className="relative h-[320px] overflow-hidden rounded border sm:h-[420px] lg:h-[500px]"
-          ref={host}
-          data-state={state}
-        >
-          <div
-            ref={label}
-            hidden={!inspection.labels}
-            className="pointer-events-none absolute z-[1] max-w-[75%] rounded bg-background/90 px-2 py-1 text-xs shadow"
-            aria-hidden="true"
-          />
-          {state !== "ready" && (
-            <div
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/95 p-5 text-center text-sm"
-              role={state === "loading" ? "status" : "alert"}
-            >
-              {state === "loading" ? (
-                <>
-                  <span>Loading local GLB · {progress}%</span>
-                  <progress
-                    aria-label="Model loading progress"
-                    max={100}
-                    value={progress}
-                  />
-                </>
-              ) : (
-                <>
-                  <span>{message}</span>
-                  <Button
-                    variant="outline"
-                    onClick={() => setAttempt((a) => a + 1)}
-                  >
-                    Retry graphics
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        {viewport}
         <div
           className="flex flex-wrap items-center gap-2"
           aria-label="Local 3D controls"
@@ -1046,7 +1112,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             </Button>
             <Button
               variant="outline"
-              disabled={measuring || state !== "ready"}
+              disabled={measuring || cameraMoving || state !== "ready"}
               onClick={async () => {
                 const r = runtime.current;
                 if (!r) return;
@@ -1095,7 +1161,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             </label>
             <Button
               variant="outline"
-              disabled={measuring || state !== "ready"}
+              disabled={measuring || cameraMoving || state !== "ready"}
               onClick={async () => {
                 const r = runtime.current;
                 if (!r) return;

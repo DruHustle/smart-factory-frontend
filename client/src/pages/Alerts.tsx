@@ -86,14 +86,21 @@ export default function Alerts() {
       queue.data?.items[0];
   const requested = params.get("return"),
     back =
-      requested?.startsWith("/alerts?") || requested === "/alerts"
+      requested?.startsWith("/alerts?") ||
+      requested === "/alerts" ||
+      requested === "/" ||
+      requested?.startsWith("/?")
         ? requested
         : "/alerts?status=open";
   if (eventId)
     return (
       <div className="space-y-4">
         <Button asChild variant="outline">
-          <Link href={back}>Return to incident queue</Link>
+          <Link href={back}>
+            {back === "/" || back.startsWith("/?")
+              ? "Return to overview"
+              : "Return to incident queue"}
+          </Link>
         </Button>
         {/^[1-9]\d*$/.test(eventId) ? (
           <IncidentInvestigation
