@@ -3,6 +3,8 @@ import { demoAccountsEnabled, isDemoAccount } from "./demo-accounts";
 export type AccessIdentity = { email?: string | null; openId: string };
 export type AccountCapabilities = {
   demoOnly: boolean;
+  canSwitchData?: boolean;
+  workspaceView?: "demo" | "live" | "configured";
   canOperate: boolean;
   canEngineer: boolean;
   canAdminister: boolean;

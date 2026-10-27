@@ -1,3 +1,4 @@
+import { requestedDataWorkspace } from "../../shared/data-workspace";
 import { rejectFixtureMutation } from "../demoTarget";
 import { nativeEvent } from "../security/runtime";
 import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from "@shared/const";
@@ -108,7 +109,8 @@ const accessBoundary = t.middleware(
     if (
       type === "mutation" &&
       !["auth.login", "auth.logout", "assistant.ask"].includes(path) &&
-      demonstrationOnly(ctx.user)
+      (demonstrationOnly(ctx.user) ||
+        requestedDataWorkspace(ctx.req?.headers?.cookie) === "demo")
     ) {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -117,7 +119,8 @@ const accessBoundary = t.middleware(
     }
     if (
       ctx.user &&
-      demonstrationOnly(ctx.user) &&
+      (demonstrationOnly(ctx.user) ||
+        requestedDataWorkspace(ctx.req?.headers?.cookie) === "demo") &&
       type === "query" &&
       !path.startsWith("auth.") &&
       !path.startsWith("security.") &&
@@ -141,7 +144,10 @@ const visibilityBoundary = t.middleware(
     if (path.startsWith("auth.")) return next({ ctx: { ...ctx, user } });
     if (type === "mutation")
       await rejectFixtureMutation(path, await getRawInput());
-    ctx.visibility ??= resolveVisibility(ctx.user);
+    ctx.visibility ??= resolveVisibility(
+      ctx.user,
+      requestedDataWorkspace(ctx.req?.headers?.cookie),
+    );
     return withVisibility(await ctx.visibility, () =>
       next({ ctx: { ...ctx, user } }),
     );

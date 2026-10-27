@@ -1,3 +1,4 @@
+import { requestedDataWorkspace } from "../shared/data-workspace";
 import { publicDemoDeployment } from "../shared/access-policy";
 import {
   notificationPage,
@@ -212,10 +213,35 @@ async function updateAssetRevision(
   }
 }
 
-function publicUser(user: db.User | null | undefined) {
+function publicUser(
+  user: db.User | null | undefined,
+  req?: { headers: { cookie?: string } },
+) {
   if (!user) return null;
   const { password: _password, authVersion: _authVersion, ...safeUser } = user;
-  return { ...safeUser, access: accountCapabilities(user) };
+  const base = accountCapabilities(user),
+    preview = requestedDataWorkspace(req?.headers?.cookie) === "demo";
+  return {
+    ...safeUser,
+    access: {
+      ...base,
+      canSwitchData: !base.demoOnly,
+      workspaceView: (base.demoOnly
+        ? "demo"
+        : (requestedDataWorkspace(req?.headers?.cookie) ?? "configured")) as
+        | "demo"
+        | "live"
+        | "configured",
+      ...(preview
+        ? {
+            demoOnly: true,
+            canOperate: false,
+            canEngineer: false,
+            canAdminister: false,
+          }
+        : {}),
+    },
+  };
 }
 
 async function accountAction<T>(action: () => Promise<T>): Promise<T> {
@@ -304,7 +330,7 @@ export const appRouter = router({
         ctx.user.passwordChangeRequired ||
         !bundleEnabled()
       )
-        return publicUser(ctx.user);
+        return publicUser(ctx.user, ctx.req);
       const profile = await internalService<{
         id: number;
         openId: string;
@@ -312,7 +338,7 @@ export const appRouter = router({
         email: string | null;
         role: db.User["role"];
       }>(3104, "/api/auth/profile", ctx.user.id, undefined, ctx.session);
-      return { ...publicUser(ctx.user)!, ...profile };
+      return { ...publicUser(ctx.user, ctx.req)!, ...profile };
     }),
     demoAccounts: publicProcedure.query(() =>
       demoAccountsEnabled()
@@ -378,7 +404,7 @@ export const appRouter = router({
             : {},
         );
         ctx.res.cookie(COOKIE_NAME, token, getSessionCookieOptions(ctx.req));
-        return { user: publicUser(user) };
+        return { user: publicUser(user, ctx.req) };
       }),
     register: publicProcedure
       .input(
@@ -421,7 +447,7 @@ export const appRouter = router({
 
         const token = await sdk.createSessionToken(user);
         ctx.res.cookie(COOKIE_NAME, token, getSessionCookieOptions(ctx.req));
-        return { user: publicUser(user) };
+        return { user: publicUser(user, ctx.req) };
       }),
     changePassword: viewerProcedure
       .input(
@@ -1705,19 +1731,11 @@ export const appRouter = router({
           page: z.number().int().min(0).max(100000).default(0),
         }),
       )
-      .query(({ input, ctx }) =>
-        demoOnlyRead()
-          ? emptyNotificationPage()
-          : notificationPage(ctx.user.id, input),
-      ),
+      .query(({ input, ctx }) => notificationPage(ctx.user.id, input)),
     summary: viewerProcedure.query(({ ctx }) =>
-      demoOnlyRead()
-        ? emptyNotificationPage().summary
-        : notificationSummary(ctx.user.id),
+      notificationSummary(ctx.user.id),
     ),
-    list: viewerProcedure.query(({ ctx }) =>
-      demoOnlyRead() ? [] : listNotifications(ctx.user.id),
-    ),
+    list: viewerProcedure.query(({ ctx }) => listNotifications(ctx.user.id)),
     markRead: viewerProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {

@@ -21,6 +21,7 @@ const ItemWorkspace = lazy(() => import("./pages/ItemWorkspace"));
 const Cybersecurity = lazy(() => import("./pages/Cybersecurity"));
 const EquipmentView = lazy(() => import("./pages/EquipmentView"));
 const OnesaIntegration = lazy(() => import("./pages/OnesaIntegration"));
+const Demonstration = lazy(() => import("./pages/Demonstration"));
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
@@ -151,6 +152,7 @@ function AppRouter() {
                   />
                   <Route path="/inventory/:ref" component={ItemWorkspace} />
                   <Route path="/" component={Home} />
+                  <Route path="/demo" component={Demonstration} />
                   <Route path="/monitoring" component={Monitoring} />
                   <Route path="/devices">
                     <Redirect to="/inventory?view=devices" />
@@ -190,7 +192,7 @@ function AppRouter() {
                   <Route path="/analytics" component={AnalyticsPage} />
                   <Route path="/assistant" component={Assistant} />
                   <Route path="/ota">
-                    {canViewEngineering(user.role) ? (
+                    {user.access?.demoOnly || canViewEngineering(user.role) ? (
                       <OTAUpdates />
                     ) : (
                       <NotFound />

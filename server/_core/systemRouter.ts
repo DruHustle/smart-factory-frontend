@@ -41,21 +41,8 @@ export const systemRouter = router({
       sql`select value from system_settings where key='showcase_v1'`,
     );
     return (
-      (row?.value as
-        | {
-            version: number;
-            anchor: string;
-            from: string;
-            equipmentId: string;
-            assetRef: string;
-            assetId: string;
-            sensorRef: string;
-            gatewayRef: string;
-            incidentId: number;
-            securitySourceId: string;
-            label: string;
-          }
-        | undefined) ?? null
+      (row?.value as import("../../shared/showcase").Showcase | undefined) ??
+      null
     );
   }),
   demoData: viewerProcedure.query(() => ({ enabled: demoDataEnabled() })),

@@ -96,6 +96,14 @@ jobs:
       - name: Verify isolated read-only public walkthrough
         run: pnpm e2e:public-demo
 
+      - name: Retain isolated demo failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: public-demo-browser-evidence
+          path: test-results/public-demo/
+          if-no-files-found: ignore
+
       - name: Verify independent native equipment view
         run: pnpm e2e:equipment
 

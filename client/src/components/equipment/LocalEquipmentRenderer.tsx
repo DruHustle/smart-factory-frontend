@@ -193,6 +193,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         observer: ResizeObserver | undefined,
         loaded: THREE.Group | undefined;
       let firstModelRender: (() => void) | undefined;
+      let initialFrameComplete = false;
       const loadStarted = performance.now();
       const abort = new AbortController();
       const timeout = setTimeout(() => abort.abort(), 20000);
@@ -221,12 +222,22 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         clearTimeout(timeout);
         return;
       }
-      const gl = renderer.getContext() as WebGL2RenderingContext,
-        debug = gl.getExtension("WEBGL_debug_renderer_info");
+      let gl = renderer.getContext() as WebGL2RenderingContext;
+      const debug = gl.getExtension("WEBGL_debug_renderer_info");
       const graphics = debug
         ? String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL))
         : "unknown";
       const software = /swiftshader|llvmpipe|software/i.test(graphics);
+      // Software WebGL retains every mesh and component, but avoids expensive
+      // multisampling. Hardware keeps its existing antialiasing and lighting.
+      if (software && gl.getContextAttributes()?.antialias) {
+        renderer.dispose();
+        renderer.forceContextLoss();
+        renderer = new THREE.WebGLRenderer({
+          antialias: false, alpha: false, stencil: true, powerPreference: "low-power",
+        });
+        gl = renderer.getContext() as WebGL2RenderingContext;
+      }
       renderer.localClippingEnabled = true;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.05;
@@ -339,7 +350,9 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       cleanupCallbacks.push(() => themeObserver.disconnect());
       const pmrem = new THREE.PMREMGenerator(renderer);
       const room = new RoomEnvironment();
-      const environment = pmrem.fromScene(room, 0.04);
+      const environment = pmrem.fromScene(room, 0.04, 0.1, 100, {
+        size: software ? 64 : 256,
+      });
       scene.environment = environment.texture;
       scene.environmentIntensity = 0.65;
       room.dispose();
@@ -543,7 +556,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             const size = box.getSize(new THREE.Vector3()).length();
             currentControls.minDistance = Math.max(0.005, size * 0.025);
             currentControls.maxDistance = size * 30;
-            if (runtime.current) {
+            if (runtime.current && initialFrameComplete) {
               const eye = camera.position.clone(),
                 target = currentControls.target.clone();
               camera.position.copy(previousEye);
@@ -628,6 +641,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           fit();
           await initialFrame;
           if (disposed) return;
+          initialFrameComplete = true;
           container.dataset.loadInteractiveMs = String(
             performance.now() - loadStarted,
           );

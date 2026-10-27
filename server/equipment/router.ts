@@ -1,14 +1,16 @@
+import { demoOnlyRead } from "../demoData";
 import { operatorAction } from "./errors";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, viewerProcedure, engineerProcedure } from "../_core/trpc";
-import { demonstrationOnly, operationalWritesAllowed } from "../../shared/access-policy";
+import {
+  demonstrationOnly,
+  operationalWritesAllowed,
+} from "../../shared/access-policy";
 import { modelCatalog, localBindingSchema } from "./packages";
 import * as local from "./local";
 const writer = engineerProcedure.use(({ ctx, next }) => {
-  if (
-    demonstrationOnly(ctx.user)
-  )
+  if (demonstrationOnly(ctx.user) || demoOnlyRead())
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "The public equipment demonstration is read-only",
@@ -19,8 +21,9 @@ export const equipmentRouter = router({
   access: viewerProcedure.query(({ ctx }) => ({
     canWrite:
       operationalWritesAllowed(ctx.user) &&
+      !demoOnlyRead() &&
       ["engineer", "admin"].includes(ctx.user.role),
-    demoOnly: demonstrationOnly(ctx.user),
+    demoOnly: demonstrationOnly(ctx.user) || demoOnlyRead(),
   })),
   bindingTemplate: writer
     .input(z.object({ revision: z.string().min(1).max(128) }))
@@ -40,7 +43,7 @@ export const equipmentRouter = router({
   models: viewerProcedure.query(async ({ ctx }) => ({
     bundled: await operatorAction(() => local.template()),
     imported:
-      demonstrationOnly(ctx.user) ? [] : await modelCatalog(),
+      demonstrationOnly(ctx.user) || demoOnlyRead() ? [] : await modelCatalog(),
   })),
   previewModel: writer
     .input(

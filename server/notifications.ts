@@ -2,7 +2,7 @@ import { individualSecurityUser } from "./security/users";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { alerts, assets, devices, notificationInbox } from "../drizzle/schema";
 import { getDb } from "./db";
-import { demoDataEnabled } from "./demoData";
+import { demoOnlyRead, visibleRecordSql } from "./demoData";
 
 async function database() {
   const db = await getDb();
@@ -11,18 +11,20 @@ async function database() {
 }
 
 function visibleNotificationSourceCondition() {
-  const visibleDevice = demoDataEnabled()
-    ? eq(devices.id, alerts.deviceId)
-    : and(eq(devices.id, alerts.deviceId), eq(devices.isDemo, false));
-  const visibleAsset = demoDataEnabled()
-    ? eq(assets.assetId, alerts.assetId)
-    : and(eq(assets.assetId, alerts.assetId), eq(assets.isDemo, false));
+  const visibleDevice = and(
+    eq(devices.id, alerts.deviceId),
+    visibleRecordSql(devices.isDemo),
+  );
+  const visibleAsset = and(
+    eq(assets.assetId, alerts.assetId),
+    visibleRecordSql(assets.isDemo),
+  );
   return sql`(exists (
     select 1 from ${alerts}
     where ${alerts.id} = ${notificationInbox.alertId}
       and exists (select 1 from ${devices} where ${visibleDevice})
       and (${alerts.assetId} is null or exists (select 1 from ${assets} where ${visibleAsset}))
-  ) or exists (select 1 from security_findings sf join security_sources ss on ss.id=sf.source_id where sf.id=${notificationInbox.securityFindingId} and ss.is_demo=false and ${process.env.ENABLE_DEMO_ACCOUNTS !== "true"} and exists(select 1 from users su where su.id=${notificationInbox.userId} and ${individualSecurityUser(sql`su`)})))`;
+  ) or exists (select 1 from security_findings sf join security_sources ss on ss.id=sf.source_id where sf.id=${notificationInbox.securityFindingId} and (${demoOnlyRead()} and ss.is_demo=true and ${notificationInbox.emailStatus}='demo_only' or ${!demoOnlyRead() && process.env.ENABLE_DEMO_ACCOUNTS !== "true"} and ss.is_demo=false and exists(select 1 from users su where su.id=${notificationInbox.userId} and ${individualSecurityUser(sql`su`)}))))`;
 }
 
 export async function listNotifications(userId: number) {

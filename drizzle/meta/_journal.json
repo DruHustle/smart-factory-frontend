@@ -204,6 +204,13 @@
       "when": 1793053000000,
       "tag": "0028_operating_evidence",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793053000001,
+      "tag": "0029_demo_notification_isolation",
+      "breakpoints": true
     }
   ]
 }
