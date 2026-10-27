@@ -136,6 +136,7 @@ export function currentObservation(
     integration?: unknown;
     sensorStatus?: string;
     transportRetained?: boolean;
+    transportRetainVerified?: boolean;
   },
   policy: Commissioning | undefined,
   lastAt: number | null,
@@ -163,19 +164,22 @@ export function currentObservation(
               ? "source_connection"
               : input.sensorStatus === "read_error"
                 ? "sensor_read_error"
-                : p?.retained || input.transportRetained
-                  ? "retained_delivery"
-                  : p?.gatewayReceivedAt &&
-                      Date.parse(p.gatewayReceivedAt) >
-                        now + policy.clockSkewSeconds * 1000
-                    ? "gateway_clock_skew"
-                    : input.timestamp > now + policy.clockSkewSeconds * 1000
-                      ? "clock_skew"
-                      : now - input.timestamp > policy.maxLatenessSeconds * 1000
-                        ? "late_history"
-                        : lastAt != null && input.timestamp <= lastAt
-                          ? "out_of_order"
-                          : null;
+                : input.transportRetainVerified === false
+                  ? "transport_flags_unverified"
+                  : p?.retained || input.transportRetained
+                    ? "retained_delivery"
+                    : p?.gatewayReceivedAt &&
+                        Date.parse(p.gatewayReceivedAt) >
+                          now + policy.clockSkewSeconds * 1000
+                      ? "gateway_clock_skew"
+                      : input.timestamp > now + policy.clockSkewSeconds * 1000
+                        ? "clock_skew"
+                        : now - input.timestamp >
+                            policy.maxLatenessSeconds * 1000
+                          ? "late_history"
+                          : lastAt != null && input.timestamp <= lastAt
+                            ? "out_of_order"
+                            : null;
   return {
     eligible: reason === null,
     reason,

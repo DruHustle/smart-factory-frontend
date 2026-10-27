@@ -44,7 +44,11 @@ const emptyAccount = {
   password: "",
   role: "viewer" as (typeof roles)[number],
 };
-export default function UserAccess() {
+export default function UserAccess({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const { user: currentUser } = useAuth(),
     utils = trpc.useUtils();
   const [search, setSearch] = useState(""),
@@ -115,16 +119,31 @@ export default function UserAccess() {
     ) ?? [];
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Users & access"
-        description="Individual accounts, roles and session access."
-        action={
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Users & access</h2>
+            <p className="text-sm text-muted-foreground">
+              Individual accounts, roles and session access.
+            </p>
+          </div>
           <Button onClick={() => setCreating(true)}>
             <Plus className="size-4" />
             Create account
           </Button>
-        }
-      />
+        </div>
+      ) : (
+        <PageHeader
+          title="Users & access"
+          description="Individual accounts, roles and session access."
+          action={
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="size-4" />
+              Create account
+            </Button>
+          }
+        />
+      )}
       <div className="relative max-w-md">
         <Search
           aria-hidden

@@ -1,110 +1,42 @@
 import { readFile } from 'node:fs/promises';
-
-const read = name => readFile(name, 'utf8');
-const [release, vercelText, dockerfile, supervisor, entrypoint, renderDeploy, guide] = await Promise.all([
-  read('.github/workflows/release.yml'),
-  read('vercel.json'),
-  read('deploy/render/Dockerfile'),
-  read('deploy/render/supervisord.conf'),
-  read('deploy/render/entrypoint.py'),
-  read('scripts/deploy-render.py'),
-  read('RENDER_DEPLOYMENT.md'),
+const read=name=>readFile(name,'utf8');
+const [workflow,legacy,vercelText,dockerfile,supervisor,entrypoint,compose,guide,verifier]=await Promise.all([
+ read('.github/workflows/deploy-vercel-oracle.yml'),read('.github/workflows/release.yml'),read('vercel.json'),
+ read('deploy/render/Dockerfile'),read('deploy/render/supervisord.conf'),read('deploy/render/entrypoint.py'),
+ read('deploy/oracle/compose.yaml'),read('deploy/oracle/README.md'),read('scripts/verify-runtime.mts'),
 ]);
-
-const failures = [];
-const requireText = (content, pattern, message) => {
-  if (!pattern.test(content)) failures.push(message);
-};
-
-requireText(release, /on:\s*\n\s+push:\s*\n\s+branches: \[main\]/, 'release workflow must run on pushes to main');
-requireText(release, /workflow_dispatch:/, 'release workflow must retain a manual recovery trigger');
-requireText(release, /echo "edge_ref=master"/, 'automatic releases must use the edge repository\'s actual master branch');
-requireText(release, /--platform linux\/amd64/, 'Render image must be built for linux/amd64');
-requireText(release, /docker push "\$IMAGE:\$GITHUB_SHA"/, 'release must publish the tested backend image');
-requireText(release, /RELEASE_IMAGE=\$IMAGE@\$DIGEST/, 'Render release must use an immutable image digest');
-requireText(release, /vercel@62\.2\.0 build --prod/, 'Vercel production artifact must be built in CI');
-requireText(release, /vercel@62\.2\.0 deploy --prebuilt .*--prod/, 'Vercel must deploy the prebuilt production artifact');
-
-const renderPosition = release.indexOf('Deploy reviewed backend and await readiness');
-const vercelPosition = release.indexOf('Configure and deploy Vercel UI');
-if (renderPosition < 0 || vercelPosition < 0 || renderPosition >= vercelPosition) {
-  failures.push('Render must become ready before the Vercel deployment step');
+const failures=[];
+const requireText=(content,pattern,message)=>{if(!pattern.test(content))failures.push(message);};
+requireText(workflow,/workflow_run:[\s\S]*Dashboard quality checks[\s\S]*branches: \[main\]/,'UI release must wait for main quality checks');
+requireText(workflow,/successful push CI|No successful push CI/,'Manual promotion must still require successful CI for the exact revision');
+requireText(legacy,/RENDER_ROLLBACK_ENABLED/,'Legacy Render release must remain explicitly gated');
+const build=workflow.indexOf('vercel@62.2.0 build --prod'),lastContract=workflow.lastIndexOf('node --import tsx scripts/verify-runtime.mts'),lastHead=workflow.lastIndexOf('current=$(gh api'),promotion=workflow.indexOf('vercel@62.2.0 deploy --prebuilt');
+if(!(build>=0&&lastContract>build&&lastHead>lastContract&&promotion>lastHead))failures.push('Compatibility and current-main checks must immediately precede artifact promotion after build');
+requireText(workflow,/RELEASE_SHA.*==.*current/,'Final head check must refuse an obsolete main artifact');
+requireText(verifier,/runtimeCompatibility\(contract, true\)/,'Promotion must verify API capability and source identity');
+requireText(verifier,/schema\.digest !== expected\.digest/,'Promotion must compare applied migration identity');
+requireText(verifier,/worker\?\.fresh[\s\S]*worker\?\.compatible/,'Promotion must require current compatible singleton-worker evidence');
+const vercel=JSON.parse(vercelText),origin='https://api.152-70-22-84.sslip.io';
+if(vercel.git?.deploymentEnabled?.main!==false)failures.push('Independent Vercel main deploys must stay disabled');
+if(vercel.outputDirectory!=='dist/public')failures.push('Vercel must deploy dist/public');
+for(const [source,destination]of [['/api/:path*','/api/:path*'],['/health/live','/health/live'],['/health/ready','/health/ready'],['/api/health/live','/health/live'],['/api/health/ready','/health/ready']]){
+ if(vercel.rewrites?.find(x=>x.source===source)?.destination!==origin+destination)failures.push(`Incorrect Oracle proxy: ${source}`);
 }
-
-const vercel = JSON.parse(vercelText);
-if (vercel.git?.deploymentEnabled?.main !== false) {
-  failures.push('independent Vercel main deployments must be disabled so production waits for CI');
-}
-if (vercel.outputDirectory !== 'dist/public') failures.push('Vercel outputDirectory must be dist/public');
-const productionApiOrigin = 'https://api.152-70-22-84.sslip.io';
-const apiRewrite = vercel.rewrites?.find(item => item.source === '/api/:path*');
-if (apiRewrite?.destination !== `${productionApiOrigin}/api/:path*`) {
-  failures.push('committed Vercel API rewrite must target the production Oracle API');
-}
-for (const [source, destinationPath] of [
-  ['/health/live', '/health/live'],
-  ['/health/ready', '/health/ready'],
-  ['/api/health/live', '/health/live'],
-  ['/api/health/ready', '/health/ready'],
-]) {
-  const rewrite = vercel.rewrites?.find(item => item.source === source);
-  if (rewrite?.destination !== `${productionApiOrigin}${destinationPath}`) {
-    failures.push(`Vercel ${source} must proxy to the backend ${destinationPath} endpoint`);
-  }
-}
-const publicHeaders = vercel.headers?.find(item => item.source === '/:path*')?.headers ?? [];
-const headerValue = name => publicHeaders.find(item => item.key.toLowerCase() === name.toLowerCase())?.value;
-if (!headerValue('Content-Security-Policy')?.includes("frame-ancestors 'none'")) failures.push('Vercel responses must define a restrictive CSP');
-if (headerValue('X-Frame-Options') !== 'DENY') failures.push('Vercel responses must deny framing');
-if (!headerValue('Permissions-Policy')) failures.push('Vercel responses must define a Permissions-Policy');
-
-requireText(dockerfile, /^FROM mcr\.microsoft\.com\/dotnet\/aspnet:8\.0-noble AS runtime$/m, 'Render runtime must use the reviewed .NET Ubuntu image');
-requireText(dockerfile, /^USER app$/m, 'Render image must run as the non-root app user');
-requireText(dockerfile, /ENTRYPOINT \["python3", "\/app\/deploy\/render\/entrypoint\.py"\]/, 'Render image must use the validated bundle entrypoint');
-requireText(dockerfile, /HEALTHCHECK[\s\S]*\/health\/live \|\| exit 1/,
-  'Render container health must test liveness so migrations do not trigger restart loops');
-requireText(release, /RENDER_WEB_SERVICE_ID/, 'release must deploy the scalable Render web service');
-requireText(release, /RENDER_WORKER_SERVICE_ID/, 'release must deploy the singleton Render worker service');
-requireText(supervisor, /autostart=%\(ENV_WEB_AUTOSTART\)s/, 'web processes must be role-gated');
-requireText(supervisor, /autostart=%\(ENV_WORKER_AUTOSTART\)s/, 'worker processes must be role-gated');
-requireText(entrypoint, /live = self\.path == '\/health\/live'[\s\S]*self\.send_response\(200 if live else 503\)/,
-  'migration startup listener must expose liveness without reporting readiness');
-requireText(renderDeploy, /current_live_deploy\(worker_service, 'worker'\)/,
-  'Render release must snapshot the live worker deploy before mutation');
-requireText(renderDeploy, /current_live_deploy\(web_service, 'web'\)/,
-  'Render release must snapshot the live web deploy before mutation');
-requireText(renderDeploy, /\/rollback'[\s\S]*\{'deployId': deploy_id\}/,
-  'Render release must use the rollback API after a partial failure');
-requireText(renderDeploy, /for label, service, readiness_origin in reversed\(changed\)/,
-  'Render release must roll back changed services in reverse order');
-requireText(renderDeploy, /READINESS_TIMEOUT_SECONDS = 720[\s\S]*readiness did not recover within 12 minutes/,
-  'Render release must tolerate bounded transient readiness failures before rollback');
-requireText(renderDeploy, /MAX_READINESS_DETAIL_BYTES = 512[\s\S]*response omitted/,
-  'Render release must bound readiness error output and omit upstream HTML pages');
-requireText(entrypoint, /dashboard database migrations are in progress[\s\S]*timeout=600[\s\S]*device database migrations are in progress[\s\S]*timeout=600/,
-  'Render startup must expose bounded dashboard and device migration stages');
-
-const programs = [...supervisor.matchAll(/^\[program:([^\]]+)\]$/gm)].map(match => match[1]).sort();
-const expectedPrograms = ['analytics', 'api', 'device', 'identity', 'notification', 'telemetry'];
-if (JSON.stringify(programs) !== JSON.stringify(expectedPrograms)) {
-  failures.push(`Render bundle must contain exactly six supervised processes: ${expectedPrograms.join(', ')}`);
-}
-
-for (const phrase of [
-  'push to the dashboard repository\'s protected `main` branch',
-  'only production backend image',
-  'not a second Docker image',
-  'Disable Vercel\'s independent Git production deployment',
-  'RENDER_SERVICE_ROLE=web',
-  'RENDER_SERVICE_ROLE=worker',
-  '| Health check path | `/health/live` | `/health/live` |',
-]) {
-  if (!guide.includes(phrase)) failures.push(`deployment guide is missing required guidance: ${phrase}`);
-}
-
-if (failures.length) {
-  for (const failure of failures) console.error(failure);
-  process.exitCode = 1;
-} else {
-  console.log('Deployment topology and coordinated release configuration are consistent.');
-}
+const headers=vercel.headers?.find(x=>x.source==='/:path*')?.headers??[];
+if(!headers.find(x=>x.key==='Content-Security-Policy')?.value.includes("frame-ancestors 'none'"))failures.push('Vercel must prohibit framing through CSP');
+requireText(dockerfile,/dotnet\/sdk:10\.0\.403-noble/,'Bundle must build using the qualified .NET 10 SDK');
+requireText(dockerfile,/dotnet\/aspnet:10\.0\.14-noble AS runtime/,'Bundle must run the qualified .NET 10 runtime');
+requireText(dockerfile,/org.opencontainers.image.revision=\$SOURCE_REVISION[\s\S]*io.smartfactory.backend.revision[\s\S]*io.smartfactory.edge.revision/,'Image must retain all source identities');
+requireText(dockerfile,/^USER app$/m,'Bundle must run non-root');
+requireText(dockerfile,/HEALTHCHECK[\s\S]*\/health\/live/,'Container health must use liveness during migrations');
+for(const role of ['WEB','WORKER'])requireText(supervisor,new RegExp(`autostart=%\\(ENV_${role}_AUTOSTART\\)s`),`${role} processes must be role gated`);
+const programs=[...supervisor.matchAll(/^\[program:([^\]]+)\]$/gm)].map(x=>x[1]).sort();
+if(JSON.stringify(programs)!==JSON.stringify(['analytics','api','device','identity','notification','telemetry']))failures.push('Bundle must retain exactly six supervised processes');
+requireText(entrypoint,/live = self\.path == '\/health\/live'[\s\S]*self\.send_response\(200 if live else 503\)/,'Migration listener must preserve liveness without false readiness');
+requireText(entrypoint,/migrate_databases\(role\)/,'Migrations must precede service startup');
+requireText(compose,/platform: linux\/arm64/,'Oracle runtime must remain ARM64');
+requireText(compose,/RENDER_SERVICE_ROLE: web/,'Oracle API must use the API-only role');
+requireText(compose,/RENDER_SERVICE_ROLE: worker/,'Oracle worker must use the singleton-worker role');
+requireText(compose,/127\.0\.0\.1:10000:10000/,'API must remain loopback bound');
+for(const phrase of ['singleton','API-first','immutable','rollback','/api/runtime/contract'])if(!guide.includes(phrase))failures.push(`Current runbook lacks ${phrase}`);
+if(failures.length){failures.forEach(x=>console.error(x));process.exitCode=1;}else console.log('Oracle/Vercel topology, source identity and promotion compatibility checks passed.');

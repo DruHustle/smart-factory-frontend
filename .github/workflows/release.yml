@@ -118,7 +118,7 @@ jobs:
         working-directory: smart-factory-iot
         run: |
           python scripts/prepare-backend-context.py ../smart-factory-iot-backend "$RUNNER_TEMP/backend-context"
-          docker buildx build --load --platform linux/amd64 --build-context backend="$RUNNER_TEMP/backend-context" -f deploy/render/Dockerfile -t smart-factory-render-review:local .
+          docker buildx build --load --platform linux/amd64 --build-arg SOURCE_REVISION="$GITHUB_SHA" --build-arg BACKEND_SOURCE_REVISION="$(git -C ../smart-factory-iot-backend rev-parse HEAD)" --build-arg EDGE_SOURCE_REVISION="$(git -C ../smart-factory-iot-edge rev-parse HEAD)" --build-context backend="$RUNNER_TEMP/backend-context" -f deploy/render/Dockerfile -t smart-factory-render-review:local .
           python scripts/bundle-smoke.py
       - name: Audit the exact runtime image locally
         working-directory: smart-factory-iot

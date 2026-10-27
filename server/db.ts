@@ -526,6 +526,7 @@ export async function recordDeviceHeartbeat(input: {
   timestamp: number;
   status: "online" | "offline";
   transportRetained?: boolean;
+  transportRetainVerified?: boolean;
 }) {
   if (
     !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/.test(input.deviceId) ||
@@ -552,16 +553,18 @@ export async function recordDeviceHeartbeat(input: {
       const reason =
         !policy || policy.route !== "direct"
           ? "route_not_commissioned"
-          : input.transportRetained
-            ? "retained_delivery"
-            : input.timestamp > now + policy.clockSkewSeconds * 1000
-              ? "clock_skew"
-              : now - input.timestamp > policy.maxLatenessSeconds * 1000
-                ? "late_history"
-                : device.lastSeen &&
-                    input.timestamp <= device.lastSeen.getTime()
-                  ? "out_of_order"
-                  : null;
+          : input.transportRetainVerified === false
+            ? "transport_flags_unverified"
+            : input.transportRetained
+              ? "retained_delivery"
+              : input.timestamp > now + policy.clockSkewSeconds * 1000
+                ? "clock_skew"
+                : now - input.timestamp > policy.maxLatenessSeconds * 1000
+                  ? "late_history"
+                  : device.lastSeen &&
+                      input.timestamp <= device.lastSeen.getTime()
+                    ? "out_of_order"
+                    : null;
       const inserted = await tx.execute(
         sql`insert into gateway_observations(device_id,occurred_at,reported_status,current_eligible,reason) select ${device.id},${input.timestamp},${input.status},${reason === null},${reason} on conflict do nothing returning id`,
       );

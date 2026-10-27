@@ -97,6 +97,7 @@ export default function Inventory() {
     { ...filter, search: settledSearch },
     {
       retry: false,
+      placeholderData: (previous) => previous,
       refetchInterval: active ? 30000 : false,
       refetchIntervalInBackground: false,
     },
@@ -301,6 +302,7 @@ export default function Inventory() {
               className="text-xs text-muted-foreground"
               aria-live="polite"
             >
+              {result.isFetching ? "Updating inventory · " : ""}
               {result.data?.total ?? 0} items
             </p>
             {!result.data?.items.length ? (
@@ -491,7 +493,7 @@ export default function Inventory() {
             >
               <Button
                 variant="outline"
-                disabled={!filter.page}
+                disabled={!filter.page || result.isFetching}
                 onClick={() => update({ page: filter.page - 1 })}
               >
                 Previous
@@ -502,7 +504,10 @@ export default function Inventory() {
               </span>
               <Button
                 variant="outline"
-                disabled={(filter.page + 1) * 25 >= (result.data?.total ?? 0)}
+                disabled={
+                  result.isFetching ||
+                  (filter.page + 1) * 25 >= (result.data?.total ?? 0)
+                }
                 onClick={() => update({ page: filter.page + 1 })}
               >
                 Next

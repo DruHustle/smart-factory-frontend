@@ -86,9 +86,10 @@ async function database() {
 export async function listInventory(f: Filter) {
   const db = await database();
   const term = "%" + f.search.replace(/[\\%_]/g, "\\$&") + "%";
-  const where = sql`${viewCondition(f.view)} and (name ilike ${term} or identifier ilike ${term}) and (${f.zone}='' or zone=${f.zone}) and (${f.status}='all' or status=${f.status}) and (${f.mode}='all' or mode=${f.mode}) and (${f.capability}='all' or (${f.capability}='aas' and aas) or (${f.capability}='3d' and "equipmentId" is not null))`;
+  const scopeWhere = sql`(name ilike ${term} or identifier ilike ${term}) and (${f.zone}='' or zone=${f.zone}) and (${f.status}='all' or status=${f.status}) and (${f.mode}='all' or mode=${f.mode}) and (${f.capability}='all' or (${f.capability}='aas' and aas) or (${f.capability}='3d' and "equipmentId" is not null))`;
+  const where = sql`${viewCondition(f.view)} and ${scopeWhere}`;
   const [result] = await db.execute(
-    sql`${projection(f.mode)}, filtered as(select * from observed where ${where}), paged as(select * from filtered order by ${f.sort === "recent" ? sql`"sampleAt" desc nulls last,name,ref` : sql`lower(name),ref`} limit ${f.pageSize} offset ${f.page * f.pageSize}), grouped as(select kind,"itemType",("equipmentId" is not null) as equipment,count(*)::int as count from observed group by kind,"itemType",("equipmentId" is not null)) select coalesce((select jsonb_agg(p) from paged p),'[]'::jsonb) as items,(select count(*)::int from filtered) as total,coalesce((select jsonb_agg(g) from grouped g),'[]'::jsonb) as groups`,
+    sql`${projection(f.mode)}, filtered as(select * from observed where ${where}), paged as(select * from filtered order by ${f.sort === "recent" ? sql`"sampleAt" desc nulls last,name,ref` : sql`lower(name),ref`} limit ${f.pageSize} offset ${f.page * f.pageSize}), grouped as(select kind,"itemType",("equipmentId" is not null) as equipment,count(*)::int as count from observed where ${scopeWhere} group by kind,"itemType",("equipmentId" is not null)) select coalesce((select jsonb_agg(p) from paged p),'[]'::jsonb) as items,(select count(*)::int from filtered) as total,coalesce((select jsonb_agg(g) from grouped g),'[]'::jsonb) as groups`,
   );
   return {
     items: (result.items as any[]).map(normalize),

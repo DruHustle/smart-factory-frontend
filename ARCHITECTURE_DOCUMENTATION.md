@@ -8,4 +8,4 @@ Current source documents:
 - [Architecture](docs/architecture.md)
 - [API flows](docs/api-flows.md)
 - [Authorization and AAS](docs/authorization-and-aas.md)
-- [Local and Vercel/Render deployment](RENDER_DEPLOYMENT.md)
+- [Current Oracle and Vercel deployment](deploy/oracle/README.md)

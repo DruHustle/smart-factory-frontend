@@ -131,7 +131,7 @@ export default function ItemWorkspace() {
     !!i.equipmentId;
   if (is3D) opened3D.current = i.equipmentId;
   return (
-    <div className="min-w-0 space-y-5">
+    <div className={`min-w-0 ${is3D?"space-y-3":"space-y-5"}`}>
       <PageHeader
         title={i.name}
         eyebrow={
@@ -166,7 +166,7 @@ export default function ItemWorkspace() {
           <p className="mt-1 text-muted-foreground">{i.ref}</p>
         </div>
       </details>
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3 text-sm">
+      <div className={`flex flex-wrap items-center rounded-lg border bg-card ${is3D?"gap-2 p-2 text-xs":"gap-3 p-3 text-sm"}`}>
         <Badge variant="outline" className="capitalize">
           {i.mode} evidence
         </Badge>

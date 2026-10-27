@@ -239,6 +239,12 @@
     color: black !important;
   }
 
+  .eudpp-page, .eudpp-page [data-slot="card"], .eudpp-page [data-slot="card-header"], .eudpp-page [data-slot="card-content"] {
+    background: white !important;
+    color: black !important;
+  }
+  .eudpp-page .text-muted-foreground { color: #374151 !important; }
+
   .eudpp-page {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;

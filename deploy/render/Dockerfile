@@ -1,6 +1,9 @@
 # Build with the dashboard as the default context and a pinned backend named context:
 # docker buildx build --build-context backend=../smart-factory-iot-backend -f deploy/render/Dockerfile .
 FROM node:22-bookworm-slim AS node-build
+ARG SOURCE_REVISION
+ARG BACKEND_SOURCE_REVISION
+ARG EDGE_SOURCE_REVISION
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH
 WORKDIR /app
 RUN corepack enable
@@ -33,8 +36,14 @@ RUN dotnet publish src/Services/AnalyticsService/AnalyticsService.csproj -c Rele
 RUN dotnet publish src/Services/NotificationService/NotificationService.csproj -c Release -o /published/notification /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.14-noble AS runtime
+ARG SOURCE_REVISION
+ARG BACKEND_SOURCE_REVISION
+ARG EDGE_SOURCE_REVISION
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION io.smartfactory.backend.revision=$BACKEND_SOURCE_REVISION io.smartfactory.edge.revision=$EDGE_SOURCE_REVISION
+ENV SOURCE_REVISION=$SOURCE_REVISION BACKEND_SOURCE_REVISION=$BACKEND_SOURCE_REVISION EDGE_SOURCE_REVISION=$EDGE_SOURCE_REVISION
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends supervisor python3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
 COPY --from=node-dependencies /usr/local/bin/node /usr/local/bin/node
+RUN node -e 'for(const name of ["SOURCE_REVISION","BACKEND_SOURCE_REVISION","EDGE_SOURCE_REVISION"])if(!/^[a-f0-9]{40}$/.test(process.env[name]??""))throw Error("Invalid build source identity: "+name)'
 WORKDIR /app
 COPY --from=node-dependencies --chown=app:app /app/node_modules ./node_modules
 COPY --from=node-dependencies --chown=app:app /app/package.json ./

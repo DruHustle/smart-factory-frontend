@@ -1034,7 +1034,7 @@ function Workspace({
                                 (e.snapshot as any)?.type ??
                                   (e.snapshot as any)?.eventType ??
                                   "Source observation",
-                              ).replaceAll(".", " ")}{" "}
+                              ).replaceAll(/[._]/g, " ")}{" "}
                               ·{" "}
                               {String(
                                 (e.snapshot as any)?.mode ?? finding.data.mode,

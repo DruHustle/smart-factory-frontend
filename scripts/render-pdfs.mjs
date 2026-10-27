@@ -40,13 +40,14 @@ try {
     page.on("pageerror", (error) => console.error(`[${documentName} browser error] ${error.stack ?? error.message}`));
     await page.setContent(html, { waitUntil: "load" });
     await page.addStyleTag({ content: `
-      @page { size: A4; margin: 19mm 18mm 20mm; }
+      @page { size: A4; }
       :root { color-scheme: light; }
       html { background: #fff; }
       body {
         color: #17232f; font: 10pt/1.52 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
         max-width: 174mm; margin: 0 auto; padding: 0; background: #fff;
       }
+      body > :last-child { margin-bottom: 0; }
       h1, h2, h3, h4 { color: #102b3f; line-height: 1.2; page-break-after: avoid; }
       h1 { font-size: 26pt; margin: 0 0 12pt; padding: 8pt 0 10pt; border-bottom: 3pt solid #df6b32; }
       h2 { font-size: 16pt; margin: 23pt 0 8pt; border-bottom: 1px solid #cad6df; padding-bottom: 4pt; }
@@ -92,7 +93,6 @@ try {
     if (diagramCount.error) throw new Error(`${documentName}: ${diagramCount.error} ${diagramCount.message ?? ""} ${diagramCount.stack ?? ""}`);
     await page.evaluate(() => document.fonts.ready);
     await page.emulateMedia({ media: "print" });
-    await page.screenshot({ path: `/private/tmp/smart-factory-${documentName}-preview.png`, fullPage: true });
     await page.pdf({
       path: output,
       format: "A4",

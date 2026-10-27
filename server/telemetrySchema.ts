@@ -1,4 +1,8 @@
-import { wireIdentifier, unitInput, mappingEvidenceInput } from "./observationPolicy";
+import {
+  wireIdentifier,
+  unitInput,
+  mappingEvidenceInput,
+} from "./observationPolicy";
 import { z } from "zod";
 
 import { provenanceSchema } from "./telemetryProvenance";
@@ -10,8 +14,11 @@ export const edgeTelemetrySchema = z
       .transform((value) => value ?? undefined),
     deviceId: wireIdentifier,
     transportRetained: z.boolean().optional(),
-    units: unitInput.nullish().transform(value => value ?? undefined),
-    mapping: mappingEvidenceInput.nullish().transform(value=>value??undefined),
+    transportRetainVerified: z.boolean().optional(),
+    units: unitInput.nullish().transform((value) => value ?? undefined),
+    mapping: mappingEvidenceInput
+      .nullish()
+      .transform((value) => value ?? undefined),
     gatewayId: wireIdentifier
       .nullish()
       .transform((value) => value ?? undefined),

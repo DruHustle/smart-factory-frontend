@@ -1,3 +1,5 @@
+import { installOperatingEvidence } from "../operatingEvidence";
+import { getRuntimeContract } from "../runtimeContract";
 import { TelemetryPolicyError } from "../observationPolicy";
 import { installSecurityBodies, installSecurityRoutes } from "../security/http";
 import { startSecurity, nativeEvent } from "../security/runtime";
@@ -41,6 +43,7 @@ import { edgeTelemetrySchema, telemetryRejection } from "../telemetrySchema";
 const edgeHeartbeatSchema = z
   .object({
     transportRetained: z.boolean().optional(),
+    transportRetainVerified:z.boolean().optional(),
     deviceId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/),
     timestamp: z.number().int().positive().max(8_640_000_000_000_000),
     status: z.enum(["online", "offline"]),
@@ -231,6 +234,13 @@ async function startServer() {
     next();
   });
 
+  app.get("/api/runtime/contract", async (_req,res)=>{
+    res.setHeader("Cache-Control","no-store");
+    try {const contract=await getRuntimeContract();return res.status(contract.schema.ready?200:503).json(contract);}
+    catch {return res.status(503).json({error:"Runtime identity or schema verification unavailable"});}
+  });
+
+  installOperatingEvidence(app);
   installArtifactRoutes(app);
 
   // Export only to engineers and admins; the generated file contains the

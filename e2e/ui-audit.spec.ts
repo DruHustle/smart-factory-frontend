@@ -7,16 +7,11 @@ import {
 import { expect, type Page, test } from "@playwright/test";
 
 async function loginAs(page: Page, role: "admin" | "engineer" | "viewer") {
-  const accounts = {
-    admin: { button: "Demo Admin", email: "admin@dev.local" },
-    engineer: { button: "Demo Engineer", email: "tech@dev.local" },
-    viewer: { button: "Demo Viewer", email: "demo@dev.local" },
-  } as const;
   await page.goto("/#/login");
+  await page.getByLabel("Email").fill(`security-${role}@example.test`);
   await page
-    .getByRole("button", { name: accounts[role].button, exact: true })
-    .click();
-  await expect(page.getByLabel("Email")).toHaveValue(accounts[role].email);
+    .getByLabel("Password", { exact: true })
+    .fill("Synthetic-security-only-2026!");
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 }
@@ -54,6 +49,7 @@ async function expectSoundDocumentStructure(page: Page) {
               )
               ?.textContent?.trim()
           : "") ||
+        element.closest("label")?.textContent?.trim() ||
         element.getAttribute("title")?.trim() ||
         element.innerText?.trim() ||
         ""
@@ -111,7 +107,7 @@ test("signed-out and authenticated routes expose named controls and sound landma
     ["/alerts", "Alerts"],
     ["/notifications", "Notifications"],
     ["/analytics", "Analytics"],
-    ["/assistant", "Chat with the Factory Assistant"],
+    ["/assistant", "Assistant"],
   ] as const;
 
   for (const [route, heading] of routes) {
@@ -132,7 +128,12 @@ test("signed-out and authenticated routes expose named controls and sound landma
   await page.keyboard.press("ArrowRight");
   await expect(resizer).toHaveAttribute(
     "aria-valuenow",
-    String(Math.min(400, originalWidth + 10)),
+    String(
+      Math.min(
+        Number(await resizer.getAttribute("aria-valuemax")),
+        originalWidth + 10,
+      ),
+    ),
   );
 });
 
@@ -162,7 +163,6 @@ test("core operational routes remain within a mobile viewport", async ({
     .filter({ visible: true })
     .first();
   await menu.click();
-  await page.getByText("Operations", { exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Monitoring", exact: true }),
   ).toBeVisible();

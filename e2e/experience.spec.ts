@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { selectSection, setTheme } from "./experience-helpers";
+import { measureThemeContrast } from "./contrast-helpers";
 import { execFileSync } from "node:child_process";
 
 test.describe("product experience rendered evidence", () => {
@@ -8,7 +9,7 @@ test.describe("product experience rendered evidence", () => {
     process.env.EXPERIENCE_E2E !== "true",
     "Requires the guarded isolated experience runner",
   );
-  for (const width of [390, 1440])
+  for (const width of [360, 390, 768, 1024, 1440])
     for (const theme of ["light", "dark"] as const) {
       test(`whole journey at ${width}px in ${theme}`, async ({ page }) => {
         const phase =
@@ -82,6 +83,10 @@ test.describe("product experience rendered evidence", () => {
             animations: "disabled",
           });
         };
+        writeFileSync(
+          `${folder}/contrast-${theme}-${width}.json`,
+          JSON.stringify(await measureThemeContrast(page), null, 2),
+        );
         await capture("overview");
         await page.goto("/#/inventory?search=Workspace");
         await expect(
@@ -124,6 +129,59 @@ test.describe("product experience rendered evidence", () => {
           page.getByRole("heading", { name: "Analytics", exact: true }),
         ).toBeVisible();
         await capture("analytics");
+        const response = await page.request.get("/api/trpc/system.showcase");
+        const showcase = (await response.json()).result.data.json;
+        const scope = new URLSearchParams({
+          asset: showcase.assetId,
+          scope: "simulated",
+          from: showcase.from.slice(0, 16),
+          to: showcase.anchor.slice(0, 16),
+        });
+        await page.goto("/#/analytics?" + scope);
+        await expect(
+          page.getByRole("img", { name: /temperature in °C/ }),
+        ).toBeVisible();
+        await capture("analytics-observed");
+        await page.goto("/#/monitoring?search=Workspace");
+        await expect(page.getByRole("article").first()).toBeVisible();
+        await capture("monitoring");
+        await page.goto("/#/alerts?search=Simulated%20temperature");
+        await expect(page.getByLabel("Search alerts")).toBeVisible();
+        await capture("alerts");
+        await page.goto("/#/assistant");
+        await page
+          .getByLabel("Ask the Smart Factory Assistant")
+          .fill("What evidence is available for the showcase pump?");
+        await page.getByRole("button", { name: "Ask", exact: true }).click();
+        await expect(
+          page.getByTestId("assistant-answer-content").first(),
+        ).toBeVisible();
+        await capture("assistant");
+        for (const [route, name] of [
+          ["users", "administration-users"],
+          ["integrations", "administration-integrations"],
+          ["audit", "administration-audit"],
+          ["workspace", "administration-settings"],
+        ]) {
+          await page.goto("/#/administration/" + route);
+          await expect(
+            page.getByRole("heading", { name: "Administration", exact: true }),
+          ).toBeVisible();
+          await capture(name);
+        }
+        await page.goto("/#/notifications");
+        await expect(
+          page.getByRole("heading", { name: "Notifications", exact: true }),
+        ).toBeVisible();
+        await capture("notifications");
+        await page.goto("/#/ota");
+        await expect(
+          page.getByRole("heading", {
+            name: "Firmware & updates",
+            exact: true,
+          }),
+        ).toBeVisible();
+        await capture("firmware");
       });
     }
 });

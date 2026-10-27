@@ -65,15 +65,22 @@ jobs:
           VITE_API_URL: /api
           VITE_ENABLE_DEMO_ACCOUNTS: 'true'
           RELEASE_SHA: ${{ steps.source.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+          RUNTIME_EVIDENCE_FILE: ${{ runner.temp }}/qualified-api-runtime.json
         run: |
           for key in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
             [[ -n "${!key}" ]] || { echo "Missing release configuration: $key"; exit 1; }
           done
           curl --fail --silent --show-error --retry 3 --retry-delay 5 "$API_ORIGIN/health/ready"
           pnpm install --frozen-lockfile
+          node --import tsx scripts/verify-runtime.mts
           pnpm vercel:configure
           pnpm dlx vercel@62.2.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
           pnpm dlx vercel@62.2.0 build --prod --token="$VERCEL_TOKEN"
+          # Recheck both dependencies and current main after the potentially long build.
+          node --import tsx scripts/verify-runtime.mts
+          current=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          [[ "$RELEASE_SHA" == "$current" ]] || { echo 'A newer main exists; refusing to promote this artifact.'; exit 1; }
           pnpm dlx vercel@62.2.0 deploy --prebuilt --archive=tgz --prod --yes --token="$VERCEL_TOKEN" --meta "githubCommitSha=$RELEASE_SHA" --meta githubCommitRef=main > "$RUNNER_TEMP/vercel-deployment-url.txt"
           deployment_url=$(tail -n 1 "$RUNNER_TEMP/vercel-deployment-url.txt")
           [[ "$deployment_url" =~ ^https://[^[:space:]]+\.vercel\.app$ ]]
@@ -82,3 +89,10 @@ jobs:
           echo "Source revision: $RELEASE_SHA" >> "$GITHUB_STEP_SUMMARY"
           curl --fail --silent --show-error --retry 3 --retry-delay 5 https://smart-factory-iot-app.vercel.app/health/ready
           curl --fail --silent --show-error --output /dev/null https://smart-factory-iot-app.vercel.app/
+      - name: Retain the API contract used for promotion
+        if: steps.source.outputs.deploy == 'true' && always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: qualified-api-runtime
+          path: ${{ runner.temp }}/qualified-api-runtime.json
+          if-no-files-found: ignore

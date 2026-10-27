@@ -170,5 +170,14 @@ export const emptyNotificationPage = () => ({
   summary: { unread: 0, attention: 0, accepted: 0, available: 0 },
 });
 export async function notificationSummary(userId: number) {
-  return (await notificationPage(userId, { page: 0 })).summary;
+  const db = await database();
+  const [row] = await db.execute(
+    sql`select count(*)::int as available,count(*) filter(where ${notificationInbox.readAt} is null)::int as unread,count(*) filter(where ${notificationInbox.emailStatus} in('failed','unconfigured','no_recipient'))::int as attention,count(*) filter(where ${notificationInbox.emailStatus}='accepted')::int as accepted from ${notificationInbox} where ${notificationInbox.userId}=${userId} and ${visibleNotificationSourceCondition()}`,
+  );
+  return {
+    available: Number(row.available),
+    unread: Number(row.unread),
+    attention: Number(row.attention),
+    accepted: Number(row.accepted),
+  };
 }

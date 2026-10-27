@@ -227,7 +227,7 @@ export async function getAssetTelemetry(
   return db.transaction(
     async (tx) => {
       const rows = await tx.execute(
-        sql`with samples as materialized(select r.*,${normalize}, floor(r.timestamp::numeric/${bucketMs})*${bucketMs} as bucket from sensor_readings r where ${selected}), ordered as(select *,timestamp-lag(timestamp) over(partition by "assetId" order by timestamp,id) as gap,min(timestamp) over(partition by "assetId") as first_at,max(timestamp) over(partition by "assetId") as last_at from samples) select "assetId",bucket,grouping("assetId") as ag,grouping(bucket) as bg,count(*)::int as "sampleCount",max(timestamp) as "latestReadingAt",max(gap) as "longestGapMs",${aggregates},${trends} from ordered group by grouping sets((),("assetId"),(bucket))`,
+        sql`with samples as materialized(select r.id,r."assetId",r.timestamp,${normalize}, floor(r.timestamp::numeric/${bucketMs})*${bucketMs} as bucket from sensor_readings r where ${selected}), ordered as(select *,timestamp-lag(timestamp) over(partition by "assetId" order by timestamp,id) as gap,min(timestamp) over(partition by "assetId") as first_at,max(timestamp) over(partition by "assetId") as last_at from samples) select "assetId",bucket,grouping("assetId") as ag,grouping(bucket) as bg,count(*)::int as "sampleCount",max(timestamp) as "latestReadingAt",max(gap) as "longestGapMs",${aggregates},${trends} from ordered group by grouping sets((),("assetId"),(bucket))`,
       );
       const overallRow = rows.find((r) => r.ag === 1 && r.bg === 1),
         byAsset = new Map(

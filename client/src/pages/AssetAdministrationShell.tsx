@@ -1,3 +1,4 @@
+import { currentSample } from "@shared/measurements";
 import { ObservationTrend } from "@/components/workspace/ObservationTrend";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { SectionNav, CopyIdentifier } from "@/components/workspace/Primitives";
@@ -267,8 +268,7 @@ export default function AssetAdministrationShell({
           ? false
           : Date.now() < fastUntil && !!user?.access?.canEngineer
             ? 1000
-            : query.state.data &&
-                Date.now() - query.state.data.timestamp < 120000
+            : query.state.data && currentSample(query.state.data)
               ? 5000
               : 30000,
       refetchIntervalInBackground: false,
@@ -498,28 +498,23 @@ export default function AssetAdministrationShell({
   const signal = (name: string) =>
     latestSignals?.[name] ??
     armTelemetry?.assetSignals.find((entry) => entry.name === name)?.latest;
-  const completedCycles = signal("successful_cycles") ?? 0;
-  const interruptedCycles = signal("interrupted_cycles") ?? 0;
-  const failedCycles = signal("failed_cycles") ?? 0;
+  const completedCycles = signal("successful_cycles") ?? null;
+  const interruptedCycles = signal("interrupted_cycles") ?? null;
+  const failedCycles = signal("failed_cycles") ?? null;
   const cycleTotal =
-    signal("cycle_count") ?? completedCycles + interruptedCycles + failedCycles;
+    signal("cycle_count") ??
+    (completedCycles != null &&
+    interruptedCycles != null &&
+    failedCycles != null
+      ? completedCycles + interruptedCycles + failedCycles
+      : null);
   const activeProfile = signal("active_profile");
   const latestSampleTimestamp =
     latestArmReading?.timestamp ?? armTelemetry?.latestReadingAt ?? null;
   const latestSampleDate = latestSampleTimestamp
     ? new Date(latestSampleTimestamp)
     : null;
-  const armConnectionLastSeen = armConnection?.lastSeen
-    ? new Date(armConnection.lastSeen)
-    : null;
-  const armEvidenceAt =
-    latestSampleDate && !Number.isNaN(latestSampleDate.getTime())
-      ? latestSampleDate
-      : armConnectionLastSeen;
-  const armConnected =
-    !!armEvidenceAt &&
-    !Number.isNaN(armEvidenceAt.getTime()) &&
-    Date.now() - armEvidenceAt.getTime() <= 120_000;
+  const armConnected = !!latestArmReading && currentSample(latestArmReading);
 
   return (
     <>
@@ -913,8 +908,8 @@ export default function AssetAdministrationShell({
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Standard refresh: 5 seconds with recent evidence, 30 seconds
-                  when stale. Hidden or offline pages pause.
+                  Standard refresh: 5 seconds with eligible current evidence, 30
+                  seconds otherwise. Hidden or offline pages pause.
                 </p>
                 {user?.access?.canEngineer && (
                   <Button
@@ -945,11 +940,13 @@ export default function AssetAdministrationShell({
                       : "bg-muted text-muted-foreground"
                   }
                 >
-                  {armConnected ? "Connected" : "Offline"}
+                  {armConnected
+                    ? "Receiving controller evidence"
+                    : "No current evidence"}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Latest controller movement refreshes twice per second.
+                Controller observations keep their acquisition time and quality.
                 Historical aggregates cover the last 24 hours.
               </p>
             </CardHeader>
@@ -1015,7 +1012,7 @@ export default function AssetAdministrationShell({
                   ["Interrupted", interruptedCycles],
                   [
                     "Success rate",
-                    cycleTotal
+                    cycleTotal && completedCycles != null
                       ? `${((completedCycles / cycleTotal) * 100).toFixed(1)}%`
                       : "—",
                   ],
@@ -1028,7 +1025,9 @@ export default function AssetAdministrationShell({
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-md border p-3">
                     <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="mt-1 text-2xl font-semibold">{value}</p>
+                    <p className="mt-1 text-2xl font-semibold">
+                      {value ?? "Unavailable"}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -1042,7 +1041,9 @@ export default function AssetAdministrationShell({
                       ? "A → B → A repeat"
                       : activeProfile === 2
                         ? "Demonstration"
-                        : "Idle"}
+                        : activeProfile === 0
+                          ? "Idle"
+                          : "Unavailable"}
                   </p>
                 </div>
                 <div className="rounded-md border p-3">
@@ -1062,9 +1063,9 @@ export default function AssetAdministrationShell({
                   <p className="mt-1 font-semibold">
                     {signal("movement_active") === 1
                       ? "Moving"
-                      : latestSignals
+                      : signal("movement_active") === 0
                         ? "Holding"
-                        : "—"}
+                        : "Unavailable"}
                   </p>
                 </div>
                 <div className="rounded-md border p-3">
@@ -1072,9 +1073,9 @@ export default function AssetAdministrationShell({
                   <p className="mt-1 font-semibold">
                     {signal("button_pressed") === 1
                       ? "Pressed"
-                      : latestSignals
+                      : signal("button_pressed") === 0
                         ? "Released"
-                        : "—"}
+                        : "Unavailable"}
                   </p>
                 </div>
                 <div className="rounded-md border p-3">
@@ -1085,8 +1086,12 @@ export default function AssetAdministrationShell({
                     {signal("calibration_mode") === 1
                       ? signal("pots_matched") === 1
                         ? "Live · matched"
-                        : "Waiting for match"
-                      : "Off"}
+                        : signal("pots_matched") === 0
+                          ? "Waiting for match"
+                          : "Match unavailable"
+                      : signal("calibration_mode") === 0
+                        ? "Off"
+                        : "Unavailable"}
                   </p>
                 </div>
                 <div className="rounded-md border p-3">
@@ -1114,7 +1119,11 @@ export default function AssetAdministrationShell({
                   >
                     <span className="text-muted-foreground">Servo {servo}</span>
                     <br />
-                    <strong>{signal(`servo_${servo}_deg`) ?? "—"}°</strong>
+                    <strong>
+                      {signal(`servo_${servo}_deg`) == null
+                        ? "Unavailable"
+                        : `${signal(`servo_${servo}_deg`)}°`}
+                    </strong>
                   </div>
                 ))}
               </div>

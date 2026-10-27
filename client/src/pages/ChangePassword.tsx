@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function ChangePassword() {
   const { user, refreshUser, logout } = useAuth();
@@ -22,13 +22,12 @@ export default function ChangePassword() {
       window.location.hash = "/";
     },
   });
+  const Container = user?.passwordChangeRequired ? "main" : "section";
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
+    <Container className="flex min-h-[70vh] items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>
-            <h1 className="text-2xl">Change your password</h1>
-          </CardTitle>
+          <h1 className="text-2xl font-semibold">Change your password</h1>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
@@ -120,6 +119,6 @@ export default function ChangePassword() {
           </div>
         </CardContent>
       </Card>
-    </main>
+    </Container>
   );
 }

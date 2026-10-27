@@ -1,4 +1,6 @@
-# Production readiness review and evidence
+# Archived review — Production readiness review and evidence
+
+Historical evidence for 7 October 2026 only. Current instructions: [operating guide](operations.md) and [Oracle runbook](../deploy/oracle/README.md). This document does not attest to the present runtime.
 
 Reviewed 2026-10-07 across `smart-factory-iot`, `smart-factory-iot-backend` and `smart-factory-iot-edge`. The selected target is **Vercel frontend plus one immutable image deployed to separate Render web and worker services**. Existing dashboard accounts/roles remain authoritative; notifications use the in-app inbox and configured transactional email provider. Live DHT11 ingestion and a commissioned 200 ms WROVER indicator pulse were verified; no production deployment, physical arm movement or firmware flashing was performed.
 

@@ -1,3 +1,4 @@
+import { operatingEvidence } from "../operatingEvidence";
 import { sql } from "drizzle-orm";
 import { auditPage, connectionSummary } from "../administration";
 import { z } from "zod";
@@ -12,6 +13,7 @@ import * as db from "../db";
 import { demoDataEnabled } from "../demoData";
 
 export const systemRouter = router({
+  operations: adminProcedure.query(() => operatingEvidence()),
   audit: adminProcedure
     .input(
       z.object({

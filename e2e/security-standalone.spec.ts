@@ -5,6 +5,7 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
+import { selectSection, setTheme } from "./experience-helpers";
 const password = "Synthetic-security-only-2026!";
 async function call(
   r: APIRequestContext,
@@ -143,9 +144,7 @@ test.describe("independent cybersecurity workspace", () => {
   }, testInfo) => {
     await browserLogin(page);
     await page.goto("/#/cybersecurity");
-    await page
-      .getByRole("tab", { name: "Sources and policies", exact: true })
-      .click();
+    await selectSection(page, "Sources and policies");
     await page
       .getByLabel("Security source name")
       .fill("Browser simulated source");
@@ -206,13 +205,14 @@ test.describe("independent cybersecurity workspace", () => {
       .getByRole("button", { name: "Import reviewed evidence", exact: true })
       .click();
     await expect(page.getByText(/5 event receipts stored/)).toBeVisible();
-    await page.getByRole("tab", { name: "Findings", exact: true }).click();
+    await selectSection(page, "Findings");
     await page.getByLabel("Filter security source").selectOption(sourceId);
     await page
       .getByRole("button", { name: /^Repeated rejected sign-ins/ })
       .click();
     await page
-      .getByText(/^Evidence [a-f0-9-]+ · SHA-256/)
+      .locator("details > summary")
+      .filter({ hasText: /^auth authentication failed · simulated/ })
       .first()
       .click();
     await expect(
@@ -306,9 +306,7 @@ test.describe("independent cybersecurity workspace", () => {
     expect(src.response.ok(), JSON.stringify(src.body)).toBe(true);
     await browserLogin(page);
     await page.goto("/#/cybersecurity");
-    await page
-      .getByRole("tab", { name: "Sources and policies", exact: true })
-      .click();
+    await selectSection(page, "Sources and policies");
     await page.getByLabel("Evidence file source").selectOption(src.data.id);
     await page.getByLabel("Mapping namespace").fill("reviewed-local");
     await page.getByLabel("Mapping asset reference").fill("pump-1");
@@ -460,7 +458,10 @@ test.describe("independent cybersecurity workspace", () => {
     await browserLogin(page);
     await page.goto(`/#/cybersecurity?finding=${fs[0].id}`);
     await expect(
-      page.getByText(/^Evidence [a-f0-9-]+ · SHA-256/).first(),
+      page
+        .locator("details > summary")
+        .filter({ hasText: /^auth authentication failed · simulated/ })
+        .first(),
     ).toBeVisible();
     await page.getByRole("button", { name: "Open account menu" }).click();
     await page.getByRole("menuitem", { name: "Sign out" }).click();
@@ -471,9 +472,11 @@ test.describe("independent cybersecurity workspace", () => {
         exact: true,
       }),
     ).toBeVisible();
-    await expect(page.getByText(/^Evidence [a-f0-9-]+ · SHA-256/)).toHaveCount(
-      0,
-    );
+    await expect(
+      page
+        .locator("details > summary")
+        .filter({ hasText: /^auth authentication failed · simulated/ }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("button", {
         name: "Save investigation decision",
@@ -509,14 +512,10 @@ test.describe("independent cybersecurity workspace", () => {
       await browserLogin(page);
       await page.goto("/#/cybersecurity");
       await expect(
-        page.getByRole("button", { name: /^Switch to (light|dark) theme$/ }),
+        page.getByRole("button", { name: /^Theme settings,/ }),
       ).toBeVisible();
-      for (const theme of ["light", "dark"]) {
-        const switcher = page.getByRole("button", {
-          name: `Switch to ${theme} theme`,
-          exact: true,
-        });
-        if (await switcher.count()) await switcher.click();
+      for (const theme of ["light", "dark"] as const) {
+        await setTheme(page, theme);
         await expect
           .poll(() =>
             page.evaluate(() =>
@@ -541,7 +540,7 @@ test.describe("independent cybersecurity workspace", () => {
           "Incidents",
           "Sources and policies",
         ]) {
-          await page.getByRole("tab", { name: tab, exact: true }).click();
+          await selectSection(page, tab);
           await expect(
             page.getByRole("heading", { name: "Cybersecurity", exact: true }),
           ).toBeVisible();
@@ -553,7 +552,7 @@ test.describe("independent cybersecurity workspace", () => {
             )
             .toBe(true);
         }
-        await page.getByRole("tab", { name: "Overview", exact: true }).click();
+        await selectSection(page, "Overview");
         await page.mouse.move(0, 0);
         await expect(
           page.getByText("Login successful!", { exact: true }),

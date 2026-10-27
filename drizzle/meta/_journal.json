@@ -197,6 +197,13 @@
       "when": 1793052000000,
       "tag": "0027_investigation_history",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793053000000,
+      "tag": "0028_operating_evidence",
+      "breakpoints": true
     }
   ]
 }

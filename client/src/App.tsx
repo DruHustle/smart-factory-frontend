@@ -12,7 +12,6 @@ import {
 } from "wouter";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import DashboardLayout from "./components/DashboardLayout";
 import { canAdministerUsers, canViewEngineering } from "@/lib/access";
@@ -169,10 +168,19 @@ function AppRouter() {
                   <Route path="/assets/:id/aas">
                     <LegacyItem kind="asset" section="aas" />
                   </Route>
-                  <Route path="/administration/:section" component={Administration}/>
-                  <Route path="/administration"><Redirect to="/administration/integrations"/></Route>
-                  <Route path="/integrations/onesa"><Redirect to="/administration/integrations"/></Route>
-                  <Route path="/users"><Redirect to="/administration/users"/></Route>
+                  <Route
+                    path="/administration/:section"
+                    component={Administration}
+                  />
+                  <Route path="/administration">
+                    <Redirect to="/administration/integrations" />
+                  </Route>
+                  <Route path="/integrations/onesa">
+                    <Redirect to="/administration/integrations" />
+                  </Route>
+                  <Route path="/users">
+                    <Redirect to="/administration/users" />
+                  </Route>
                   <Route path="/alerts" component={Alerts} />
                   <Route path="/alerts/:eventId" component={Alerts} />
                   <Route path="/notifications" component={Notifications} />
@@ -204,13 +212,11 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <ThemeProvider defaultTheme="dark" switchable>
-          <TooltipProvider>
-            <Toaster />
-            <AppRouter />
-            {import.meta.env.PROD && <Analytics />}
-          </TooltipProvider>
-        </ThemeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <AppRouter />
+          {import.meta.env.PROD && <Analytics />}
+        </TooltipProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

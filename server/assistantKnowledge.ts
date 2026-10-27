@@ -38,6 +38,21 @@ export type AssistantHistoryMessage = {
 // code, uploaded AASX packages, and arbitrary paths are intentionally excluded.
 const SOURCES: KnowledgeSource[] = [
   {
+    file: "docs/telemetry-contract.md",
+    title: "Telemetry identity, topic and evidence contract",
+    route: "docs/telemetry-contract.md",
+  },
+  {
+    file: "docs/operations.md",
+    title: "Current operating and recovery guide",
+    route: "docs/operations.md",
+  },
+  {
+    file: "deploy/oracle/README.md",
+    title: "Current Oracle and Vercel deployment",
+    route: "deploy/oracle/README.md",
+  },
+  {
     file: "API_DOCUMENTATION.md",
     title: "API documentation",
     route: "API_DOCUMENTATION.md",

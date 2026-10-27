@@ -18,32 +18,17 @@ export async function navigate(page: Page, name: string) {
     "Smart Factory Assistant": "Assistant",
   };
   const label = labels[name] ?? name;
-  if (["Monitoring", "Alerts", "Firmware & updates"].includes(label)) {
-    const d = page
-      .locator("details")
-      .filter({
-        has: page.locator("summary").getByText("Operations", { exact: true }),
-      })
-      .first();
-    if ((await d.getAttribute("open")) === null)
-      await d.locator("summary").click();
-  }
   if (["Integrations", "Users & access"].includes(label)) {
-    const d = page
-      .locator("details")
-      .filter({
-        has: page
-          .locator("summary")
-          .getByText("Administration", { exact: true }),
-      })
-      .first();
-    if ((await d.getAttribute("open")) === null)
-      await d.locator("summary").click();
+    await page.goto(
+      "/#/administration/" +
+        (label === "Integrations" ? "integrations" : "users"),
+    );
+    return;
   }
   await page
     .getByRole("link", {
-      name: label === "Notifications" ? "Notifications and history" : label,
-      exact: true,
+      name: label === "Notifications" ? /^Notifications and history/ : label,
+      exact: label !== "Notifications",
     })
     .click();
 }
@@ -78,6 +63,11 @@ export async function finishGateway(page: Page) {
     .getByRole("button", { name: "Next: connection", exact: true })
     .click();
   await page
+    .getByRole("button", { name: "Next: representation", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Next: review", exact: true }).click();
+  await page
     .getByRole("button", { name: "Register Gateway", exact: true })
     .click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
 }

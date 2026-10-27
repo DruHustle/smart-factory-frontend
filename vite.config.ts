@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { execFileSync } from "node:child_process";
 import { defineConfig, type Plugin } from "vite";
+import { runtimeContractVersion, requiredCapabilities } from "./shared/runtime-contract";
 
 let sourceRevision =
   process.env.RELEASE_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "";
@@ -25,6 +26,8 @@ const releaseIdentity: Plugin = {
           ? sourceRevision
           : "unknown",
         builtAt: new Date().toISOString(),
+        contractVersion:runtimeContractVersion,
+        requiredCapabilities,
       }),
     });
   },

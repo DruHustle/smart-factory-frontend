@@ -30,6 +30,7 @@ export type TelemetryInput = {
   ingestionId?: string;
   integration?: unknown;
   transportRetained?: boolean;
+  transportRetainVerified?: boolean;
   units?: Partial<Record<Metric, string>>;
   mapping?: Partial<
     Record<Metric, import("../shared/measurements").MappingEvidence>
@@ -58,6 +59,7 @@ export async function ingestTelemetryByDeviceId(
     delete canonicalInput.integration;
   if (canonicalInput.units === undefined) delete canonicalInput.units;
   if (canonicalInput.mapping === undefined) delete canonicalInput.mapping;
+  delete canonicalInput.transportRetainVerified;
   delete canonicalInput.transportRetained; // Delivery metadata never changes an acquisition retry identity.
   const ingestionId =
     input.ingestionId ??
@@ -283,6 +285,7 @@ export async function ingestTelemetryByDeviceId(
             gatewayId: input.gatewayId ?? null,
             receivedAt: receivedAt.toISOString(),
             transportRetained: !!input.transportRetained,
+            transportRetainVerified: input.transportRetainVerified ?? null,
           },
         },
         measurements: normalized.measurements,

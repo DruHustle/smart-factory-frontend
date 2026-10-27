@@ -553,10 +553,10 @@ function LocalWorkspace({
           </p>
         </>
       )}
-      <label className="block text-sm">
+      <label className="flex flex-wrap items-center gap-2 text-sm">
         Observation stream
         <select
-          className="ml-2 rounded border bg-background p-2"
+          className="h-10 min-w-0 flex-1 rounded border border-input bg-background px-2 sm:flex-none"
           value={stream ?? w.stream}
           onChange={(e) => {
             setStream(e.target.value as "live" | "simulated");
@@ -611,11 +611,13 @@ function LocalWorkspace({
         className={`grid items-start gap-4 xl:grid-cols-[13rem_minmax(0,1fr)_16rem] ${section === "observations" ? "hidden" : ""}`}
       >
         {wide && tree}
-        <Card className="min-w-0">
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm">3D inspection</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <Card className="min-w-0 py-3">
+          {!section && (
+            <CardHeader className="py-1">
+              <CardTitle className="text-sm">3D inspection</CardTitle>
+            </CardHeader>
+          )}
+          <CardContent className="space-y-3 px-3 sm:px-4">
             <Suspense
               fallback={<p role="status">Loading app-owned renderer…</p>}
             >
@@ -784,7 +786,9 @@ function LocalWorkspace({
                 >
                   <span>{o.metric}</span>
                   <strong>
-                    {o.value == null ? "Unavailable" : `${o.value} ${o.unit}`}
+                    {o.value == null
+                      ? "Unavailable"
+                      : `${Number(o.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${o.unit}`}
                   </strong>
                   <span>
                     {String(o.mode)} · {o.freshness} · quality{" "}
@@ -957,7 +961,9 @@ function LocalWorkspace({
                 <div key={i} className="rounded border p-2 text-xs">
                   <strong>
                     {o.metric}:{" "}
-                    {o.value == null ? "Unavailable" : `${o.value} ${o.unit}`}
+                    {o.value == null
+                      ? "Unavailable"
+                      : `${Number(o.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${o.unit}`}
                   </strong>
                   <p>
                     {o.observedAt} · {String(o.mode)} · quality{" "}

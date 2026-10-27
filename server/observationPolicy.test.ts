@@ -23,6 +23,7 @@ import {
 } from "../drizzle/schema";
 import { inventoryFilter, listInventory } from "./inventory";
 import { canonicalUnits, convertMeasurement } from "../shared/measurements";
+import { currentSample } from "../shared/measurements";
 
 it("shares the compatible identity and engineering conversion contract", () => {
   for (const id of ["a", "sensor.temp:01", "legacy_01", "sensor-01"])
@@ -92,6 +93,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
     it.each([
       ["bad quality", { sourceQuality: "bad" }, -9000],
       ["retained", { retained: true }, -8000],
+      ["unverified transport flags", {}, -7500],
       ["late history", {}, -300000],
       ["out of order", {}, -12000],
       [
@@ -135,6 +137,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           temperature: 100,
           units: { temperature: "°C" },
           integration: extra === null ? undefined : provenance(now, extra),
+          transportRetainVerified:
+            _name === "unverified transport flags" ? false : undefined,
         });
         expect((await getDeviceByDeviceId(id))!.lastSeen).toEqual(
           first!.lastSeen,
@@ -371,7 +375,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         { getAlertPage } = await import("./db"),
         { appRouter } = await import("./routers");
       await db.execute(
-        sql`insert into alerts("deviceId",type,severity,status,message,"createdAt") select ${device.id},'system_error','warning','active',case when n=1200 then 'older incident needle' else 'Synthetic process event' end,now()-interval '1 second'-n*interval '1 minute' from generate_series(0,1200) n`,
+        sql`insert into alerts("deviceId",type,severity,status,message,"createdAt") select ${device.id},'system_error','warning','active',case when n=1200 then 'older incident needle' else 'Synthetic process event' end,to_timestamp(${now}::double precision/1000)-interval '1 second'-n*interval '1 minute' from generate_series(0,1200) n`,
       );
       const search = await getAlertPage(
         { deviceId: device.id, search: "older incident needle" },

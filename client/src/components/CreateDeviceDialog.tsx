@@ -1,3 +1,4 @@
+import { MqttTopicHint } from "./workspace/MqttTopicHint";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -119,10 +120,7 @@ export default function CreateDeviceDialog({
   });
 
   const onSubmit = (values: DeviceFormValues) => {
-    if (step < 3) {
-      setStep((v) => v + 1);
-      return;
-    }
+    if (step !== 3) return;
     if (created) return;
     setIsSubmitting(true);
     createMutation.mutate(values);
@@ -367,6 +365,9 @@ export default function CreateDeviceDialog({
                   credentials and a broker topic ACL separately. No credentials
                   or configuration are sent to equipment by this form.
                 </p>
+                {form.watch("route") !== "unconfigured" && (
+                  <MqttTopicHint identity={form.watch("deviceId")} />
+                )}
               </div>
             )}
             {step === 2 && (
@@ -449,8 +450,10 @@ export default function CreateDeviceDialog({
               )}
               {step < 3 ? (
                 <Button
+                  key="registration-next"
                   type="button"
-                  onClick={async () => {
+                  onClick={async (event) => {
+                    event.preventDefault();
                     const keys =
                       step === 0
                         ? ["name", "deviceId", "type"]
@@ -464,7 +467,11 @@ export default function CreateDeviceDialog({
                   Next: {["connection", "representation", "review"][step]}
                 </Button>
               ) : step === 3 ? (
-                <Button type="submit" disabled={isSubmitting}>
+                <Button
+                  key="registration-submit"
+                  type="submit"
+                  disabled={isSubmitting}
+                >
                   {isSubmitting
                     ? "Registering…"
                     : isGateway

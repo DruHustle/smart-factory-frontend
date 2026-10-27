@@ -17,6 +17,7 @@ import {
   securityTransaction,
 } from "./store";
 import { finding } from "./rules";
+let wakeSecurity: (() => void) | undefined;
 let inFlight = 0,
   failed = 0,
   lastFailure: string | null = null;
@@ -79,6 +80,7 @@ export async function nativeEvent(
         sql`insert into security_outbox(id,producer,event_type,attributes,occurred_at) values(${event.sourceEventId},'node-app',${type},${JSON.stringify(event)}::jsonb,${event.occurredAt})`,
       );
     });
+    wakeSecurity?.();
   } catch {
     failed++;
     lastFailure = "capture_unavailable";
@@ -118,10 +120,10 @@ export async function drainOutbox() {
     }
   }
 }
-export async function sweep() {
+export async function sweep(includeDrain = true) {
   if (!enabled()) return;
   await initialize();
-  await drainOutbox();
+  if (includeDrain) await drainOutbox();
   const db = await database(),
     now = new Date();
   return securityTransaction(async (tx) => {
@@ -222,13 +224,20 @@ export function startSecurity() {
     sweepTimer: ReturnType<typeof setTimeout> | undefined,
     reportTimer: ReturnType<typeof setTimeout> | undefined,
     lastHealth = 0,
+    nextSweep = 0,
+    running = false,
+    wakeRequested = false,
     idleReportMs = 1000;
   const run = async () => {
-    let next = 60000;
+    running = true;
+    wakeRequested = false;
     try {
       if (enabled()) {
-        const configured = await sweep();
-        next = configured ? 10000 : 60000;
+        if (Date.now() >= nextSweep) {
+          const configured = await sweep(false);
+          nextSweep = Date.now() + (configured ? 10000 : 60000);
+        }
+        await drainOutbox();
         if (Date.now() - lastHealth >= 300000) {
           lastHealth = Date.now();
           await nativeEvent(
@@ -241,8 +250,11 @@ export function startSecurity() {
     } catch {
       lastFailure = "security_sweep_unavailable";
     } finally {
+      running = false;
       if (!stopped) {
-        sweepTimer = setTimeout(() => void run(), next);
+        // Cross-service outboxes get a bounded 5s delivery check; expensive
+        // coverage sweeps retain their independent 10s/60s cadence.
+        sweepTimer = setTimeout(() => void run(), wakeRequested ? 25 : 5000);
         sweepTimer.unref();
       }
     }
@@ -265,10 +277,22 @@ export function startSecurity() {
       }
     }
   };
+  const wake = () => {
+    if (stopped) return;
+    if (running) {
+      wakeRequested = true;
+      return;
+    }
+    clearTimeout(sweepTimer);
+    sweepTimer = setTimeout(() => void run(), 25);
+    sweepTimer.unref();
+  };
+  wakeSecurity = wake;
   void run();
   void reports();
   return () => {
     stopped = true;
+    if (wakeSecurity === wake) wakeSecurity = undefined;
     clearTimeout(sweepTimer);
     clearTimeout(reportTimer);
   };

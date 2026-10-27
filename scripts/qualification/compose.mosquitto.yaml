@@ -1,0 +1,6 @@
+services:
+  broker:
+    image: eclipse-mosquitto:2.0.22
+    command: [mosquitto, -c, /mosquitto/config/mosquitto.conf]
+    volumes: ["../../fixtures/onesa/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro"]
+    healthcheck: {test: [CMD-SHELL, "mosquitto_pub -h 127.0.0.1 -t fixture/health -m ready"], interval: 2s, timeout: 3s, retries: 20}

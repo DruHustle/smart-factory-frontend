@@ -1,5 +1,81 @@
 import { test, expect, type Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
+import { setTheme } from "./experience-helpers";
+async function inspectionTools(page: Page) {
+  for (const text of [
+    "Framing and visibility",
+    "Explode, section and inspection tools",
+  ]) {
+    const summary = page
+      .locator("summary")
+      .filter({ hasText: new RegExp("^" + text + "$") });
+    if (
+      (await summary.isVisible()) &&
+      !(await summary.evaluate(
+        (e) => (e.parentElement as HTMLDetailsElement).open,
+      ))
+    )
+      await summary.click();
+  }
+}
+async function selectComponent(page: Page, name: string) {
+  const mobile = page.getByRole("button", {
+    name: "Assembly / BOM",
+    exact: true,
+  });
+  const drawer = await mobile.isVisible();
+  if (drawer) {
+    await mobile.click();
+    await expect(
+      page.getByRole("dialog", {
+        name: "Assembly and components",
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
+  await page.getByLabel("Search BOM", { exact: true }).fill(name);
+  await page.getByRole("button", { name, exact: true }).click();
+  if (drawer) {
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("dialog", {
+        name: "Assembly and components",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+  }
+}
+
+async function componentPressed(page: Page, name: string) {
+  const toggle = page.getByRole("button", {
+    name: "Assembly / BOM",
+    exact: true,
+  });
+  const drawer = await toggle.isVisible();
+  if (drawer) {
+    await toggle.click();
+    await expect(
+      page.getByRole("dialog", {
+        name: "Assembly and components",
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
+  const pressed = await page
+    .getByRole("button", { name, exact: true })
+    .getAttribute("aria-pressed");
+  if (drawer) {
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("dialog", {
+        name: "Assembly and components",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+  }
+  return pressed;
+}
+
 async function submitEquipment(page: Page, name: string) {
   const pending = page.waitForResponse(
     (r) =>
@@ -102,6 +178,7 @@ test.describe("standalone native equipment monitoring", () => {
         page.getByRole("img", { name: "Interactive 3D equipment model" }),
       ).toBeVisible();
       await expect(page.locator("[data-state=ready]")).toBeVisible();
+      await inspectionTools(page);
       if (viewport.width === 1440) {
         await page
           .getByRole("button", { name: "Assembly", exact: true })
@@ -129,7 +206,7 @@ test.describe("standalone native equipment monitoring", () => {
         }
         expect(picked).toBe(true);
       }
-      await page.getByRole("button", { name: "Pump", exact: true }).click();
+      await selectComponent(page, "Pump");
       await page
         .getByRole("button", { name: "Focus selected", exact: true })
         .click();
@@ -159,7 +236,12 @@ test.describe("standalone native equipment monitoring", () => {
         .getByRole("button", { name: "Fit / reset", exact: true })
         .click();
       await page.getByRole("button", { name: "Alarm", exact: true }).click();
-      await expect(page.getByText("7 bar", { exact: true })).toBeVisible();
+      await expect(
+        page
+          .getByText("7 bar", { exact: true })
+          .filter({ visible: true })
+          .first(),
+      ).toBeVisible();
       const doc = await page.request.get(
         (await page
           .getByRole("link", { name: "Open local maintenance document" })
@@ -192,14 +274,26 @@ test.describe("standalone native equipment monitoring", () => {
       ).toBeVisible();
       const equipmentId = await page.locator("#local-equipment").inputValue();
       await page.reload();
+      await expect(page.locator("[data-state=ready]")).toBeVisible();
+      await inspectionTools(page);
       await page.locator("#local-equipment").selectOption(equipmentId);
+      const bomPanel = page.getByRole("button", {
+        name: "Assembly / BOM",
+        exact: true,
+      });
+      const bomDrawer = await bomPanel.isVisible();
+      if (bomDrawer) await bomPanel.click();
       await expect(
         page.getByRole("button", { name: "Pump", exact: true }),
       ).toHaveAttribute("aria-pressed", "true");
+      if (bomDrawer) await page.keyboard.press("Escape");
       await expect(
-        page.getByText("Saved without a peer account or endpoint", {
-          exact: true,
-        }),
+        page
+          .getByText("Saved without a peer account or endpoint", {
+            exact: true,
+          })
+          .filter({ visible: true })
+          .first(),
       ).toBeVisible();
       await page.getByText("Classified local history", { exact: true }).click();
       await expect(
@@ -233,10 +327,13 @@ test.describe("standalone native equipment monitoring", () => {
       ).toBeVisible();
       await page.reload();
       await expect(page.locator("[data-state=ready]")).toBeVisible();
+      await inspectionTools(page);
+      await expect(page.locator("[data-state=ready]")).toBeVisible();
+      await inspectionTools(page);
       await expect(
         page.getByRole("button", { name: "Focus selected", exact: true }),
       ).toBeDisabled();
-      await page.getByRole("button", { name: "Pump", exact: true }).click();
+      await selectComponent(page, "Pump");
       await expect(
         page.getByRole("button", { name: "Focus selected", exact: true }),
       ).toBeEnabled();
@@ -252,14 +349,14 @@ test.describe("standalone native equipment monitoring", () => {
       await expect(
         page.getByLabel("Selection label", { exact: true }),
       ).toBeChecked();
-      await page.getByRole("button", { name: "Switch to light theme" }).click();
+      await setTheme(page, "light");
       await page.screenshot({
         path: testInfo.outputPath(
           `local-equipment-light-${viewport.width}.png`,
         ),
         fullPage: true,
       });
-      await page.getByRole("button", { name: "Switch to dark theme" }).click();
+      await setTheme(page, "dark");
       await page.emulateMedia({ colorScheme: "dark" });
       expect(
         await page.evaluate(
@@ -283,6 +380,7 @@ test.describe("standalone native equipment monitoring", () => {
           await expect(page.getByText(/Graphics context lost/)).toBeVisible();
           await page.getByRole("button", { name: "Retry graphics" }).click();
           await expect(page.locator("[data-state=ready]")).toBeVisible();
+          await inspectionTools(page);
         }
       }
       expect(peer).toEqual([]);
@@ -436,6 +534,7 @@ for (const viewport of [
       }),
     ).toBeVisible();
     await expect(page.locator("[data-state=ready]")).toBeVisible();
+    await inspectionTools(page);
     const stats: Record<string, unknown> = {
       configuration: {
         viewport,
@@ -444,10 +543,11 @@ for (const viewport of [
       },
     };
     const select = async (name: string) => {
-      await page.getByLabel("Search BOM").fill(name);
-      await page.getByRole("button", { name, exact: true }).click();
+      await selectComponent(page, name);
+      await inspectionTools(page);
     };
     const evidence = async (name: string) => {
+      await inspectionTools(page);
       const output = page.getByLabel("Render measurement"),
         previous = await output.textContent();
       await page
@@ -499,6 +599,7 @@ for (const viewport of [
       await page.locator("[data-state=ready]").screenshot({
         path: testInfo.outputPath(`${name}-${viewport.width}.png`),
       });
+      await inspectionTools(page);
     };
     await evidence("assembled");
     await page.getByRole("button", { name: "Explode", exact: true }).click();
@@ -534,11 +635,7 @@ for (const viewport of [
         await movedCanvas.click({
           position: { x: bounds!.width * x, y: bounds!.height * y },
         });
-        if (
-          (await page
-            .getByRole("button", { name: "Mechanical seal", exact: true })
-            .getAttribute("aria-pressed")) === "false"
-        ) {
+        if ((await componentPressed(page, "Mechanical seal")) === "false") {
           movedPick = true;
           break;
         }
@@ -590,6 +687,8 @@ for (const viewport of [
     ).toBeVisible();
     const installedId = await page.locator("#local-equipment").inputValue();
     await page.reload();
+    await expect(page.locator("[data-state=ready]")).toBeVisible();
+    await inspectionTools(page);
     await expect(page.locator("#local-equipment")).toHaveValue(installedId);
     await expect(
       page.getByRole("heading", {
@@ -598,6 +697,7 @@ for (const viewport of [
       }),
     ).toBeVisible();
     await expect(page.locator("[data-state=ready]")).toBeVisible();
+    await inspectionTools(page);
     await page
       .getByRole("button", {
         name: "Open viewpoint: Internal inspection",

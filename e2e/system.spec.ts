@@ -5,30 +5,19 @@ import {
   finishGateway,
 } from "./workspace-helpers";
 import { expect, test } from "@playwright/test";
+import { selectSection } from "./experience-helpers";
 import { readFile } from "node:fs/promises";
 
 async function loginAs(
   page: import("@playwright/test").Page,
   role: "admin" | "operator" | "engineer" | "viewer",
 ) {
-  const labels = {
-    admin: "Demo Admin",
-    operator: "Demo Operator",
-    engineer: "Demo Engineer",
-    viewer: "Demo Viewer",
-  };
-  const emails = {
-    admin: "admin@dev.local",
-    operator: "operator@dev.local",
-    engineer: "tech@dev.local",
-    viewer: "demo@dev.local",
-  };
-  await page.goto("/#/login");
-  await page.getByRole("button", { name: labels[role], exact: true }).click();
-  await expect(page.getByLabel("Email")).toHaveValue(emails[role]);
-  await expect(page.getByLabel("Password", { exact: true })).toHaveValue(
-    "@agqJmbpaPtJ#5SM1#vJ",
-  );
+  await page.request.post("/api/trpc/auth.logout", { data: { json: null } });
+  await page.goto(`/?fixture-login=${Date.now()}#/login`);
+  await page.getByLabel("Email").fill(`security-${role}@example.test`);
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("Synthetic-security-only-2026!");
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: /^overview$/i }),
@@ -54,7 +43,7 @@ test("account routes and the signed-out flow render", async ({ page }) => {
     page.getByRole("heading", { name: /password assistance/i }),
   ).toBeVisible();
   await expect(
-    page.getByText(/self-service password reset is not available/i),
+    page.getByText(/temporary password and revoke existing sessions/i),
   ).toBeVisible();
   await page.getByRole("button", { name: /back to login/i }).click();
   await expect(page).toHaveURL(/#\/login/);
@@ -89,105 +78,36 @@ test("login demo shortcuts follow the server-side environment flag", async ({
   ).toHaveCount(expectedButtons);
 });
 
-test("Dashboard, Monitoring, alerts, and Assistant have distinct useful views", async ({
+test("Overview, Monitoring, Analytics, alerts and Assistant expose focused evidence workflows", async ({
   page,
 }) => {
-  const browserErrors: string[] = [];
-  page.on("pageerror", (error) => browserErrors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") browserErrors.push(message.text());
-  });
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
   await loginAs(page, "viewer");
-  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   await expect(
-    page.getByText("Active downtime", { exact: true }),
+    page.getByText("Confirmed downtime", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Online edge devices", { exact: true }),
+    page.getByRole("heading", { name: "Needs attention", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Edge device connectivity", { exact: true }),
-  ).toBeVisible();
-
   await navigate(page, "Monitoring");
+  await expect(page.getByLabel("Search sources")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Monitoring", exact: true }),
+    page.getByRole("button", { name: "Pause", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Connectivity and latest readings.", { exact: true }),
-  ).toBeVisible();
-
   await navigate(page, "Analytics");
   await expect(
-    page.getByRole("heading", { name: "Analytics", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText(/simulated data/i).first()).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Condition and maintenance signals" }),
+    page.getByText("No verified measurements in this period", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Assets reporting vibration", { exact: true }),
+    page.getByRole("button", { name: /Export/ }).first(),
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /Pressure trend/ }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /Rotational speed/ }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Advanced analytics data readiness" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Predictive maintenance and RUL", { exact: true }),
-  ).toBeVisible();
-  await page.getByLabel("Analytics scope").click();
-  await page.getByRole("option", { name: "Single asset" }).click();
-  await page.getByLabel("Choose asset").click();
-  await page
-    .getByRole("option", { name: /Compressed Air Compressor 01/ })
-    .click();
-  await expect(
-    page
-      .getByText("Compressed Air Compressor 01", { exact: true })
-      .filter({ visible: true }),
-  ).toBeVisible();
-  await expect(page.getByText("Peak vibration", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("Mean pressure (asset unit)", { exact: true }),
-  ).toBeVisible();
-  await page.getByLabel("Analytics scope").click();
-  await page.getByRole("option", { name: "Asset group" }).click();
-  await page.getByLabel("Group assets by").click();
-  await page.getByRole("option", { name: "Manufacturer" }).click();
-  await expect(
-    page.getByText("All assets · grouped by manufacturer", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Atlas Copco", { exact: true }).first(),
-  ).toBeVisible();
-
-  await page.getByLabel("Analytics scope").click();
-  await page.getByRole("option", { name: "Single asset" }).click();
-  await page.getByLabel("Choose asset").click();
-  await page
-    .getByRole("option", { name: /Windformer Wind Turbine Generator 01/ })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Asset-specific signals" }),
-  ).toBeVisible();
-  await expect(page.getByText("windSpeedMps", { exact: true })).toBeVisible();
-  await expect(page.getByText("bladePitchDeg", { exact: true })).toBeVisible();
-
+  await expect(page.locator("svg.recharts-surface")).toHaveCount(0);
   await navigate(page, "Alerts");
-  await expect(page.getByRole("heading", { name: "Alerts" })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Export History" }),
-  ).toBeVisible();
-
+  await expect(page.getByLabel("Search alerts")).toBeVisible();
+  await selectSection(page, "All history");
+  await expect(page).toHaveURL(/status=all/);
   await navigate(page, "Assistant");
-  await expect(
-    page.getByRole("heading", { name: "Assistant", exact: true }),
-  ).toBeVisible();
   await page
     .getByLabel("Ask the Smart Factory Assistant")
     .fill("How do I import an AASX package?");
@@ -205,21 +125,7 @@ test("Dashboard, Monitoring, alerts, and Assistant have distinct useful views", 
   await expect(
     page.getByText("Current system data", { exact: true }).first(),
   ).toBeVisible();
-
-  await page
-    .getByLabel("Ask the Smart Factory Assistant")
-    .fill(
-      "What is the latest temperature reading for Compressed Air Compressor 01?",
-    );
-  await page.getByRole("button", { name: "Ask", exact: true }).click();
-  await expect(page.getByText("2 questions", { exact: true })).toBeVisible();
-  await page
-    .locator('section[aria-label="Conversation"] details summary')
-    .last()
-    .click();
-  await expect(page.getByText(/temperature=/i).last()).toBeVisible();
-  await expect(page.locator("time[datetime]").last()).toBeVisible();
-  expect(browserErrors).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test("Assistant answers from approved guides and the current API snapshot", async ({
@@ -254,7 +160,7 @@ test("Assistant answers from approved guides and the current API snapshot", asyn
     .getByLabel("Ask the Smart Factory Assistant")
     .fill("How many assets are visible right now?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
-  await expect(page.getByText("2 questions", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("assistant-answer-content")).toHaveCount(2);
   await page
     .locator('section[aria-label="Conversation"] details summary')
     .last()
@@ -273,92 +179,107 @@ test("Assistant answers from approved guides and the current API snapshot", asyn
   expect(browserErrors).toEqual([]);
 });
 
-test("engineers assign incidents, record downtime, and resolve with a measured duration", async ({
+test("engineers assign incidents, explicitly confirm downtime, record notes and resolve", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
   await loginAs(page, "engineer");
-  await navigate(page, "Alerts");
-  await page.getByLabel("Alert status filter").click();
-  await page.getByRole("option", { name: "All Status" }).click();
-
-  const incident = page
-    .getByRole("row")
-    .filter({ hasText: "Compressor service is due soon" });
-  await expect(
-    incident.getByText("SF-MAINT-001", { exact: true }),
-  ).toBeVisible();
-  await incident
-    .getByText("Compressor service is due soon", { exact: true })
+  await page.goto("/#/alerts?search=E2E%20service%20review%20due");
+  await page
+    .getByRole("link")
+    .filter({ hasText: "E2E service review due" })
+    .first()
     .click();
   await expect(
-    page.getByRole("heading", { name: "Event SF-MAINT-001" }),
+    page.getByRole("heading", { name: "E2E service review due", exact: true }),
   ).toBeVisible();
+  await page
+    .getByLabel("Assign technician")
+    .selectOption({ label: "Local security engineer" });
   await expect(
-    page.getByText("Downtime started", { exact: true }),
+    page.getByText("Assignment updated", { exact: true }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
-  await incident.getByLabel("Assign technician for SF-MAINT-001").click();
-  await page.getByRole("option", { name: "Demo Engineer" }).click();
+  await page
+    .getByLabel("Add a review note")
+    .fill("Synthetic service inspection; physical cause is not established.");
+  await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(
-    incident.getByText("Demo Engineer", { exact: true }),
+    page.getByText(
+      "Synthetic service inspection; physical cause is not established.",
+      { exact: true },
+    ),
   ).toBeVisible();
-
-  await incident.getByRole("button").last().click();
-  await page.getByRole("menuitem", { name: "Record downtime start" }).click();
-  await expect(incident.getByText(/Ongoing ·/)).toBeVisible();
-
-  await incident.getByRole("button").last().click();
-  await page.getByRole("menuitem", { name: "Resolve" }).click();
-  await expect(incident.getByText("resolved", { exact: true })).toBeVisible();
-  await expect(incident.getByText(/Resolved in/)).toBeVisible();
+  await page
+    .getByRole("button", { name: "Record downtime", exact: true })
+    .click();
   await expect(
-    page.getByText("Mean downtime to resolution", { exact: true }),
+    page.getByRole("dialog", { name: "Confirm factory downtime" }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Confirm downtime", exact: true })
+    .click();
+  await expect(page.getByText(/^Confirmed downtime started/)).toBeVisible();
+  await page.getByRole("button", { name: "Resolve", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Confirm resolution", exact: true })
+    .click();
+  await expect(
+    page.getByText("Incident resolved", { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/^Resolved /).first()).toBeVisible();
   await navigate(page, "Notifications");
-  await expect(
-    page.getByRole("heading", { name: "Notifications", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByLabel("Notification inbox summary")).toBeVisible();
   await page
     .getByLabel("Search notifications")
     .fill("Technician assignment changed");
-  const notification = page
-    .getByRole("article", {
-      name: "Technician assignment changed notification",
+  const update = page
+    .getByRole("listitem")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "Technician assignment changed",
+        exact: true,
+      }),
     })
     .first();
-  await expect(notification).toBeVisible();
+  await expect(update).toBeVisible();
   await expect(
-    notification.getByText("Email queued", { exact: true }),
+    update.getByText(/Email queued|Email not configured/),
   ).toBeVisible();
+  await update
+    .getByRole("link", { name: "Open process incident", exact: true })
+    .click();
   await expect(
-    notification.getByText("Email attempts", { exact: true }),
-  ).toBeVisible();
-  await page.getByLabel("Notification view").click();
-  await page.getByRole("option", { name: "Unread", exact: true }).click();
-  await expect(notification).toBeVisible();
-  await notification.getByRole("button", { name: /^Open event/ }).click();
-  await expect(
-    page.getByRole("heading", { name: "Event SF-MAINT-001" }),
+    page.getByRole("heading", { name: "E2E service review due", exact: true }),
   ).toBeVisible();
 });
 
-test("engineers can control demo data while viewers cannot", async ({
+test("only individual administrators change persisted demo visibility without seeding", async ({
   page,
 }) => {
   await loginAs(page, "engineer");
-  const engineerToggle = page.getByLabel("Show demo data");
-  await expect(engineerToggle).toBeEnabled();
-  const wasEnabled = await engineerToggle.isChecked();
-  await engineerToggle.click();
-  await expect(engineerToggle).toBeChecked({ checked: !wasEnabled });
-  await engineerToggle.click();
-  await expect(engineerToggle).toBeChecked({ checked: wasEnabled });
-
-  await page.getByRole("button", { name: "Open account menu" }).click();
-  await page.getByRole("menuitem", { name: /sign out/i }).click();
+  expect(
+    (
+      await page.request.post("/api/trpc/system.setDemoData", {
+        data: { json: { enabled: false } },
+      })
+    ).status(),
+  ).toBe(403);
+  await loginAs(page, "admin");
+  await page.goto("/#/administration/workspace");
+  const toggle = page.getByLabel("Show existing demonstration records");
+  await expect(toggle).toBeChecked();
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  await toggle.click();
+  await expect(toggle).toBeChecked();
   await loginAs(page, "viewer");
-  await expect(page.getByLabel("Show demo data")).toBeDisabled();
+  expect(
+    (
+      await page.request.post("/api/trpc/system.setDemoData", {
+        data: { json: { enabled: true } },
+      })
+    ).status(),
+  ).toBe(403);
 });
 
 test("administrator creates an account without exposing its password", async ({
@@ -366,13 +287,16 @@ test("administrator creates an account without exposing its password", async ({
 }) => {
   await loginAs(page, "admin");
   await navigate(page, "User Access");
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
   const email = `factory-tech-${Date.now()}@example.com`;
   await page
     .getByLabel("Account name", { exact: true })
     .fill("New factory technician");
   await page.getByLabel("Account email", { exact: true }).fill(email);
   await page
-    .getByLabel("Initial password", { exact: true })
+    .getByLabel("Temporary password", { exact: true })
     .fill("New-factory-Password-123!");
   await page.getByLabel("New account role").click();
   await page.getByRole("option", { name: "Engineer", exact: true }).click();
@@ -406,35 +330,35 @@ test("OTA page clearly reports that firmware delivery is unavailable", async ({
   ).toBeVisible();
 });
 
-test("viewer opens event details by keyboard and receives an assignment permission notice", async ({
+test("viewer opens an investigation by keyboard with a read-only decision boundary", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
   await loginAs(page, "viewer");
-  await navigate(page, "Alerts");
-  const incident = page
-    .getByRole("row")
-    .filter({ hasText: "Windformer pitch-system inspection due" });
-  await incident.focus();
+  await page.goto("/#/alerts?search=E2E%20viewer%20investigation");
+  const open = page
+    .getByRole("link")
+    .filter({ hasText: "E2E viewer investigation" })
+    .first();
+  await open.focus();
   await page.keyboard.press("Enter");
   await expect(
-    page.getByRole("heading", { name: "Event SF-MAINT-001" }),
+    page.getByRole("heading", {
+      name: "E2E viewer investigation",
+      exact: true,
+    }),
   ).toBeVisible();
+  await expect(page.getByText(/Read-only evidence review/)).toBeVisible();
+  await expect(page.getByLabel("Assign technician")).toHaveCount(0);
   await expect(
-    page.getByText(
-      /Assigning a technician requires engineer or administrator access/,
-    ),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Resolve incident", exact: true }),
+    page.getByRole("button", { name: "Resolve", exact: true }),
   ).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await incident.getByRole("button").last().click();
-  await page.getByRole("menuitem", { name: "Assign technician" }).click();
-  await expect(
-    page.getByText(
-      /Assigning a technician requires engineer or administrator access/,
-    ),
-  ).toBeVisible();
+  await page
+    .getByRole("link", { name: "Return to incident queue", exact: true })
+    .click();
+  await expect(page.getByLabel("Search alerts")).toHaveValue(
+    "E2E viewer investigation",
+  );
 });
 
 test("analytics displays a failed data request without healthy-looking totals", async ({
@@ -460,9 +384,7 @@ test("analytics displays a failed data request without healthy-looking totals", 
   );
   await navigate(page, "Analytics");
   await expect(
-    page
-      .getByRole("alert")
-      .filter({ hasText: "Analytics could not be loaded" }),
+    page.getByRole("alert").filter({ hasText: "Analytics unavailable" }),
   ).toBeVisible({ timeout: 15000 });
   await expect(
     page.getByText("Telemetry samples", { exact: true }),
@@ -484,10 +406,34 @@ test("gateway detail renders a current child environmental sample", async ({
   await page.getByLabel("Gateway name").fill("E2E Environmental Gateway");
   await finishGateway(page);
   await expect(
-    page.getByText("E2E Environmental Gateway", { exact: true }),
+    page
+      .getByText("E2E Environmental Gateway", { exact: true })
+      .filter({ visible: true }),
   ).toBeVisible();
 
+  for (const deviceId of [childDeviceId, "e2e-environment-sensor-read-error"]) {
+    const registered = await page.request.post("/api/trpc/devices.create", {
+      data: {
+        json: {
+          deviceId,
+          name: deviceId,
+          type: "sensor",
+          route: "gateway",
+          gatewayId,
+          freshnessSeconds: 120,
+        },
+      },
+    });
+    expect(registered.ok()).toBe(true);
+  }
   const payload = {
+    units: { temperature: "°C", humidity: "%" },
+    integration: {
+      mode: "live",
+      sourceQuality: "good",
+      sourceConnection: "online",
+      gatewayReceivedAt: new Date().toISOString(),
+    },
     deviceId: childDeviceId,
     gatewayId,
     assetId: null,
@@ -567,14 +513,12 @@ test("gateway detail renders a current child environmental sample", async ({
   });
   await expect(childCard).toBeVisible();
   await expect(
-    childCard.getByText("DHT11 temperature", { exact: true }),
+    childCard.getByText("temperature", { exact: true }),
   ).toBeVisible();
-  await expect(childCard.getByText("23.7°C", { exact: true })).toBeVisible();
-  await expect(
-    childCard.getByText("DHT11 relative humidity", { exact: true }),
-  ).toBeVisible();
-  await expect(childCard.getByText("41.2%", { exact: true })).toBeVisible();
-  await expect(childCard.getByText(/^Updated /)).toBeVisible();
+  await expect(childCard.getByText("23.7 °C", { exact: true })).toBeVisible();
+  await expect(childCard.getByText("humidity", { exact: true })).toBeVisible();
+  await expect(childCard.getByText("41.2 %", { exact: true })).toBeVisible();
+  await expect(childCard.locator("time").first()).toBeVisible();
   await expect(
     childCard.locator(
       `time[datetime="${new Date(sampleTimestamp).toISOString()}"]`,
@@ -595,33 +539,27 @@ test("gateway detail renders a current child environmental sample", async ({
   await expect(
     page.getByRole("heading", { name: "Monitoring", exact: true }),
   ).toBeVisible();
-  const monitoringSearch = page.getByLabel("Search monitoring sources");
+  const monitoringSearch = page.getByLabel("Search sources");
   await monitoringSearch.fill(childDeviceId);
-  const healthySensorRow = page.getByRole("link", {
-    name: `Open ${childDeviceId}`,
-  });
-  await expect(
-    healthySensorRow.getByText("DHT11", { exact: true }),
-  ).toBeVisible();
+  const healthySensorRow = page
+    .getByRole("article")
+    .filter({ hasText: childDeviceId });
   await expect(
     healthySensorRow.getByText("23.7 °C", { exact: true }),
   ).toBeVisible();
   await expect(
-    healthySensorRow.getByText("41.2%", { exact: true }),
+    healthySensorRow.getByText("41.2 %", { exact: true }),
   ).toBeVisible();
   await monitoringSearch.fill(failedSensorId);
-  const failedSensorRow = page.getByRole("link", {
-    name: `Open ${failedSensorId}`,
-  });
+  const failedSensorRow = page
+    .getByRole("article")
+    .filter({ hasText: failedSensorId });
   await expect(
-    failedSensorRow.getByText("Read error", { exact: true }),
+    failedSensorRow.getByText(/Sensor read unavailable/),
   ).toBeVisible();
-  await expect(
-    failedSensorRow.getByText("Read failed", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    failedSensorRow.getByText("Unavailable", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(failedSensorRow.getByText("0 °C", { exact: true })).toHaveCount(
+    0,
+  );
 });
 
 test("AASX upload is private and role protected", async ({ request, page }) => {
@@ -727,7 +665,12 @@ test("admin can inspect demo AAS data and manage user access", async ({
   expect((await download).suggestedFilename()).toMatch(
     /aas-environment\.json$/,
   );
+});
 
+test("individual administrator registers, versions, restores and imports AAS assets", async ({
+  page,
+}) => {
+  await loginAs(page, "admin");
   await navigate(page, "Devices");
   await addItem(page, "gateway");
   await page.getByLabel("Gateway ID").fill("e2e-edge-gateway-01");
@@ -759,6 +702,8 @@ test("admin can inspect demo AAS data and manage user access", async ({
   await page.getByText("Not connected yet").click();
   await page.getByRole("option", { name: /E2E Edge Gateway/ }).click();
   await page.getByLabel("Machine endpoint").fill("opc.tcp://127.0.0.1:4840");
+  for (let step = 0; step < 2; step++)
+    await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: /register and provision/i }).click();
   await expect(
     page
@@ -888,10 +833,7 @@ test("admin can inspect demo AAS data and manage user access", async ({
     .getByRole("row")
     .filter({ hasText: "e2e-edge-gateway-01" });
   await gatewayRow
-    .getByRole("button", { name: "Actions for E2E Edge Gateway" })
-    .click();
-  await page
-    .getByRole("menuitem", { name: "Open workspace", exact: true })
+    .getByRole("link", { name: "E2E Edge Gateway", exact: true })
     .click();
   await page.getByRole("tab", { name: "Connected items", exact: true }).click();
   await navigate(page, "Assets");
@@ -919,7 +861,7 @@ test("admin can inspect demo AAS data and manage user access", async ({
   await expect(
     page.getByRole("heading", { name: "Users & access", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("tech@dev.local")).toBeVisible();
+  await expect(page.getByText("security-engineer@example.test")).toBeVisible();
 });
 
 test("viewer sees asset summaries while engineering and admin screens stay hidden", async ({
@@ -934,7 +876,6 @@ test("viewer sees asset summaries while engineering and admin screens stay hidde
   await expect(
     page.getByRole("link", { name: "Assets & devices", exact: true }),
   ).toBeVisible();
-  await page.getByText("Operations", { exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Firmware & updates" }),
   ).toHaveCount(0);
@@ -966,7 +907,6 @@ test("operator can acknowledge alerts but cannot open AAS or user administration
   await expect(
     page.getByRole("link", { name: "Assets & devices", exact: true }),
   ).toBeVisible();
-  await page.getByText("Operations", { exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Firmware & updates" }),
   ).toHaveCount(0);
@@ -994,7 +934,6 @@ test("engineer can open AAS while user administration remains admin-only", async
   await expect(page.getByRole("link", { name: "Users & access" })).toHaveCount(
     0,
   );
-  await page.getByText("Operations", { exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Firmware & updates" }),
   ).toBeVisible();
@@ -1022,4 +961,147 @@ test("engineer can open AAS while user administration remains admin-only", async
     status: 200,
     body: { result: [], paging_metadata: {} },
   });
+});
+
+test("administrator recovery enforces first password change, revocation and disablement", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await loginAs(page, "admin");
+  const email = `recovery-${Date.now()}@example.test`,
+    temporary = "Synthetic-initial-only-2026!",
+    own = "Synthetic-owner-password-2026!",
+    reset = "Synthetic-reset-only-2026!";
+  const created = await page.request.post("/api/trpc/users.create", {
+    data: {
+      json: {
+        email,
+        name: "Synthetic recovery account",
+        password: temporary,
+        role: "viewer",
+      },
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const userContext = await browser.newContext({ baseURL }),
+    person = await userContext.newPage();
+  const signIn = async (password: string) => {
+    await person.goto(`/?recovery-login=${Date.now()}#/login`);
+    await person.getByLabel("Email").fill(email);
+    await person.getByLabel("Password", { exact: true }).fill(password);
+    await person.getByRole("button", { name: /^sign in$/i }).click();
+  };
+  await signIn(temporary);
+  await expect(
+    person.getByRole("heading", { name: "Change your password", exact: true }),
+  ).toBeVisible();
+  expect((await person.request.get("/api/trpc/assets.list")).status()).toBe(
+    403,
+  );
+  await person.getByLabel("New password", { exact: true }).fill(own);
+  await person
+    .getByLabel("Confirm new password", { exact: true })
+    .fill(own + "different");
+  await person
+    .getByRole("button", { name: "Save password", exact: true })
+    .click();
+  await expect(
+    person.getByText("Passwords do not match.", { exact: true }),
+  ).toBeVisible();
+  await person.getByLabel("Confirm new password", { exact: true }).fill(own);
+  await person
+    .getByRole("button", { name: "Save password", exact: true })
+    .click();
+  await expect(
+    person.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await page.goto("/#/administration/users");
+  await page.getByLabel("Search accounts").fill(email);
+  const manage = async (action: string) => {
+    await page
+      .getByRole("button", { name: `Manage ${email}`, exact: true })
+      .click();
+    await page.getByRole("menuitem", { name: action, exact: true }).click();
+  };
+  await manage("Reset password");
+  await expect(
+    page.getByRole("button", { name: "Confirm reset", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("checkbox", { name: /I verified this person's identity/ })
+    .check();
+  await page.getByLabel("Temporary password", { exact: true }).fill(reset);
+  await page
+    .getByRole("button", { name: "Confirm reset", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect((await person.request.get("/api/trpc/assets.list")).status()).toBe(
+    401,
+  );
+  await signIn(reset);
+  await expect(
+    person.getByRole("heading", { name: "Change your password", exact: true }),
+  ).toBeVisible();
+  const reused = await person.request.post("/api/trpc/auth.login", {
+    data: { json: { email, password: reset } },
+  });
+  expect(reused.status()).toBe(401);
+  await person.getByLabel("New password", { exact: true }).fill(own);
+  await person.getByLabel("Confirm new password", { exact: true }).fill(own);
+  await person
+    .getByRole("button", { name: "Save password", exact: true })
+    .click();
+  await expect(
+    person.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await manage("Revoke sessions");
+  await page
+    .getByRole("button", { name: "Confirm revoke", exact: true })
+    .click();
+  await expect(
+    page.getByText("Account access changed. Refresh and review it again.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.reload();
+  await page.getByLabel("Search accounts").fill(email);
+  await manage("Revoke sessions");
+  await page
+    .getByRole("button", { name: "Confirm revoke", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect((await person.request.get("/api/trpc/assets.list")).status()).toBe(
+    401,
+  );
+  await signIn(own);
+  await expect(
+    person.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await manage("Disable account");
+  await page
+    .getByRole("button", { name: "Confirm disable", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect((await person.request.get("/api/trpc/assets.list")).status()).toBe(
+    401,
+  );
+  expect(
+    (
+      await person.request.post("/api/trpc/auth.login", {
+        data: { json: { email, password: own } },
+      })
+    ).status(),
+  ).toBe(401);
+  await manage("Enable account");
+  await page
+    .getByRole("button", { name: "Confirm enable", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await signIn(own);
+  await expect(
+    person.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await userContext.close();
 });
