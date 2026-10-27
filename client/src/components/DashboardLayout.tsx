@@ -282,7 +282,7 @@ function DashboardLayoutContent({
                 type="button"
                 title={isCollapsed ? group.label : undefined}
                 aria-label={group.label}
-                className="flex h-10 w-full items-center gap-2 rounded-md px-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                className="flex h-10 w-full items-center gap-2 rounded-md px-2 text-left text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
               >
                 <NavigationLabel
                   icon={group.icon}
