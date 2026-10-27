@@ -283,7 +283,11 @@ export async function seedCompleteShowcase(persistDemoVisibility = false) {
           sessionId: uuid(spec.deviceId),
           sequence: n,
           sourceQuality:
-            spec.deviceId === ids[2] && n === 60 ? "uncertain" : "good",
+            spec.deviceId === ids[1] && n === 60
+              ? "bad"
+              : spec.deviceId === ids[2] && n === 60
+                ? "uncertain"
+                : "good",
           sourceConnection: "online",
           gatewayReceivedAt: base.anchor,
         },

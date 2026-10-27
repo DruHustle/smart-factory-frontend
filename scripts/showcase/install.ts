@@ -28,7 +28,13 @@ try {
     const claims = await db.execute(
       sql`insert into system_settings(key,value) values('showcase_install_v2',${JSON.stringify({ state: "installing", startedAt: new Date().toISOString() })}::jsonb) on conflict(key) do nothing returning key`,
     );
-    if (!claims.length && plan.installedVersion < 2)
+    const [retainedClaim] = await db.execute<{ value: { state?: string } }>(
+      sql`select value from system_settings where key='showcase_install_v2'`,
+    );
+    if (
+      !claims.length &&
+      (plan.installedVersion < 2 || retainedClaim?.value.state !== "complete")
+    )
       throw Error(
         "A prior install needs operator review. Retain the original evidence and review its protected backup; do not delete records to retry.",
       );

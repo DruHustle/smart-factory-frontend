@@ -6,32 +6,38 @@ const query = (name: string, input: unknown) =>
   name +
   "?input=" +
   encodeURIComponent(JSON.stringify({ json: input }));
-for (const width of [390, 1440])
-  test(`complete demonstration journeys at ${width}px`, async ({ page }) => {
-    test.skip(
-      process.env.PUBLIC_DEMO_E2E !== "true",
-      "Requires isolated public-demo server",
-    );
-    await page.setViewportSize({ width, height: 960 });
-    await page.addInitScript(
-      ({ dark }) => localStorage.setItem("theme", dark ? "dark" : "light"),
-      { dark: width === 390 },
-    );
-    const errors: string[] = [];
-    page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto("/#/login");
-    await page
-      .getByRole("button", { name: "Demo Viewer", exact: true })
-      .click();
-    await page.getByRole("button", { name: /^sign in$/i }).click();
-    await expect(
-      page.getByRole("heading", { name: "Overview", exact: true }),
-    ).toBeVisible();
-    const s = (
-      await (await page.request.get("/api/trpc/system.showcase")).json()
-    ).result.data.json;
-    expect(s.version).toBe(2);
-    expect(s.chapters).toHaveLength(12);
+async function enterDemo(page: import("@playwright/test").Page, width: number) {
+  test.skip(
+    process.env.PUBLIC_DEMO_E2E !== "true",
+    "Requires isolated public-demo server",
+  );
+  await page.setViewportSize({ width, height: 960 });
+  await page.addInitScript(
+    ({ dark }) => localStorage.setItem("theme", dark ? "dark" : "light"),
+    { dark: width === 390 },
+  );
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/#/login");
+  await page.getByRole("button", { name: "Demo Viewer", exact: true }).click();
+  await page.getByRole("button", { name: /^sign in$/i }).click();
+  await expect(
+    page.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  const s = (await (await page.request.get("/api/trpc/system.showcase")).json())
+    .result.data.json;
+  expect(s.version).toBe(2);
+  expect(s.chapters).toHaveLength(12);
+  const dir =
+    process.env.SHOWCASE_EVIDENCE_DIR ?? `${tmpdir()}/showcase-evidence`;
+  mkdirSync(dir, { recursive: true });
+  return { s, dir, errors };
+}
+for (const width of [390, 1440]) {
+  test(`recorded analytics and isolated inbox at ${width}px`, async ({
+    page,
+  }) => {
+    const { s, dir, errors } = await enterDemo(page, width);
     await page.goto("/#/demo");
     await expect(
       page.getByRole("heading", { name: "Demonstration", exact: true }),
@@ -50,9 +56,6 @@ for (const width of [390, 1440])
       "data-demo-anchor",
       s.anchor,
     );
-    const dir =
-      process.env.SHOWCASE_EVIDENCE_DIR ?? `${tmpdir()}/showcase-evidence`;
-    mkdirSync(dir, { recursive: true });
     await page.screenshot({
       path: `${dir}/analytics-${width}.png`,
       fullPage: true,
@@ -80,6 +83,12 @@ for (const width of [390, 1440])
     expect(notes.items.every((n: any) => n.emailStatus === "demo_only")).toBe(
       true,
     );
+    expect(errors).toEqual([]);
+  });
+  test(`read-only administration, firmware and passport at ${width}px`, async ({
+    page,
+  }) => {
+    const { s, dir, errors } = await enterDemo(page, width);
     await page.goto("/#/administration/users");
     await expect(
       page.getByText("Individual account roles", { exact: true }),
@@ -117,6 +126,7 @@ for (const width of [390, 1440])
     ).toBeVisible();
     expect(errors).toEqual([]);
   });
+}
 test("demonstration exposes exact component evidence and preserved inspection views", async ({
   page,
 }) => {
@@ -144,7 +154,17 @@ test("demonstration exposes exact component evidence and preserved inspection vi
   expect(
     w.observations.filter((o: any) => o.value !== null && o.unitVerified),
   ).toHaveLength(4);
+  const transfer = page.waitForResponse((r) =>
+    /^\/api\/equipment\/[^/]+\/model$/.test(new URL(r.url()).pathname),
+  );
   await page.goto("/#/inventory/" + s.assetRef + "/3d");
+  const modelResponse = await transfer;
+  expect(modelResponse.status()).toBe(200);
+  await modelResponse.finished();
+  await expect(page.locator("[data-model-bytes]")).toHaveAttribute(
+    "data-model-bytes",
+    /^[1-9]\d*$/,
+  );
   await expect(page.locator("[data-state=ready]")).toBeVisible();
   await page.goto(
     "/#/cybersecurity?finding=" + s.securityFindingId + "&mode=simulated",

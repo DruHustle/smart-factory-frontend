@@ -191,6 +191,10 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     plan=json.loads(run(installer+['--plan'],True).splitlines()[-1]);assert plan['version']==2 and not plan['emailRequests']
     for _ in range(2):
         installed=json.loads(run(installer+['--apply'],True).splitlines()[-1]);assert installed['chapters']==12 and installed['externalDeliveryRequests']==0
+    claim=sql("SELECT value::text FROM system_settings WHERE key='showcase_install_v2'")
+    sql("UPDATE system_settings SET value=jsonb_set(value::jsonb,'{state}','\"installing\"') WHERE key='showcase_install_v2'")
+    refused=subprocess.run(installer+['--apply'],cwd=ROOT,capture_output=True,text=True);assert refused.returncode!=0
+    sql("UPDATE system_settings SET value="+"'"+claim.replace("'","''")+"'::jsonb WHERE key='showcase_install_v2'")
     assert sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(d) ORDER BY id)::text,'')) FROM devices d WHERE \"isDemo\"=false")==private_before
     assert sql("SELECT count(*) FROM notification_inbox WHERE \"emailStatus\" IN('pending','processing','retrying')")==queued_before
     assert trpc(admin,'system.demoData',query=True)['enabled'] is False

@@ -93,7 +93,9 @@ export function DemoAdministration({ section }: { section: string }) {
                         {i.detail}
                       </p>
                     </div>
-                    <Badge variant="outline">{i.state}</Badge>
+                    <Badge className="self-start" variant="outline">
+                      {i.state}
+                    </Badge>
                   </li>
                 ))}
               </ul>

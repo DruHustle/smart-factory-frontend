@@ -56,7 +56,7 @@ export default function AnalyticsPage() {
           ? "simulated"
           : "operational"
     ) as TrendScope;
-  const range = params.get("range") ?? "7d",
+  const range = params.get("range") ?? (user?.access?.demoOnly ? "1h" : "7d"),
     durations: Record<string, number> = {
       "1h": 3600000,
       "24h": 86400000,
