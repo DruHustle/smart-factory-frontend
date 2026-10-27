@@ -176,6 +176,27 @@
       "when": 1793043600000,
       "tag": "0024_account_access",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793050000000,
+      "tag": "0025_passport_publication",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793051000000,
+      "tag": "0026_trusted_observations",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793052000000,
+      "tag": "0027_investigation_history",
+      "breakpoints": true
     }
   ]
 }

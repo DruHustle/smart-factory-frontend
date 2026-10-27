@@ -22,8 +22,9 @@ COPY package.json pnpm-lock.yaml ./
 COPY scripts/prepare-runtime.mjs ./scripts/
 RUN node scripts/prepare-runtime.mjs && pnpm install --prod --frozen-lockfile
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS backend-build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.403-noble AS backend-build
 WORKDIR /source
+COPY --from=backend global.json ./
 COPY --from=backend src/ ./src/
 RUN dotnet publish src/Services/DeviceService/DeviceService.csproj -c Release -o /published/device /p:UseAppHost=false
 RUN dotnet publish src/Services/TelemetryService/TelemetryService.csproj -c Release -o /published/telemetry /p:UseAppHost=false
@@ -31,7 +32,7 @@ RUN dotnet publish src/Services/IdentityService/IdentityService.csproj -c Releas
 RUN dotnet publish src/Services/AnalyticsService/AnalyticsService.csproj -c Release -o /published/analytics /p:UseAppHost=false
 RUN dotnet publish src/Services/NotificationService/NotificationService.csproj -c Release -o /published/notification /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-noble AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.14-noble AS runtime
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends supervisor python3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
 COPY --from=node-dependencies /usr/local/bin/node /usr/local/bin/node
 WORKDIR /app

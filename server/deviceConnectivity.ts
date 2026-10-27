@@ -10,14 +10,12 @@ export function deviceWithCurrentStatus(
   device: Device,
   now = Date.now(),
 ): ObservedDevice {
-  const configured = Number(device.metadata?.freshnessMs);
+  const policy = device.metadata?.commissioning as { freshnessSeconds?: number } | undefined;
+  const configured = policy?.freshnessSeconds ? policy.freshnessSeconds * 1000 : Number(device.metadata?.freshnessMs ?? NaN);
   const freshnessMs =
     Number.isFinite(configured) && configured >= 5000 && configured <= 86400000
       ? configured
-      : device.metadata?.connectionMode === "gateway" ||
-          device.metadata?.heartbeatPolicy === "mqtt-gateway-5s-v1"
-        ? DEVICE_OFFLINE_AFTER_MS
-        : null;
+      : null;
   const result: ObservedDevice = {
     ...device,
     freshnessMs,

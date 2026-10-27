@@ -105,7 +105,7 @@ export async function initialize() {
       );
     }
   });
-  if (demoDataEnabled()) await (await import("./demo")).seedDemonstration();
+
 }
 export async function validateTarget(
   c: Conn,

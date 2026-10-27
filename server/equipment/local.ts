@@ -1,3 +1,5 @@
+import { evidenceSql } from "../evidenceScope";
+import type { Measurements } from "../../shared/measurements";
 /** App-owned equipment setup, state and history. No peer dependency. */
 import { z } from "zod";
 import {
@@ -12,7 +14,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { getDb, ingestTelemetryByDeviceId } from "../db";
 import { assets, devices, assetDevices } from "../../drizzle/schema";
-import { demoDataEnabled } from "../demoData";
+import { visibleRecordSql } from "../demoData";
 const root = new URL("../../fixtures/equipment/", import.meta.url);
 const componentSchema = component.extend({ installedComponentId: z.uuid() });
 const viewerStateSchema = z
@@ -210,6 +212,19 @@ export async function createEquipment(
           type: "gateway",
           isDemo: fixed?.isDemo ?? false,
           status: "offline",
+          metadata: {
+            connectionMode: "gateway",
+            commissioning: {
+              route: "direct",
+              revision: 1,
+              maxLatenessSeconds: 120,
+              clockSkewSeconds: 30,
+              legacyCurrent: false,
+              legacyUnits: {},
+              reviewedAt: new Date().toISOString(),
+              reviewedBy: actor,
+            },
+          },
         })
         .onConflictDoUpdate({
           target: devices.deviceId,
@@ -235,12 +250,12 @@ export async function listEquipment() {
     is_demo: boolean;
     version: number;
   }>(
-    sql`select w.id,a.name,a."serialNumber",w.kind,w.is_demo,w.version from equipment_workspaces w join assets a on a.id=w.asset_id where (not w.is_demo or ${demoDataEnabled()}) and (w.is_demo or ${process.env.ENABLE_DEMO_ACCOUNTS !== "true"}) order by a.name`,
+    sql`select w.id,a.name,a."serialNumber",w.kind,w.is_demo,w.version from equipment_workspaces w join assets a on a.id=w.asset_id where ${visibleRecordSql(sql`w.is_demo`)} order by a.name`,
   );
 }
 export async function workspace(id: string, mode?: "live" | "simulated") {
   const [w] = await query(
-    sql`select w.*,a.name,a."assetId" as external_asset_id,a."serialNumber" as serial_number from equipment_workspaces w join assets a on a.id=w.asset_id where w.id=${id} and (not w.is_demo or ${demoDataEnabled()}) and (w.is_demo or ${process.env.ENABLE_DEMO_ACCOUNTS !== "true"})`,
+    sql`select w.*,a.name,a."assetId" as external_asset_id,a."serialNumber" as serial_number from equipment_workspaces w join assets a on a.id=w.asset_id where w.id=${id} and ${visibleRecordSql(sql`w.is_demo`)}`,
   );
   if (!w) throw new Error("Equipment not found");
   const components = z.array(componentSchema).parse(w.components);
@@ -265,26 +280,22 @@ export async function workspace(id: string, mode?: "live" | "simulated") {
     id: number;
     timestamp: string;
     integration: Record<string, unknown> | null;
+    measurements: Measurements | null;
     temperature: number | null;
     pressure: number | null;
     rpm: number | null;
     vibration: number | null;
   }>(
-    sql`select id,timestamp,integration,temperature,pressure,rpm,vibration from sensor_readings where "assetId"=${w.external_asset_id as string} order by "createdAt" desc,id desc limit 100`,
+    sql`select id,timestamp,integration,measurements,temperature,pressure,rpm,vibration from sensor_readings where exists(select 1 from devices visible_source where visible_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`visible_source."isDemo"`)}) and "assetId"=${w.external_asset_id as string} order by "createdAt" desc,id desc limit 100`,
   );
   const [run] = await query(
     sql`select id,scenario from equipment_scenario_runs where equipment_id=${id} order by started_at desc,id desc limit 1`,
   );
   const stream = mode ?? (w.kind === "real" ? "live" : "simulated");
-  const selected = history
-    .filter((h) =>
-      stream === "live"
-        ? !h.integration?.mode || h.integration.mode === "live"
-        : run
-          ? h.integration?.scenarioRunId === run.id
-          : h.integration?.mode === "simulated",
-    )
-    .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))[0];
+  // Apply mode/run scope in SQL before selecting a latest observation; history remains separately bounded.
+  const [selected] = await query<(typeof history)[number]>(
+    sql`select id,timestamp,integration,measurements,temperature,pressure,rpm,vibration from sensor_readings where exists(select 1 from devices visible_source where visible_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`visible_source."isDemo"`)}) and "assetId"=${w.external_asset_id as string} and ${evidenceSql(stream)} and timestamp<=${Date.now()} and (${stream !== "simulated" || !run} or integration->>'scenarioRunId'=${run?.id ?? ""}) order by timestamp desc,id desc limit 1`,
+  );
   const observations = (sample: (typeof history)[number] | undefined) => {
     const bindings = w.bindings
       ? z.array(localBindingSchema).parse(w.bindings)
@@ -302,9 +313,33 @@ export async function workspace(id: string, mode?: "live" | "simulated") {
         );
         if (!component)
           throw new Error("Missing explicit metric/component binding");
-        const rawValue = sample?.[key] ?? null;
-        const factor = sourceUnit === "Pa" && unit === "bar" ? 0.00001 : 1;
-        const scaled = rawValue == null ? null : rawValue * factor;
+        const measurement = sample?.measurements?.[key];
+        const aliases: Record<string, string> = {
+          Cel: "°C",
+          C: "°C",
+          "1/min": "rpm",
+          "r/min": "rpm",
+        };
+        const sameUnit = (
+          a: string | undefined | null,
+          b: string | undefined | null,
+        ) => !!a && !!b && (aliases[a] ?? a) === (aliases[b] ?? b);
+        const sourceVerified =
+          !!measurement &&
+          measurement.conversionVersion === "sf-units-v1" &&
+          measurement.quality === "good" &&
+          (!sourceUnit ||
+            sameUnit(sourceUnit, measurement.sourceUnit) ||
+            sameUnit(sourceUnit, measurement.canonicalUnit));
+        const rawValue = sourceVerified ? measurement.canonicalValue : null;
+        const factor =
+          measurement?.canonicalUnit === "Pa" && unit === "bar"
+            ? 0.00001
+            : sameUnit(measurement?.canonicalUnit, unit)
+              ? 1
+              : null;
+        const scaled =
+          rawValue == null || factor == null ? null : rawValue * factor;
         const value =
           scaled == null || !Number.isFinite(scaled) ? null : scaled;
         const observed = sample ? Number(sample.timestamp) : null;
@@ -315,8 +350,14 @@ export async function workspace(id: string, mode?: "live" | "simulated") {
           unit,
           value,
           rawValue,
-          sourceUnit: sourceUnit ?? unit,
-          conversion: factor === 1 ? null : { factor, offset: 0 },
+          sourceUnit: measurement?.canonicalUnit ?? null,
+          originalValue: measurement?.sourceValue ?? sample?.[key] ?? null,
+          originalUnit: measurement?.sourceUnit ?? null,
+          unitVerified: sourceVerified && factor !== null,
+          conversion:
+            factor == null
+              ? null
+              : { factor, offset: 0, version: "sf-units-v1" },
           observedAt: observed ? new Date(observed).toISOString() : null,
           sourceQuality: sample?.integration?.sourceQuality ?? "unknown",
           alarmActive:
@@ -432,38 +473,55 @@ export async function simulate(
       : scenario === "recovery"
         ? { temperature: 46, pressure: 2, vibration: 1, rpm: 1450 }
         : { temperature: 45, pressure: 2, vibration: 1, rpm: 1450 };
-  await query(
-    sql`insert into equipment_scenario_runs (id,equipment_id,scenario) values (${runId},${id},${scenario})`,
-  );
-  await ingestTelemetryByDeviceId({
-    deviceId: w.sourceDeviceId,
-    gatewayId: w.sourceDeviceId,
-    assetId: w.externalAssetId,
-    timestamp: at,
-    ...values,
-    integration: {
-      sourceEvents:
-        alarmComponent && (scenario === "alarm" || scenario === "recovery")
-          ? [
-              {
-                id: runId + ":bearing-temperature",
-                origin: "source",
-                code: "simulated-bearing-temperature",
-                state: scenario === "alarm" ? "active" : "cleared",
-                componentId: alarmComponent!.installedComponentId,
-              },
-            ]
-          : [],
-      mode: "simulated",
-      scenarioRunId: runId,
-      sessionId: runId,
-      sequence: 0,
-      sourceQuality: "good",
-      sourceConnection: "online",
-      timestampOrigin: "gateway",
-      retained: scenario === "stale",
-      gatewayReceivedAt: new Date(now).toISOString(),
-    },
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`insert into equipment_scenario_runs (id,equipment_id,scenario) values (${runId},${id},${scenario})`,
+    );
+    await tx.execute(
+      sql`update devices set metadata=coalesce(metadata::jsonb,'{}'::jsonb)||${JSON.stringify({ connectionMode: "gateway", commissioning: { route: "direct", revision: 1, maxLatenessSeconds: 120, clockSkewSeconds: 30, legacyCurrent: false, legacyUnits: {}, reviewedAt: new Date(now).toISOString(), reviewedBy: actor } })}::jsonb where "deviceId"=${w.sourceDeviceId} and "isDemo"=${w.isDemo}`,
+    );
+
+    await ingestTelemetryByDeviceId(
+      {
+        deviceId: w.sourceDeviceId,
+        gatewayId: w.sourceDeviceId,
+        assetId: w.externalAssetId,
+        timestamp: at,
+        ...values,
+        units: {
+          temperature: "Cel",
+          pressure: "bar",
+          vibration: "mm/s",
+          rpm: "1/min",
+        },
+        integration: {
+          sourceEvents:
+            alarmComponent && (scenario === "alarm" || scenario === "recovery")
+              ? [
+                  {
+                    id: runId + ":bearing-temperature",
+                    origin: "source",
+                    code: "simulated-bearing-temperature",
+                    state: scenario === "alarm" ? "active" : "cleared",
+                    componentId: alarmComponent!.installedComponentId,
+                  },
+                ]
+              : [],
+          mode: "simulated",
+          scenarioRunId: runId,
+          sessionId: runId,
+          sequence: 0,
+          sourceQuality: "good",
+          sourceConnection: "online",
+          timestampOrigin: "gateway",
+          retained: scenario === "stale",
+          gatewayReceivedAt: new Date(now).toISOString(),
+        },
+      },
+      tx,
+    );
   });
   return { runId, mode: "simulated", scenario };
 }

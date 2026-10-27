@@ -1,0 +1,11 @@
+# Shared walkthrough visibility and passport publication
+
+The HTTP access boundary resolves one request-scoped visibility policy. Shared identities and public demonstration deployments can only read explicitly marked demonstration records. Private installations resolve their optional demonstration visibility from PostgreSQL for each request, including Assistant context. This has no replica-local setting cache. A request/batch has a consistent snapshot; subsequent requests observe setting changes. Viewing data and setting visibility never seed records. Operational ingestion runs outside a user's read scope.
+
+Shared roles cannot invoke operational mutations, administrative readers, private exports, raw AAS repository access, notification delivery retries or machine control. Main reading/alert queries validate both the source and attributed asset. Shared Assistant requests use the local, bounded, authorized snapshot without an external AI call. Existing security/equipment privacy boundaries remain in force.
+
+A numeric `/passport/:id` is a signed-in private preview. It does not publish an asset. An individual engineer chooses the public fields and any reviewed guidance, then explicitly publishes an immutable snapshot. The public UUID identifies an authorized publication record; UUID secrecy is not the authorization policy. Revocation disables the public route while retaining publication history. Asset edits never silently extend a published document. No private endpoint, asset URN or serial is added outside the selected field allowlist. Unknown maintenance/end-of-life guidance is displayed as absent; no generic robot or battery instructions are generated.
+
+Migrations 0024–0025 are additive. Existing login cookies without session generation/identity require a new sign-in at the coordinated API cutover. Rollback must retain the additive tables and must not restore the previously exposed numeric public passport path.
+
+Focused regressions use disposable PostgreSQL and probe all four shared roles, direct private IDs, mixed source/asset links, exports, Assistant snapshots, subsequent setting requests, explicit publication, redaction, conflicts and revocation. Hardware and production promotion remain separate acceptance outcomes.

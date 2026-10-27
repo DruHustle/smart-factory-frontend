@@ -1,3 +1,4 @@
+import * as fixtureBoundary from "./demoTarget";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
 import { DEMO_ACCOUNTS } from "../shared/demo-accounts";
@@ -30,6 +31,7 @@ const userContext = (
     user: { id: 99, email, role, openId },
     req: {},
     res: {},
+    visibility: Promise.resolve({ demoOnly: false, includeDemo: false }),
   }) as TrpcContext;
 
 describe("central shared-walkthrough containment", () => {
@@ -58,6 +60,9 @@ describe("central shared-walkthrough containment", () => {
     });
   }
   it("preserves private individual capabilities and denies explicit public deployments", async () => {
+    vi.spyOn(fixtureBoundary, "rejectFixtureMutation").mockResolvedValue(
+      undefined,
+    );
     const user = userContext("owner@example.test", "admin").user!;
     expect(operationalWritesAllowed(user)).toBe(true);
     vi.spyOn(db, "updateDevice").mockResolvedValue(undefined);

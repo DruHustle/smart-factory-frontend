@@ -21,6 +21,7 @@ export default defineConfig({
       ASSISTANT_PROVIDER: "disabled",
       BACKEND_DEPLOYMENT_MODE: "standalone",
     },
+    maxWorkers: 1, // Existing mutable database fixture suites must run serially.
     environment: "node",
     include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
   },

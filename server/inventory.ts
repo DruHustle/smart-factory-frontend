@@ -1,7 +1,8 @@
+import { evidenceSql } from "./evidenceScope";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "./db";
-import { demoDataEnabled } from "./demoData";
+import { visibleRecordSql } from "./demoData";
 import { observedStatus, type InventoryItem } from "../shared/inventory";
 import { router, viewerProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
@@ -32,29 +33,29 @@ export const inventoryFilter = z.object({
 });
 type Filter = z.infer<typeof inventoryFilter>;
 // Three authoritative tables, no replicated inventory. All lists and lookups are bounded.
-const projection = () => sql`with inventory as (
+const projection = (mode: Filter["mode"] = "all") => sql`with inventory as (
  select 'asset:'||a.id as ref,'asset' as kind,a.id::text as id,a.name,a."assetId" as identifier,a."assetType"::text as "itemType",a.location,a.zone,
  exists(select 1 from asset_devices c where c."assetId"=a.id) as configured,
  case when exists(select 1 from asset_devices c where c."assetId"=a.id and c.protocol='mqtt_direct') then 'Direct MQTT' when exists(select 1 from asset_devices c where c."assetId"=a.id) then 'Linked devices' else 'Not configured' end as route,
- null::text as reported,(select case when bool_and(c.protocol='ada031_v4_serial') then 120000::bigint else null end from asset_devices c where c."assetId"=a.id) as "freshnessMs",(select max(c."lastSeen") from asset_devices c where c."assetId"=a.id) as "lastObserved",r.timestamp as "sampleAt",coalesce(r.integration->>'mode',case when a."isDemo" then 'simulated' else 'unknown' end) as mode,
- coalesce(r.integration->>'sourceQuality','unknown') as quality,a."lifecycleStage"::text as lifecycle,true as aas,w.id::text as "equipmentId",null::text as firmware
- from assets a left join equipment_workspaces w on w.asset_id=a.id and (not w.is_demo or ${demoDataEnabled()}) and (w.is_demo or ${process.env.ENABLE_DEMO_ACCOUNTS !== "true"})
- left join lateral(select timestamp,integration from sensor_readings where "assetId"=a."assetId" order by timestamp desc limit 1) r on true
- where (not a."isDemo" or ${demoDataEnabled()}) and not exists(select 1 from equipment_workspaces sw where sw.asset_id=a.id and sw.is_standalone=true)
+ null::text as reported,(select case when bool_and(c.protocol='ada031_v4_serial') then 120000::bigint else null end from asset_devices c where c."assetId"=a.id) as "freshnessMs",(select max(c."lastSeen") from asset_devices c where c."assetId"=a.id) as "lastObserved",r.timestamp as "sampleAt",coalesce(r.integration->>'mode','unknown') as mode,
+ coalesce(r.integration->>'sourceQuality','unknown') as quality,a."lifecycleStage"::text as lifecycle,true as aas,w.id::text as "equipmentId",null::text as firmware,r.measurements,r.values,r.integration->'evidence' as evidence,a."isDemo" as "isDemo"
+ from assets a left join equipment_workspaces w on w.asset_id=a.id and ${visibleRecordSql(sql`w.is_demo`)}
+ left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where exists(select 1 from devices observed_source where observed_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`observed_source."isDemo"`)}) and "assetId"=a."assetId" and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true
+ where ${visibleRecordSql(sql`a."isDemo"`)} and not exists(select 1 from equipment_workspaces sw where sw.asset_id=a.id and sw.is_standalone=true)
  union all
  select 'device:'||d.id,'device',d.id::text,d.name,d."deviceId",d.type::text,d.location,d.zone,
  coalesce(d.metadata->>'connectionMode','') in ('direct_mqtt','gateway'),
  case when d.metadata->>'gatewayId' is not null then 'Via gateway: '||(d.metadata->>'gatewayId') when d.metadata->>'connectionMode'='direct_mqtt' then 'Direct MQTT' when d.type='gateway' and d.metadata->>'connectionMode'='gateway' then 'Gateway uplink' else 'Not configured' end,
- d.status::text,case when d.metadata->>'freshnessMs' ~ '^[0-9]{1,9}$' then (d.metadata->>'freshnessMs')::bigint when d.metadata->>'connectionMode'='gateway' then 120000 else null end,
- d."lastSeen",r.timestamp,coalesce(r.integration->>'mode',case when d."isDemo" then 'simulated' else 'unknown' end),
- coalesce(d.metadata->>'sensorStatus','unknown'),null,false,null,d."firmwareVersion"
- from devices d left join lateral(select timestamp,integration from sensor_readings where "deviceId"=d.id order by timestamp desc limit 1) r on true where (not d."isDemo" or ${demoDataEnabled()})
+ d.status::text,case when d.metadata->'commissioning'->>'freshnessSeconds' ~ '^[0-9]{1,5}$' then (d.metadata->'commissioning'->>'freshnessSeconds')::bigint*1000 when d.metadata->>'freshnessMs' ~ '^[0-9]{4,8}$' then (d.metadata->>'freshnessMs')::bigint else null end,
+ d."lastSeen",r.timestamp,coalesce(r.integration->>'mode','unknown'),
+ coalesce(r.integration->>'sourceQuality','unknown'),null,false,null,d."firmwareVersion",r.measurements,r.values,r.integration->'evidence',d."isDemo"
+ from devices d left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where ("assetId" is null or exists(select 1 from assets observed_asset where observed_asset."assetId"=sensor_readings."assetId" and ${visibleRecordSql(sql`observed_asset."isDemo"`)})) and "deviceId"=d.id and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true where ${visibleRecordSql(sql`d."isDemo"`)}
  union all
  select 'equipment:'||w.id,'equipment',w.id::text,a.name,a."assetId",'3D equipment',a.location,a.zone,
- exists(select 1 from asset_devices c where c."assetId"=a.id),'Local observations',null,null,null,r.timestamp,coalesce(r.integration->>'mode',case when w.kind='simulated' then 'simulated' else 'unknown' end),'unknown',a."lifecycleStage"::text,false,w.id::text,null
- from equipment_workspaces w join assets a on a.id=w.asset_id left join lateral(select timestamp,integration from sensor_readings where "assetId"=a."assetId" order by timestamp desc limit 1) r on true
- where w.is_standalone=true and (not w.is_demo or ${demoDataEnabled()}) and (w.is_demo or ${process.env.ENABLE_DEMO_ACCOUNTS !== "true"})
-), observed as(select *,case when reported in ('maintenance','error') then reported when "lastObserved" is null then 'unknown' when reported='offline' then 'offline' when "freshnessMs" is null or "lastObserved">now() then 'unknown' when "lastObserved">=now()-"freshnessMs"*interval '1 millisecond' then 'live' else 'stale' end as status from inventory)`;
+ exists(select 1 from asset_devices c where c."assetId"=a.id),'Local observations',null,null,null,r.timestamp,coalesce(r.integration->>'mode','unknown'),'unknown',a."lifecycleStage"::text,false,w.id::text,null,r.measurements,r.values,r.integration->'evidence',w.is_demo
+ from equipment_workspaces w join assets a on a.id=w.asset_id left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where exists(select 1 from devices observed_source where observed_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`observed_source."isDemo"`)}) and "assetId"=a."assetId" and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true
+ where w.is_standalone=true and ${visibleRecordSql(sql`w.is_demo`)} and ${visibleRecordSql(sql`a."isDemo"`)}
+), observed as materialized(select *,case when reported in ('maintenance','error') then reported when "lastObserved" is null then 'unknown' when reported='offline' then 'offline' when "freshnessMs" is null or "lastObserved">now() then 'unknown' when "lastObserved">=now()-"freshnessMs"*interval '1 millisecond' then 'live' else 'stale' end as status from inventory)`;
 const viewCondition = (view: Filter["view"]) =>
   view === "all"
     ? sql`true`
@@ -86,16 +87,19 @@ export async function listInventory(f: Filter) {
   const db = await database();
   const term = "%" + f.search.replace(/[\\%_]/g, "\\$&") + "%";
   const where = sql`${viewCondition(f.view)} and (name ilike ${term} or identifier ilike ${term}) and (${f.zone}='' or zone=${f.zone}) and (${f.status}='all' or status=${f.status}) and (${f.mode}='all' or mode=${f.mode}) and (${f.capability}='all' or (${f.capability}='aas' and aas) or (${f.capability}='3d' and "equipmentId" is not null))`;
-  const rows = await db.execute(
-    sql`${projection()} select * from observed where ${where} order by ${f.sort === "recent" ? sql`"sampleAt" desc nulls last, name,ref` : sql`lower(name),ref`} limit ${f.pageSize} offset ${f.page * f.pageSize}`,
+  const [result] = await db.execute(
+    sql`${projection(f.mode)}, filtered as(select * from observed where ${where}), paged as(select * from filtered order by ${f.sort === "recent" ? sql`"sampleAt" desc nulls last,name,ref` : sql`lower(name),ref`} limit ${f.pageSize} offset ${f.page * f.pageSize}), grouped as(select kind,"itemType",("equipmentId" is not null) as equipment,count(*)::int as count from observed group by kind,"itemType",("equipmentId" is not null)) select coalesce((select jsonb_agg(p) from paged p),'[]'::jsonb) as items,(select count(*)::int from filtered) as total,coalesce((select jsonb_agg(g) from grouped g),'[]'::jsonb) as groups`,
   );
-  const [counts] = await db.execute(
-    sql`${projection()} select count(*)::int as total from observed where ${where}`,
-  );
-  const groups = await db.execute(
-    sql`${projection()} select kind,"itemType",("equipmentId" is not null) as equipment,count(*)::int as count from observed group by kind,"itemType",("equipmentId" is not null)`,
-  );
-  return { items: rows.map(normalize), total: Number(counts.total), groups };
+  return {
+    items: (result.items as any[]).map(normalize),
+    total: Number(result.total),
+    groups: result.groups as {
+      kind: string;
+      itemType: string;
+      equipment: boolean;
+      count: number;
+    }[],
+  };
 }
 export const inventoryRouter = router({
   list: viewerProcedure

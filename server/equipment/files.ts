@@ -1,3 +1,4 @@
+import { resolveVisibility, withVisibility } from "../demoData";
 import express from "express";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -16,7 +17,9 @@ export function installEquipmentFiles(app: express.Express) {
       return res.status(401).json({ error: "Authentication required" });
     }
     if (
-      !["engineer", "admin"].includes(user.role) || demonstrationOnly(user)
+      !["engineer", "admin"].includes(user.role) ||
+      demonstrationOnly(user) ||
+      user.passwordChangeRequired
     )
       return res
         .status(403)
@@ -25,12 +28,10 @@ export function installEquipmentFiles(app: express.Express) {
       req.get("content-type") ===
       "application/vnd.smart-factory.model+octet-stream";
     if (!envelope && req.get("content-type") !== "model/gltf-binary")
-      return res
-        .status(415)
-        .json({
-          error:
-            "Use the Smart Factory model envelope or a binary GLB with bounded mapping header",
-        });
+      return res.status(415).json({
+        error:
+          "Use the Smart Factory model envelope or a binary GLB with bounded mapping header",
+      });
     let manifest: unknown;
     if (!envelope) {
       const encoded = req.get("x-equipment-manifest");
@@ -83,15 +84,24 @@ export function installEquipmentFiles(app: express.Express) {
     );
   });
   app.get("/api/equipment/:id/:resource", async (req, res) => {
+    let user;
     try {
-      await sdk.authenticateRequest(req);
+      user = await sdk.authenticateRequest(req);
     } catch {
       return res.status(401).json({ error: "Authentication required" });
     }
+    if (user.passwordChangeRequired)
+      return res
+        .status(403)
+        .json({
+          error: "Change your temporary password before opening factory files",
+        });
     if (!["model", "document"].includes(req.params.resource))
       return res.status(404).end();
     try {
-      const w = await workspace(req.params.id),
+      const w = await withVisibility(await resolveVisibility(user), () =>
+          workspace(req.params.id),
+        ),
         t = await template(w.templateRevision);
       if (
         w.templateRevision !== t.revision ||

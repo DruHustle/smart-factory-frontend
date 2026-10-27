@@ -124,7 +124,7 @@ export async function sweep() {
   await drainOutbox();
   const db = await database(),
     now = new Date();
-  await securityTransaction(async (tx) => {
+  return securityTransaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(2026102702)`);
     await tx.execute(sql`select pg_advisory_xact_lock(2026102703)`);
     await tx.execute(
@@ -140,7 +140,7 @@ export async function sweep() {
       tx,
       sql`select * from security_rules where id='collector-coverage' and active=true`,
     );
-    if (!rule?.settings.enabled) return;
+    if (!rule?.settings.enabled) return false;
     const sources = await rows(
       tx,
       sql`select * from security_sources where active=true and is_demo=false and system_key is null limit 100`,
@@ -209,48 +209,67 @@ export async function sweep() {
         now,
       );
     }
+    return sources.some(
+      (source) =>
+        source.policy.modes.includes("live") &&
+        source.policy.expectedIntervalSeconds,
+    );
   });
 }
+/** One completion-driven schedule per worker; idle report queues back off to 30s. */
 export function startSecurity() {
-  let busy = false,
-    lastHealth = 0;
+  let stopped = false,
+    sweepTimer: ReturnType<typeof setTimeout> | undefined,
+    reportTimer: ReturnType<typeof setTimeout> | undefined,
+    lastHealth = 0,
+    idleReportMs = 1000;
   const run = async () => {
-    if (busy || !enabled()) return;
-    busy = true;
+    let next = 60000;
     try {
-      await sweep();
-      if (Date.now() - lastHealth >= 300000) {
-        lastHealth = Date.now();
-        await nativeEvent(
-          "collector.health",
-          { state: "online", expectedIntervalSeconds: 300 },
-          "Application security collector is running.",
-        );
+      if (enabled()) {
+        const configured = await sweep();
+        next = configured ? 10000 : 60000;
+        if (Date.now() - lastHealth >= 300000) {
+          lastHealth = Date.now();
+          await nativeEvent(
+            "collector.health",
+            { state: "online", expectedIntervalSeconds: 300 },
+            "Application security collector is running.",
+          );
+        }
       }
     } catch {
       lastFailure = "security_sweep_unavailable";
     } finally {
-      busy = false;
+      if (!stopped) {
+        sweepTimer = setTimeout(() => void run(), next);
+        sweepTimer.unref();
+      }
     }
   };
-  const timer = setInterval(() => void run(), 10000);
-  timer.unref();
-  void run();
-  let reportBusy = false;
-  const reportTimer = setInterval(async () => {
-    if (reportBusy || !enabled()) return;
-    reportBusy = true;
+  const reports = async () => {
     try {
-      await (await import("./report-worker")).processReportChunk();
+      if (enabled()) {
+        const worked = await (
+          await import("./report-worker")
+        ).processReportChunk();
+        idleReportMs = worked ? 1000 : Math.min(30000, idleReportMs * 2);
+      } else idleReportMs = 30000;
     } catch {
       lastFailure = "report_processing_unavailable";
+      idleReportMs = Math.min(30000, idleReportMs * 2);
     } finally {
-      reportBusy = false;
+      if (!stopped) {
+        reportTimer = setTimeout(() => void reports(), idleReportMs);
+        reportTimer.unref();
+      }
     }
-  }, 1000);
-  reportTimer.unref();
+  };
+  void run();
+  void reports();
   return () => {
-    clearInterval(timer);
-    clearInterval(reportTimer);
+    stopped = true;
+    clearTimeout(sweepTimer);
+    clearTimeout(reportTimer);
   };
 }

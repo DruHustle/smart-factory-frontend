@@ -1,3 +1,10 @@
+import {
+  metrics,
+  convertMeasurement,
+  convertCanonicalTo,
+  type Metric,
+  type Measurements,
+} from "../../shared/measurements";
 import { createHash } from "node:crypto";
 import { provenanceSchema } from "../telemetryProvenance";
 export { provenanceSchema } from "../telemetryProvenance";
@@ -82,14 +89,44 @@ export function normalize(
   };
   const events: IntegrationEvent[] = [];
   for (const b of registration.bindings) {
-    const raw = b.sourceKey.startsWith("assetSignals.")
+    let raw = b.sourceKey.startsWith("assetSignals.")
       ? sample.assetSignals?.[b.sourceKey.slice(13)]
       : sample[b.sourceKey];
     if (raw == null) continue;
     if (typeof raw !== "number" || !Number.isFinite(raw))
       throw new Error("Nonfinite or unsupported value");
-    let factor = 1;
-    if (b.sourceUnit !== b.metric.unit)
+    const verified = (sample.measurements as Measurements | undefined)?.[
+      b.sourceKey as Metric
+    ];
+    if (sample.measurements && metrics.includes(b.sourceKey as Metric)) {
+      if (
+        !verified?.canonicalUnit ||
+        verified.conversionVersion !== "sf-units-v1" ||
+        verified.canonicalValue == null ||
+        verified.quality !== "good"
+      )
+        continue;
+      // Receiver enforces the acquisition's actual unit, not a label supplied by a binding.
+      raw = verified.sourceValue;
+    }
+    const rawUnit = verified?.sourceUnit ?? b.sourceUnit;
+    let factor = 1,
+      offset = 0;
+    if (verified) {
+      const metric = b.sourceKey as Metric;
+      const zero = convertCanonicalTo(
+        metric,
+        convertMeasurement(metric, 0, rawUnit!),
+        b.metric.unit,
+      );
+      const one = convertCanonicalTo(
+        metric,
+        convertMeasurement(metric, 1, rawUnit!),
+        b.metric.unit,
+      );
+      factor = one - zero;
+      offset = zero;
+    } else if (b.sourceUnit !== b.metric.unit)
       factor = (
         {
           "Pa:bar": 0.00001,
@@ -107,15 +144,17 @@ export function normalize(
         target: target(b.componentId),
         kind: "observation",
         metric: b.metric,
-        value: raw * factor,
+        value: Number(raw) * factor + offset,
         sourceEvent: null,
         provenance: {
           deviceId: sample.deviceId,
           sourceKey: b.sourceKey,
           rawValue: raw,
-          rawUnit: b.sourceUnit,
+          rawUnit,
           conversion:
-            factor === 1 ? null : { rule: "linear", factor, offset: 0 },
+            factor === 1 && offset === 0
+              ? null
+              : { rule: "linear", factor, offset },
           aggregation: null,
           timestampOrigin: p.timestampOrigin,
           retained: p.retained,

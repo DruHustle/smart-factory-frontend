@@ -7,10 +7,11 @@ export type TrpcContext = {
   res: CreateExpressContextOptions["res"];
   user: User | null;
   session?: SessionPayload;
+  visibility?: Promise<import("../demoData").VisibilityPolicy>;
 };
 
 export async function createContext(
-  opts: CreateExpressContextOptions
+  opts: CreateExpressContextOptions,
 ): Promise<TrpcContext> {
   let user: User | null = null;
   let session: SessionPayload | undefined;

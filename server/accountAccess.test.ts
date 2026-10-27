@@ -14,7 +14,14 @@ import {
 import { sdk } from "./_core/sdk";
 import { appRouter } from "./routers";
 import { getDb, closeDatabase, createUser, getUserByOpenId } from "./db";
-import { users, sessionRevocations, type User } from "../drizzle/schema";
+import {
+  users,
+  devices,
+  assets,
+  sensorReadings,
+  sessionRevocations,
+  type User,
+} from "../drizzle/schema";
 import {
   changeUserAccess,
   resetAccountCredential,
@@ -103,6 +110,176 @@ describe.skipIf(!sourceUrl)("persistent account and session boundaries", () => {
     } as unknown as TrpcContext;
     return { api: appRouter.createCaller(ctx), cookies, ctx };
   };
+  it("isolates shared reads, selected IDs and exports from private records for every shared role", async () => {
+    const db = (await getDb())!;
+    const [privateDevice, demoDevice] = await db
+      .insert(devices)
+      .values([
+        { deviceId: "private-source", name: "PRIVATE SOURCE", type: "sensor" },
+        {
+          deviceId: "showcase-source",
+          name: "Simulated source",
+          type: "sensor",
+          isDemo: true,
+        },
+      ])
+      .returning();
+    const [privateAsset, demoAsset] = await db
+      .insert(assets)
+      .values([
+        {
+          assetId: "urn:private:asset",
+          name: "PRIVATE MACHINE",
+          assetType: "motor",
+          aasShell: {},
+        },
+        {
+          assetId: "urn:showcase:asset",
+          name: "Simulated motor",
+          assetType: "motor",
+          aasShell: {},
+          isDemo: true,
+        },
+      ])
+      .returning();
+    const timestamp = Date.now() - 1000;
+    await db.insert(sensorReadings).values([
+      {
+        deviceId: privateDevice.id,
+        assetId: privateAsset.assetId,
+        timestamp,
+        temperature: 999,
+      },
+      {
+        deviceId: demoDevice.id,
+        assetId: privateAsset.assetId,
+        timestamp,
+        temperature: 888,
+      },
+    ]);
+    await db.insert(users).values({
+      openId: "demo-probe",
+      email: "probe@example.test",
+      name: "Synthetic shared reader",
+      role: "admin",
+    });
+    const shared = (await getUserByOpenId("demo-probe"))!;
+    const owner = await individual("admin");
+    await caller(owner).api.system.setDemoData({ enabled: true });
+    for (const role of ["viewer", "operator", "engineer", "admin"] as const) {
+      const api = caller({ ...shared, role }).api;
+      expect(
+        (await api.inventory.list({})).items.map((i) => i.identifier).sort(),
+      ).toEqual([demoDevice.deviceId, demoAsset.assetId].sort());
+      expect(
+        await api.devices.getById({ id: privateDevice.id }),
+      ).toBeUndefined();
+      expect(await api.assets.getById({ id: privateAsset.id })).toBeUndefined();
+      expect(
+        await api.readings.getLatestBatch({
+          deviceIds: [privateDevice.id, demoDevice.id],
+        }),
+      ).toEqual([]);
+      expect(
+        await api.readings.getForDevice({
+          deviceId: demoDevice.id,
+          startTime: timestamp - 1,
+          endTime: Date.now(),
+        }),
+      ).toEqual([]);
+      await expect(api.users.list()).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+      await expect(
+        api.assets.getPassport({ id: privateAsset.id }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(
+        api.export.deviceReport({
+          deviceId: privateDevice.id,
+          startTime: timestamp - 1,
+          endTime: Date.now(),
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(await api.notifications.list()).toEqual([]);
+      const answer = await api.assistant.ask({
+        question: "What is the current PRIVATE MACHINE state?",
+        selectedAssetId: privateAsset.assetId,
+      });
+      expect(JSON.stringify(answer)).not.toContain("999");
+      expect(JSON.stringify(answer)).not.toContain("888");
+    }
+    const individualRead = caller(owner).api;
+    expect((await individualRead.inventory.list({})).total).toBe(4);
+    await individualRead.system.setDemoData({ enabled: false });
+    expect(
+      (await caller(owner).api.inventory.list({})).items
+        .map((i) => i.identifier)
+        .sort(),
+    ).toEqual([privateDevice.deviceId, privateAsset.assetId].sort());
+    expect(
+      (await caller(owner).api.devices.getById({ id: privateDevice.id }))?.name,
+    ).toBe("PRIVATE SOURCE");
+  });
+  it("requires private preview and explicit revocable, redacted passport publication", async () => {
+    const db = (await getDb())!,
+      owner = await individual("engineer");
+    const [asset] = await db
+      .insert(assets)
+      .values({
+        assetId: "urn:private:passport",
+        name: "PRIVATE MOTOR",
+        assetType: "motor",
+        manufacturer: "Reviewed maker",
+        serialNumber: "PRIVATE SERIAL",
+        aasShell: {},
+      })
+      .returning();
+    const privateApi = caller(owner).api,
+      anonymous = caller(null).api;
+    await expect(
+      anonymous.assets.getPassport({ id: asset.id }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(
+      (await privateApi.assets.getPassport({ id: asset.id })).fields.some(
+        (f) => f.value === "PRIVATE SERIAL",
+      ),
+    ).toBe(true);
+    const publication = await privateApi.assets.publishPassport({
+      id: asset.id,
+      expectedVersion: 1,
+      fields: ["assetType", "manufacturer"],
+      reviewedGuidance: "Reviewed guidance for this specific motor.",
+    });
+    const published = await anonymous.assets.getPublishedPassport(publication);
+    expect(published.title).toBe("Product passport");
+    expect(JSON.stringify(published)).not.toContain("PRIVATE");
+    expect(published.fields).toHaveLength(2);
+    expect(published.reviewedGuidance).toBe(
+      "Reviewed guidance for this specific motor.",
+    );
+    expect(published.disclaimer).toContain(
+      "voluntary prototype".replace("v", "V"),
+    );
+    expect(JSON.stringify(published)).not.toContain("battery");
+    await expect(
+      caller(await individual("viewer")).api.assets.publishPassport({
+        id: asset.id,
+        expectedVersion: 1,
+        fields: ["name"],
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await privateApi.assets.revokePassport(publication);
+    await expect(
+      anonymous.assets.getPublishedPassport(publication),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(
+      privateApi.assets.publishPassport({
+        id: asset.id,
+        expectedVersion: 2,
+        fields: ["name"],
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+  });
   it("persists logout revocation without storing or returning the bearer identity", async () => {
     const user = await individual(),
       token = await sdk.createSessionToken(user);
@@ -238,5 +415,138 @@ describe.skipIf(!sourceUrl)("persistent account and session boundaries", () => {
     expect(created?.passwordChangeRequired).toBe(true);
     expect(JSON.stringify(created)).not.toContain(password);
     expect(created).not.toHaveProperty("password");
+  });
+  it("applies shared visibility and forced-password restrictions to raw equipment files", async () => {
+    const { default: express } = await import("express"),
+      { installEquipmentFiles } = await import("./equipment/files"),
+      { createEquipment, template } = await import("./equipment/local"),
+      { once } = await import("node:events");
+    const t = await template(),
+      privateEquipment = await createEquipment(
+        {
+          name: "Private raw-file fixture",
+          serialNumber: "PRIVATE",
+          kind: "real",
+          templateRevision: t.revision,
+        },
+        0,
+      );
+    const demo = await createUser({
+      openId: "demo-raw-file-reader",
+      email: "raw-showcase@example.test",
+      role: "engineer",
+      password: passwordHash,
+    });
+    vi.stubEnv("ENABLE_DEMO_ACCOUNTS", "true");
+    const token = await sdk.createSessionToken(demo),
+      app = express();
+    installEquipmentFiles(app);
+    const server = app.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const port = (server.address() as import("node:net").AddressInfo).port;
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:${port}/api/equipment/${privateEquipment.id}/model`,
+        { headers: { authorization: `Bearer ${token}` } },
+      );
+      expect(response.status).toBe(404);
+      expect(response.headers.get("content-type")).not.toContain("model/gltf");
+      vi.stubEnv("ENABLE_DEMO_ACCOUNTS", "false");
+      const person = await individual("engineer");
+      await resetAccountCredential(
+        person!.id,
+        passwordHash,
+        person!.authVersion ?? 0,
+      );
+      const restricted = (await getUserByOpenId(person!.openId))!,
+        restrictedToken = await sdk.createSessionToken(restricted);
+      expect(
+        (
+          await fetch(
+            `http://127.0.0.1:${port}/api/equipment/${privateEquipment.id}/model`,
+            { headers: { authorization: `Bearer ${restrictedToken}` } },
+          )
+        ).status,
+      ).toBe(403);
+      expect(
+        (
+          await fetch(`http://127.0.0.1:${port}/api/equipment/model-import`, {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${restrictedToken}`,
+              "content-type": "model/gltf-binary",
+            },
+            body: "untrusted model",
+          })
+        ).status,
+      ).toBe(403);
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  });
+  it("keeps approved fixtures read-only even for an individual administrator, before service delegation", async () => {
+    const owner = await individual("admin"),
+      db = (await getDb())!,
+      fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    const [d] = await db
+      .insert(devices)
+      .values({
+        deviceId: "fixture-readonly",
+        name: "Approved fixture",
+        type: "gateway",
+        isDemo: true,
+      })
+      .returning();
+    const [a] = await db
+      .insert(assets)
+      .values({
+        assetId: "urn:fixture:readonly",
+        name: "Approved fixture asset",
+        assetType: "robotic_arm",
+        isDemo: true,
+        aasShell: {},
+      })
+      .returning();
+    const api = caller(owner).api;
+    await expect(
+      api.devices.update({ id: d.id, name: "Unauthorized fixture edit" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      api.thresholds.upsert({
+        deviceId: d.id,
+        metric: "temperature",
+        unit: "°C",
+        maxValue: 99,
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      api.assets.controlAda031({
+        id: a.id,
+        command: { action: "jog", joint: "base", direction: "increase" },
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(
+      (await db.select().from(devices).where(eq(devices.id, d.id)))[0].name,
+    ).toBe("Approved fixture");
+    vi.unstubAllGlobals();
+  });
+  it("does not count a temporary-password administrator as the last usable recovery administrator", async () => {
+    const active = await individual("admin"),
+      pending = await individual("admin");
+    await resetAccountCredential(
+      pending!.id,
+      passwordHash,
+      pending!.authVersion ?? 0,
+    );
+    await expect(
+      changeUserAccess(active!.id, { enabled: false }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    await expect(
+      changeUserAccess(active!.id, { role: "viewer" }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
   });
 });

@@ -102,7 +102,13 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         deviceId: d.deviceId,
         timestamp: Date.now() - 100,
         temperature: 21,
-        integration: { mode: "live", quality: "good" },
+        units: { temperature: "°C" },
+        integration: {
+          mode: "live",
+          sourceQuality: "good",
+          sourceConnection: "online",
+          gatewayReceivedAt: new Date().toISOString(),
+        },
       });
       const result = await listInventory(
         inventoryFilter.parse({ search: d.deviceId }),

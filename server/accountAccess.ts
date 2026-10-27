@@ -92,13 +92,22 @@ export async function changeUserAccess(
       ((change.role && change.role !== "admin") || change.enabled === false)
     ) {
       const admins = await tx
-        .select({ id: users.id, openId: users.openId, email: users.email })
+        .select({
+          id: users.id,
+          openId: users.openId,
+          email: users.email,
+          restricted: users.passwordChangeRequired,
+        })
         .from(users)
         .where(and(eq(users.role, "admin"), isNull(users.disabledAt)));
-      if (admins.filter((row) => !sharedDemoIdentity(row)).length <= 1)
+      if (
+        admins.filter(
+          (row) => row.id !== id && !row.restricted && !sharedDemoIdentity(row),
+        ).length === 0
+      )
         throw new AccountAccessError(
           "PRECONDITION_FAILED",
-          "At least one enabled individual administrator must remain.",
+          "At least one enabled, activated individual administrator must remain.",
         );
     }
     const [updated] = await tx

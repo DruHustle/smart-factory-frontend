@@ -30,7 +30,7 @@ import {
 } from "./service";
 import { drainOutbox, nativeEvent } from "./runtime";
 import { processReportChunk } from "./report-worker";
-import { securityRouter } from "./router";
+import { appRouter } from "../routers";
 import { sweep } from "./runtime";
 import { evaluate } from "./rules";
 const originalDemoFlag = process.env.ENABLE_DEMO_ACCOUNTS;
@@ -148,35 +148,21 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       );
       await db.execute(sql`delete from users where id in(${actor},${other})`);
     });
-    it("honors the persisted demonstration setting over the environment fallback", async () => {
+    it("never seeds demonstration evidence during normal initialization", async () => {
       const db = await database();
+      setRuntimeDemoDataEnabled(true);
+      await initialize();
       expect(
         await rows(
           db,
           sql`select id from security_sources where system_key='demonstration-v2'`,
         ),
       ).toHaveLength(0);
-      setRuntimeDemoDataEnabled(true);
-      try {
-        await initialize();
-        const [demo] = await rows(
-          db,
-          sql`select * from security_sources where system_key='demonstration-v2'`,
-        );
-        sourceIds.push(demo.id);
-        expect(demo.is_demo).toBe(true);
-        const [{ count }] = await rows(
-          db,
-          sql`select count(*)::int as count from security_events where source_id=${demo.id}`,
-        );
-        expect(count).toBe(28);
-      } finally {
-        setRuntimeDemoDataEnabled(false);
-      }
+      setRuntimeDemoDataEnabled(undefined);
     });
     it("enforces viewer/operator/engineer/admin and read-only demonstration boundaries", async () => {
       for (const role of ["viewer", "operator", "engineer", "admin"]) {
-        const caller = securityRouter.createCaller({
+        const caller = appRouter.createCaller({
           user: {
             id: actor,
             role,
@@ -185,7 +171,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           },
           req: { headers: {} },
           res: {},
-        } as any);
+        } as any).security;
         expect((await caller.availability()).canAdmin).toBe(role === "admin");
         if (role !== "admin")
           await expect(
@@ -204,7 +190,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
             }),
           ).rejects.toMatchObject({ code: "FORBIDDEN" });
       }
-      const demo = securityRouter.createCaller({
+      const demo = appRouter.createCaller({
         user: {
           id: actor,
           role: "admin",
@@ -213,17 +199,17 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         },
         req: { headers: {} },
         res: {},
-      } as any);
+      } as any).security;
       expect((await demo.availability()).canAdmin).toBe(false);
       expect(await demo.assignees()).toEqual([]);
       await expect(
         demo.retention({ days: 30, reason: "Forbidden shared change" }),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
-      const anonymous = securityRouter.createCaller({
+      const anonymous = appRouter.createCaller({
         user: null,
         req: { headers: {} },
         res: {},
-      } as any);
+      } as any).security;
       await expect(anonymous.overview()).rejects.toMatchObject({
         code: "UNAUTHORIZED",
       });

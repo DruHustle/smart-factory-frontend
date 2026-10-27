@@ -39,20 +39,38 @@ await ingestTelemetryByDeviceId({
   deviceId: "workspace-direct",
   timestamp: Date.now() - 1000,
   temperature: 23,
-  integration: { mode: "live", sourceQuality: "good" },
+  units: { temperature: "°C" },
+  integration: {
+    mode: "live",
+    sourceQuality: "good",
+    sourceConnection: "online",
+    gatewayReceivedAt: new Date().toISOString(),
+  },
 });
 await ingestTelemetryByDeviceId({
   deviceId: "workspace-child-a",
   gatewayId: gateway.deviceId,
   timestamp: Date.now() - 3600000,
   temperature: 20,
-  integration: { mode: "live", sourceQuality: "good" },
+  units: { temperature: "°C" },
+  integration: {
+    mode: "live",
+    sourceQuality: "good",
+    sourceConnection: "online",
+    gatewayReceivedAt: new Date().toISOString(),
+  },
 });
 await ingestTelemetryByDeviceId({
   deviceId: gateway.deviceId,
   gatewayId: gateway.deviceId,
   timestamp: Date.now() - 1000,
-  integration: { mode: "live", sourceQuality: "good" },
+  units: { temperature: "°C" },
+  integration: {
+    mode: "live",
+    sourceQuality: "good",
+    sourceConnection: "online",
+    gatewayReceivedAt: new Date().toISOString(),
+  },
 });
 await registerDevice({
   name: "Workspace observed offline",
@@ -65,7 +83,13 @@ await ingestTelemetryByDeviceId({
   deviceId: "workspace-offline",
   timestamp: Date.now() - 3600000,
   temperature: 18,
-  integration: { mode: "live", sourceQuality: "good" },
+  units: { temperature: "°C" },
+  integration: {
+    mode: "live",
+    sourceQuality: "good",
+    sourceConnection: "online",
+    gatewayReceivedAt: new Date().toISOString(),
+  },
 });
 await db.execute(
   sql`update devices set status='offline' where "deviceId"='workspace-offline'`,
