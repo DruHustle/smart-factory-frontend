@@ -165,8 +165,15 @@ test("Assistant answers from approved guides and the current API snapshot", asyn
     .locator('section[aria-label="Conversation"] details summary')
     .last()
     .click();
-  await expect(page.getByText(/visible assets/i).last()).toBeVisible();
-  await expect(page.locator("time[datetime]").last()).toBeVisible();
+  await expect(
+    page
+      .locator('section[aria-label="Conversation"]')
+      .getByText(/visible assets/i)
+      .last(),
+  ).toBeVisible();
+  await expect(
+    page.locator('section[aria-label="Conversation"] time[datetime]').last(),
+  ).toBeVisible();
 
   await page
     .getByLabel("Ask the Smart Factory Assistant")
