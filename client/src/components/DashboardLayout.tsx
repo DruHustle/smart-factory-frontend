@@ -1,4 +1,6 @@
-import { useTheme } from "@/contexts/ThemeContext";
+import { trpc } from "@/lib/trpc";
+import { useDocumentActive } from "@/hooks/useDocumentActive";
+import { ThemeMenu } from "@/components/workspace/ThemeMenu";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -50,9 +52,6 @@ import { hasMinimumRole } from "@/lib/access";
 const menuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
   { icon: Layers, label: "Assets & devices", path: "/inventory" },
-  { icon: ShieldCheck, label: "Cybersecurity", path: "/cybersecurity" },
-  { icon: BarChart3, label: "Analytics", path: "/analytics" },
-  { icon: Bot, label: "Assistant", path: "/assistant" },
 ];
 const groups: {
   label: string;
@@ -64,7 +63,7 @@ const groups: {
   }[];
 }[] = [
   {
-    label: "Operations",
+    label: "OPERATIONS",
     items: [
       { icon: Activity, label: "Monitoring", path: "/monitoring" },
       { icon: AlertTriangle, label: "Alerts", path: "/alerts" },
@@ -72,33 +71,33 @@ const groups: {
         icon: Download,
         label: "Firmware & updates",
         path: "/ota",
-        minRole: "engineer" as const,
+        minRole: "engineer",
       },
+      { icon: ShieldCheck, label: "Cybersecurity", path: "/cybersecurity" },
     ],
   },
   {
-    label: "Administration",
+    label: "INSIGHTS",
+    items: [{ icon: BarChart3, label: "Analytics", path: "/analytics" }],
+  },
+  {
+    label: "WORKSPACE",
     items: [
+      { icon: Bot, label: "Assistant", path: "/assistant" },
       {
         icon: Plug,
-        label: "Integrations",
-        path: "/integrations/onesa",
-        minRole: "engineer" as const,
-      },
-      {
-        icon: Users,
-        label: "Users & access",
-        path: "/users",
-        minRole: "admin" as const,
+        label: "Administration",
+        path: "/administration",
+        minRole: "engineer",
       },
     ],
   },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
-const DEFAULT_WIDTH = 260;
-const MIN_WIDTH = 200;
-const MAX_WIDTH = 400;
+const DEFAULT_WIDTH = 240;
+const MIN_WIDTH = 224;
+const MAX_WIDTH = 248;
 
 export default function DashboardLayout({
   children,
@@ -182,7 +181,12 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const documentActive = useDocumentActive();
+  const inbox = trpc.notifications.summary.useQuery(undefined, {
+    enabled: !!user && !user.access?.demoOnly,
+    refetchInterval: documentActive ? 30000 : false,
+    refetchIntervalInBackground: false,
+  });
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -212,10 +216,10 @@ function DashboardLayoutContent({
   }, [activeMenuItem?.label]);
 
   useEffect(() => {
-    if (previousLocationRef.current !== location) {
+    if (previousLocationRef.current.split("?")[0] !== location.split("?")[0]) {
       document.getElementById("dashboard-main")?.focus();
-      previousLocationRef.current = location;
     }
+    previousLocationRef.current = location;
   }, [location]);
 
   useEffect(() => {
@@ -256,52 +260,45 @@ function DashboardLayoutContent({
 
   function renderGroup(group: (typeof groups)[number]) {
     const items = group.items.filter(
-      (i) => !i.minRole || hasMinimumRole(user?.role, i.minRole),
+      (i) =>
+        (!i.minRole || hasMinimumRole(user?.role, i.minRole)) &&
+        (!["/administration", "/ota"].includes(i.path) ||
+          !user?.access?.demoOnly),
     );
     if (!items.length) return null;
     return (
-      <li className="list-none" key={group.label}>
-        <details
-          open={
-            items.some((i) => isMenuItemActive(i.path)) ||
-            isCollapsed ||
-            undefined
-          }
-          className="group/nav"
+      <li className="list-none pt-4" key={group.label}>
+        <h2
+          className={`mb-2 px-3 text-xs font-medium text-muted-foreground ${isCollapsed ? "sr-only" : ""}`}
         >
-          <summary
-            className="cursor-pointer rounded-md px-3 py-2 text-xs font-medium text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            title={group.label}
-          >
-            <span className={isCollapsed ? "sr-only" : ""}>{group.label}</span>
-            {isCollapsed ? "…" : null}
-          </summary>
-          <ul className="space-y-1">
-            {items.map((item) => (
-              <SidebarMenuItem key={item.path}>
-                <SidebarMenuButton
-                  asChild
-                  tooltip={item.label}
-                  isActive={isMenuItemActive(item.path)}
+          {group.label}
+        </h2>
+        <ul className="space-y-1">
+          {items.map((item) => (
+            <SidebarMenuItem key={item.path}>
+              <SidebarMenuButton
+                asChild
+                tooltip={item.label}
+                className="h-10"
+                isActive={isMenuItemActive(item.path)}
+              >
+                <Link
+                  href={item.path}
+                  aria-label={item.label}
+                  aria-current={
+                    isMenuItemActive(item.path) ? "page" : undefined
+                  }
+                  onClick={() => {
+                    if (isMobile) setOpenMobile(false);
+                  }}
                 >
-                  <Link
-                    href={item.path}
-                      aria-label={item.label}
-                    aria-current={
-                      isMenuItemActive(item.path) ? "page" : undefined
-                    }
-                    onClick={() => {
-                      if (isMobile) setOpenMobile(false);
-                    }}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </ul>
-        </details>
+                  <item.icon className="size-4" />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </ul>
       </li>
     );
   }
@@ -325,7 +322,7 @@ function DashboardLayoutContent({
           className="border-r border-sidebar-border"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="h-16 justify-center border-b border-sidebar-border">
+          <SidebarHeader className="h-14 justify-center border-b border-sidebar-border">
             <div className="flex items-center gap-3 px-2 transition-all w-full">
               <button
                 onClick={toggleSidebar}
@@ -340,7 +337,7 @@ function DashboardLayoutContent({
                     <Factory className="w-5 h-5 text-primary-foreground" />
                   </div>
                   <span className="font-semibold tracking-tight truncate text-sidebar-foreground">
-                    Factory IoT
+                    Smart Factory
                   </span>
                 </div>
               ) : null}
@@ -360,7 +357,7 @@ function DashboardLayoutContent({
                     >
                       <Link
                         href={item.path}
-                      aria-label={item.label}
+                        aria-label={item.label}
                         aria-current={
                           isMenuItemActive(item.path) ? "page" : undefined
                         }
@@ -369,14 +366,13 @@ function DashboardLayoutContent({
                         }}
                       >
                         <item.icon className="h-4 w-4" />
-                        <span>{item.label}</span>
+                        <span className="uppercase">{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {index === 1 && renderGroup(groups[0])}
                 </Fragment>
               ))}
-              {renderGroup(groups[1])}
+              {groups.map(renderGroup)}
             </SidebarMenu>
           </SidebarContent>
 
@@ -403,6 +399,11 @@ function DashboardLayoutContent({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                {!user?.access?.demoOnly && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/account/password">Change password</Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={logout}
                   className="cursor-pointer text-destructive focus:text-destructive"
@@ -465,20 +466,16 @@ function DashboardLayoutContent({
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-              onClick={toggleTheme}
-            >
-              Theme: {theme}
-            </Button>
+            <ThemeMenu />
             <Button asChild variant="ghost" size="icon">
               <Link
                 href="/notifications"
-                aria-label="Notifications and history"
+                aria-label={`Notifications and history${inbox.data ? `, ${inbox.data.unread} unread` : inbox.error ? ", unread count unavailable" : ""}`}
               >
                 <Bell className="h-5 w-5" />
+                {inbox.data && inbox.data.unread > 0 && (
+                  <span className="sr-only">{inbox.data.unread} unread</span>
+                )}
               </Link>
             </Button>
           </div>

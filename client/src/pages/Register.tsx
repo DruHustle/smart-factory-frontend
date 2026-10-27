@@ -5,7 +5,12 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Factory, Lock, Mail, User, Eye, EyeOff } from "lucide-react";
@@ -44,28 +49,47 @@ export default function Register() {
     }
   };
 
-  if (policy.isLoading) return <div role="status" className="p-8">Checking account registration…</div>;
-  if (!policy.data?.enabled) return <main className="mx-auto my-16 max-w-md"><Card><CardHeader><h1 className="text-2xl font-semibold">Account access</h1></CardHeader><CardContent className="space-y-4"><p>{policy.error ? "Unable to check account registration. Try again shortly." : "Ask your factory administrator to create your account."}</p><Button onClick={() => navigate("/login")}>Back to login</Button></CardContent></Card></main>;
+  if (policy.isLoading)
+    return (
+      <div role="status" className="p-8">
+        Checking account registration…
+      </div>
+    );
+  if (!policy.data?.enabled)
+    return (
+      <main className="mx-auto my-16 max-w-md">
+        <Card>
+          <CardHeader>
+            <h1 className="text-2xl font-semibold">Account access</h1>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p>
+              {policy.error
+                ? "Unable to check account registration. Try again shortly."
+                : "Ask your factory administrator to create your account."}
+            </p>
+            <Button onClick={() => navigate("/login")}>Back to login</Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-[url('/images/industrial-blur-bg.webp')] bg-cover bg-center p-4 sm:p-6">
+    <main className="relative flex min-h-screen items-center justify-center bg-background p-4 sm:p-6">
       {/* Dark Overlay - Matches Login Page */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       {/* Register Card */}
-      <Card className="w-full max-w-md glass-panel border-white/10 relative z-10 animate-in fade-in zoom-in duration-500">
+      <Card className="w-full max-w-md relative z-10 animate-in fade-in zoom-in duration-500">
         <CardHeader className="space-y-1 text-center">
           {/* Logo - Matches Login Page Gradient and Shadow */}
           <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-orange-500 flex items-center justify-center shadow-[0_0_20px_var(--primary)]">
+            <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
               <Factory className="w-7 h-7 text-primary-foreground" />
             </div>
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl font-bold tracking-wide">
-            Create Account
-          </h1>
+          <h1 className="text-2xl font-bold tracking-wide">Create Account</h1>
 
           {/* Subtitle */}
           <CardDescription className="text-muted-foreground">
@@ -76,7 +100,6 @@ export default function Register() {
         <CardContent className="space-y-6">
           {/* Registration Form */}
           <form onSubmit={handleRegister} className="space-y-4">
-            
             {/* Full Name Field */}
             <div className="space-y-2">
               <Label htmlFor="name" className="text-foreground font-medium">
@@ -149,7 +172,10 @@ export default function Register() {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">Use at least 12 characters. Passwords are limited to 72 UTF-8 bytes.</p>
+              <p className="text-xs text-muted-foreground">
+                Use at least 12 characters. Passwords are limited to 72 UTF-8
+                bytes.
+              </p>
             </div>
 
             {/* Register Button - Matches Login Page Primary Glow */}
@@ -164,9 +190,11 @@ export default function Register() {
 
           {/* Toggle to Login */}
           <div className="text-center text-sm">
-            <span className="text-muted-foreground">Already have an account? </span>
+            <span className="text-muted-foreground">
+              Already have an account?{" "}
+            </span>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate("/login")}
               className="text-primary hover:underline font-semibold"
             >
               Sign In

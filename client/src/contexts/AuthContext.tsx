@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useState, useEffect } from "react";
 import {
@@ -6,9 +7,8 @@ import {
   logout as apiLogout,
   getCurrentUser,
 } from "@/lib/api-auth";
-import type { User } from "../../../drizzle/schema";
+import type { PublicUser } from "@/lib/api-auth";
 import { SESSION_EXPIRED_EVENT } from "@/lib/session-expiry";
-type PublicUser = Omit<User, "password" | "authVersion">;
 
 interface AuthContextType {
   user: PublicUser | null;
@@ -19,6 +19,7 @@ interface AuthContextType {
     password: string,
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   register: (
     email: string,
     password: string,
@@ -99,14 +100,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await apiLogout();
+      const result = await apiLogout();
+      if (!result.success)
+        toast.error(
+          "Local sign-out completed; server session revocation could not be confirmed. Contact an administrator to revoke sessions.",
+        );
     } catch (error) {
-      console.error("Logout request failed:", error);
+      toast.error(
+        "Server revocation could not be confirmed. An administrator can revoke sessions.",
+      );
     } finally {
       queryClient.clear();
       // Always clear local state
       setUser(null);
     }
+  };
+  const refreshUser = async () => {
+    const result = await getCurrentUser();
+    queryClient.clear();
+    setUser(result.user ?? null);
   };
 
   return (
@@ -117,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         login,
         logout,
+        refreshUser,
         register,
       }}
     >

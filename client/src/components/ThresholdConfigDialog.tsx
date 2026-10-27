@@ -1,3 +1,4 @@
+import { canonicalUnits } from "@shared/measurements";
 import {
   Dialog,
   DialogContent,
@@ -14,12 +15,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Thermometer, Droplets, Activity, Zap, Gauge, Wind, RefreshCw } from "lucide-react";
+import {
+  Thermometer,
+  Droplets,
+  Activity,
+  Zap,
+  Gauge,
+  Wind,
+  RefreshCw,
+} from "lucide-react";
 
-type Metric = "temperature" | "humidity" | "vibration" | "power" | "pressure" | "rpm";
+type Metric =
+  | "temperature"
+  | "humidity"
+  | "vibration"
+  | "power"
+  | "pressure"
+  | "rpm";
 
 interface ThresholdConfig {
   metric: Metric;
+  unit: string | null;
   minValue: number | null;
   maxValue: number | null;
   warningMin: number | null;
@@ -27,13 +43,36 @@ interface ThresholdConfig {
   enabled: boolean;
 }
 
-const metricConfig: Record<Metric, { label: string; unit: string; icon: React.ElementType; color: string }> = {
-  temperature: { label: "Temperature", unit: "°C", icon: Thermometer, color: "text-chart-2" },
-  humidity: { label: "Humidity", unit: "%", icon: Droplets, color: "text-chart-1" },
-  vibration: { label: "Vibration", unit: "mm/s", icon: Activity, color: "text-chart-4" },
+const metricConfig: Record<
+  Metric,
+  { label: string; unit: string; icon: React.ElementType; color: string }
+> = {
+  temperature: {
+    label: "Temperature",
+    unit: "°C",
+    icon: Thermometer,
+    color: "text-chart-2",
+  },
+  humidity: {
+    label: "Humidity",
+    unit: "%",
+    icon: Droplets,
+    color: "text-chart-1",
+  },
+  vibration: {
+    label: "Vibration",
+    unit: "mm/s",
+    icon: Activity,
+    color: "text-chart-4",
+  },
   power: { label: "Power", unit: "W", icon: Zap, color: "text-chart-5" },
-  pressure: { label: "Pressure", unit: "bar", icon: Gauge, color: "text-chart-3" },
-  rpm: { label: "RPM", unit: "RPM", icon: Wind, color: "text-primary" },
+  pressure: {
+    label: "Pressure",
+    unit: "Pa",
+    icon: Gauge,
+    color: "text-chart-3",
+  },
+  rpm: { label: "RPM", unit: "rpm", icon: Wind, color: "text-primary" },
 };
 
 interface ThresholdConfigDialogProps {
@@ -50,14 +89,12 @@ export default function ThresholdConfigDialog({
   const [thresholds, setThresholds] = useState<ThresholdConfig[]>([]);
   const utils = trpc.useUtils();
 
-  const { data: existingThresholds, isLoading } = trpc.thresholds.getForDevice.useQuery(
-    { deviceId },
-    { enabled: open }
-  );
+  const { data: existingThresholds, isLoading } =
+    trpc.thresholds.getForDevice.useQuery({ deviceId }, { enabled: open });
 
   const { data: device } = trpc.devices.getById.useQuery(
     { id: deviceId },
-    { enabled: open }
+    { enabled: open },
   );
 
   const upsertMutation = trpc.thresholds.upsertForDevice.useMutation({
@@ -76,32 +113,43 @@ export default function ThresholdConfigDialog({
       setThresholds(
         existingThresholds.map((t) => ({
           metric: t.metric as Metric,
+          unit: t.unit,
           minValue: t.minValue,
           maxValue: t.maxValue,
           warningMin: t.warningMin,
           warningMax: t.warningMax,
           enabled: t.enabled,
-        }))
+        })),
       );
     } else {
       // Initialize with default metrics based on device type
-      const defaultMetrics: Metric[] = ["temperature", "humidity", "vibration", "power"];
+      const defaultMetrics: Metric[] = [
+        "temperature",
+        "humidity",
+        "vibration",
+        "power",
+      ];
       setThresholds(
         defaultMetrics.map((metric) => ({
           metric,
+          unit: canonicalUnits[metric],
           minValue: null,
           maxValue: null,
           warningMin: null,
           warningMax: null,
           enabled: true,
-        }))
+        })),
       );
     }
   }, [existingThresholds]);
 
-  const updateThreshold = (metric: Metric, field: keyof ThresholdConfig, value: unknown) => {
+  const updateThreshold = (
+    metric: Metric,
+    field: keyof ThresholdConfig,
+    value: unknown,
+  ) => {
     setThresholds((prev) =>
-      prev.map((t) => (t.metric === metric ? { ...t, [field]: value } : t))
+      prev.map((t) => (t.metric === metric ? { ...t, [field]: value } : t)),
     );
   };
 
@@ -109,6 +157,7 @@ export default function ThresholdConfigDialog({
     const thresholdsToSave = thresholds.map((t) => ({
       deviceId,
       metric: t.metric,
+      unit: t.unit ?? "",
       minValue: t.minValue,
       maxValue: t.maxValue,
       warningMin: t.warningMin,
@@ -125,8 +174,8 @@ export default function ThresholdConfigDialog({
         <DialogHeader>
           <DialogTitle>Configure Alert Thresholds</DialogTitle>
           <DialogDescription>
-            Set custom alert thresholds for {device?.name ?? "this device"}. Alerts will be
-            triggered when sensor values exceed these limits.
+            Set custom alert thresholds for {device?.name ?? "this device"}.
+            Alerts will be triggered when sensor values exceed these limits.
           </DialogDescription>
         </DialogHeader>
 
@@ -152,26 +201,63 @@ export default function ThresholdConfigDialog({
                         </span>
                       </CardTitle>
                       <div className="flex items-center gap-2">
-                        <Label htmlFor={`${threshold.metric}-enabled`} className="text-sm">
+                        <Label
+                          htmlFor={`${threshold.metric}-enabled`}
+                          className="text-sm"
+                        >
                           Enabled
                         </Label>
                         <Switch
                           id={`${threshold.metric}-enabled`}
                           checked={threshold.enabled}
                           onCheckedChange={(checked) =>
-                            updateThreshold(threshold.metric, "enabled", checked)
+                            updateThreshold(
+                              threshold.metric,
+                              "enabled",
+                              checked,
+                            )
                           }
                         />
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className={threshold.enabled ? "" : "opacity-50"}>
+                  <CardContent
+                    className={threshold.enabled ? "" : "opacity-50"}
+                  >
+                    {threshold.unit !== canonicalUnits[threshold.metric] && (
+                      <div className="mb-4 rounded-md border border-warning p-3 text-sm">
+                        <p>
+                          Existing limits have no verified unit. Review their
+                          values in {canonicalUnits[threshold.metric]}; no
+                          automatic conversion is applied.
+                        </p>
+                        <Button
+                          className="mt-2"
+                          variant="outline"
+                          onClick={() =>
+                            updateThreshold(
+                              threshold.metric,
+                              "unit",
+                              canonicalUnits[threshold.metric],
+                            )
+                          }
+                        >
+                          Confirm {canonicalUnits[threshold.metric]} limits
+                          reviewed
+                        </Button>
+                      </div>
+                    )}
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label className="text-xs text-destructive">Critical Limits</Label>
+                        <Label className="text-xs text-destructive">
+                          Critical Limits
+                        </Label>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <Label htmlFor={`${threshold.metric}-min`} className="text-xs text-muted-foreground">
+                            <Label
+                              htmlFor={`${threshold.metric}-min`}
+                              className="text-xs text-muted-foreground"
+                            >
                               Min
                             </Label>
                             <Input
@@ -183,7 +269,9 @@ export default function ThresholdConfigDialog({
                                 updateThreshold(
                                   threshold.metric,
                                   "minValue",
-                                  e.target.value ? parseFloat(e.target.value) : null
+                                  e.target.value
+                                    ? parseFloat(e.target.value)
+                                    : null,
                                 )
                               }
                               disabled={!threshold.enabled}
@@ -191,7 +279,10 @@ export default function ThresholdConfigDialog({
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`${threshold.metric}-max`} className="text-xs text-muted-foreground">
+                            <Label
+                              htmlFor={`${threshold.metric}-max`}
+                              className="text-xs text-muted-foreground"
+                            >
                               Max
                             </Label>
                             <Input
@@ -203,7 +294,9 @@ export default function ThresholdConfigDialog({
                                 updateThreshold(
                                   threshold.metric,
                                   "maxValue",
-                                  e.target.value ? parseFloat(e.target.value) : null
+                                  e.target.value
+                                    ? parseFloat(e.target.value)
+                                    : null,
                                 )
                               }
                               disabled={!threshold.enabled}
@@ -213,10 +306,15 @@ export default function ThresholdConfigDialog({
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs text-warning">Warning Limits</Label>
+                        <Label className="text-xs text-warning">
+                          Warning Limits
+                        </Label>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <Label htmlFor={`${threshold.metric}-warn-min`} className="text-xs text-muted-foreground">
+                            <Label
+                              htmlFor={`${threshold.metric}-warn-min`}
+                              className="text-xs text-muted-foreground"
+                            >
                               Min
                             </Label>
                             <Input
@@ -228,7 +326,9 @@ export default function ThresholdConfigDialog({
                                 updateThreshold(
                                   threshold.metric,
                                   "warningMin",
-                                  e.target.value ? parseFloat(e.target.value) : null
+                                  e.target.value
+                                    ? parseFloat(e.target.value)
+                                    : null,
                                 )
                               }
                               disabled={!threshold.enabled}
@@ -236,7 +336,10 @@ export default function ThresholdConfigDialog({
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`${threshold.metric}-warn-max`} className="text-xs text-muted-foreground">
+                            <Label
+                              htmlFor={`${threshold.metric}-warn-max`}
+                              className="text-xs text-muted-foreground"
+                            >
                               Max
                             </Label>
                             <Input
@@ -248,7 +351,9 @@ export default function ThresholdConfigDialog({
                                 updateThreshold(
                                   threshold.metric,
                                   "warningMax",
-                                  e.target.value ? parseFloat(e.target.value) : null
+                                  e.target.value
+                                    ? parseFloat(e.target.value)
+                                    : null,
                                 )
                               }
                               disabled={!threshold.enabled}
@@ -269,7 +374,14 @@ export default function ThresholdConfigDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={upsertMutation.isPending}>
+          <Button
+            onClick={handleSave}
+            disabled={
+              upsertMutation.isPending ||
+              isLoading ||
+              thresholds.some((t) => t.unit !== canonicalUnits[t.metric])
+            }
+          >
             {upsertMutation.isPending ? "Saving..." : "Save Thresholds"}
           </Button>
         </DialogFooter>

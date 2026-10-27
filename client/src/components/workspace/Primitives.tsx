@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import type { ReactNode } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -19,11 +20,11 @@ export function PageHeader({
         {eyebrow && (
           <div className="mb-2 text-sm text-muted-foreground">{eyebrow}</div>
         )}
-        <h1 className="text-2xl font-semibold tracking-tight break-words">
+        <h1 className="text-[26px] leading-tight font-semibold tracking-tight break-words sm:text-[30px]">
           {title}
         </h1>
         {description && (
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             {description}
           </p>
         )}
@@ -48,14 +49,26 @@ export function SectionNav({
   if (!sections.length) return <>{children}</>;
   return (
     <Tabs value={value} onValueChange={onChange} className="min-w-0">
-      <div className="max-w-full overflow-x-auto">
+      <select
+        aria-label={label}
+        className="h-11 w-full min-w-0 rounded-md border border-input bg-card px-3 text-base font-medium lg:hidden"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {sections.map((section) => (
+          <option key={section.id} value={section.id}>
+            {section.label}
+          </option>
+        ))}
+      </select>
+      <div className="hidden max-w-full overflow-x-auto lg:block">
         <TabsList
           aria-label={label}
           className="h-auto min-h-10 justify-start gap-1 bg-transparent p-0"
         >
           {sections.map((s) => (
             <TabsTrigger
-              className="min-h-10 rounded-none border-b-2 border-transparent px-3 data-[state=active]:border-primary data-[state=active]:bg-muted data-[state=active]:shadow-none"
+              className="min-h-10 rounded-md border border-transparent px-3 text-sm data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none"
               key={s.id}
               value={s.id}
             >
@@ -65,7 +78,11 @@ export function SectionNav({
         </TabsList>
       </div>
       {children !== undefined && (
-        <TabsContent className="mt-5 min-w-0" value={value}>
+        <TabsContent
+          className="mt-4 min-w-0"
+          value={value}
+          aria-label={sections.find((section) => section.id === value)?.label}
+        >
           {children}
         </TabsContent>
       )}
@@ -86,7 +103,7 @@ export function EmptyState({
   return (
     <div
       role={error ? "alert" : "status"}
-      className="rounded-lg border bg-card px-5 py-10 text-center"
+      className="rounded-lg border bg-card px-5 py-7 text-center"
     >
       <p className="font-medium">{title}</p>
       {description && (
@@ -100,12 +117,12 @@ export function EmptyState({
 }
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <Badge variant="outline" className="gap-1.5 capitalize">
+    <Badge variant="outline" className="gap-1.5 text-xs font-medium capitalize">
       <span
         aria-hidden="true"
         className={`h-1.5 w-1.5 rounded-full ${status === "live" ? "bg-emerald-600" : status === "error" || status === "offline" ? "bg-red-600" : status === "stale" ? "bg-amber-600" : "bg-slate-500"}`}
       />
-      {status}
+      {status === "live" ? "Receiving" : status}
     </Badge>
   );
 }
@@ -161,10 +178,62 @@ export function CopyIdentifier({ value }: { value: string }) {
         variant="ghost"
         size="sm"
         aria-label="Copy full identifier"
-        onClick={() => void navigator.clipboard.writeText(value)}
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(value);
+            toast.success("Identifier copied");
+          } catch {
+            toast.error(
+              "Clipboard unavailable. Select and copy the complete identifier.",
+            );
+          }
+        }}
       >
         Copy
       </Button>
     </div>
+  );
+}
+
+export function SummaryMetric({
+  label,
+  value,
+  description,
+}: {
+  label: string;
+  value: ReactNode;
+  description: ReactNode;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border bg-card px-4 py-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-[28px] leading-tight font-semibold tabular-nums">
+        {value ?? "—"}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+export function Measurement({
+  value,
+  unit,
+  unavailable = false,
+}: {
+  value?: number | null;
+  unit?: string | null;
+  unavailable?: boolean;
+}) {
+  if (unavailable || value == null || !Number.isFinite(value))
+    return <span className="text-muted-foreground">Unavailable</span>;
+  return (
+    <span className="whitespace-nowrap font-medium tabular-nums">
+      {new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(
+        value,
+      )}{" "}
+      <span className="text-xs font-normal text-muted-foreground">
+        {unit || "unit unverified"}
+      </span>
+    </span>
   );
 }

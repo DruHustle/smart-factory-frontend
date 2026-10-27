@@ -1,3 +1,4 @@
+import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { PageHeader } from "@/components/workspace/Primitives";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -26,13 +27,16 @@ export default function OnesaIntegration() {
   return <PrivateIntegration />;
 }
 function PrivateIntegration() {
+  const documentActive = useDocumentActive();
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const status = trpc.onesa.status.useQuery(undefined, {
-    refetchInterval: 5000,
+    refetchInterval: documentActive ? 30000 : false,
+    refetchIntervalInBackground: false,
   });
   const history = trpc.onesa.history.useQuery(undefined, {
-    refetchInterval: 10000,
+    refetchInterval: documentActive ? 30000 : false,
+    refetchIntervalInBackground: false,
   });
   const [registration, setRegistration] = useState("");
   const [expected, setExpected] = useState(0);
@@ -92,7 +96,10 @@ function PrivateIntegration() {
   };
   return (
     <div className="space-y-5 min-w-0">
-      <PageHeader title="Integrations" description="Optional Onesa exchange for Digital Twin Workspace."/>
+      <PageHeader
+        title="Integrations"
+        description="Optional Onesa exchange for Digital Twin Workspace."
+      />
       <div className="rounded-lg border p-4 text-sm">
         <strong>Proposed contract · consumer acceptance pending.</strong>
         <p className="mt-1">

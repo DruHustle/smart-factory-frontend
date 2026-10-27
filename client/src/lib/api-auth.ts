@@ -10,7 +10,10 @@ import superjson from "superjson";
 import type { User } from "../../../drizzle/schema";
 import type { AppRouter } from "../../../server/routers";
 import { userFacingApiError } from "./errors";
-export type PublicUser = Omit<User, "password" | "authVersion">;
+import type { AccountCapabilities } from "@shared/access-policy";
+export type PublicUser = Omit<User, "password" | "authVersion"> & {
+  access?: AccountCapabilities;
+};
 
 export interface AuthResponse {
   success: boolean;
@@ -19,7 +22,10 @@ export interface AuthResponse {
 }
 
 // Keep the browser session cookie on the same host as the dashboard by default.
-const API_BASE_URL = resolveApiBase(import.meta.env.VITE_API_URL, import.meta.env.PROD);
+const API_BASE_URL = resolveApiBase(
+  import.meta.env.VITE_API_URL,
+  import.meta.env.PROD,
+);
 
 function getTRPCUrl() {
   return `${API_BASE_URL}/trpc`;
@@ -44,7 +50,10 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return userFacingApiError(error, fallback);
 }
 
-export async function login(email: string, password: string): Promise<AuthResponse> {
+export async function login(
+  email: string,
+  password: string,
+): Promise<AuthResponse> {
   try {
     const data = await trpcAuthClient.auth.login.mutate({ email, password });
 
@@ -66,7 +75,11 @@ export async function register(
   name: string,
 ): Promise<AuthResponse> {
   try {
-    const data = await trpcAuthClient.auth.register.mutate({ email, password, name });
+    const data = await trpcAuthClient.auth.register.mutate({
+      email,
+      password,
+      name,
+    });
 
     return {
       success: true,
@@ -107,7 +120,10 @@ export async function logout(): Promise<AuthResponse> {
   try {
     await trpcAuthClient.auth.logout.mutate();
   } catch (_error) {
-    // Ignore network/logout errors and clear client state regardless.
+    return {
+      success: false,
+      error: "Session revocation could not be confirmed",
+    };
   }
 
   return { success: true };

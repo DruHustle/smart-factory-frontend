@@ -35,7 +35,9 @@ async function inventory(page: Page, search = "Workspace") {
   await expect(
     page.getByRole("heading", { name: "Assets & devices", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/matching items · View filters/)).toBeVisible();
+  await expect(
+    page.getByRole("status", { name: "Inventory results" }),
+  ).toBeVisible();
 }
 async function open(page: Page, name: string) {
   await page
@@ -421,7 +423,9 @@ test.describe("unified item workspace", () => {
           .toBe(theme);
         await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
         // A toolbar can fit the viewport while squeezing a field to zero width.
-        const searchBox = await page.getByRole("textbox", { name: "Search inventory" }).boundingBox();
+        const searchBox = await page
+          .getByRole("textbox", { name: "Search inventory" })
+          .boundingBox();
         expect(searchBox?.width).toBeGreaterThanOrEqual(150);
         await page.screenshot({
           path: `docs/evidence/workspace-20261026/inventory-${theme}-${width}.png`,

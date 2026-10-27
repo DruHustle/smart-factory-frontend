@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { selectSection } from "./experience-helpers";
 /** Legacy regression journeys use the new user-visible entry points. */
 export async function navigate(page: Page, name: string) {
   if (name === "Assets" || name === "Devices") {
@@ -70,8 +71,7 @@ export async function openItem(page: Page, name: string, section?: string) {
     .first()
     .click();
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
-  if (section)
-    await page.getByRole("tab", { name: section, exact: true }).click();
+  if (section) await selectSection(page, section);
 }
 export async function finishGateway(page: Page) {
   await page

@@ -1,3 +1,5 @@
+import { ObservationTrend } from "@/components/workspace/ObservationTrend";
+import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { SectionNav, CopyIdentifier } from "@/components/workspace/Primitives";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import SecuritySummary from "@/components/SecuritySummary";
@@ -235,13 +237,17 @@ export default function AssetAdministrationShell({
     { id: assetId },
     { enabled: allowed && Number.isFinite(assetId) && section === "activity" },
   );
+  const documentActive = useDocumentActive();
+  const [fastUntil, setFastUntil] = useState(0);
   const connectionsQuery = trpc.assets.getConnections.useQuery(
     { id: assetId },
     {
       enabled: allowed && Number.isFinite(assetId),
-      refetchInterval: ["connections", "telemetry", "control"].includes(section)
-        ? 3000
-        : false,
+      refetchInterval:
+        documentActive &&
+        ["connections", "telemetry", "control"].includes(section)
+          ? 30000
+          : false,
     },
   );
   const connections = connectionsQuery.data;
@@ -256,7 +262,16 @@ export default function AssetAdministrationShell({
         !!armConnection &&
         !!asset &&
         ["telemetry", "control"].includes(section),
-      refetchInterval: 500,
+      refetchInterval: (query) =>
+        !documentActive
+          ? false
+          : Date.now() < fastUntil && !!user?.access?.canEngineer
+            ? 1000
+            : query.state.data &&
+                Date.now() - query.state.data.timestamp < 120000
+              ? 5000
+              : 30000,
+      refetchIntervalInBackground: false,
     },
   );
   const latestArmReading = latestArmReadingQuery.data;
@@ -269,7 +284,9 @@ export default function AssetAdministrationShell({
       endTime: telemetryEnd,
       intervalMs: 15 * 60 * 1000,
     },
-    { enabled: allowed && !!asset && section === "telemetry" },
+    {
+      enabled: allowed && !!asset && !!armConnection && section === "telemetry",
+    },
   );
   const transition = trpc.assets.transition.useMutation({
     onSuccess: async () => {
@@ -884,35 +901,42 @@ export default function AssetAdministrationShell({
             )}
           </>
         )}
-        {section === "telemetry" && !armConnection && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Asset telemetry</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {telemetry.error
-                  ? "Telemetry unavailable. Try again later."
-                  : telemetry.data?.overall.sampleCount
-                    ? "Historical aggregate samples are available in Analytics."
-                    : "No telemetry observations for this asset in the selected range."}
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => setLocation("/analytics")}
-              >
-                Open telemetry analytics
-              </Button>
-            </CardContent>
-          </Card>
+        {section === "telemetry" && !armConnection && asset && (
+          <ObservationTrend
+            assetIds={[asset.assetId]}
+            scope={user?.access?.demoOnly ? "simulated" : "operational"}
+            title={`${asset.name} observations`}
+          />
         )}
         {section === "telemetry" && armConnection && (
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Standard refresh: 5 seconds with recent evidence, 30 seconds
+                  when stale. Hidden or offline pages pause.
+                </p>
+                {user?.access?.canEngineer && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setFastUntil(
+                        Date.now() < fastUntil ? 0 : Date.now() + 60000,
+                      )
+                    }
+                  >
+                    {Date.now() < fastUntil
+                      ? "Stop fast observation"
+                      : "Observe at 1 second for 60 seconds"}
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="h-5 w-5" />
-                  ADA031 live telemetry & performance
+                  ADA031 telemetry & performance
                 </CardTitle>
                 <Badge
                   className={
@@ -1343,7 +1367,7 @@ export default function AssetAdministrationShell({
                           {version.changeNote || "No change note"} ·{" "}
                           {new Date(version.createdAt).toLocaleString()}
                         </p>
-                        <p className="break-all font-mono text-[11px] text-muted-foreground">
+                        <p className="break-all font-mono text-xs text-muted-foreground">
                           SHA-256:{" "}
                           {version.sha256 ??
                             "not available for pre-history baseline"}

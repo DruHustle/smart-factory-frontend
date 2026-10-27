@@ -1,3 +1,4 @@
+import { CommissioningDialog } from "./CommissioningDialog";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +29,7 @@ export default function DeviceActions({
 }) {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const [commissioning, setCommissioning] = useState(false);
   const [edit, setEdit] = useState(false),
     [remove, setRemove] = useState(false),
     [value, setValue] = useState(name),
@@ -49,9 +51,14 @@ export default function DeviceActions({
     },
     onError: (e) => setError(e.message),
   });
-  if (!canViewEngineering(user?.role)) return null;
+  if (!user?.access?.canEngineer) return null;
   return (
     <>
+      <CommissioningDialog
+        id={id}
+        open={commissioning}
+        onOpenChange={setCommissioning}
+      />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline">Item actions</Button>
@@ -60,10 +67,10 @@ export default function DeviceActions({
           <DropdownMenuItem
             onClick={() => {
               setError("");
-              setEdit(true);
+              setCommissioning(true);
             }}
           >
-            Edit device name
+            Edit commissioning
           </DropdownMenuItem>
           {user?.role === "admin" && (
             <DropdownMenuItem

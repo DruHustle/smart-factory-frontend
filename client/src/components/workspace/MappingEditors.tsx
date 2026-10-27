@@ -1,3 +1,4 @@
+import { sourceUnits, type Metric } from "@shared/measurements";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,12 +65,7 @@ export function MetricMappingEditor({
           </label>
           <label className="text-xs">
             Engineering unit
-            <Input
-              aria-label={`Mapping ${i + 1} unit`}
-              value={String(r.unit ?? "")}
-              onChange={(e) => change(i, "unit", e.target.value)}
-              maxLength={32}
-            />
+            <select aria-label={`Mapping ${i+1} unit`} className={selectClass} value={String(r.unit??"")} onChange={e=>change(i,"unit",e.target.value)}><option value="">Unknown / unclassified</option>{sourceUnits[(r.metric??"temperature") as Metric]?.map(unit=><option key={unit} value={unit}>{unit}</option>)}</select>
           </label>
           {protocol === "opcua" && (
             <label className="text-xs">

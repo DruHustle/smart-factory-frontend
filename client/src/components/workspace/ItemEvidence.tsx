@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { ObservationTrend, type TrendScope } from "./ObservationTrend";
 import { useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { EmptyState, SampleTime } from "./Primitives";
@@ -65,41 +68,42 @@ export function ItemActivity({ item }: { item: InventoryItem }) {
   );
 }
 export function AssetTelemetry({ item }: { item: InventoryItem }) {
-  const end = useMemo(() => Date.now(), [item.ref]);
-  const data = trpc.analytics.getAssetTelemetry.useQuery({
-    assetIds: [item.identifier],
-    startTime: end - 86400000,
-    endTime: end,
-    intervalMs: 900000,
-  });
-  if (data.isLoading)
-    return <EmptyState title="Loading historical asset telemetry…" />;
-  if (data.error)
-    return (
-      <EmptyState
-        error
-        title="Telemetry unavailable"
-        description={data.error.message}
-      />
-    );
-  if (!data.data?.overall.sampleCount)
-    return (
-      <EmptyState
-        title="No telemetry observations"
-        description="This asset's configured connections do not establish measured availability. No samples arrived in the last 24 hours."
-      />
+  return <ItemTelemetry item={item} />;
+}
+export function ItemTelemetry({ item }: { item: InventoryItem }) {
+  const { user } = useAuth(),
+    [scope, setScope] = useState<TrendScope>(
+      user?.access?.demoOnly ? "simulated" : "operational",
     );
   return (
-    <section className="space-y-4 rounded-lg border bg-card p-5">
-      <h2 className="font-semibold">Historical telemetry · last 24 hours</h2>
-      <p className="text-sm">
-        {data.data.overall.sampleCount} samples. Operational history includes
-        live and unclassified legacy samples. Explicit simulation and replay
-        streams remain separate.
+    <div className="space-y-3">
+      <label className="flex items-center gap-3 text-sm">
+        Evidence scope
+        <select
+          className="h-10 rounded-md border border-input bg-card px-3"
+          value={scope}
+          onChange={(e) => setScope(e.target.value as TrendScope)}
+        >
+          {["operational", "live", "simulated", "replay", "unknown", "all"].map(
+            (v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ),
+          )}
+        </select>
+      </label>
+      <ObservationTrend
+        deviceId={item.kind === "device" ? Number(item.id) : undefined}
+        assetIds={item.kind !== "device" ? [item.identifier] : undefined}
+        scope={scope}
+        title={`${item.name} observations`}
+      />
+      <p className="text-xs text-muted-foreground">
+        The selected evidence scope applies before sample selection and
+        statistics. Unknown units and quality are excluded from engineering
+        averages; stored evidence remains available in observation history.
       </p>
-      <a className="text-sm text-primary underline" href="#/analytics">
-        Open historical analytics
-      </a>
-    </section>
+    </div>
   );
 }

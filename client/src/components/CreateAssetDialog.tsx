@@ -1,3 +1,4 @@
+import { edgeTagMappingsSchema } from "@shared/edge-configuration";
 import { SectionNav } from "@/components/workspace/Primitives";
 import { MetricMappingEditor } from "@/components/workspace/MappingEditors";
 import { useEffect, useState } from "react";
@@ -162,8 +163,35 @@ export function CreateAssetDialog({
         return;
       }
     }
+    if (step === 2) {
+      if (
+        connectionMode === "direct_mqtt" &&
+        !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/.test(directDeviceId.trim())
+      ) {
+        setValidation(
+          "Review the exact direct MQTT identifier (1–64 compatible characters).",
+        );
+        return;
+      }
+      if (connectionMode === "gateway" && gatewayPk !== "none") {
+        if (!endpoint.trim() || /:\/\/[^/]*@/.test(endpoint)) {
+          setValidation(
+            "Provide the machine endpoint without credentials. Store credentials only on the commissioned gateway.",
+          );
+          return;
+        }
+        try {
+          edgeTagMappingsSchema.parse(JSON.parse(mappingText));
+        } catch {
+          setValidation(
+            "Review metric mappings, supported units and scaling before continuing.",
+          );
+          return;
+        }
+      }
+    }
     setValidation("");
-    setStep((v) => Math.min(2, v + 1));
+    setStep((v) => Math.min(4, v + 1));
   };
   const utils = trpc.useUtils();
   const { data: devices } = trpc.devices.list.useQuery(undefined, {
@@ -239,10 +267,10 @@ export function CreateAssetDialog({
       return toast.error("Use a two-letter ISO country code, for example DE");
     if (
       connectionMode === "direct_mqtt" &&
-      !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(directDeviceId.trim())
+      !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/.test(directDeviceId.trim())
     )
       return toast.error(
-        "Enter a direct MQTT device ID using letters, numbers, underscores, or hyphens",
+        "Enter a direct MQTT device ID using 1–64 letters, numbers, dots, colons, underscores or hyphens",
       );
     if (
       gatewayPk !== "none" &&
@@ -344,10 +372,10 @@ export function CreateAssetDialog({
     let tagMappings: Array<Record<string, unknown>> = [];
     if (
       connectionMode === "direct_mqtt" &&
-      !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(directDeviceId.trim())
+      !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/.test(directDeviceId.trim())
     )
       return toast.error(
-        "Enter a direct MQTT device ID using letters, numbers, underscores, or hyphens",
+        "Enter a direct MQTT device ID using 1–64 letters, numbers, dots, colons, underscores or hyphens",
       );
     if (connectionMode === "gateway" && gatewayPk !== "none") {
       if (!endpoint.trim())
@@ -468,19 +496,23 @@ export function CreateAssetDialog({
           {!asset && creationMode === "form" && !completed && (
             <ol
               aria-label="Registration progress"
-              className="grid grid-cols-3 gap-2 text-xs"
+              className="flex flex-wrap gap-2 text-xs"
             >
-              {["Identity", "Manufacturer", "Connection"].map(
-                (label, index) => (
-                  <li
-                    key={label}
-                    aria-current={step === index ? "step" : undefined}
-                    className={`rounded border px-3 py-2 ${step === index ? "border-primary bg-primary/5 font-medium" : "text-muted-foreground"}`}
-                  >
-                    {index + 1} · {label}
-                  </li>
-                ),
-              )}
+              {[
+                "Identity",
+                "Manufacturer",
+                "Connection",
+                "Representation",
+                "Review",
+              ].map((label, index) => (
+                <li
+                  key={label}
+                  aria-current={step === index ? "step" : undefined}
+                  className={`rounded border px-3 py-2 ${step === index ? "border-primary bg-primary/5 font-medium" : "text-muted-foreground"}`}
+                >
+                  {index + 1} · {label}
+                </li>
+              ))}
             </ol>
           )}
           {validation && (
@@ -1037,6 +1069,58 @@ export function CreateAssetDialog({
                   Registering the asset and its digital representation…
                 </p>
               )}
+              {!asset && creationMode === "form" && step === 3 && (
+                <section className="space-y-3 rounded-md border p-4">
+                  <h3 className="font-semibold">
+                    AAS and optional 3D representation
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    This form provisions an application-owned AAS from the
+                    reviewed identity. Imported vendor AASX content follows the
+                    separate import workflow and preserves its representations.
+                    Native 3D can be added and linked explicitly after
+                    registration; no model or physical connection is inferred
+                    from the asset type.
+                  </p>
+                </section>
+              )}
+              {!asset && creationMode === "form" && step === 4 && (
+                <section className="space-y-3 rounded-md border p-4">
+                  <h3 className="font-semibold">
+                    Review registration and provisioning
+                  </h3>
+                  <dl className="grid grid-cols-[auto_1fr] gap-3 text-sm">
+                    <dt>Asset</dt>
+                    <dd>
+                      {name} · {assetType.replaceAll("_", " ")}
+                    </dd>
+                    <dt>Manufacturer</dt>
+                    <dd>
+                      {manufacturer} · {model}
+                    </dd>
+                    <dt>Location</dt>
+                    <dd>
+                      {[zone, location].filter(Boolean).join(" · ") ||
+                        "Unspecified"}
+                    </dd>
+                    <dt>Connection</dt>
+                    <dd>
+                      {connectionMode === "direct_mqtt"
+                        ? `Direct MQTT: ${directDeviceId}`
+                        : gatewayPk === "none"
+                          ? "Not connected yet"
+                          : `Gateway ${gateways.find((g) => String(g.id) === gatewayPk)?.name ?? gatewayPk} · ${protocol}`}
+                    </dd>
+                    <dt>Representation</dt>
+                    <dd>Generated AAS; no 3D model linked yet</dd>
+                  </dl>
+                  <p className="text-xs text-muted-foreground">
+                    Provisioning creates software records. Gateway application,
+                    source observations and physical equipment commissioning
+                    must be verified separately.
+                  </p>
+                </section>
+              )}
               {isImporting && (
                 <p role="status" className="text-sm text-muted-foreground">
                   Validating the AASX package and registering its models…
@@ -1063,7 +1147,7 @@ export function CreateAssetDialog({
                 </Button>
                 <Button
                   onClick={
-                    !asset && creationMode === "form" && step < 2
+                    !asset && creationMode === "form" && step < 4
                       ? nextStep
                       : asset || creationMode === "form"
                         ? submit
@@ -1071,7 +1155,7 @@ export function CreateAssetDialog({
                   }
                   disabled={create.isPending || update.isPending || isImporting}
                 >
-                  {!asset && creationMode === "form" && step < 2
+                  {!asset && creationMode === "form" && step < 4
                     ? "Next"
                     : update.isPending
                       ? "Saving…"
