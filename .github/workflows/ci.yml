@@ -193,6 +193,7 @@ jobs:
         run: |
           MQTT_PROOF_BROKER=rabbitmq QUALIFICATION_EVIDENCE_DIR="$RUNNER_TEMP/trusted-path/rabbitmq" "$RUNNER_TEMP/edge-proof/bin/python" scripts/qualification/trusted-path.py
           MQTT_PROOF_BROKER=mosquitto QUALIFICATION_EVIDENCE_DIR="$RUNNER_TEMP/trusted-path/mosquitto" "$RUNNER_TEMP/edge-proof/bin/python" scripts/qualification/trusted-path.py
+          MQTT_PROOF_BROKER=mosquitto MQTT_PROOF_PROTOCOL=3.1.1-historical QUALIFICATION_EVIDENCE_DIR="$RUNNER_TEMP/trusted-path/mqtt3-historical" "$RUNNER_TEMP/edge-proof/bin/python" scripts/qualification/trusted-path.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
