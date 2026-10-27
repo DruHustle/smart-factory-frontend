@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { measureOrbit } from "./benchmark";
+import { pollGpuFrame } from "./gpuFrame";
 import { frameBounds, visibleBounds } from "./framing";
 import { moveCamera } from "./cameraMotion";
 import { hitVisible } from "./visibility";
@@ -296,13 +297,16 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         currentScene = scene,
         currentControls = controls;
       let gpuFence: WebGLSync | null = null;
-      let submittedFrames = 0;
+      let submittedFrames = 0,
+        submittedAt = 0,
+        synchronizedFrames = 0;
       const renderStatus = (phase: string, detail?: number) => {
         container.dataset.renderStatus = JSON.stringify({
           phase,
           submittedFrames,
           detail,
           software,
+          synchronizedFrames,
           contextLost: gl.isContextLost(),
         });
       };
@@ -315,17 +319,14 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         renderStatus("queued");
         const draw = () => {
           if (gpuFence && !gl.isContextLost()) {
-            // Flush pending fence commands while polling without blocking.
-            // Software/headless drivers may otherwise leave the first fence pending.
-            const status = gl.clientWaitSync(
+            const { status, synchronized } = pollGpuFrame(
+              gl,
               gpuFence,
-              gl.SYNC_FLUSH_COMMANDS_BIT,
-              0,
+              submittedAt,
+              software,
             );
+            if (synchronized) synchronizedFrames++;
             if (status === gl.TIMEOUT_EXPIRED) {
-              // Status queries may themselves enqueue commands. There is no
-              // continuous render loop to flush them while this frame waits.
-              gl.flush();
               if (!container.dataset.renderStatus?.includes("waiting"))
                 renderStatus("waiting", status);
               frame = requestAnimationFrame(draw);
@@ -333,6 +334,15 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             }
             gl.deleteSync(gpuFence);
             gpuFence = null;
+            if (status === gl.WAIT_FAILED) {
+              frame = 0;
+              renderStatus("failed", status);
+              setState(gl.isContextLost() ? "lost" : "error");
+              setMessage(
+                "Graphics synchronization failed. Retry the 3D view or use the component list.",
+              );
+              return;
+            }
           }
           frame = 0;
           if (!disposed) {
@@ -385,6 +395,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             }
             if (software && !gl.isContextLost()) {
               gpuFence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+              submittedAt = performance.now();
               gl.flush();
             }
           }

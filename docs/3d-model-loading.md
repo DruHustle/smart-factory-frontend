@@ -20,6 +20,8 @@ The version-3 showcase adds the Pi as a thirteenth chapter. Installation is addi
 
 A [hosted baseline](evidence/raspberry-pi/loading-baseline.json) measured the existing pump workspace at 6,012 ms on a cold visit and 2,513 ms on a repeat visit using Chromium SwiftShader. The GLB download itself took 985 ms and 852 ms in those two observations. These are separate from graphics preparation and navigation/code/API time; network conditions vary. A new hosted comparison remains a release acceptance step.
 
-The exact Linux headless Chromium reproduction also exposed an initial software-renderer fence that remained pending after drawing. Nonblocking fence checks now request `SYNC_FLUSH_COMMANDS_BIT` and explicitly flush pending status-query commands during a wait. This preserves the one-frame backpressure policy without increasing test deadlines, blocking the UI, dropping geometry or skipping completed-frame checks. The active-orbit benchmark uses the same flushing policy.
+Linux headless Chromium also exposed an overdue software-renderer fence query after drawing. Normal waits remain nonblocking and explicitly flush status-query commands. For a detected software driver whose query is still pending after 500 ms, the viewer drains its single outstanding GPU frame before drawing again. This exceptional recovery may block until actual completion; it does not discard geometry or pretend that the frame completed. Hardware and unidentified drivers retain nonblocking polling. Context loss and failed synchronization produce an error rather than a successful frame.
+
+Renderer diagnostics and the active-orbit benchmark report the number of exceptional drains. Benchmark elapsed time includes every wait and drain; existing completed-frame, duration and interaction acceptance checks remain unchanged.
 
 See the [actual application screenshots and recordings](evidence/raspberry-pi/README.md).
