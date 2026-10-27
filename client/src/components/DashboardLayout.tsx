@@ -1,3 +1,5 @@
+import { primaryDestinations, navigationGroups } from "@/lib/navigation";
+import { NavigationLabel } from "./workspace/NavigationLabel";
 import { DataWorkspaceSwitch } from "./DataWorkspaceSwitch";
 import { trpc } from "@/lib/trpc";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
@@ -50,59 +52,13 @@ import { Button } from "./ui/button";
 import { safeLocalStorage } from "@/lib/storage";
 import { hasMinimumRole } from "@/lib/access";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Overview", path: "/" },
-  { icon: Layers, label: "Assets & devices", path: "/inventory" },
-];
-// Keep all five uppercase destinations/section labels at the established section size.
-const navigationHeadingTypography =
-  "text-xs font-medium tracking-normal leading-4 uppercase";
-const groups: {
-  label: string;
-  items: {
-    icon: typeof Activity;
-    label: string;
-    path: string;
-    minRole?: "engineer" | "admin";
-  }[];
-}[] = [
-  {
-    label: "OPERATIONS",
-    items: [
-      { icon: Activity, label: "Monitoring", path: "/monitoring" },
-      { icon: AlertTriangle, label: "Alerts", path: "/alerts" },
-      {
-        icon: Download,
-        label: "Firmware & updates",
-        path: "/ota",
-        minRole: "engineer",
-      },
-      { icon: ShieldCheck, label: "Cybersecurity", path: "/cybersecurity" },
-    ],
-  },
-  {
-    label: "INSIGHTS",
-    items: [{ icon: BarChart3, label: "Analytics", path: "/analytics" }],
-  },
-  {
-    label: "WORKSPACE",
-    items: [
-      { icon: Bot, label: "Assistant", path: "/assistant" },
-      { icon: Factory, label: "Demo guide", path: "/demo" },
-      {
-        icon: Plug,
-        label: "Administration",
-        path: "/administration",
-        minRole: "engineer",
-      },
-    ],
-  },
-];
+const menuItems = primaryDestinations;
+const groups = navigationGroups;
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
-const DEFAULT_WIDTH = 240;
-const MIN_WIDTH = 224;
-const MAX_WIDTH = 248;
+const DEFAULT_WIDTH = 232;
+const MIN_WIDTH = 220;
+const MAX_WIDTH = 240;
 
 export default function DashboardLayout({
   children,
@@ -194,10 +150,13 @@ function DashboardLayoutContent({
   });
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
-  const isCollapsed = state === "collapsed";
+  const isMobile = useIsMobile();
+  // Desktop collapse must never hide the expanded mobile drawer labels.
+  const isCollapsed = !isMobile && state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const previousLocationRef = useRef(location);
+  const mobileDestinationSelected = useRef(false);
   const visibleMenuItems = menuItems;
   const isMenuItemActive = (path: string) =>
     path === "/"
@@ -210,7 +169,12 @@ function DashboardLayoutContent({
     ...visibleMenuItems,
     ...groups.flatMap((g) => g.items),
   ].find((item) => isMenuItemActive(item.path));
-  const isMobile = useIsMobile();
+
+  function selectDestination() {
+    if (!isMobile) return;
+    mobileDestinationSelected.current = true;
+    setOpenMobile(false);
+  }
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -273,14 +237,11 @@ function DashboardLayoutContent({
     );
     if (!items.length) return null;
     return (
-      <li className="list-none pt-4" key={group.label}>
-        <h2
-          data-navigation-heading
-          className={`mb-2 px-3 ${navigationHeadingTypography} text-muted-foreground ${isCollapsed ? "sr-only" : ""}`}
-        >
-          {group.label}
+      <li className="list-none pt-3" key={group.label}>
+        <h2 title={isCollapsed ? group.label : undefined} className="mb-1 flex min-h-10 items-center px-2 text-muted-foreground">
+          <NavigationLabel icon={group.icon} label={group.label} heading collapsed={isCollapsed} />
         </h2>
-        <ul className="space-y-1">
+        <ul className="space-y-1 pl-3 group-data-[collapsible=icon]:pl-0">
           {items.map((item) => (
             <SidebarMenuItem key={item.path}>
               <SidebarMenuButton
@@ -295,12 +256,9 @@ function DashboardLayoutContent({
                   aria-current={
                     isMenuItemActive(item.path) ? "page" : undefined
                   }
-                  onClick={() => {
-                    if (isMobile) setOpenMobile(false);
-                  }}
+                  onClick={selectDestination}
                 >
-                  <item.icon className="size-4" />
-                  <span>{item.label}</span>
+                  <NavigationLabel icon={item.icon} label={item.label} collapsed={isCollapsed} />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -325,11 +283,18 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           aria-label="Primary navigation"
+          role="navigation"
           collapsible="icon"
           className="border-r border-sidebar-border"
           disableTransition={isResizing}
+          onMobileCloseAutoFocus={(event) => {
+            if (!mobileDestinationSelected.current) return;
+            mobileDestinationSelected.current = false;
+            event.preventDefault();
+            document.getElementById("dashboard-main")?.focus();
+          }}
         >
-          <SidebarHeader className="h-14 justify-center border-b border-sidebar-border">
+          <SidebarHeader className="h-16 justify-center border-b border-sidebar-border">
             <div className="flex items-center gap-3 px-2 transition-all w-full">
               <button
                 onClick={toggleSidebar}
@@ -368,17 +333,9 @@ function DashboardLayoutContent({
                         aria-current={
                           isMenuItemActive(item.path) ? "page" : undefined
                         }
-                        onClick={() => {
-                          if (isMobile) setOpenMobile(false);
-                        }}
+                        onClick={selectDestination}
                       >
-                        <item.icon className="h-4 w-4" />
-                        <span
-                          data-navigation-heading
-                          className={navigationHeadingTypography}
-                        >
-                          {item.label}
-                        </span>
+                        <NavigationLabel icon={item.icon} label={item.label} heading collapsed={isCollapsed} />
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -470,7 +427,7 @@ function DashboardLayoutContent({
         tabIndex={-1}
         className="min-w-0 max-w-full overflow-x-clip bg-background"
       >
-        <header className="sticky top-0 z-40 flex h-14 min-w-0 items-center justify-between gap-2 border-b bg-background/95 px-3 md:px-6">
+        <header className="sticky top-0 z-40 flex h-16 min-w-0 items-center justify-between gap-2 border-b bg-background/95 px-3 md:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger aria-label="Toggle navigation" />
             <span className="truncate text-sm font-medium">
@@ -493,7 +450,7 @@ function DashboardLayoutContent({
             </Button>
           </div>
         </header>
-        <div className="min-w-0 flex-1 p-4 md:p-6">{children}</div>
+        <div className="workspace-content min-w-0 flex-1 p-4 md:p-6">{children}</div>
       </SidebarInset>
     </>
   );

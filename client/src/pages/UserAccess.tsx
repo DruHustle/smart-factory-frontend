@@ -118,7 +118,7 @@ export default function UserAccess({
       [a.name, a.email].join(" ").toLowerCase().includes(search.toLowerCase()),
     ) ?? [];
   return (
-    <div className="space-y-5">
+    <div className="space-y-[var(--workspace-gap)]">
       {embedded ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

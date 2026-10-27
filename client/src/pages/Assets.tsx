@@ -47,7 +47,7 @@ export default function Assets() {
   const pageAssets = filteredAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-[var(--workspace-gap)]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Industrial Assets</h1>

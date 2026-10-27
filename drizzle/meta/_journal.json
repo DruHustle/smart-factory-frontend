@@ -211,6 +211,13 @@
       "when": 1793053000001,
       "tag": "0029_demo_notification_isolation",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793053000002,
+      "tag": "0030_infrastructure_monitor",
+      "breakpoints": true
     }
   ]
 }

@@ -152,7 +152,7 @@ export async function getDb() {
           : { ca: caCert, rejectUnauthorized: true };
       // Share Aiven's small connection budget with the .NET services and with
       // the previous instance retained during zero-downtime deployments.
-      _sqlClient = postgres(databaseUrl, { ssl, max: 2, idle_timeout: 20 });
+      _sqlClient = postgres(databaseUrl, { ssl, max: 2, idle_timeout: 20, connect_timeout: 5 });
       _db = drizzle(_sqlClient, { schema });
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);

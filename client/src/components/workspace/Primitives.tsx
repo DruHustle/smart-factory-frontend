@@ -20,7 +20,7 @@ export function PageHeader({
         {eyebrow && (
           <div className="mb-2 text-sm text-muted-foreground">{eyebrow}</div>
         )}
-        <h1 className="text-[26px] leading-tight font-semibold tracking-tight break-words sm:text-[30px]">
+        <h1 className="text-[26px] leading-tight font-[730] tracking-[-0.025em] break-words">
           {title}
         </h1>
         {description && (
@@ -51,7 +51,7 @@ export function SectionNav({
     <Tabs value={value} onValueChange={onChange} className="min-w-0">
       <select
         aria-label={label}
-        className="h-11 w-full min-w-0 rounded-md border border-input bg-card px-3 text-base font-medium lg:hidden"
+        className="workspace-control font-medium lg:hidden"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >
@@ -64,11 +64,11 @@ export function SectionNav({
       <div className="hidden max-w-full overflow-x-auto lg:block">
         <TabsList
           aria-label={label}
-          className="h-auto min-h-10 justify-start gap-1 bg-transparent p-0"
+          className="h-auto min-h-10 justify-start gap-4 rounded-none border-b bg-transparent p-0"
         >
           {sections.map((s) => (
             <TabsTrigger
-              className="min-h-10 rounded-md border border-transparent px-3 text-sm data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              className="min-h-10 rounded-none border-b-2 border-transparent px-1 text-[13px] data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
               key={s.id}
               value={s.id}
             >
@@ -162,7 +162,7 @@ export function FilterToolbar({ children }: { children: ReactNode }) {
   return (
     <div
       role="search"
-      className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3 [&>label]:flex [&>label]:min-w-0 [&>label]:flex-col [&>label]:gap-1"
+      className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4 [&>label]:flex [&>label]:min-w-0 [&>label]:flex-col [&>label]:gap-1.5 [&>label]:text-xs"
     >
       {children}
     </div>

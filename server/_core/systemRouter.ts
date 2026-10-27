@@ -11,8 +11,20 @@ import {
 } from "./trpc";
 import * as db from "../db";
 import { demoDataEnabled } from "../demoData";
+import { demoOnlyRead } from "../demoData";
+import { TRPCError } from "@trpc/server";
+import { infrastructureView } from "../infrastructure/store";
+import { demoInfrastructure } from "../infrastructure/demo";
 
 export const systemRouter = router({
+  infrastructure: viewerProcedure.input(z.object({
+    range: z.enum(["2h","24h"]).default("2h"),
+    scenario: z.enum(["normal","failure","recovery"]).default("normal"),
+  }).default({ range:"2h",scenario:"normal" })).query(({ctx,input})=>{
+    if(demoOnlyRead())return demoInfrastructure(input.scenario,input.range);
+    if(ctx.user.role!=="admin")throw new TRPCError({code:"FORBIDDEN",message:"Detailed infrastructure evidence requires an individual administrator account."});
+    return infrastructureView(input.range);
+  }),
   operations: adminProcedure.query(() => operatingEvidence()),
   audit: adminProcedure
     .input(

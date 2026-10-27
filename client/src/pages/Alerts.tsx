@@ -113,7 +113,7 @@ export default function Alerts() {
         )}
       </div>
     );
-  const control = "h-10 w-full rounded-md border border-input bg-card px-3";
+  const control = "workspace-control";
   return (
     <div className="space-y-4">
       <PageHeader

@@ -1777,6 +1777,13 @@ export const appRouter = router({
   }),
 
   assistant: router({
+    context: viewerProcedure
+      .input(z.object({ assetId: z.string().trim().min(3).max(128) }))
+      .query(async ({ input }) =>
+        (await import("./assistantPresentation")).assistantAssetContext(
+          input.assetId,
+        ),
+      ),
     ask: viewerProcedure
       .input(
         z.object({

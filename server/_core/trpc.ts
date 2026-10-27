@@ -53,6 +53,8 @@ const walkthroughQueries = new Set([
   "system.health",
   "system.demoData",
   "system.showcase",
+  "system.infrastructure",
+  "assistant.context",
   "inventory.list",
   "inventory.item",
   "devices.monitor",

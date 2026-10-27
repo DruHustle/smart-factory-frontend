@@ -133,7 +133,7 @@ export default function ItemWorkspace() {
     !!i.equipmentId;
   if (is3D) opened3D.current = i.equipmentId;
   return (
-    <div className={`min-w-0 ${is3D ? "space-y-3" : "space-y-5"}`}>
+    <div className={`min-w-0 ${is3D ? "space-y-3" : "space-y-[var(--workspace-gap)]"}`}>
       <PageHeader
         title={i.name}
         eyebrow={
@@ -198,7 +198,7 @@ export default function ItemWorkspace() {
             description="This capability is unsupported or your role cannot access it."
           />
         ) : section === "overview" ? (
-          <div className="space-y-5">
+          <div className="space-y-[var(--workspace-gap)]">
             {i.equipmentId && (
               <section className="rounded-lg border bg-card p-4">
                 <LinkedModelPreview item={i} returnTo={location} />

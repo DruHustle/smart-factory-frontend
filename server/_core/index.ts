@@ -1,3 +1,5 @@
+import { installRequestMetrics } from "../infrastructure/metrics";
+import { installRecoveryEvidence, startInfrastructureMonitoring } from "../infrastructure/store";
 import { requestedDataWorkspace } from "../../shared/data-workspace";
 import { installOperatingEvidence } from "../operatingEvidence";
 import { getRuntimeContract } from "../runtimeContract";
@@ -156,6 +158,7 @@ async function loginRateLimit(
 
 async function startServer() {
   const app = express();
+  installRequestMetrics(app);
   app.disable("x-powered-by");
   configureTrustedProxies(app);
   const server = createServer(app);
@@ -248,6 +251,7 @@ async function startServer() {
   });
 
   installOperatingEvidence(app);
+  installRecoveryEvidence(app);
   installArtifactRoutes(app);
 
   // Export only to engineers and admins; the generated file contains the
@@ -794,6 +798,7 @@ async function startServer() {
     });
 
     bootstrapReady = true;
+    startInfrastructureMonitoring();
     if (process.env.ONESA_ENABLED === "true") startOnesaWorker();
   }
 

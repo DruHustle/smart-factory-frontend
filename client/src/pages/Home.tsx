@@ -141,9 +141,9 @@ export default function Home() {
     ? `${observationHref(selected, context)}&scope=${scope}&metric=${metric}&from=${end - periods[range]}&to=${end}`
     : undefined;
   const control =
-    "h-10 min-w-0 w-full rounded-md border border-input bg-card px-3 text-sm";
+    "workspace-control";
   return (
-    <div className="space-y-5">
+    <div className="space-y-[var(--workspace-gap)]">
       <PageHeader
         title="Overview"
         description="See your equipment, observations and what needs attention."
@@ -199,7 +199,7 @@ export default function Home() {
               relationships.
             </p>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-[var(--workspace-gap)]">
             {model.isLoading ? (
               <EmptyState title="Loading equipment representations…" />
             ) : model.error ? (

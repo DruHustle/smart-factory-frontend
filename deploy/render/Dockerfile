@@ -15,8 +15,10 @@ COPY shared ./shared
 COPY drizzle ./drizzle
 COPY scripts/bootstrap-admin.ts scripts/migrate-dashboard.ts ./scripts/
 COPY scripts/showcase ./scripts/showcase
+COPY scripts/infrastructure ./scripts/infrastructure
 RUN pnpm exec esbuild server/_core/index.ts --bundle --platform=node --target=node22 --format=esm --packages=external --external:../../vite.config --outfile=/compiled/server/_core/index.mjs \
     && pnpm exec esbuild scripts/showcase/install.ts --bundle --platform=node --target=node22 --format=esm --packages=external --outfile=/compiled/scripts/showcase/install.mjs \
+    && pnpm exec esbuild scripts/infrastructure/record-recovery.ts --bundle --platform=node --target=node22 --format=esm --packages=external --outfile=/compiled/scripts/infrastructure/record-recovery.mjs \
     && pnpm exec esbuild scripts/bootstrap-admin.ts scripts/migrate-dashboard.ts --bundle --platform=node --target=node22 --format=esm --packages=external --outdir=/compiled/scripts --out-extension:.js=.mjs
 
 FROM node:22-bookworm-slim AS node-dependencies

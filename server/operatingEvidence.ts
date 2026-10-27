@@ -20,6 +20,12 @@ export const workerReceipt = z
     quarantined: count,
     failedAttempts: count,
     oldestPendingAt: z.string().datetime().nullable(),
+    notificationReady: z.boolean().nullable().optional(),
+    resources: z.object({
+      residentBytes: z.number().int().nonnegative(),
+      cpuMsPerSecond: z.number().finite().nonnegative().nullable(),
+      databaseQueryMs: z.number().finite().nonnegative(),
+    }).strict().optional(),
   })
   .strict();
 export async function storeWorkerReceipt(value: unknown) {
@@ -75,7 +81,7 @@ export async function operatingEvidence() {
   const db = await getDb();
   if (!db) throw Error("Database unavailable");
   const [queue] = await db.execute(
-    sql`select count(*) filter(where delivered_at is null and quarantined_at is null)::int as pending,min(occurred_at) filter(where delivered_at is null and quarantined_at is null) as oldest,count(*) filter(where quarantined_at is not null)::int as quarantined from security_outbox`,
+    sql`select count(*) filter(where delivered_at is null and quarantined_at is null)::int as pending,case when count(*) filter(where delivered_at is null and quarantined_at is null and accepted_at is null)>0 then null else min(accepted_at) filter(where delivered_at is null and quarantined_at is null) end as oldest,count(*) filter(where quarantined_at is not null)::int as quarantined from security_outbox`,
   );
   const [ingress] = await db.execute(
     sql`select count(*)::int as quarantined,max(last_received_at) as latest from telemetry_rejections`,

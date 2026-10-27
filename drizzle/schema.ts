@@ -445,6 +445,7 @@ export const notificationInbox = pgTable(
       onDelete: "cascade",
     }),
     securityFindingId: uuid("securityFindingId"),
+    infrastructureEventId: uuid("infrastructureEventId"),
     userId: integer("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

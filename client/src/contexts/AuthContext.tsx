@@ -1,3 +1,4 @@
+import { clearAssistantSession } from "@/lib/assistant-session";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useState, useEffect } from "react";
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const expireSession = () => {
+      clearAssistantSession();
       queryClient.clear();
       setUser(null);
     };
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await apiLogin(email, password);
 
       if (result.success) {
+        clearAssistantSession();
         queryClient.clear();
         setUser(result.user || null);
         return { success: true };
@@ -88,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await apiRegister(email, password, name);
 
       if (result.success) {
+        clearAssistantSession();
         queryClient.clear();
         setUser(result.user || null);
         return { success: true };
@@ -110,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         "Server revocation could not be confirmed. An administrator can revoke sessions.",
       );
     } finally {
+      clearAssistantSession();
       queryClient.clear();
       // Always clear local state
       setUser(null);
@@ -117,6 +122,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
   const refreshUser = async () => {
     const result = await getCurrentUser();
+    if (
+      result.user?.id !== user?.id ||
+      result.user?.role !== user?.role ||
+      result.user?.access?.demoOnly !== user?.access?.demoOnly
+    )
+      clearAssistantSession();
     queryClient.clear();
     setUser(result.user ?? null);
   };

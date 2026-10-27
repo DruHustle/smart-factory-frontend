@@ -126,7 +126,7 @@ export default function AnalyticsPage() {
     groups.set(key, entry);
   }
   const control =
-    "h-10 w-full rounded-md border border-input bg-card px-3 text-sm";
+    "workspace-control";
   return (
     <div className="space-y-4">
       <PageHeader

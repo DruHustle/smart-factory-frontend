@@ -340,7 +340,7 @@ function Workspace({
     sources.error ??
     finding.error;
   return (
-    <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
+    <div className="min-w-0 space-y-[var(--workspace-gap)] [overflow-wrap:anywhere]">
       <PageHeader
         title="Cybersecurity"
         description="Review source coverage, evidence and security investigations."

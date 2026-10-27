@@ -36,6 +36,8 @@
 }
 
 @theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -179,16 +181,9 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family:
-      ui-sans-serif,
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      sans-serif;
+    font-family: var(--font-sans);
     font-size: 14px;
-    line-height: 1.5;
-    font-variant-numeric: tabular-nums;
+    line-height: 1.55;
     min-width: 320px;
     text-rendering: optimizeLegibility;
   }
@@ -220,19 +215,24 @@
   }
 
   h1 {
-    @apply text-3xl;
+    font-size: 26px;
+    line-height: 1.25;
+    font-weight: 650;
   }
 
   h2 {
-    @apply text-2xl;
+    font-size: 16px;
+    line-height: 1.4;
+    font-weight: 650;
   }
 
   h3 {
-    @apply text-xl;
+    font-size: 14px;
+    line-height: 1.45;
   }
 
   h4 {
-    @apply text-lg;
+    font-size: 14px;
   }
 
   /* Smooth transitions */
@@ -486,22 +486,6 @@
 #dashboard-main {
   overflow-wrap: anywhere;
 }
-#dashboard-main [data-slot="card"] {
-  box-shadow: none;
-  border-radius: 0.5rem;
-}
-#dashboard-main [data-slot="card-header"] {
-  padding: 1rem 1rem 0.65rem;
-}
-#dashboard-main [data-slot="card-content"] {
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-#dashboard-main [data-slot="card-title"] {
-  font-size: 0.95rem;
-  line-height: 1.4;
-  font-weight: 600;
-}
 #dashboard-main a:focus-visible,
 summary:focus-visible {
   outline: 2px solid var(--ring);
@@ -514,8 +498,16 @@ summary:focus-visible {
 #dashboard-main td {
   vertical-align: top;
 }
-.workspace-page-header {
-  width: 100%;
+.workspace-page-header { width: 100%; }
+:root { --workspace-gap: 18px; --control-height: 38px; }
+.workspace-content { width: 100%; max-width: 1680px; margin-inline: auto; }
+@layer components {
+  .workspace-control {
+    @apply h-11 min-w-0 w-full rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50;
+  }
+  @media (min-width: 768px) {
+    .workspace-control { height: var(--control-height); font-size: 13px; }
+  }
 }
 
 :root {
@@ -553,9 +545,7 @@ summary:focus-visible {
   select {
     font-size: 16px;
   }
-  [data-slot="button"] {
-    min-height: 40px;
-  }
+  [data-slot="button"], [data-slot="select-trigger"], [data-slot="select-item"], [data-slot="dropdown-menu-item"] { min-height: 40px; }
 }
 
 input[type="range"],

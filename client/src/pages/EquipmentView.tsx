@@ -102,7 +102,7 @@ export default function EquipmentView({
     window.history.replaceState(window.history.state, "", url);
   }, [id]);
   return (
-    <div className="space-y-5 min-w-0">
+    <div className="space-y-[var(--workspace-gap)] min-w-0">
       {securityFindingId &&
         !findingLocation.isLoading &&
         !findingLocation.data && (
@@ -359,6 +359,12 @@ function LocalWorkspace({
   const securityFindingId = new URLSearchParams(
     window.location.hash.split("?")[1] ?? "",
   ).get("securityFinding");
+  const requestedComponent = new URLSearchParams(
+    window.location.hash.split("?")[1] ?? "",
+  ).get("component");
+  const validRequestedComponent = w?.components.find(
+    (c) => c.installedComponentId === requestedComponent,
+  )?.installedComponentId;
   const linkedFinding = trpc.security.equipmentForFinding.useQuery(
     { id: securityFindingId ?? "00000000-0000-0000-0000-000000000000" },
     { enabled: !!securityFindingId && securityAccess.data?.enabled === true },
@@ -368,6 +374,9 @@ function LocalWorkspace({
     setNote("");
     setReplayAt(null);
   }, [w?.id, w?.version]);
+  useEffect(() => {
+    if (validRequestedComponent) setSelected(validRequestedComponent);
+  }, [id, validRequestedComponent]);
   useEffect(() => {
     if (
       linkedFinding.data?.equipmentId === id &&
@@ -630,7 +639,7 @@ function LocalWorkspace({
                 focusComponentId={
                   linkedFinding.data?.equipmentId === id
                     ? linkedFinding.data.componentId
-                    : undefined
+                    : validRequestedComponent
                 }
                 securityFindings={
                   securityOverlay ? security.data?.mapped : undefined

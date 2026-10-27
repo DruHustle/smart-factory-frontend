@@ -1,510 +1,764 @@
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
-import { Link } from "wouter";
-import { PageHeader } from "@/components/workspace/Primitives";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   Bot,
-  BookOpen,
-  ChevronDown,
-  Clock3,
-  LoaderCircle,
-  Send,
   UserRound,
+  Send,
+  Plus,
+  ArrowDown,
+  BookOpen,
+  LoaderCircle,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useDocumentActive } from "@/hooks/useDocumentActive";
+import { trpc } from "@/lib/trpc";
+import {
+  validatedAssistantPresentation,
+  type AssistantAnswer,
+} from "@shared/assistant";
+import {
+  useAssistantSession,
+  readAssistantSession,
+  updateAssistantSession,
+  resetAssistantSession,
+  type AssistantTurn,
+  type TurnContext,
+} from "@/lib/assistant-session";
+import { PageHeader } from "@/components/workspace/Primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { SafeMarkdown } from "@/components/SafeMarkdown";
-import { trpc } from "@/lib/trpc";
-import { toast } from "sonner";
+import { EvidenceInspector } from "@/components/assistant/EvidenceInspector";
+import { AnswerVisual } from "@/components/assistant/AnswerVisual";
+import { EquipmentContextSelect } from "@/components/assistant/EquipmentContextSelect";
 
-type AnswerSource = {
-  title: string;
-  section: string;
-  path: string;
-  href?: string;
-  timestamp?: string;
-  excerpt: string;
-  kind?: "documentation" | "live-data";
-};
-type Answer = { answer: string; sources: AnswerSource[]; contextAt: string };
-type Exchange = { question: string; result: Answer };
-
-const SUGGESTED_QUESTIONS = [
-  "How do I create an asset and provision its AAS?",
-  "What is the difference between an asset and a gateway?",
-  "How does telemetry reach the dashboard?",
-  "Which active incidents need attention?",
-  "How do user roles control access?",
-  "How do I configure OIDC for an AAS repository?",
-];
-
-function answerBody(answer: string) {
-  return answer.replace(/^\s*#{1,3}\s*(?:answer|response)\s*(?:\r?\n)+/i, "");
+function time(value: string) {
+  const at = Date.parse(value);
+  return Number.isFinite(at)
+    ? new Date(at).toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Time unavailable";
 }
-
-function SourceDisclosure({ sources }: { sources: AnswerSource[] }) {
-  if (sources.length === 0) return null;
-  return (
-    <details className="group border-t">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
-        <span className="flex items-center gap-2 font-medium">
-          <BookOpen className="h-4 w-4" />
-          Sources and current context
-          <Badge variant="outline" className="h-5 px-1.5 text-xs">
-            {sources.length}
-          </Badge>
-        </span>
-        <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
-      </summary>
-      <div className="grid gap-2 border-t bg-muted/10 p-4 sm:grid-cols-2">
-        {sources.map((source) => (
-          <section
-            key={`${source.path}-${source.section}`}
-            className="min-w-0 rounded-lg border bg-card p-3"
-          >
-            <Badge
-              variant={source.kind === "live-data" ? "secondary" : "outline"}
-            >
-              {source.kind === "live-data"
-                ? "Current system data"
-                : source.title}
-            </Badge>
-            <h3 className="mb-1 mt-2 text-sm font-medium leading-5">
-              {source.section}
-            </h3>
-            <p className="line-clamp-5 whitespace-pre-line break-words text-xs leading-5 text-muted-foreground">
-              {source.excerpt}
-            </p>
-          </section>
-        ))}
-      </div>
-    </details>
-  );
+function prose(value: string) {
+  return value.replace(/^\s*#{1,3}\s*(?:answer|response)\s*(?:\r?\n)+/i, "");
 }
-
 export default function Assistant() {
-  const [question, setQuestion] = useState("");
-  const [selectedAssetId, setSelectedAssetId] = useState("automatic");
-  const [exchanges, setExchanges] = useState<Exchange[]>([]);
-  const questionTooLong = question.length > 500;
+  const { user } = useAuth(),
+    wide = useMediaQuery("(min-width:1280px)"),
+    active = useDocumentActive(),
+    reduce = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const owner = `${user?.id ?? "signed-out"}:${user?.role ?? ""}:${user?.access?.demoOnly ? "demo" : (user?.access?.workspaceView ?? "configured")}`;
+  const [session, setSession] = useAssistantSession(owner),
+    [inspectorOpen, setInspectorOpen] = useState(false),
+    [citation, setCitation] = useState<{ number: number; key: number } | null>(
+      null,
+    ),
+    [showLatest, setShowLatest] = useState(!session.followLatest),
+    [attempted, setAttempted] = useState(false),
+    [viewportHeight, setViewportHeight] = useState(
+      () => window.visualViewport?.height ?? window.innerHeight,
+    );
+  const pane = useRef<HTMLDivElement>(null),
+    input = useRef<HTMLTextAreaElement>(null),
+    requestPending = useRef(false),
+    composing = useRef(false),
+    follow = useRef(session.followLatest),
+    position = useRef(session.scrollTop),
+    latest = useRef(session),
+    citationSequence = useRef(0),
+    completedTurn = useRef<string | null>(null),
+    inspectorAside = useRef<HTMLElement>(null),
+    inspectorOpener = useRef<HTMLElement | null>(null);
+  latest.current = session;
+  const busy = session.turns.some((t) => t.status === "pending"),
+    invalid = session.draft.length > 500 || session.draft.trim().length < 3;
+  const contextQuery = trpc.assistant.context.useQuery(
+    { assetId: session.selectedAssetId },
+    { enabled: session.selectedAssetId !== "automatic", staleTime: 60000 },
+  );
+  const selectedContext: TurnContext =
+    session.selectedAssetId === "automatic"
+      ? null
+      : {
+          assetId: session.selectedAssetId,
+          name:
+            contextQuery.data?.name ??
+            session.selectedAssetName ??
+            "Selected equipment",
+        };
+  const selectedTurn =
+    session.turns.find((t) => t.id === session.selectedTurnId) ??
+    session.turns.at(-1);
   const ask = trpc.assistant.ask.useMutation();
-  const { data: assets = [] } = trpc.assets.list.useQuery();
-  const conversationRef = useRef<HTMLElement>(null);
-  const latestArticleRef = useRef<HTMLElement>(null);
-  const wide = useMediaQuery("(min-width:1280px)");
-
+  const scrollToLatest = (smooth = true) => {
+    follow.current = true;
+    setShowLatest(false);
+    const element = pane.current;
+    if (element)
+      element.scrollTo({
+        top: element.scrollHeight,
+        behavior: smooth && !reduce ? "smooth" : "auto",
+      });
+  };
   useEffect(() => {
-    const panel = conversationRef.current,
-      latest = latestArticleRef.current;
-    if (panel && latest)
-      panel.scrollTo({
-        top:
-          panel.scrollTop +
-          latest.getBoundingClientRect().top -
-          panel.getBoundingClientRect().top,
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
-      });
-  }, [exchanges.length, ask.isPending]);
-
-  const submit = async (event?: FormEvent, suggestedQuestion?: string) => {
-    event?.preventDefault();
-    if (ask.isPending) return;
-    const rawQuestion = suggestedQuestion ?? question;
-    if (rawQuestion.length > 500) return;
-    const submittedQuestion = rawQuestion.trim();
-    if (submittedQuestion.length < 3) return;
-    try {
-      const history = exchanges.slice(-6).flatMap((exchange) => [
-        { role: "user" as const, content: exchange.question },
-        {
-          role: "assistant" as const,
-          content: exchange.result.answer.slice(0, 1200),
-        },
-      ]);
-      const result = await ask.mutateAsync({
-        question: submittedQuestion,
-        selectedAssetId:
-          selectedAssetId === "automatic" ? undefined : selectedAssetId,
-        history,
-      });
-      setExchanges((current) => [
-        ...current,
-        { question: submittedQuestion, result },
-      ]);
-      setQuestion((current) => (current === submittedQuestion ? "" : current));
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The assistant could not answer that question",
+    const viewport = window.visualViewport;
+    const resize = () =>
+      setViewportHeight(viewport?.height ?? window.innerHeight);
+    viewport?.addEventListener("resize", resize);
+    window.addEventListener("resize", resize);
+    return () => {
+      viewport?.removeEventListener("resize", resize);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (input.current) {
+      input.current.style.height = "0px";
+      input.current.style.height =
+        Math.min(128, Math.max(44, input.current.scrollHeight)) + "px";
+    }
+  }, [session.draft]);
+  useLayoutEffect(() => {
+    const last = session.turns.at(-1);
+    if (last?.status === "complete" && completedTurn.current !== last.id) {
+      completedTurn.current = last.id;
+      if (follow.current && pane.current) {
+        const response = pane.current.querySelector<HTMLElement>(
+          "article:last-child [data-assistant-response]",
+        );
+        if (response) {
+          pane.current.scrollTo({
+            top: Math.max(0, response.offsetTop - 8),
+            behavior: "auto",
+          });
+          return;
+        }
+      }
+    }
+    if (follow.current) scrollToLatest(false);
+  }, [session.turns.length, session.turns.at(-1)?.status, viewportHeight]);
+  useLayoutEffect(() => {
+    if (pane.current) {
+      pane.current.scrollTop = session.followLatest
+        ? pane.current.scrollHeight
+        : session.scrollTop;
+    }
+  }, [owner]);
+  useEffect(
+    () => () => {
+      updateAssistantSession(
+        owner,
+        (s) => ({
+          ...s,
+          scrollTop: position.current,
+          followLatest: follow.current,
+        }),
+        latest.current.generation,
       );
+    },
+    [owner],
+  );
+  useEffect(() => {
+    if (session.turns.length || session.selectedAssetId !== "automatic") return;
+    const requested = new URLSearchParams(
+      window.location.hash.split("?")[1] ?? "",
+    ).get("asset");
+    if (requested && requested.length >= 3 && requested.length <= 128)
+      setSession((s) => ({ ...s, selectedAssetId: requested }));
+  }, [owner]);
+  const inspect = (id: string, n?: number) => {
+    inspectorOpener.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    setSession((s) => ({ ...s, selectedTurnId: id }));
+    setCitation(n ? { number: n, key: ++citationSequence.current } : null);
+    follow.current = false;
+    const panel = pane.current;
+    setShowLatest(
+      id !== session.turns.at(-1)?.id ||
+        (!!panel &&
+          panel.scrollHeight - panel.scrollTop - panel.clientHeight >= 72),
+    );
+    if (!wide) setInspectorOpen(true);
+    else if (!n) inspectorAside.current?.focus({ preventScroll: true });
+  };
+  const perform = async (turn: AssistantTurn, draftAtSubmission: string) => {
+    if (requestPending.current) return;
+    requestPending.current = true;
+    const generation = readAssistantSession(owner)?.generation;
+    if (generation === undefined) {
+      requestPending.current = false;
+      return;
+    }
+    try {
+      const raw = await ask.mutateAsync(turn.request),
+        presentation = validatedAssistantPresentation(
+          (raw as AssistantAnswer).presentation,
+          raw.sources.length,
+        ),
+        result: AssistantAnswer = {
+          ...raw,
+          presentation,
+        };
+      updateAssistantSession(
+        owner,
+        (s) => ({
+          ...s,
+          turns: s.turns.map((t) =>
+            t.id === turn.id
+              ? { ...t, status: "complete", result, error: undefined }
+              : t,
+          ),
+          draft: s.draft === draftAtSubmission ? "" : s.draft,
+          ...(s.selectedAssetId === "automatic" &&
+          result.presentation?.format === "operational" &&
+          result.presentation.context
+            ? {
+                selectedAssetId: result.presentation.context.assetId,
+                selectedAssetName: result.presentation.context.name,
+              }
+            : {}),
+        }),
+        generation,
+      );
+    } catch (error) {
+      updateAssistantSession(
+        owner,
+        (s) => ({
+          ...s,
+          turns: s.turns.map((t) =>
+            t.id === turn.id
+              ? {
+                  ...t,
+                  status: "failed",
+                  error:
+                    error instanceof Error
+                      ? error.message
+                      : "The answer could not be loaded. Retry when the service is available.",
+                }
+              : t,
+          ),
+        }),
+        generation,
+      );
+    } finally {
+      requestPending.current = false;
     }
   };
-
+  const submit = (event?: FormEvent, suggestion?: string) => {
+    event?.preventDefault();
+    if (requestPending.current || busy) return;
+    const current = readAssistantSession(owner) ?? session,
+      raw = suggestion ?? current.draft,
+      question = raw.trim();
+    setAttempted(true);
+    if (raw.length > 500 || question.length < 3) return;
+    const history = current.turns
+      .filter((t) => t.status === "complete" && t.result)
+      .slice(-6)
+      .flatMap((t) => [
+        { role: "user" as const, content: t.question.slice(0, 1200) },
+        {
+          role: "assistant" as const,
+          content: t.result!.answer.slice(0, 1200),
+        },
+      ]);
+    const context =
+      current.selectedAssetId === "automatic"
+        ? null
+        : {
+            assetId: current.selectedAssetId,
+            name:
+              contextQuery.data?.name ??
+              current.selectedAssetName ??
+              "Selected equipment",
+          };
+    const turn: AssistantTurn = {
+      id: crypto.randomUUID(),
+      question,
+      submittedAt: new Date().toISOString(),
+      context,
+      request: { question, selectedAssetId: context?.assetId, history },
+      status: "pending",
+    };
+    setSession((s) => ({
+      ...s,
+      draft: suggestion ?? s.draft,
+      turns: [...s.turns, turn],
+      selectedTurnId: turn.id,
+    }));
+    setCitation(null);
+    follow.current = true;
+    setShowLatest(false);
+    setAttempted(false);
+    void perform(turn, raw);
+  };
+  const retry = (turn: AssistantTurn) => {
+    if (requestPending.current || busy) return;
+    setSession((s) => ({
+      ...s,
+      turns: s.turns.map((t) =>
+        t.id === turn.id ? { ...t, status: "pending", error: undefined } : t,
+      ),
+    }));
+    void perform(turn, session.draft === turn.question ? session.draft : "");
+  };
+  const newConversation = () => {
+    if (busy || requestPending.current) return;
+    resetAssistantSession(owner);
+    setCitation(null);
+    setAttempted(false);
+    follow.current = true;
+    position.current = 0;
+    setShowLatest(false);
+    input.current?.focus({ preventScroll: true });
+  };
+  const suggestions = selectedContext
+    ? [
+        `Why does ${selectedContext.name} need attention?`,
+        `Show the latest observations for ${selectedContext.name}.`,
+        `How can I inspect this equipment?`,
+      ]
+    : [
+        "Which active incidents need attention?",
+        "How do I import an AASX package?",
+        user?.access?.canEngineer
+          ? "How do I create an asset and provision its AAS?"
+          : "How do I review source freshness?",
+      ];
+  const inspectorContext = selectedTurn
+    ? selectedTurn.context
+    : selectedContext;
+  const inspector = (
+    <EvidenceInspector
+      turn={selectedTurn}
+      context={inspectorContext}
+      citation={citation}
+    />
+  );
   return (
-    <div className="w-full space-y-4 pb-4">
-      <div className="mb-5">
-        <PageHeader
-          title="Assistant"
-          description="Ask about factory evidence, operations and workflows."
-        />
-      </div>
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
-        <Card className="flex h-[calc(100dvh-12rem)] min-h-[32rem] flex-col gap-0 overflow-hidden rounded-lg border-border bg-card shadow-none">
-          <CardHeader className="flex flex-row items-center gap-3 border-b px-4 py-2.5 sm:px-6 sm:py-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Bot className="h-4 w-4" />
+    <div
+      className="flex min-h-0 w-full flex-col gap-3"
+      style={{ height: `max(14rem,calc(${viewportHeight}px - 8.5rem))` }}
+    >
+      <PageHeader
+        title="Assistant"
+        description="Understand equipment through evidence."
+        action={
+          <div className="flex items-center gap-2">
+            <Badge className="hidden sm:inline-flex" variant="outline">
+              Read-only
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={newConversation}
+              aria-label="New conversation"
+              title="New conversation"
+            >
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">New conversation</span>
+            </Button>
+          </div>
+        }
+      />
+      <section
+        aria-label="Conversation"
+        className={`grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] ${session.turns.length ? "items-stretch" : "items-start"}`}
+      >
+        <div
+          className={`relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border bg-card ${session.turns.length ? "h-full" : "max-h-full"}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2 text-xs text-muted-foreground">
+            <span>
+              {selectedTurn?.result
+                ? `${wide ? "Inspecting answer snapshot" : "Snapshot"} · ${time(selectedTurn.result.contextAt)}`
+                : user?.access?.demoOnly
+                  ? "Isolated simulation workspace"
+                  : "Authorized workspace · advisory"}
             </span>
-            <CardTitle className="min-w-0 truncate text-base sm:text-lg">
-              Conversation
-            </CardTitle>
-            <div className="ml-auto flex items-center gap-2">
-              {exchanges.length > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="hidden whitespace-nowrap sm:inline-flex"
-                >
-                  {exchanges.length} question{exchanges.length === 1 ? "" : "s"}
-                </Badge>
-              )}
-              <Badge
-                variant="outline"
-                className="gap-1.5 border-info/40 px-2 py-1 text-info"
-              >
-                <span className="h-2 w-2 rounded-full bg-info " />
-                Read-only
-              </Badge>
-            </div>
-          </CardHeader>
-
-          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-            <section
-              ref={conversationRef}
-              aria-label="Conversation"
-              aria-live="polite"
-              aria-busy={ask.isPending}
-              className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-7"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => {
+                if (selectedTurn) inspect(selectedTurn.id);
+                else {
+                  inspectorOpener.current =
+                    document.activeElement instanceof HTMLElement
+                      ? document.activeElement
+                      : null;
+                  if (wide)
+                    inspectorAside.current?.focus({ preventScroll: true });
+                  else setInspectorOpen(true);
+                }
+              }}
             >
-              {exchanges.length === 0 ? (
-                <div className="flex min-h-full flex-col justify-end gap-5">
-                  <div className="max-w-2xl rounded-lg rounded-bl-md border border-primary/35 bg-muted/30 px-5 py-4 text-sm leading-6 sm:text-base">
-                    I can help with gateway connectivity, AAS assets, telemetry,
-                    incidents, and dashboard workflows. What would you like to
-                    check?
-                  </div>
-                  <div>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Suggested questions
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {SUGGESTED_QUESTIONS.map((suggestion) => (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          disabled={ask.isPending}
-                          onClick={() => void submit(undefined, suggestion)}
-                          className="rounded-full border bg-background px-4 py-2 text-left text-xs transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 sm:text-sm"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {exchanges.map((exchange, index) => (
-                    <article
-                      ref={
-                        index === exchanges.length - 1
-                          ? latestArticleRef
-                          : undefined
-                      }
-                      key={`${index}-${exchange.question}`}
-                      className="space-y-3"
-                    >
-                      <div className="flex items-start justify-end gap-2.5">
-                        <div className="max-w-[88%] rounded-lg rounded-br-md border border-border bg-primary/10 px-5 py-3 text-sm leading-6">
-                          {exchange.question}
-                        </div>
-                        <UserRound className="mt-3 h-4 w-4 shrink-0 text-muted-foreground" />
-                      </div>
-                      <Card className="max-w-full gap-0 overflow-hidden rounded-lg rounded-tl-md border-border sm:max-w-[88%]">
-                        <CardHeader className="flex flex-row items-center gap-3 border-b bg-muted/15 px-5 py-3">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <Bot className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0">
-                            <CardTitle className="text-sm">Answer</CardTitle>
-                            <CardDescription className="hidden sm:block">
-                              Smart Factory Assistant
-                            </CardDescription>
-                          </div>
-                          <time
-                            className="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
-                            dateTime={exchange.result.contextAt}
-                            title={new Date(
-                              exchange.result.contextAt,
-                            ).toLocaleString()}
-                          >
-                            <Clock3 className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">
-                              Snapshot ·{" "}
-                            </span>
-                            {new Date(exchange.result.contextAt).toLocaleString(
-                              [],
-                              {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </time>
-                        </CardHeader>
-                        <CardContent className="px-5 py-5 sm:px-6">
-                          {exchange.result.sources.some(
-                            (source) =>
-                              source.href?.startsWith("#/inventory/") ||
-                              source.href?.startsWith("/inventory/"),
-                          ) && (
-                            <nav
-                              aria-label="Equipment evidence for this answer"
-                              className="mb-4 flex flex-wrap gap-2 border-b pb-4"
-                            >
-                              {exchange.result.sources
-                                .filter(
-                                  (source) =>
-                                    source.href?.startsWith("#/inventory/") ||
-                                    source.href?.startsWith("/inventory/"),
-                                )
-                                .slice(0, 3)
-                                .map((source, index) => (
-                                  <Link
-                                    key={source.href}
-                                    href={source.href!.replace(/^#/, "")}
-                                    className="flex min-w-0 items-center gap-2 rounded-full border border-info/50 bg-info/5 px-3 py-2 text-sm hover:border-primary"
-                                  >
-                                    <EquipmentSymbol
-                                      type="equipment"
-                                      className="size-5 text-info"
-                                    />
-                                    <span className="break-words">
-                                      [{index + 1}] {source.section}
-                                    </span>
-                                  </Link>
-                                ))}
-                            </nav>
-                          )}
-                          <div
-                            data-testid="assistant-answer-content"
-                            className="min-w-0 text-sm"
-                          >
-                            <SafeMarkdown>
-                              {answerBody(exchange.result.answer)}
-                            </SafeMarkdown>
-                          </div>
-                        </CardContent>
-                        <SourceDisclosure sources={exchange.result.sources} />
-                      </Card>
-                    </article>
-                  ))}
-                  {ask.isPending && (
-                    <div
-                      role="status"
-                      className="flex items-center gap-3 text-sm text-muted-foreground"
-                    >
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                        <LoaderCircle
-                          aria-hidden="true"
-                          className="h-4 w-4 animate-spin text-primary"
-                        />
-                      </span>
-                      Thinking…
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
-
-            <form
-              onSubmit={(event) => void submit(event)}
-              className="border-t bg-background/70 p-4 backdrop-blur sm:p-6"
-            >
-              <div className="rounded-lg border bg-background p-2 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
-                <Textarea
-                  id="assistant-question"
-                  aria-label="Ask the Smart Factory Assistant"
-                  aria-invalid={questionTooLong || undefined}
-                  aria-describedby={
-                    questionTooLong ? "assistant-question-limit" : undefined
-                  }
-                  value={question}
-                  onChange={(event) => setQuestion(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      void submit();
-                    }
-                  }}
-                  rows={3}
-                  placeholder="Ask about your factory…"
-                  className="min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
-                />
-                <div className="flex flex-col gap-2 border-t px-1 pt-2 sm:flex-row sm:items-center">
-                  <Select
-                    value={selectedAssetId}
-                    onValueChange={setSelectedAssetId}
-                  >
-                    <SelectTrigger
-                      id="assistant-asset-context"
-                      aria-label="Assistant asset context"
-                      className="h-9 min-w-0 flex-1 border-0 bg-muted/50 shadow-none sm:max-w-72"
-                    >
-                      <SelectValue placeholder="Automatic asset context" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="automatic">
-                        Automatic asset context
-                      </SelectItem>
-                      {assets.map((asset) => (
-                        <SelectItem key={asset.assetId} value={asset.assetId}>
-                          {asset.name}
-                          {asset.isDemo ? " · simulated" : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="ml-auto flex items-center gap-3">
-                    {questionTooLong && (
-                      <p
-                        id="assistant-question-limit"
-                        role="alert"
-                        className="text-xs text-destructive"
-                      >
-                        Max 500 characters
-                      </p>
-                    )}
-                    <Button
-                      type="submit"
-                      aria-label="Ask"
-                      disabled={
-                        ask.isPending ||
-                        questionTooLong ||
-                        question.trim().length < 3
-                      }
-                      className="min-w-28"
-                    >
-                      {ask.isPending ? (
-                        <LoaderCircle className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )}
-                      {ask.isPending ? "Thinking…" : "Send"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-        <aside className="rounded-lg border bg-card p-4">
-          <details open={wide} className="space-y-3">
-            <summary className="cursor-pointer text-base font-semibold">
-              Evidence used
-              {exchanges.at(-1)?.result.sources.length
-                ? ` · ${exchanges.at(-1)!.result.sources.length} sources`
+              <BookOpen className="size-4" />
+              {wide ? "Evidence & context" : "Evidence & context"}
+              {selectedTurn?.result?.sources.length
+                ? ` (${selectedTurn.result.sources.length})`
                 : ""}
-            </summary>
-            <p className="text-sm text-muted-foreground">
-              Authorized workspace context and operator guides. Each answer
-              retains its own snapshot.
-            </p>
-            {exchanges.at(-1)?.result.sources.length ? (
-              <div className="space-y-3">
-                {exchanges.at(-1)!.result.sources.map((source, i) => (
-                  <div
-                    className="rounded-md border p-3"
-                    key={`${source.path}-${i}`}
-                  >
-                    <p className="text-xs text-info">
-                      [{i + 1}]{" "}
-                      {source.kind === "live-data"
-                        ? "Stored workspace evidence"
-                        : "Operator guide"}
+            </Button>
+          </div>
+          <div
+            ref={pane}
+            aria-label="Conversation history"
+            className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 [scrollbar-gutter:stable] sm:px-6"
+            onScroll={() => {
+              const p = pane.current;
+              if (!p) return;
+              position.current = p.scrollTop;
+              const bottom = p.scrollHeight - p.scrollTop - p.clientHeight < 72;
+              follow.current = bottom;
+              setShowLatest(!bottom);
+            }}
+          >
+            {!session.turns.length ? (
+              <div className="mx-auto flex max-w-2xl flex-col gap-5 py-3 sm:py-7">
+                <div className="flex items-start gap-3">
+                  <span className="rounded-xl bg-primary/10 p-2 text-primary">
+                    <Bot className="size-6" />
+                  </span>
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      What would you like to understand?
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      Ask about equipment observations, source evidence or an
+                      application workflow. Answers are advisory and link to
+                      their supporting records.
                     </p>
-                    {source.href?.startsWith("/") ? (
-                      <Link
-                        className="mt-1 block font-medium text-primary underline"
-                        href={source.href}
-                      >
-                        {source.title}
-                      </Link>
-                    ) : source.href?.startsWith(
-                        "https://github.com/DruHustle/smart-factory-iot-frontend/",
-                      ) ? (
-                      <a
-                        className="mt-1 block font-medium text-primary underline"
-                        href={source.href}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {source.title}
-                      </a>
-                    ) : (
-                      <p className="mt-1 font-medium">{source.title}</p>
-                    )}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {source.section}
-                    </p>
-                    <details className="mt-2 text-sm">
-                      <summary className="cursor-pointer text-muted-foreground">
-                        Read source excerpt
-                      </summary>
-                      <p className="mt-2 whitespace-pre-line leading-relaxed">
-                        {source.excerpt}
+                    {selectedContext && (
+                      <p className="mt-2 text-sm">
+                        Selected equipment ·{" "}
+                        <strong>{selectedContext.name}</strong>
                       </p>
-                    </details>
-                    {source.timestamp && (
-                      <time
-                        dateTime={source.timestamp}
-                        className="mt-2 block text-xs text-muted-foreground"
-                      >
-                        {new Date(source.timestamp).toLocaleString(undefined, {
-                          timeZoneName: "short",
-                        })}
-                      </time>
                     )}
                   </div>
-                ))}
+                </div>
+                <div className="flex flex-col gap-2 sm:items-start">
+                  {suggestions.map((s) => (
+                    <Button
+                      key={s}
+                      type="button"
+                      variant="outline"
+                      className="h-auto justify-start whitespace-normal py-2 text-left text-sm"
+                      onClick={() => submit(undefined, s)}
+                    >
+                      {s}
+                    </Button>
+                  ))}
+                </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Ask a question to see the sources behind the answer. Evidence
-                cannot establish a physical cause by itself.
-              </p>
+              <div className="mx-auto max-w-3xl space-y-7">
+                {session.turns.map((turn, index) => {
+                  const cite = (number: number) =>
+                    turn.result?.sources[number - 1] ? (
+                      <button
+                        key={number}
+                        type="button"
+                        className="mx-0.5 rounded px-0.5 text-sm font-medium text-info underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-ring"
+                        aria-label={`Source ${number}: ${turn.result.sources[number - 1].title}`}
+                        onClick={() => inspect(turn.id, number)}
+                      >
+                        [{number}]
+                      </button>
+                    ) : (
+                      `[${number}]`
+                    );
+                  const written = turn.result ? (
+                    <div
+                      data-testid="assistant-answer-content"
+                      className="min-w-0 text-sm leading-6"
+                    >
+                      <SafeMarkdown renderCitation={cite}>
+                        {prose(turn.result.answer)}
+                      </SafeMarkdown>
+                    </div>
+                  ) : null;
+                  return (
+                    <article
+                      key={turn.id}
+                      aria-label={`Question ${index + 1}: ${turn.question}`}
+                      className="min-w-0 space-y-4"
+                    >
+                      <div className="flex justify-end gap-2">
+                        <div className="max-w-[90%] space-y-1">
+                          <p className="whitespace-pre-wrap break-words rounded-lg bg-primary/10 px-3 py-2 text-sm leading-6">
+                            {turn.question}
+                          </p>
+                          <p className="text-right text-xs text-muted-foreground">
+                            {turn.context
+                              ? `Context: ${turn.context.name}`
+                              : "Automatic context"}{" "}
+                            ·{" "}
+                            <time dateTime={turn.submittedAt}>
+                              {time(turn.submittedAt)}
+                            </time>
+                          </p>
+                        </div>
+                        <UserRound
+                          aria-hidden
+                          className="mt-3 size-4 shrink-0 text-muted-foreground"
+                        />
+                      </div>
+                      <div
+                        data-assistant-response
+                        className={`min-w-0 border-l-2 pl-3 sm:pl-4 ${selectedTurn?.id === turn.id ? "border-info" : "border-transparent"}`}
+                      >
+                        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <Bot className="size-4 text-primary" />
+                          <strong className="font-medium text-foreground">
+                            Smart Factory Assistant
+                          </strong>
+                          {turn.result && (
+                            <time
+                              dateTime={turn.result.contextAt}
+                              title={`Answer snapshot ${new Date(turn.result.contextAt).toLocaleString()}`}
+                            >
+                              {time(turn.result.contextAt)}
+                            </time>
+                          )}
+                        </div>
+                        {turn.status === "pending" ? (
+                          <div
+                            role="status"
+                            className="flex items-center gap-2 py-3 text-sm text-muted-foreground"
+                          >
+                            <LoaderCircle
+                              aria-hidden
+                              className={`size-4 text-primary ${active ? "motion-safe:animate-spin" : ""}`}
+                            />
+                            Checking authorized evidence…
+                          </div>
+                        ) : turn.status === "failed" ? (
+                          <div
+                            role="alert"
+                            className="space-y-3 rounded-md border border-destructive/40 p-3"
+                          >
+                            <p className="text-sm">{turn.error}</p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => retry(turn)}
+                            >
+                              Retry this question
+                            </Button>
+                          </div>
+                        ) : (
+                          <div
+                            className={
+                              active ? "workflow-change space-y-4" : "space-y-4"
+                            }
+                          >
+                            <span role="status" className="sr-only">
+                              Answer ready. {turn.result?.sources.length ?? 0}{" "}
+                              sources attached.
+                            </span>
+                            {turn.result?.presentation && (
+                              <AnswerVisual
+                                presentation={turn.result.presentation}
+                                cite={cite}
+                              />
+                            )}{" "}
+                            {turn.result?.presentation?.trend &&
+                            turn.result.answer.length > 1400 ? (
+                              <details open>
+                                <summary className="cursor-pointer text-sm font-medium">
+                                  Written explanation and guidance
+                                </summary>
+                                <div className="mt-3">{written}</div>
+                              </details>
+                            ) : (
+                              written
+                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              aria-pressed={selectedTurn?.id === turn.id}
+                              onClick={() => inspect(turn.id)}
+                            >
+                              <BookOpen className="size-4" />
+                              Sources & context ·{" "}
+                              {turn.result?.sources.length ?? 0}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             )}
-          </details>
-        </aside>
-      </div>
+          </div>
+          {showLatest && session.turns.length > 0 && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-36 flex justify-center">
+              <Button
+                className="pointer-events-auto shadow-sm"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const last = session.turns.at(-1);
+                  if (last)
+                    setSession((s) => ({ ...s, selectedTurnId: last.id }));
+                  setCitation(null);
+                  scrollToLatest();
+                }}
+              >
+                <ArrowDown className="size-4" />
+                Latest
+              </Button>
+            </div>
+          )}
+          <form
+            aria-label="Ask a question"
+            aria-busy={busy}
+            onSubmit={submit}
+            className="shrink-0 border-t bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          >
+            <div className="rounded-lg border bg-background p-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
+              <div className="flex items-end gap-2">
+                <Textarea
+                  ref={input}
+                  id="assistant-question"
+                  aria-label="Ask the Smart Factory Assistant"
+                  aria-invalid={
+                    session.draft.length > 500 ||
+                    (attempted && invalid) ||
+                    undefined
+                  }
+                  aria-describedby="assistant-question-help"
+                  value={session.draft}
+                  onChange={(e) =>
+                    setSession((s) => ({ ...s, draft: e.target.value }))
+                  }
+                  onCompositionStart={() => {
+                    composing.current = true;
+                  }}
+                  onCompositionEnd={() => {
+                    composing.current = false;
+                  }}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === "Enter" &&
+                      !e.shiftKey &&
+                      !e.altKey &&
+                      !e.ctrlKey &&
+                      !e.metaKey &&
+                      !composing.current &&
+                      !e.nativeEvent.isComposing &&
+                      e.nativeEvent.keyCode !== 229
+                    ) {
+                      e.preventDefault();
+                      submit();
+                    }
+                  }}
+                  rows={1}
+                  placeholder={
+                    selectedContext
+                      ? `Ask about ${selectedContext.name}…`
+                      : "Ask about equipment or a workflow…"
+                  }
+                  className="min-h-11 max-h-32 min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-sm shadow-none focus-visible:ring-0"
+                />
+                <Button
+                  type="submit"
+                  aria-label="Ask"
+                  disabled={busy || invalid}
+                  size="icon"
+                  className="mb-1 size-10 shrink-0"
+                >
+                  <Send aria-hidden className="size-4" />
+                </Button>
+              </div>
+              <div className="mt-2 flex min-w-0 items-center justify-between gap-2 border-t pt-1">
+                <EquipmentContextSelect
+                  value={session.selectedAssetId}
+                  label={selectedContext?.name ?? "Equipment context"}
+                  onChange={(assetId, name) =>
+                    setSession((s) => ({
+                      ...s,
+                      selectedAssetId: assetId,
+                      selectedAssetName: name,
+                    }))
+                  }
+                />
+                <span
+                  className={`shrink-0 text-xs tabular-nums ${session.draft.length > 500 ? "text-destructive" : "text-muted-foreground"}`}
+                >
+                  {session.draft.length}/500
+                </span>
+              </div>
+            </div>
+            <p
+              id="assistant-question-help"
+              className={`mt-2 text-xs ${session.draft.length > 500 || (attempted && invalid) ? "text-destructive" : "text-muted-foreground"}`}
+            >
+              {session.draft.length > 500
+                ? "Use no more than 500 characters. Your draft is retained."
+                : attempted && session.draft.trim().length < 3
+                  ? "Enter at least 3 characters."
+                  : "Enter to send · Shift+Enter for a new line · Advisory and read-only"}
+            </p>
+          </form>
+        </div>
+        {wide && (
+          <aside
+            ref={inspectorAside}
+            tabIndex={-1}
+            aria-label="Evidence and equipment inspector"
+            className="min-h-0 min-w-0 overflow-y-auto rounded-lg border bg-card p-4"
+          >
+            {inspector}
+          </aside>
+        )}
+      </section>
+      {!wide && (
+        <Sheet open={inspectorOpen} onOpenChange={setInspectorOpen}>
+          <SheetContent
+            side="bottom"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              if (inspectorOpener.current?.isConnected)
+                inspectorOpener.current.focus({ preventScroll: true });
+            }}
+            className="max-h-[85dvh] overflow-y-auto motion-reduce:animate-none motion-reduce:transition-none"
+          >
+            <SheetHeader>
+              <SheetTitle>Evidence & equipment</SheetTitle>
+              <SheetDescription>
+                {selectedTurn
+                  ? `Inspecting: ${selectedTurn.question}`
+                  : "Selected equipment and approved answer sources"}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="min-w-0 px-4 pb-5">{inspector}</div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

@@ -33,6 +33,7 @@ const Alerts = lazy(() => import("./pages/Alerts"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
 const Assistant = lazy(() => import("./pages/Assistant"));
+const ServiceHealth = lazy(() => import("./pages/ServiceHealth"));
 const OTAUpdates = lazy(() => import("./pages/OTAUpdates"));
 const Assets = lazy(() => import("./pages/Assets"));
 const AssetAdministrationShell = lazy(
@@ -191,6 +192,8 @@ function AppRouter() {
                   </Route>
                   <Route path="/analytics" component={AnalyticsPage} />
                   <Route path="/assistant" component={Assistant} />
+                  <Route path="/infrastructure/service-health/:section" component={ServiceHealth} />
+                  <Route path="/infrastructure/service-health" component={ServiceHealth} />
                   <Route path="/ota">
                     {user.access?.demoOnly || canViewEngineering(user.role) ? (
                       <OTAUpdates />

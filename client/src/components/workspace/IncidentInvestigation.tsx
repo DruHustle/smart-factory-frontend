@@ -136,9 +136,9 @@ export function IncidentInvestigation({
         </div>
       </div>
       <div
-        className={compact ? "space-y-5 p-4" : "grid gap-6 p-4 lg:grid-cols-2"}
+        className={compact ? "space-y-[var(--workspace-gap)] p-4" : "grid gap-6 p-4 lg:grid-cols-2"}
       >
-        <div className="space-y-5">
+        <div className="space-y-[var(--workspace-gap)]">
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div className="col-span-2">
               <dt className="text-xs text-muted-foreground">Affected source</dt>

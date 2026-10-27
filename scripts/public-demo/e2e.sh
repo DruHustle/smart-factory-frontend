@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 export E2E_DATABASE_PORT="${E2E_DATABASE_PORT:-0}" E2E_REDIS_PORT="${E2E_REDIS_PORT:-0}" PORT="${PUBLIC_DEMO_E2E_PORT:-3126}"
-compose=(docker compose --env-file /dev/null -p smart-factory-public-demo-e2e -f docker-compose.e2e.yml)
+compose=(docker compose --env-file /dev/null -p "${PUBLIC_DEMO_COMPOSE_PROJECT:-smart-factory-public-demo-e2e}" -f docker-compose.e2e.yml)
 server_pid=""
 cleanup(){ if [[ -n "$server_pid" ]]; then kill "$server_pid" >/dev/null 2>&1 || true; wait "$server_pid" 2>/dev/null || true; fi; "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true; }
 trap cleanup EXIT
@@ -26,4 +26,4 @@ SHOWCASE_SEED=true node --import tsx scripts/showcase/verify.ts
 node --import tsx server/_core/index.ts > "${TMPDIR:-/tmp}/public-demo-e2e-server.log" 2>&1 &
 server_pid=$!
 node --input-type=module -e 'const end=Date.now()+60000;while(true){try{if((await fetch(process.env.PUBLIC_DEMO_E2E_BASE_URL+"/health/ready")).ok)break;}catch{}if(Date.now()>end)throw new Error("Workspace fixture app not ready");await new Promise(r=>setTimeout(r,250));}'
-pnpm exec playwright test --config=playwright.public-demo.config.ts "$@"
+pnpm exec playwright test --config="${PUBLIC_DEMO_PLAYWRIGHT_CONFIG:-playwright.public-demo.config.ts}" "$@"

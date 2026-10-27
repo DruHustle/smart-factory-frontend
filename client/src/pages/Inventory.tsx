@@ -182,7 +182,7 @@ export default function Inventory() {
       0,
     );
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="min-w-0 space-y-[var(--workspace-gap)]">
       <PageHeader
         title="Assets & devices"
         description="Find equipment, inspect observations and open the right workspace."
@@ -572,7 +572,7 @@ export default function Inventory() {
                 {label}
                 <select
                   aria-label={label}
-                  className="block h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+                  className="block workspace-control"
                   value={draft[field]}
                   onChange={(event) =>
                     setDraft({ ...draft, [field]: event.target.value })

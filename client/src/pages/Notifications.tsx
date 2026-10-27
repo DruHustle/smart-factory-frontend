@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 const labels: Record<string, string> = {
   demo_only: "Simulation · email not requested",
+  inbox_only: "Inbox only · email not requested",
   pending: "Email queued",
   processing: "Email request in progress",
   retrying: "Email retry scheduled",
@@ -167,7 +168,9 @@ export default function Notifications() {
                       {n.body}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {n.securityFindingId ? (
+                      {n.infrastructureEventId ? (
+                        <Button variant="outline" asChild><Link href={`/infrastructure/service-health/history?event=${n.infrastructureEventId}`}>Open infrastructure event</Link></Button>
+                      ) : n.securityFindingId ? (
                         <Button variant="outline" asChild>
                           <Link
                             href={`/cybersecurity?finding=${encodeURIComponent(n.securityFindingId)}`}

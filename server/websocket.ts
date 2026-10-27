@@ -401,6 +401,15 @@ export class WebSocketManager extends EventEmitter {
     return !this.redisPublisher || (this.redisPublisher.isReady && this.redisSubscriber?.isReady === true);
   }
 
+  public operatingEvidence() {
+    return {
+      localReady: this.wss !== null,
+      publisherReady: this.redisPublisher?.isReady === true,
+      subscriberReady: this.redisSubscriber?.isReady === true,
+      connections: this.sockets.size,
+    };
+  }
+
   public shutdown(): void {
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     this.heartbeatInterval = null;

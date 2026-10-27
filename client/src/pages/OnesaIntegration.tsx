@@ -100,7 +100,7 @@ function PrivateIntegration({ embedded }: { embedded: boolean }) {
     }
   };
   return (
-    <div className="space-y-5 min-w-0">
+    <div className="space-y-[var(--workspace-gap)] min-w-0">
       {embedded ? (
         <div>
           <h3 className="font-semibold">Onesa integration</h3>
@@ -209,7 +209,7 @@ function PrivateIntegration({ embedded }: { embedded: boolean }) {
         <CardHeader>
           <CardTitle>Equipment and component mappings</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-[var(--workspace-gap)]">
           {!s?.equipment?.length && (
             <p className="text-sm text-muted-foreground">
               No source equipment registered. Register immutable identities

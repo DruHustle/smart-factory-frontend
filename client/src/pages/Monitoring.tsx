@@ -250,7 +250,7 @@ export default function Monitoring() {
                 <span>{String(label)}</span>
                 <select
                   aria-label={String(label)}
-                  className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+                  className="workspace-control"
                   value={String(value)}
                   onChange={(e) => update(String(key), e.target.value)}
                 >

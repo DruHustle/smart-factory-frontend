@@ -1,3 +1,5 @@
+import type { AssistantTrendSnapshot } from "@shared/assistant";
+import { ArrowUpRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
@@ -8,6 +10,7 @@ import {
   Line,
   LineChart,
   ResponsiveContainer,
+  ReferenceLine,
   Tooltip,
   XAxis,
   YAxis,
@@ -34,6 +37,9 @@ export function ObservationTrend({
   onMetricChange,
   intervalMs = 60000,
   openHref,
+  snapshot,
+  compact = false,
+  threshold,
 }: {
   deviceId?: number;
   assetIds?: string[];
@@ -45,10 +51,13 @@ export function ObservationTrend({
   onMetricChange?: (m: Metric) => void;
   intervalMs?: number;
   openHref?: string;
+  snapshot?: AssistantTrendSnapshot;
+  compact?: boolean;
+  threshold?: { value: number; unit: string; label: string };
 }) {
   const { user } = useAuth();
   const showcase = trpc.system.showcase.useQuery(undefined, {
-    enabled: !!user?.access?.demoOnly,
+    enabled: !!user?.access?.demoOnly && !snapshot,
     staleTime: 300000,
   });
   const recordedEnd =
@@ -85,9 +94,9 @@ export function ObservationTrend({
       ],
     );
   const query = trpc.readings.trend.useQuery(input, {
-      enabled: !!deviceId || !!assetIds?.length,
+      enabled: !snapshot && (!!deviceId || !!assetIds?.length),
     }),
-    data = query.data;
+    data = snapshot ?? query.data;
   const time = (at: number) =>
     new Date(at).toLocaleTimeString(undefined, {
       hour: "2-digit",
@@ -144,52 +153,65 @@ export function ObservationTrend({
         <div className="flex flex-wrap gap-2">
           {openHref && (
             <Button asChild variant="outline" size="sm">
-              <Link href={openHref}>Open telemetry</Link>
+              <Link
+                href={openHref}
+                aria-label="Open telemetry"
+                title="Open telemetry"
+              >
+                {compact && <ArrowUpRight aria-hidden className="size-4" />}
+                <span className={compact ? "sr-only sm:not-sr-only" : ""}>
+                  Open telemetry
+                </span>
+              </Link>
             </Button>
           )}
-          <select
-            aria-label="Trend metric"
-            className="h-10 rounded-md border border-input bg-card px-2 capitalize"
-            value={selected}
-            onChange={(e) => {
-              setMetric(e.target.value as Metric);
-              onMetricChange?.(e.target.value as Metric);
-            }}
-          >
-            {metrics.map((m) => (
-              <option key={m} value={m}>
-                {m} ({canonicalUnits[m]})
-              </option>
-            ))}
-          </select>
-          {!startTime && (
-            <select
-              aria-label="Trend period"
-              className="h-10 rounded-md border border-input bg-card px-2"
-              value={range}
-              onChange={(e) => setRange(Number(e.target.value))}
-            >
-              <option value={3600000}>Last hour</option>
-              <option value={86400000}>Last 24 hours</option>
-              <option value={604800000}>Last 7 days</option>
-            </select>
+          {!compact && (
+            <>
+              <select
+                aria-label="Trend metric"
+                className="workspace-control w-auto capitalize"
+                value={selected}
+                onChange={(e) => {
+                  setMetric(e.target.value as Metric);
+                  onMetricChange?.(e.target.value as Metric);
+                }}
+              >
+                {metrics.map((m) => (
+                  <option key={m} value={m}>
+                    {m} ({canonicalUnits[m]})
+                  </option>
+                ))}
+              </select>
+              {!startTime && (
+                <select
+                  aria-label="Trend period"
+                  className="workspace-control w-auto"
+                  value={range}
+                  onChange={(e) => setRange(Number(e.target.value))}
+                >
+                  <option value={3600000}>Last hour</option>
+                  <option value={86400000}>Last 24 hours</option>
+                  <option value={604800000}>Last 7 days</option>
+                </select>
+              )}
+              {!user?.access?.demoOnly && data && (
+                <Button variant="outline" size="sm" onClick={exportCsv}>
+                  Export CSV
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={query.isFetching}
+                onClick={() => {
+                  setEnd(Date.now());
+                  void query.refetch();
+                }}
+              >
+                Refresh trend
+              </Button>
+            </>
           )}
-          {!user?.access?.demoOnly && data && (
-            <Button variant="outline" size="sm" onClick={exportCsv}>
-              Export CSV
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={query.isFetching}
-            onClick={() => {
-              setEnd(Date.now());
-              void query.refetch();
-            }}
-          >
-            Refresh trend
-          </Button>
         </div>
       </div>
       {recordedEnd && !endTime && (
@@ -199,9 +221,9 @@ export function ObservationTrend({
           connectivity is not inferred.
         </p>
       )}
-      {query.isLoading ? (
+      {!snapshot && query.isLoading ? (
         <EmptyState title="Loading observations…" />
-      ) : query.error ? (
+      ) : !snapshot && query.error ? (
         <EmptyState
           error
           title="Trend unavailable"
@@ -225,18 +247,30 @@ export function ObservationTrend({
         <>
           <div className="p-4">
             <p className="mb-3 text-xs text-muted-foreground">
-              {new Date(input.startTime).toLocaleString(undefined, {
-                timeZone: "UTC",
-              })}{" "}
-              –{" "}
-              {new Date(input.endTime).toLocaleString(undefined, {
-                timeZone: "UTC",
-              })}{" "}
-              UTC · {scope} · {Math.round(data.intervalMs / 1000)} second
-              averages · {data.unit}
+              {compact ? (
+                <>
+                  {new Date(input.startTime).toLocaleDateString(undefined, {
+                    timeZone: "UTC",
+                  })}{" "}
+                  · {time(input.startTime)}–{time(input.endTime)} UTC
+                </>
+              ) : (
+                <>
+                  {new Date(input.startTime).toLocaleString(undefined, {
+                    timeZone: "UTC",
+                  })}{" "}
+                  –{" "}
+                  {new Date(input.endTime).toLocaleString(undefined, {
+                    timeZone: "UTC",
+                  })}{" "}
+                  UTC
+                </>
+              )}{" "}
+              · {scope} · {Math.round(data.intervalMs / 1000)} second averages ·{" "}
+              {data.unit}
             </p>
             <div
-              className="h-64 w-full"
+              className={compact ? "h-44 w-full" : "h-64 w-full"}
               role={openHref ? "link" : "img"}
               tabIndex={openHref ? 0 : undefined}
               onClick={
@@ -294,6 +328,22 @@ export function ObservationTrend({
                       color: "var(--foreground)",
                     }}
                   />
+                  {threshold &&
+                    threshold.unit === data.unit &&
+                    Number.isFinite(threshold.value) && (
+                      <ReferenceLine
+                        y={threshold.value}
+                        ifOverflow="extendDomain"
+                        stroke="var(--primary)"
+                        strokeDasharray="5 4"
+                        label={{
+                          value: `${threshold.value} ${threshold.unit}`,
+                          position: "insideTopRight",
+                          fill: "var(--primary)",
+                          fontSize: 11,
+                        }}
+                      />
+                    )}
                   <Line
                     type="linear"
                     dataKey="value"
@@ -313,29 +363,40 @@ export function ObservationTrend({
               </ResponsiveContainer>
             </div>
           </div>
-          <dl className="grid grid-cols-2 divide-x divide-y border-t sm:grid-cols-4">
-            {[
-              ["Latest", data.summary.latest],
-              ["Minimum", data.summary.min],
-              ["Maximum", data.summary.max],
-              ["Average", data.summary.average],
-            ].map(([label, value]) => (
-              <div className="p-4" key={String(label)}>
-                <dt className="text-xs text-muted-foreground">{label}</dt>
-                <dd className="mt-1 font-semibold">
-                  <Measurement
-                    value={value as number | null}
-                    unit={data.unit}
-                  />
-                </dd>
-              </div>
-            ))}
-          </dl>
+          {!compact && (
+            <dl className="grid grid-cols-2 divide-x divide-y border-t sm:grid-cols-4">
+              {[
+                ["Latest", data.summary.latest],
+                ["Minimum", data.summary.min],
+                ["Maximum", data.summary.max],
+                ["Average", data.summary.average],
+              ].map(([label, value]) => (
+                <div className="p-4" key={String(label)}>
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="mt-1 font-semibold">
+                    <Measurement
+                      value={value as number | null}
+                      unit={data.unit}
+                    />
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
           <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-            {data.verified.toLocaleString()} verified {selected} measurements /{" "}
-            {data.total.toLocaleString()} observations · Complete selected-range
-            statistics · Latest{" "}
-            <SampleTime value={data.summary.latestAt} historical />
+            {compact ? (
+              <>
+                {data.verified.toLocaleString()} verified samples · Recorded
+                evidence · Gaps preserved
+              </>
+            ) : (
+              <>
+                {data.verified.toLocaleString()} verified {selected}{" "}
+                measurements / {data.total.toLocaleString()} observations ·
+                Complete selected-range statistics · Latest{" "}
+                <SampleTime value={data.summary.latestAt} historical />
+              </>
+            )}
           </div>
           <details className="border-t p-4">
             <summary className="cursor-pointer text-sm font-medium">

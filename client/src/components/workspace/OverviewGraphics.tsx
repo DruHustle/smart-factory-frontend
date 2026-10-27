@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Link } from "wouter";
 import { ArrowRight, Box, ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -257,17 +257,33 @@ export function GatewayDiagram({
 export function LinkedModelPreview({
   item,
   returnTo,
+  interactiveSelection = false,
+  componentId = null,
 }: {
-  item: InventoryItem;
+  item: Pick<InventoryItem, "ref" | "equipmentId" | "name" | "mode">;
   returnTo: string;
+  interactiveSelection?: boolean;
+  componentId?: string | null;
 }) {
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(false),
+    [selection, setSelection] = useState<string | null>(componentId);
+  useEffect(() => setSelection(componentId), [componentId]);
   const [, navigate] = useWorkspaceLocation();
   const query = trpc.equipment.get.useQuery(
     { id: item.equipmentId! },
     { enabled: loaded, staleTime: 60000 },
   );
-  const href = itemHref(item.ref, "3d", returnTo);
+  const baseHref = itemHref(item.ref, "3d", returnTo);
+  const href =
+    baseHref +
+    (componentId
+      ? `${baseHref.includes("?") ? "&" : "?"}component=${encodeURIComponent(componentId)}`
+      : "");
+  const validSelection = query.data?.components.some(
+    (c) => c.installedComponentId === selection,
+  )
+    ? selection
+    : null;
   return (
     <div className="space-y-3" aria-label="Linked equipment preview">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -310,12 +326,27 @@ export function LinkedModelPreview({
             preview
             modelUrl={query.data.modelUrl}
             components={query.data.components}
-            selected={null}
-            onSelect={() => navigate(href)}
+            selected={interactiveSelection ? validSelection : null}
+            onSelect={(id) =>
+              interactiveSelection ? setSelection(id) : navigate(href)
+            }
+            focusComponentId={
+              interactiveSelection ? (validSelection ?? undefined) : undefined
+            }
             observations={[]}
             annotations={[]}
           />
         </Suspense>
+      )}
+      {interactiveSelection && validSelection && (
+        <p className="text-sm">
+          Selected component:{" "}
+          {
+            query.data?.components.find(
+              (c) => c.installedComponentId === validSelection,
+            )?.name
+          }
+        </p>
       )}
       <p className="text-xs text-muted-foreground">
         Illustrative geometry. No physical movement or component measurement is
