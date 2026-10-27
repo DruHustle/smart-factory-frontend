@@ -33,8 +33,13 @@ export async function measureOrbit(
       requestAnimationFrame((now) => {
         if (active() && !gl.isContextLost()) {
           if (fence) {
-            const status = gl.clientWaitSync(fence, 0, 0);
+            const status = gl.clientWaitSync(
+              fence,
+              gl.SYNC_FLUSH_COMMANDS_BIT,
+              0,
+            );
             if (status === gl.TIMEOUT_EXPIRED) {
+              gl.flush();
               resolve();
               return;
             }

@@ -315,8 +315,17 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         renderStatus("queued");
         const draw = () => {
           if (gpuFence && !gl.isContextLost()) {
-            const status = gl.clientWaitSync(gpuFence, 0, 0);
+            // Flush pending fence commands while polling without blocking.
+            // Software/headless drivers may otherwise leave the first fence pending.
+            const status = gl.clientWaitSync(
+              gpuFence,
+              gl.SYNC_FLUSH_COMMANDS_BIT,
+              0,
+            );
             if (status === gl.TIMEOUT_EXPIRED) {
+              // Status queries may themselves enqueue commands. There is no
+              // continuous render loop to flush them while this frame waits.
+              gl.flush();
               if (!container.dataset.renderStatus?.includes("waiting"))
                 renderStatus("waiting", status);
               frame = requestAnimationFrame(draw);
