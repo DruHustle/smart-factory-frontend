@@ -296,12 +296,38 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         currentScene = scene,
         currentControls = controls;
       let gpuFence: WebGLSync | null = null;
+      let submittedFrames = 0;
+      const renderStatus = (phase: string, detail?: number) => {
+        container.dataset.renderStatus = JSON.stringify({
+          phase,
+          submittedFrames,
+          detail,
+          software,
+          contextLost: gl.isContextLost(),
+        });
+      };
       const render = () => {
+        if (runtime.current)
+          container.dataset.inspectionApplied = JSON.stringify(
+            runtime.current.inspector.diagnostics(),
+          );
         if (disposed || frame || !scenePrepared) return;
+        renderStatus("queued");
         const draw = () => {
           if (gpuFence && !gl.isContextLost()) {
-            const status = gl.clientWaitSync(gpuFence, 0, 0);
+            // Flush pending fence commands while polling without blocking.
+            // Software/headless drivers may otherwise leave the first fence pending.
+            const status = gl.clientWaitSync(
+              gpuFence,
+              gl.SYNC_FLUSH_COMMANDS_BIT,
+              0,
+            );
             if (status === gl.TIMEOUT_EXPIRED) {
+              // Status queries may themselves enqueue commands. There is no
+              // continuous render loop to flush them while this frame waits.
+              gl.flush();
+              if (!container.dataset.renderStatus?.includes("waiting"))
+                renderStatus("waiting", status);
               frame = requestAnimationFrame(draw);
               return;
             }
@@ -351,6 +377,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
               );
             }
             currentRenderer.render(currentScene, camera);
+            submittedFrames++;
+            renderStatus("drawn");
             if (loaded?.parent === currentScene && !gl.isContextLost()) {
               firstModelRender?.();
               firstModelRender = undefined;

@@ -18,4 +18,8 @@ The equipment suite verifies mappings, bounded GLB bytes, closed section geometr
 
 The version-3 showcase adds the Pi as a thirteenth chapter. Installation is additive, retains the existing acquisition anchor/evidence and gateway identity, remains read-only to shared accounts and does not queue email or assert physical connectivity. See the [demo installation procedure](complete-demonstration.md).
 
+A [hosted baseline](evidence/raspberry-pi/loading-baseline.json) measured the existing pump workspace at 6,012 ms on a cold visit and 2,513 ms on a repeat visit using Chromium SwiftShader. The GLB download itself took 985 ms and 852 ms in those two observations. These are separate from graphics preparation and navigation/code/API time; network conditions vary. A new hosted comparison remains a release acceptance step.
+
+The exact Linux headless Chromium reproduction also exposed an initial software-renderer fence that remained pending after drawing. Nonblocking fence checks now request `SYNC_FLUSH_COMMANDS_BIT` and explicitly flush pending status-query commands during a wait. This preserves the one-frame backpressure policy without increasing test deadlines, blocking the UI, dropping geometry or skipping completed-frame checks. The active-orbit benchmark uses the same flushing policy.
+
 See the [actual application screenshots and recordings](evidence/raspberry-pi/README.md).

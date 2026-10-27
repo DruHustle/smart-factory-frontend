@@ -177,6 +177,24 @@ for (const width of [390, 1440])
             ),
           ).toBe(true);
         } finally {
+          if (testInfo.status !== testInfo.expectedStatus) {
+            const diagnostic = await page
+              .locator("[data-load-timings]")
+              .evaluateAll((nodes) =>
+                nodes.map((node) =>
+                  Object.fromEntries(
+                    node
+                      .getAttributeNames()
+                      .filter((name) => name.startsWith("data-"))
+                      .map((name) => [name, node.getAttribute(name)]),
+                  ),
+                ),
+              );
+            await testInfo.attach("renderer-state", {
+              body: JSON.stringify(diagnostic, null, 2),
+              contentType: "application/json",
+            });
+          }
           await context.close();
           const video = page.video();
           if (video)
