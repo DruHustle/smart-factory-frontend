@@ -154,13 +154,14 @@ test("demonstration exposes exact component evidence and preserved inspection vi
   expect(
     w.observations.filter((o: any) => o.value !== null && o.unitVerified),
   ).toHaveLength(4);
-  const transfer = page.waitForResponse((r) =>
-    /^\/api\/equipment\/[^/]+\/model$/.test(new URL(r.url()).pathname),
+  const modelResponse = await page.request.get(
+    `/api/equipment/${s.equipmentId}/model`,
   );
-  await page.goto("/#/inventory/" + s.assetRef + "/3d");
-  const modelResponse = await transfer;
   expect(modelResponse.status()).toBe(200);
-  await modelResponse.finished();
+  const modelBody = await modelResponse.body();
+  expect(modelBody.byteLength).toBeGreaterThan(0);
+  expect(modelBody.byteLength).toBeLessThanOrEqual(20 * 1024 * 1024);
+  await page.goto("/#/inventory/" + s.assetRef + "/3d");
   await expect(page.locator("[data-model-bytes]")).toHaveAttribute(
     "data-model-bytes",
     /^[1-9]\d*$/,

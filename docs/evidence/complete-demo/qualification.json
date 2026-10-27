@@ -1,0 +1,91 @@
+{
+  "completedAt": "2026-10-27T17:04:48Z",
+  "runtime": {
+    "worker": {
+      "fresh": true,
+      "compatible": true
+    },
+    "contractVersion": 2,
+    "source": "6db5fe2a6c793b754752917072c3dd2119686316",
+    "backendSource": "19a70a71ce3b40cc775f03d2ebe8efc2ce987e3c",
+    "edgeSource": "be917a4082ff70ded322bd2ac4cf982014b2346e",
+    "schema": {
+      "ready": true,
+      "revision": "0029_demo_notification_isolation",
+      "digest": "21a717ea125fc056a2b304f3843176d59815e5d590a6758b6ed329a9657d98d6"
+    },
+    "capabilities": [
+      "isolated-demo-v1",
+      "complete-showcase-v2",
+      "persisted-session-v1",
+      "scoped-evidence-v1",
+      "canonical-units-v1",
+      "verified-transport-v1",
+      "encoded-topic-v1",
+      "commissioned-routes-v1",
+      "complete-reports-v1",
+      "published-passports-v1",
+      "inventory-v1",
+      "native-equipment-v1",
+      "native-security-v1"
+    ],
+    "deployment": "bundle",
+    "versioned": true
+  },
+  "compatibleRollback": {
+    "qualifiedPriorImage": "smart-factory-product-experience:d307f93",
+    "restoredCandidateImage": "smart-factory-demo-workflows:6db5fe2",
+    "revokedAccountStayedRejected": true,
+    "activeViewerPreserved": true,
+    "telemetryIdentitiesPreserved": true,
+    "schemaCompatible": true
+  },
+  "image": {
+    "id": "sha256:575ec042e0aa8737aed1fffc72b13b8db3112b5b4b17715e3e5e99d30649b141",
+    "platform": "linux/arm64",
+    "labels": {
+      "io.smartfactory.backend.revision": "19a70a71ce3b40cc775f03d2ebe8efc2ce987e3c",
+      "io.smartfactory.edge.revision": "be917a4082ff70ded322bd2ac4cf982014b2346e",
+      "org.opencontainers.image.revision": "6db5fe2a6c793b754752917072c3dd2119686316",
+      "org.opencontainers.image.version": "24.04"
+    }
+  },
+  "sixServicesNonRoot": true,
+  "migrationsIdempotent": true,
+  "bootstrapBoundary": true,
+  "individualAuthorization": true,
+  "nativeSecurityOutbox": true,
+  "notificationOwnershipAndRestart": true,
+  "coverageUnitsAndScope": true,
+  "mqttQos0AndQos1": true,
+  "standaloneSensorTraversal": true,
+  "dependencyFailureRecovery": true,
+  "physicalEquipment": false,
+  "productionPromotion": false,
+  "demoInstaller": {
+    "explicitPlanAndApply": true,
+    "repeatPreservesEvidence": true,
+    "partialClaimRefused": true,
+    "operationalInventoryPreserved": true,
+    "globalVisibilityPreserved": true,
+    "exactQueueCountPreservedWithDisposableNotificationWorkerPaused": true,
+    "demoEmailsAccepted": 0,
+    "demoEmailAttempts": 0,
+    "currentConnectivityClaims": 0
+  },
+  "containerAudit": {
+    "scanner": "Trivy 0.75.0",
+    "highCritical": 0,
+    "reportSha256": "af4e888f44e7289603dd21c43836f67f75ae0cec5112497c29438c95553a493f"
+  },
+  "localBrowser": {
+    "source": "6db5fe2a6c793b754752917072c3dd2119686316",
+    "applicablePassed": 11,
+    "expectedPrivateSkips": 7,
+    "viewports": [
+      390,
+      1440
+    ],
+    "isolatedFixtures": true
+  }
+}

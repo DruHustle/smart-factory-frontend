@@ -186,6 +186,8 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     # The explicit public-demo installer must not change private inventory or queue email.
     sql("INSERT INTO users(\"openId\",email,name,role) VALUES('demo-bundle-owner','admin@dev.local','Synthetic demo owner','admin')")
     private_before=sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(d) ORDER BY id)::text,'')) FROM devices d WHERE \"isDemo\"=false")
+    # Freeze only this disposable notification worker to retain the exact queue baseline.
+    run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','stop','notification'])
     queued_before=sql("SELECT count(*) FROM notification_inbox WHERE \"emailStatus\" IN('pending','processing','retrying')")
     installer=COMPOSE+['exec','-T','-e','PUBLIC_DEMO_DEPLOYMENT=true','-e','SHOWCASE_INSTALL_APPROVED=read-only-showcase-v2','bundle','node','scripts/showcase/install.mjs']
     plan=json.loads(run(installer+['--plan'],True).splitlines()[-1]);assert plan['version']==2 and not plan['emailRequests']
@@ -199,6 +201,11 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     assert sql("SELECT count(*) FROM notification_inbox WHERE \"emailStatus\" IN('pending','processing','retrying')")==queued_before
     assert trpc(admin,'system.demoData',query=True)['enabled'] is False
     assert sql("SELECT count(*) FROM devices WHERE \"deviceId\" LIKE 'showcase.%' AND \"lastSeen\" IS NOT NULL")=='0'
+    assert sql("SELECT count(*) FROM notification_inbox n JOIN alerts a ON a.id=n.\"alertId\" JOIN devices d ON d.id=a.\"deviceId\" WHERE d.\"isDemo\"=true AND n.\"emailStatus\"<>'demo_only'")=='0'
+    assert sql("SELECT count(*) FROM notification_inbox WHERE kind IN('showcase_process','showcase_security') AND \"emailStatus\"='demo_only'")=='2'
+    assert sql("SELECT count(*) FROM notification_inbox WHERE kind IN('showcase_process','showcase_security') AND (\"emailStatus\"<>'demo_only' OR \"acceptedAt\" IS NOT NULL OR attempts<>0)")=='0'
+    run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','start','notification'])
+    wait(lambda: run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','status'], True).count('RUNNING') == 6)
     print('PASS: packaged demo installer is explicit and idempotent, preserves operational inventory and global visibility, and requests no email or current connectivity.')
     image=json.loads(run(['docker','image','inspect',os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')],True))[0]
     output=Path(os.environ.get('QUALIFICATION_EVIDENCE_DIR',str(Path(tempfile.gettempdir())/'factory-arm64-bundle-evidence')));output.mkdir(parents=True,exist_ok=True)
