@@ -1,538 +1,465 @@
+import { currentSample } from "@shared/measurements";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { ObservationTrend } from "@/components/workspace/ObservationTrend";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { measurementValue } from "@shared/measurements";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
-import { SampleTime } from "@/components/workspace/Primitives";
-import { PageHeader } from "@/components/workspace/Primitives";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import {
+  RefreshCw,
+  Pause,
+  Play,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  EmptyState,
+  Measurement,
+  PageHeader,
+  SampleTime,
+  StatusBadge,
+} from "@/components/workspace/Primitives";
+import { observationHref } from "@shared/inventory";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { trpc } from "@/lib/trpc";
-import {
-  Activity,
-  ChevronLeft,
-  ChevronRight,
-  RefreshCw,
-  Search,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useLocation } from "wouter";
-import { getConnectivityRecordId } from "@/lib/device-display";
-
-type DeviceStatus =
-  | "online"
-  | "offline"
-  | "maintenance"
-  | "error"
-  | "unknown"
-  | "stale";
-type DeviceType =
-  | "sensor"
-  | "actuator"
-  | "controller"
-  | "gateway"
-  | "edge_device";
-const PAGE_SIZE = 50;
-const statusColors: Record<DeviceStatus, string> = {
-  online: "bg-success text-success-foreground",
-  offline: "bg-muted text-muted-foreground",
-  maintenance: "bg-warning text-warning-foreground",
-  error: "bg-destructive text-destructive-foreground",
-  stale: "bg-warning/10 text-foreground",
-  unknown: "bg-muted text-muted-foreground",
-};
-const typeColors: Record<DeviceType, string> = {
-  sensor: "border-border bg-muted/30 text-foreground",
-  actuator: "border-border bg-muted/30 text-foreground",
-  controller: "border-border bg-muted/30 text-foreground",
-  gateway: "border-border bg-muted/30 text-foreground",
-  edge_device: "border-border bg-muted/30 text-foreground",
-};
-
-function sensorTypeFor(device: { metadata?: Record<string, unknown> | null }) {
-  const sensorType = device.metadata?.sensorType;
-  return typeof sensorType === "string" && sensorType.trim()
-    ? sensorType.trim()
-    : undefined;
-}
-
-function hasSensorReadError(device: {
-  metadata?: Record<string, unknown> | null;
-}) {
-  return device.metadata?.sensorStatus === "read_error";
-}
-
+  canonicalUnits,
+  measurementUnit,
+  metrics,
+  type Metric,
+} from "@shared/measurements";
+import type { EvidenceScope } from "../../../server/evidenceScope";
+import { useWorkspaceLocation } from "@/lib/hashLocation";
+const scopes = [
+  "operational",
+  "live",
+  "simulated",
+  "replay",
+  "unknown",
+  "all",
+] as const;
 export default function Monitoring() {
-  const [, setLocation] = useLocation();
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [page, setPage] = useState(0);
-
-  const {
-    data: devices,
-    isLoading,
-    isFetching,
-    isError,
-    error,
-    refetch,
-  } = trpc.devices.list.useQuery(
+  const { user } = useAuth(),
+    wide = useMediaQuery("(min-width: 1280px)"),
+    [location, navigate] = useWorkspaceLocation(),
+    active = useDocumentActive(),
+    [paused, setPaused] = useState(false),
+    [filtersOpen, setFiltersOpen] = useState(false);
+  const params = new URLSearchParams(location.split("?")[1] ?? "");
+  const search = params.get("search") ?? "",
+    type = params.get("type") ?? "all",
+    status = params.get("status") ?? "all",
+    scope = (params.get("scope") ??
+      (user?.access?.demoOnly ? "simulated" : "operational")) as EvidenceScope,
+    page = Math.max(0, Number(params.get("page") ?? 0) || 0);
+  const update = (key: string, value: string) => {
+    const next = new URLSearchParams(params);
+    value ? next.set(key, value) : next.delete(key);
+    if (key !== "page") next.delete("page");
+    navigate(`/monitoring?${next}`);
+  };
+  const settledSearch = useDebouncedValue(search);
+  const sources = trpc.devices.monitor.useQuery(
     {
-      type: typeFilter !== "all" ? (typeFilter as DeviceType) : undefined,
+      search: settledSearch,
+      type: type as any,
+      status: status as any,
+      page,
+      pageSize: 25,
     },
-    { refetchInterval: 30000 },
+    {
+      refetchInterval: active && !paused ? 30_000 : false,
+      refetchIntervalInBackground: false,
+      placeholderData: (previous) => previous,
+    },
   );
-  const filteredDevices = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
-    return (devices ?? [])
-      .map((d) => ({
-        ...d,
-        status: d.observedStatus === "live" ? "online" : d.observedStatus,
-      }))
-      .filter((d) => statusFilter === "all" || d.status === statusFilter)
-      .filter(
-        (device) =>
-          !query ||
-          [
-            device.name,
-            getConnectivityRecordId(device),
-            device.zone,
-            device.location,
-            device.type,
-            sensorTypeFor(device),
-          ].some((value) => value?.toLocaleLowerCase().includes(query)),
+  const ids = sources.data?.items.map((d) => d.id) ?? [];
+  const readings = trpc.readings.getLatestBatch.useQuery(
+    { deviceIds: ids, scope: scopes.includes(scope) ? scope : "operational" },
+    {
+      enabled: !!ids.length,
+      refetchInterval: active && !paused ? 30_000 : false,
+      refetchIntervalInBackground: false,
+    },
+  );
+  const latest = useMemo(
+    () => new Map(readings.data?.map((r) => [r.deviceId, r])),
+    [readings.data],
+  );
+  const refresh = () => Promise.all([sources.refetch(), readings.refetch()]);
+  const renderValues = (id: number) => {
+    const r = latest.get(id);
+    if (readings.error)
+      return <p className="text-sm text-destructive">Readings unavailable</p>;
+    if (!r)
+      return (
+        <p className="text-sm text-muted-foreground">
+          {readings.isFetching
+            ? "Loading readings…"
+            : "No observations in this evidence scope"}
+        </p>
       );
-  }, [devices, search, statusFilter]);
-  const pageCount = Math.max(1, Math.ceil(filteredDevices.length / PAGE_SIZE));
-  const pageDevices = filteredDevices.slice(
-    page * PAGE_SIZE,
-    (page + 1) * PAGE_SIZE,
-  );
-  // Query readings for the visible page only so a large fleet does not create an oversized request.
-  const deviceIds = pageDevices.map((device) => device.id);
-  const {
-    data: latestReadings,
-    isLoading: readingsLoading,
-    isFetching: readingsFetching,
-    isError: readingsError,
-    refetch: refetchReadings,
-  } = trpc.readings.getLatestBatch.useQuery(
-    { deviceIds },
-    { enabled: deviceIds.length > 0, refetchInterval: 10000 },
-  );
-  const latestByDeviceId = useMemo(
-    () =>
-      new Map(
-        (latestReadings ?? []).map((reading) => [reading.deviceId, reading]),
-      ),
-    [latestReadings],
-  );
-
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PageHeader
-          title="Monitoring"
-          description="Connectivity and latest readings."
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => void Promise.all([refetch(), refetchReadings()])}
-          disabled={isFetching || readingsFetching}
-        >
-          <RefreshCw
-            aria-hidden="true"
-            className={`mr-2 h-4 w-4 ${isFetching || readingsFetching ? "animate-spin" : ""}`}
-          />
-          {isFetching || readingsFetching ? "Refreshing…" : "Refresh"}
-        </Button>
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative w-full sm:max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            aria-label="Search monitoring sources"
-            placeholder="Search device, gateway, sensor type, zone, or location"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(0);
-            }}
-            className="pl-9"
-          />
-        </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(value) => {
-            setStatusFilter(value);
-            setPage(0);
-          }}
-        >
-          <SelectTrigger
-            aria-label="Monitoring status filter"
-            className="w-full sm:w-44"
-          >
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="unknown">Unknown</SelectItem>
-            <SelectItem value="stale">Stale</SelectItem>
-            <SelectItem value="online">Online</SelectItem>
-            <SelectItem value="offline">Offline</SelectItem>
-            <SelectItem value="maintenance">Maintenance</SelectItem>
-            <SelectItem value="error">Error</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={typeFilter}
-          onValueChange={(value) => {
-            setTypeFilter(value);
-            setPage(0);
-          }}
-        >
-          <SelectTrigger
-            aria-label="Monitoring source type filter"
-            className="w-full sm:w-44"
-          >
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            <SelectItem value="gateway">Gateways</SelectItem>
-            <SelectItem value="sensor">Sensors</SelectItem>
-            <SelectItem value="controller">Controllers</SelectItem>
-            <SelectItem value="actuator">Actuators</SelectItem>
-          </SelectContent>
-        </Select>
-        {!isLoading && (
-          <p
-            className="self-center whitespace-nowrap text-sm text-muted-foreground"
-            aria-live="polite"
-          >
-            {filteredDevices.length} source
-            {filteredDevices.length === 1 ? "" : "s"}
+    const evidence = r.integration?.evidence as { reason?: string } | undefined,
+      available = metrics.filter((m) => r[m] != null || r.measurements?.[m]);
+    if (
+      evidence?.reason === "sensor_read_error" ||
+      r.integration?.sourceQuality === "bad"
+    )
+      return (
+        <p className="text-sm text-destructive">
+          Sensor read unavailable ·{" "}
+          {evidence?.reason?.replaceAll("_", " ") ?? "bad source quality"}
+        </p>
+      );
+    return (
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        {available.length ? (
+          available.map((m) => (
+            <div key={m}>
+              <p className="text-xs capitalize text-muted-foreground">{m}</p>
+              <Measurement
+                value={measurementValue(r, m)}
+                unit={measurementUnit(r, m)}
+              />
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No scalar measurements in this sample
           </p>
         )}
       </div>
-
-      {readingsError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          Latest device readings could not be loaded. Connectivity information
-          may still be current.
+    );
+  };
+  const selected =
+    sources.data?.items.find((d) => d.id === Number(params.get("selected"))) ??
+    sources.data?.items.find((d) => d.type !== "gateway");
+  const selectedReading = selected ? latest.get(selected.id) : undefined;
+  const context = `/monitoring${params.size ? `?${params}` : ""}`;
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Monitoring"
+        description="Source readings, quality and freshness. Stored samples retain their evidence mode."
+        action={
+          <>
+            <Button variant="outline" onClick={() => setPaused(!paused)}>
+              {paused ? (
+                <Play className="size-4" />
+              ) : (
+                <Pause className="size-4" />
+              )}
+              {paused ? "Resume" : "Pause"}
+            </Button>
+            <Button
+              variant="outline"
+              aria-label="Refresh monitoring"
+              disabled={sources.isFetching || readings.isFetching}
+              onClick={() => void refresh()}
+            >
+              <RefreshCw className="size-4" />
+              Refresh
+            </Button>
+          </>
+        }
+      />
+      <div className="rounded-lg border bg-card p-3">
+        <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search
+              aria-hidden
+              className="absolute left-3 top-3 size-4 text-muted-foreground"
+            />
+            <Input
+              aria-label="Search sources"
+              value={search}
+              onChange={(e) => update("search", e.target.value)}
+              placeholder="Find a source or location"
+              className="pl-9"
+            />
+          </div>
+          <Button
+            variant="outline"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen(!filtersOpen)}
+          >
+            <SlidersHorizontal className="size-4" />
+            Filters
+          </Button>
         </div>
-      )}
-
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div
-              role="status"
-              className="flex justify-center gap-3 py-12 text-sm text-muted-foreground"
-            >
-              <RefreshCw aria-hidden="true" className="h-6 w-6 animate-spin" />
-              Loading monitoring sources…
-            </div>
-          ) : isError ? (
-            <div
-              role="alert"
-              className="flex flex-col items-center gap-3 py-12 text-center"
-            >
-              <p className="text-sm text-destructive">
-                Monitoring sources could not be loaded. {error?.message}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void refetch()}
+        {filtersOpen && (
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {[
+              [
+                "Type",
+                "type",
+                type,
+                [
+                  "all",
+                  "sensor",
+                  "edge_device",
+                  "gateway",
+                  "actuator",
+                  "controller",
+                ],
+              ],
+              [
+                "Status",
+                "status",
+                status,
+                [
+                  "all",
+                  "live",
+                  "stale",
+                  "offline",
+                  "unknown",
+                  "maintenance",
+                  "error",
+                ],
+              ],
+              ["Evidence scope", "scope", scope, scopes],
+            ].map(([label, key, value, options]) => (
+              <label
+                key={String(key)}
+                className="space-y-1 text-xs font-medium"
               >
-                Try again
-              </Button>
+                <span>{String(label)}</span>
+                <select
+                  aria-label={String(label)}
+                  className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+                  value={String(value)}
+                  onChange={(e) => update(String(key), e.target.value)}
+                >
+                  {(options as readonly string[]).map((v) => (
+                    <option key={v} value={v}>
+                      {v.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      <p role="status" className="text-xs text-muted-foreground">
+        {sources.data?.total ?? "…"} sources · {scope} evidence ·{" "}
+        {paused
+          ? "Updates paused"
+          : !active
+            ? "Updates paused while hidden or offline"
+            : "Automatic refresh every 30 seconds"}
+      </p>
+      {sources.isLoading ? (
+        <EmptyState title="Loading observation sources…" />
+      ) : sources.error ? (
+        <EmptyState
+          error
+          title="Sources unavailable"
+          description={sources.error.message}
+          action={
+            <Button onClick={() => void refresh()} variant="outline">
+              Retry
+            </Button>
+          }
+        />
+      ) : !sources.data?.items.length ? (
+        <EmptyState
+          title="No matching sources"
+          description="Adjust the filters or register a source in Assets & devices."
+          action={
+            <Button asChild variant="outline">
+              <Link href="/inventory">Open inventory</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+          <div className="overflow-hidden rounded-lg border bg-card">
+            <div className="hidden grid-cols-[minmax(120px,1fr)_80px_minmax(120px,1fr)] gap-4 border-b border-info/30 bg-info/5 px-4 py-3 text-xs font-medium text-info lg:grid">
+              <span>Source</span>
+              <span>Observed state</span>
+              <span>Measurements</span>
             </div>
-          ) : pageDevices.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Activity className="mb-4 h-10 w-10 text-muted-foreground" />
-              <h2 className="font-semibold">No monitoring sources found</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {search || statusFilter !== "all" || typeFilter !== "all"
-                  ? "Try changing the search, status, or type filter."
-                  : "Register a gateway or ingest an edge-device sample to begin monitoring."}
-              </p>
-            </div>
-          ) : (
-            <>
-              {" "}
-              <div className="hidden overflow-x-auto md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Temperature</TableHead>
-                      <TableHead>Humidity</TableHead>
-                      <TableHead>Vibration</TableHead>
-                      <TableHead>Power</TableHead>
-                      <TableHead>Speed</TableHead>
-                      <TableHead>Last reading</TableHead>
-                      <TableHead>Last seen</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageDevices.map((device) => {
-                      const reading = latestByDeviceId.get(device.id);
-                      const status = device.status as DeviceStatus;
-                      const deviceType = device.type as DeviceType;
-                      const sensorType = sensorTypeFor(device);
-                      const sensorReadError = hasSensorReadError(device);
-                      return (
-                        <TableRow
-                          key={device.id}
-                          role="link"
-                          tabIndex={0}
-                          aria-label={`Open ${device.name}`}
-                          className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                          onClick={() => setLocation(`/devices/${device.id}`)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              setLocation(`/devices/${device.id}`);
-                            }
-                          }}
-                        >
-                          <TableCell className="min-w-48">
-                            <span className="font-medium">{device.name}</span>
-                            <span className="block font-mono text-xs text-muted-foreground">
-                              {getConnectivityRecordId(device)}
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              {[device.zone, device.location]
-                                .filter(Boolean)
-                                .join(" · ") || "No location"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="flex min-w-24 flex-col items-start gap-1">
-                              <Badge
-                                variant="outline"
-                                className={typeColors[deviceType]}
-                              >
-                                {device.type}
-                              </Badge>
-                              {sensorType && (
-                                <Badge variant="outline">{sensorType}</Badge>
-                              )}
-                              {sensorReadError && (
-                                <Badge
-                                  variant="outline"
-                                  className="border-destructive/40 bg-destructive/10 text-destructive"
-                                >
-                                  Read error
-                                </Badge>
-                              )}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={
-                                statusColors[status] ?? statusColors.offline
-                              }
-                              variant="secondary"
-                            >
-                              {status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell
-                            className={
-                              sensorReadError ? "text-destructive" : undefined
-                            }
-                          >
-                            {sensorReadError
-                              ? "Unavailable"
-                              : reading?.temperature == null
-                                ? "—"
-                                : `${reading.temperature.toFixed(1)} °C`}
-                          </TableCell>
-                          <TableCell
-                            className={
-                              sensorReadError ? "text-destructive" : undefined
-                            }
-                          >
-                            {sensorReadError
-                              ? "Unavailable"
-                              : reading?.humidity == null
-                                ? "—"
-                                : `${reading.humidity.toFixed(1)}%`}
-                          </TableCell>
-                          <TableCell
-                            className={
-                              sensorReadError ? "text-destructive" : undefined
-                            }
-                          >
-                            {sensorReadError
-                              ? "Unavailable"
-                              : reading?.vibration == null
-                                ? "—"
-                                : reading.vibration.toFixed(2)}
-                          </TableCell>
-                          <TableCell
-                            className={
-                              sensorReadError ? "text-destructive" : undefined
-                            }
-                          >
-                            {sensorReadError
-                              ? "Unavailable"
-                              : reading?.power == null
-                                ? "—"
-                                : `${reading.power.toFixed(0)} W`}
-                          </TableCell>
-                          <TableCell
-                            className={
-                              sensorReadError ? "text-destructive" : undefined
-                            }
-                          >
-                            {sensorReadError
-                              ? "Unavailable"
-                              : reading?.rpm == null
-                                ? "—"
-                                : `${reading.rpm.toFixed(0)} rpm`}
-                          </TableCell>
-                          <TableCell
-                            className={`min-w-36 text-xs ${sensorReadError ? "font-medium text-destructive" : ""}`}
-                          >
-                            {reading ? (
-                              <>
-                                {sensorReadError && (
-                                  <span className="block">Read failed</span>
-                                )}
-                                <time
-                                  title={new Date(
-                                    reading.timestamp,
-                                  ).toLocaleString(undefined, {
-                                    timeZoneName: "long",
-                                  })}
-                                  dateTime={new Date(
-                                    reading.timestamp,
-                                  ).toISOString()}
-                                >
-                                  {new Date(reading.timestamp).toLocaleString()}
-                                </time>
-                                <span className="mt-1 block capitalize">
-                                  {device.isDemo
-                                    ? "Simulated"
-                                    : String(
-                                        reading.integration?.mode ?? "Unknown",
-                                      )}{" "}
-                                  evidence
-                                </span>
-                              </>
-                            ) : readingsLoading ? (
-                              "Loading…"
-                            ) : (
-                              "No sample"
-                            )}
-                          </TableCell>
-                          <TableCell className="min-w-36 text-xs">
-                            {device.lastSeen
-                              ? new Date(device.lastSeen).toLocaleString()
-                              : "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="space-y-3 md:hidden">
-                {pageDevices.map((d) => (
-                  <article key={d.id} className="space-y-2 rounded border p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <Link
-                        className="min-w-0 break-words font-medium"
-                        href={`/inventory/device:${d.id}/telemetry`}
+            {sources.data!.items.map((d) => {
+              const r = latest.get(d.id),
+                href = observationHref(
+                  { ref: `device:${d.id}`, kind: "device", itemType: d.type },
+                  context,
+                );
+              return (
+                <article
+                  key={d.id}
+                  className="grid min-w-0 gap-3 border-b p-4 last:border-0 lg:grid-cols-[minmax(120px,1fr)_80px_minmax(120px,1fr)] lg:items-center lg:gap-4"
+                >
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <button
+                        className="block max-w-full truncate text-left font-medium hover:underline"
+                        onClick={() => update("selected", String(d.id))}
+                        title={d.name}
                       >
                         {d.name}
+                      </button>
+                      <Link
+                        href={href}
+                        className="mt-1 hidden text-xs text-primary underline lg:block"
+                      >
+                        Open {d.type === "gateway" ? "gateway" : "telemetry"}
                       </Link>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/inventory/device:${d.id}/telemetry`}>
-                          Open
-                        </Link>
-                      </Button>
+                      <p
+                        className="mt-1 truncate text-xs text-muted-foreground"
+                        title={d.deviceId}
+                      >
+                        {d.type.replaceAll("_", " ")} · {d.deviceId}
+                      </p>
                     </div>
-                    <p className="break-all text-xs text-muted-foreground">
-                      {d.deviceId} · {d.type}
-                    </p>
-                    <Badge variant="outline">{d.status}</Badge>
-                    <p className="text-xs">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="lg:hidden"
+                    >
+                      <Link href={href}>Open</Link>
+                    </Button>
+                  </div>
+                  <div>
+                    <StatusBadge status={d.observedStatus} />
+                  </div>
+                  <div>{renderValues(d.id)}</div>
+                  <div className="space-y-1 text-xs lg:col-span-3">
+                    <p>
                       <SampleTime
-                        value={latestByDeviceId.get(d.id)?.timestamp}
-                        historical={d.status !== "online"}
-                      />{" "}
-                      ·{" "}
-                      {String(
-                        latestByDeviceId.get(d.id)?.integration?.mode ??
-                          (d.isDemo ? "simulated" : "unknown"),
-                      )}{" "}
-                      evidence
+                        value={r?.timestamp}
+                        historical={!r || !currentSample(r)}
+                      />
                     </p>
-                  </article>
-                ))}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {!isLoading && filteredDevices.length > PAGE_SIZE && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {page * PAGE_SIZE + 1}–
-            {Math.min((page + 1) * PAGE_SIZE, filteredDevices.length)} of{" "}
-            {filteredDevices.length}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((value) => Math.max(0, value - 1))}
-              disabled={page === 0}
-            >
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setPage((value) => Math.min(pageCount - 1, value + 1))
-              }
-              disabled={page >= pageCount - 1}
-            >
-              Next
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
+                    <p className="capitalize text-muted-foreground">
+                      {String(r?.integration?.mode ?? "unknown")} · Quality:{" "}
+                      {String(r?.integration?.sourceQuality ?? "unknown")}
+                    </p>
+                    {!!r?.integration?.evidence && (
+                      <p className="text-muted-foreground">
+                        {String(
+                          (r.integration.evidence as { reason?: string })
+                            .reason ?? "eligible acquisition",
+                        ).replaceAll("_", " ")}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
+          {wide && (
+            <aside className="min-w-0 space-y-3">
+              {selected && selected.type !== "gateway" ? (
+                <>
+                  <div className="rounded-lg border bg-card p-4">
+                    <h2 className="font-semibold">{selected.name}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {selected.location ?? selected.deviceId}
+                    </p>
+                    <div className="mt-3">
+                      <StatusBadge status={selected.observedStatus} />
+                    </div>
+                    <dl className="mt-3 space-y-2 text-xs">
+                      <div>
+                        <dt className="text-muted-foreground">
+                          Sample acquisition
+                        </dt>
+                        <dd>
+                          <SampleTime
+                            value={selectedReading?.timestamp}
+                            historical
+                          />
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">
+                          Received by application
+                        </dt>
+                        <dd>
+                          <SampleTime
+                            value={selectedReading?.createdAt?.toISOString()}
+                          />
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">
+                          Source quality
+                        </dt>
+                        <dd>
+                          {String(
+                            selectedReading?.integration?.sourceQuality ??
+                              "Unknown",
+                          )}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <ObservationTrend
+                    deviceId={selected.id}
+                    title={`${selected.name} trend`}
+                    scope={scope}
+                  />
+                  <Button className="w-full" asChild>
+                    <Link
+                      href={observationHref(
+                        {
+                          ref: `device:${selected.id}`,
+                          kind: "device",
+                          itemType: selected.type,
+                        },
+                        context,
+                      )}
+                    >
+                      Open telemetry
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <EmptyState
+                  title="Select a measurement source"
+                  description="Gateways provide connectivity evidence in their workspace."
+                />
+              )}
+            </aside>
+          )}
         </div>
       )}
+      {!!sources.data && sources.data.total > 25 && (
+        <nav
+          aria-label="Monitoring pages"
+          className="flex items-center justify-between"
+        >
+          <Button
+            variant="outline"
+            disabled={!page}
+            onClick={() => update("page", String(page - 1))}
+          >
+            Previous
+          </Button>
+          <span className="text-sm">
+            Page {page + 1} of {Math.ceil(sources.data.total / 25)}
+          </span>
+          <Button
+            variant="outline"
+            disabled={!sources.data.hasMore}
+            onClick={() => update("page", String(page + 1))}
+          >
+            Next
+          </Button>
+        </nav>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Current connectivity and historical measurements are separate
+        observations. Unknown units are shown as unverified and excluded from
+        engineering aggregates.
+      </p>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { PageHeader } from "@/components/workspace/Primitives";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -9,30 +10,38 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { resolveApiBase } from "@/lib/api-base";
 
-export default function OnesaIntegration() {
+export default function OnesaIntegration({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
+  const Heading = embedded ? "h3" : "h1";
   const access = trpc.onesa.availability.useQuery();
   if (access.isLoading)
     return <p role="status">Checking integration access…</p>;
   if (!access.data?.privateAccess)
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Onesa integration</h1>
+        <Heading className="text-xl font-semibold">Onesa integration</Heading>
         <p>
           Private integration settings require an individual engineering
           account. The public factory demonstration remains available.
         </p>
       </div>
     );
-  return <PrivateIntegration />;
+  return <PrivateIntegration embedded={embedded} />;
 }
-function PrivateIntegration() {
+function PrivateIntegration({ embedded }: { embedded: boolean }) {
+  const documentActive = useDocumentActive();
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const status = trpc.onesa.status.useQuery(undefined, {
-    refetchInterval: 5000,
+    refetchInterval: documentActive ? 30000 : false,
+    refetchIntervalInBackground: false,
   });
   const history = trpc.onesa.history.useQuery(undefined, {
-    refetchInterval: 10000,
+    refetchInterval: documentActive ? 30000 : false,
+    refetchIntervalInBackground: false,
   });
   const [registration, setRegistration] = useState("");
   const [expected, setExpected] = useState(0);
@@ -92,7 +101,19 @@ function PrivateIntegration() {
   };
   return (
     <div className="space-y-5 min-w-0">
-      <PageHeader title="Integrations" description="Optional Onesa exchange for Digital Twin Workspace."/>
+      {embedded ? (
+        <div>
+          <h3 className="font-semibold">Onesa integration</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Optional exchange for Digital Twin Workspace.
+          </p>
+        </div>
+      ) : (
+        <PageHeader
+          title="Onesa integration"
+          description="Optional Onesa exchange for Digital Twin Workspace."
+        />
+      )}
       <div className="rounded-lg border p-4 text-sm">
         <strong>Proposed contract · consumer acceptance pending.</strong>
         <p className="mt-1">

@@ -1,5 +1,11 @@
+import { useDocumentActive } from "@/hooks/useDocumentActive";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useAuth } from "@/contexts/AuthContext";
-import { SectionNav, SampleTime } from "@/components/workspace/Primitives";
+import {
+  SectionNav,
+  SampleTime,
+  PageHeader,
+} from "@/components/workspace/Primitives";
 import SecurityAdministration from "@/components/security/SecurityAdministration";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { useEffect, useRef, useState } from "react";
@@ -40,6 +46,25 @@ const selectClass = "rounded border bg-background p-2 text-sm max-w-full";
 const time = (s: unknown) =>
   s ? new Date(String(s)).toLocaleString() : "Not observed";
 const json = (s: unknown) => JSON.stringify(s, null, 2);
+const investigationLabels: Record<string, string> = {
+  finding_opened: "Finding opened",
+  condition_repeated: "Condition observed again",
+  investigation_acknowledge: "Finding acknowledged",
+  investigation_assign: "Review assigned",
+  investigation_investigate: "Investigation started",
+  investigation_note: "Review note added",
+  investigation_resolve: "Investigation resolved",
+  investigation_dismiss: "Finding dismissed",
+  investigation_accept_risk: "Time-limited risk accepted",
+  risk_acceptance_expired: "Risk acceptance expired",
+};
+const sourceLabel = (name: string) =>
+  name === "node-app"
+    ? "Application audit"
+    : name === "dotnet-services"
+      ? "Service audit"
+      : name;
+
 function download(name: string, content: string, type = "application/json") {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const a = document.createElement("a");
@@ -82,6 +107,7 @@ function Workspace({
   };
 }) {
   const { user } = useAuth();
+  const documentActive = useDocumentActive();
   const preferenceKey = `security-filters:${user?.id}`;
   const [hashLocation, navigate] = useHashLocation();
   const params = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
@@ -196,21 +222,25 @@ function Workspace({
   }, [hashLocation]);
   const [notice, setNotice] = useState(""),
     [failure, setFailure] = useState("");
-  const overview = trpc.security.overview.useQuery(filter, {
-    refetchInterval: 15000,
+  const debouncedSearch = useDebouncedValue(filter.search),
+    queryFilter = { ...filter, search: debouncedSearch };
+  const overview = trpc.security.overview.useQuery(queryFilter, {
+    refetchInterval: documentActive ? 30000 : false,
+    refetchIntervalInBackground: false,
   });
-  const posture = trpc.security.posture.useQuery(filter, {
+  const posture = trpc.security.posture.useQuery(queryFilter, {
     enabled: ["Asset posture", "Sources and policies"].includes(tab),
   });
-  const events = trpc.security.events.useQuery(filter, {
+  const events = trpc.security.events.useQuery(queryFilter, {
     enabled: tab === "Events",
   });
   const findings = trpc.security.findings.useQuery(
-    { ...filter, incidents: tab === "Incidents" },
+    { ...queryFilter, incidents: tab === "Incidents" },
     { enabled: tab === "Findings" || tab === "Incidents" },
   );
   const sources = trpc.security.sources.useQuery(undefined, {
-    refetchInterval: 10000,
+    refetchInterval: documentActive ? 30000 : false,
+    refetchIntervalInBackground: false,
     enabled: true,
   });
   const finding = trpc.security.finding.useQuery(
@@ -310,18 +340,15 @@ function Workspace({
     finding.error;
   return (
     <div className="min-w-0 space-y-5 [overflow-wrap:anywhere]">
-      <header className="flex flex-wrap justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Cybersecurity</h1>
-          <p className="text-sm text-muted-foreground">
-            Observed evidence, explainable findings and human investigation
-          </p>
-        </div>
-
-        <Button variant="outline" onClick={refresh}>
-          Refresh evidence
-        </Button>
-      </header>
+      <PageHeader
+        title="Cybersecurity"
+        description="Review source coverage, evidence and security investigations."
+        action={
+          <Button variant="outline" onClick={refresh}>
+            Refresh evidence
+          </Button>
+        }
+      />
       {access.canEngineer && (
         <details className="rounded border p-3">
           <summary className="cursor-pointer text-sm">
@@ -437,7 +464,7 @@ function Workspace({
                 </div>
                 <Card>
                   <CardHeader>
-                    <CardTitle>Monitoring coverage</CardTitle>
+                    <CardTitle>Source coverage · live receipts</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <p>
@@ -468,7 +495,7 @@ function Workspace({
                         key={s.id}
                         className="flex flex-wrap justify-between gap-2 rounded border p-3 text-sm"
                       >
-                        <span>{s.name}</span>
+                        <span>{sourceLabel(s.name)}</span>
                         <Badge variant="outline">{s.state}</Badge>
                         <span>
                           Last live receipt: {time(s.last_received_at)}
@@ -729,368 +756,472 @@ function Workspace({
                 </Button>
               )}
             </div>
-            {tab === "Events" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Security events</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {events.isLoading && (
-                    <p role="status">Loading source evidence…</p>
-                  )}
-                  {events.data?.items.map((e) => (
-                    <details key={e.id} className="rounded border p-3 text-sm">
-                      <summary className="cursor-pointer">
-                        {e.event_type.replaceAll(/[._]/g, " ")} · {e.mode} ·{" "}
-                        {e.quality} · {time(e.occurred_at)}
-                      </summary>
-                      <p className="my-2">
-                        Source: {e.source_name} · received {time(e.ingested_at)}{" "}
-                        · {e.late ? "out of order" : "ordered"} ·{" "}
-                        {e.clock_skew ? "future clock skew" : "no future skew"}
-                      </p>
-                      <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all text-xs">
-                        {json(e.envelope)}
-                      </pre>
-                      {e.target && (
-                        <a
-                          href={goTarget(e.target)}
-                          className="text-primary underline"
-                        >
-                          Open registered identity
-                        </a>
+            <div
+              className={
+                selected
+                  ? "grid items-start gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(340px,1fr)]"
+                  : "space-y-4"
+              }
+            >
+              <div
+                className={selected ? "hidden space-y-4 xl:block" : "space-y-4"}
+              >
+                {tab === "Events" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Security events</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {events.isLoading && (
+                        <p role="status">Loading source evidence…</p>
                       )}
-                    </details>
-                  ))}
-                  {events.data && !events.data.items.length && (
-                    <p>
-                      No evidence matches these filters. Unobserved controls
-                      remain unknown.
-                    </p>
-                  )}
-                  {access.role !== "viewer" && (
-                    <div className="flex flex-wrap gap-2">
-                      <select
-                        aria-label="Security export format"
-                        className={selectClass}
-                        value={exportFormat}
-                        onChange={(e) =>
-                          setExportFormat(e.target.value as typeof exportFormat)
-                        }
-                      >
-                        {["ndjson", "json", "csv"].map((f) => (
-                          <option key={f}>{f}</option>
-                        ))}
-                      </select>
+                      {events.data?.items.map((e) => (
+                        <details
+                          key={e.id}
+                          className="rounded border p-3 text-sm"
+                        >
+                          <summary className="cursor-pointer">
+                            {e.event_type.replaceAll(/[._]/g, " ")} · {e.mode} ·{" "}
+                            {e.quality} · {time(e.occurred_at)}
+                          </summary>
+                          <p className="my-2">
+                            Source: {e.source_name} · received{" "}
+                            {time(e.ingested_at)} ·{" "}
+                            {e.late ? "out of order" : "ordered"} ·{" "}
+                            {e.clock_skew
+                              ? "future clock skew"
+                              : "no future skew"}
+                          </p>
+                          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all text-xs">
+                            {json(e.envelope)}
+                          </pre>
+                          {e.target && (
+                            <a
+                              href={goTarget(e.target)}
+                              className="text-primary underline"
+                            >
+                              Open registered identity
+                            </a>
+                          )}
+                        </details>
+                      ))}
+                      {events.data && !events.data.items.length && (
+                        <p>
+                          No evidence matches these filters. Unobserved controls
+                          remain unknown.
+                        </p>
+                      )}
+                      {access.role !== "viewer" && (
+                        <div className="flex flex-wrap gap-2">
+                          <select
+                            aria-label="Security export format"
+                            className={selectClass}
+                            value={exportFormat}
+                            onChange={(e) =>
+                              setExportFormat(
+                                e.target.value as typeof exportFormat,
+                              )
+                            }
+                          >
+                            {["ndjson", "json", "csv"].map((f) => (
+                              <option key={f}>{f}</option>
+                            ))}
+                          </select>
+                          <Button
+                            variant="outline"
+                            onClick={async () => {
+                              const r = await exporter.refetch();
+                              if (r.data) {
+                                download(
+                                  `security-evidence.${exportFormat}`,
+                                  r.data.body,
+                                  exportFormat === "csv"
+                                    ? "text/csv"
+                                    : "application/x-ndjson",
+                                );
+                                setNotice(
+                                  `Exported this scoped page; ${r.data.omitted} unreviewed/unknown records omitted. ${r.data.reason}`,
+                                );
+                              } else
+                                setFailure(r.error?.message ?? "Export failed");
+                            }}
+                          >
+                            Export scoped page
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+                {(tab === "Findings" || tab === "Incidents") && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>
+                        {tab === "Incidents"
+                          ? "Assigned security investigations"
+                          : "Evidence-backed findings"}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {findings.isLoading && (
+                        <p role="status">Loading findings…</p>
+                      )}
+                      {findings.data?.items.map((f) => (
+                        <button
+                          type="button"
+                          key={f.id}
+                          aria-pressed={selected === f.id}
+                          onClick={() => select(f.id)}
+                          className={`block w-full rounded-md border p-4 text-left hover:bg-accent focus-visible:outline-2 ${selected === f.id ? "border-primary bg-primary/8" : ""}`}
+                        >
+                          <div className="flex flex-wrap justify-between gap-2">
+                            <strong>{f.title}</strong>
+                            <Badge variant="outline">
+                              {f.severity} · priority {f.priority}
+                            </Badge>
+                          </div>
+                          <p className="mt-2 text-sm">
+                            {f.mode} · {f.category} · {f.status} ·{" "}
+                            {f.confidence} ·{" "}
+                            {f.condition_active
+                              ? "condition observed"
+                              : "condition no longer current"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {sources.data?.items.find(
+                              (source: any) => source.id === f.source_id,
+                            )?.name ?? "Source details in investigation"}{" "}
+                            · {f.assignee ?? "Unassigned"} · last{" "}
+                            {time(f.last_seen)}
+                          </p>
+                        </button>
+                      ))}
+                      {findings.data && !findings.data.items.length && (
+                        <p>
+                          No{" "}
+                          {tab === "Incidents" ? "investigations" : "findings"}{" "}
+                          match these filters. This is not a claim that assets
+                          are secure.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    disabled={!filter.page}
+                    onClick={() => {
+                      const p = new URLSearchParams(
+                        window.location.hash.split("?")[1] ?? "",
+                      );
+                      p.set("page", String(Math.max(0, filter.page - 1)));
+                      navigate(`/cybersecurity?${p}`);
+                    }}
+                  >
+                    Previous evidence page
+                  </Button>
+                  <span className="text-sm">Page {filter.page + 1}</span>
+                  <Button
+                    variant="outline"
+                    disabled={
+                      filter.page >= 200 ||
+                      !(tab === "Events"
+                        ? events.data?.hasMore
+                        : findings.data?.hasMore)
+                    }
+                    onClick={() => {
+                      const p = new URLSearchParams(
+                        window.location.hash.split("?")[1] ?? "",
+                      );
+                      p.set("page", String(filter.page + 1));
+                      navigate(`/cybersecurity?${p}`);
+                    }}
+                  >
+                    Next evidence page
+                  </Button>
+                </div>
+              </div>
+              <div className="min-w-0 space-y-3">
+                {" "}
+                {selected &&
+                  finding.data &&
+                  filter.mode &&
+                  finding.data.mode !== filter.mode && (
+                    <p role="status" className="rounded border p-3 text-sm">
+                      This finding is outside the selected evidence mode.{" "}
                       <Button
                         variant="outline"
-                        onClick={async () => {
-                          const r = await exporter.refetch();
-                          if (r.data) {
-                            download(
-                              `security-evidence.${exportFormat}`,
-                              r.data.body,
-                              exportFormat === "csv"
-                                ? "text/csv"
-                                : "application/x-ndjson",
-                            );
-                            setNotice(
-                              `Exported this scoped page; ${r.data.omitted} unreviewed/unknown records omitted. ${r.data.reason}`,
-                            );
-                          } else
-                            setFailure(r.error?.message ?? "Export failed");
+                        size="sm"
+                        onClick={() => {
+                          const p = new URLSearchParams(
+                            hashLocation.split("?")[1] ?? "",
+                          );
+                          p.set("mode", finding.data!.mode);
+                          navigate(`/cybersecurity?${p}`);
                         }}
                       >
-                        Export scoped page
+                        Open matching evidence scope
                       </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-            {(tab === "Findings" || tab === "Incidents") && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    {tab === "Incidents"
-                      ? "Assigned security investigations"
-                      : "Evidence-backed findings"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {findings.isLoading && <p role="status">Loading findings…</p>}
-                  {findings.data?.items.map((f) => (
-                    <button
-                      type="button"
-                      key={f.id}
-                      aria-pressed={selected === f.id}
-                      onClick={() => select(f.id)}
-                      className="block w-full rounded border p-3 text-left hover:bg-accent focus-visible:outline-2"
-                    >
-                      <div className="flex flex-wrap justify-between gap-2">
-                        <strong>{f.title}</strong>
-                        <Badge variant="outline">
-                          {f.severity} · priority {f.priority}
-                        </Badge>
-                      </div>
-                      <p className="mt-2 text-sm">
-                        {f.mode} · {f.category} · {f.status} · {f.confidence} ·{" "}
-                        {f.condition_active
-                          ? "condition observed"
-                          : "condition no longer current"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {f.rule_id} v{f.rule_version} ·{" "}
-                        {f.assignee ?? "Unassigned"} · last {time(f.last_seen)}
-                      </p>
-                    </button>
-                  ))}
-                  {findings.data && !findings.data.items.length && (
-                    <p>
-                      No {tab === "Incidents" ? "investigations" : "findings"}{" "}
-                      match these filters. This is not a claim that assets are
-                      secure.
                     </p>
                   )}
-                </CardContent>
-              </Card>
-            )}
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                disabled={!filter.page}
-                onClick={() => {
-                  const p = new URLSearchParams(
-                    window.location.hash.split("?")[1] ?? "",
-                  );
-                  p.set("page", String(Math.max(0, filter.page - 1)));
-                  navigate(`/cybersecurity?${p}`);
-                }}
-              >
-                Previous evidence page
-              </Button>
-              <span className="text-sm">Page {filter.page + 1}</span>
-              <Button
-                variant="outline"
-                disabled={
-                  filter.page >= 200 ||
-                  !(tab === "Events"
-                    ? events.data?.hasMore
-                    : findings.data?.hasMore)
-                }
-                onClick={() => {
-                  const p = new URLSearchParams(
-                    window.location.hash.split("?")[1] ?? "",
-                  );
-                  p.set("page", String(filter.page + 1));
-                  navigate(`/cybersecurity?${p}`);
-                }}
-              >
-                Next evidence page
-              </Button>
+                {selected &&
+                  finding.data &&
+                  (!filter.mode || finding.data.mode === filter.mode) && (
+                    <Card className="min-w-0 self-start xl:sticky xl:top-20">
+                      <CardHeader>
+                        <Button
+                          className="mb-2 xl:hidden"
+                          variant="outline"
+                          onClick={() => changeTab(tab)}
+                        >
+                          Return to findings
+                        </Button>
+                        <CardTitle>{finding.data.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p>
+                          <Badge variant="outline">
+                            {finding.data.severity}
+                          </Badge>{" "}
+                          · {finding.data.mode} · {finding.data.status} ·{" "}
+                          {finding.data.category} · confidence{" "}
+                          {finding.data.confidence}
+                        </p>
+                        <p className="text-sm">
+                          Rule {finding.data.rule_id} v
+                          {finding.data.rule_version} · First{" "}
+                          {time(finding.data.first_seen)} · Last{" "}
+                          {time(finding.data.last_seen)} ·{" "}
+                          {finding.data.occurrences} qualifying evaluations ·{" "}
+                          {finding.data.recurrences} recurrences
+                        </p>
+                        <p className="text-sm">
+                          Resolving an investigation records a decision; it does
+                          not erase evidence or clear an active observed
+                          condition.
+                        </p>
+                        <details className="rounded border p-3">
+                          <summary className="cursor-pointer text-sm font-medium">
+                            Assessment calculation and rule context
+                          </summary>
+                          <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs">
+                            {json(finding.data.explanation)}
+                          </pre>
+                        </details>
+                        {finding.data.target && (
+                          <a
+                            className="text-primary underline"
+                            href={goTarget(finding.data.target)}
+                          >
+                            Follow affected registered identity
+                          </a>
+                        )}
+                        {finding.data.installed_component_id && (
+                          <a
+                            className="ml-3 text-primary underline"
+                            href={`#/equipment?securityFinding=${selected}`}
+                          >
+                            Focus mapped equipment component
+                          </a>
+                        )}
+                        <section className="rounded-md border border-info/30 bg-info/5 p-3">
+                          <h3 className="text-sm font-semibold">
+                            Suggested review steps
+                          </h3>
+                          <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
+                            {(
+                              (finding.data.explanation as any)?.checks ?? []
+                            ).map((check: string) => (
+                              <li key={check}>{check}</li>
+                            ))}
+                          </ul>
+                        </section>
+                        <h3 className="font-semibold">
+                          Original normalized evidence
+                        </h3>
+                        {!finding.data.evidence.length && (
+                          <p>Detailed evidence is unavailable to this role.</p>
+                        )}
+                        {finding.data.evidence.map((e) => (
+                          <details
+                            key={e.event_id}
+                            className="rounded border p-3"
+                          >
+                            <summary className="cursor-pointer break-all text-sm">
+                              {String(
+                                (e.snapshot as any)?.type ??
+                                  (e.snapshot as any)?.eventType ??
+                                  "Source observation",
+                              ).replaceAll(/[._]/g, " ")}{" "}
+                              ·{" "}
+                              {String(
+                                (e.snapshot as any)?.mode ?? finding.data.mode,
+                              )}
+                            </summary>
+                            <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs">
+                              {json(e.snapshot)}
+                            </pre>
+                          </details>
+                        ))}
+                        {access.canReview && (
+                          <p className="text-sm">
+                            {finding.data.evidence.length} immutable snapshots
+                            displayed; at most {finding.data.evidenceLimit} are
+                            retained per finding. The occurrence counter counts
+                            qualifying evaluations. Raw event retention is
+                            separate.
+                          </p>
+                        )}
+                        {access.canReview && (
+                          <div className="space-y-3 rounded border p-3">
+                            <h3 className="font-semibold">
+                              Investigation decision
+                            </h3>
+                            <label className="block text-sm">
+                              Decision
+                              <select
+                                aria-label="Investigation decision"
+                                className={`ml-2 ${selectClass}`}
+                                value={decision}
+                                onChange={(e) =>
+                                  setDecision(e.target.value as typeof decision)
+                                }
+                              >
+                                <option value="acknowledge">Acknowledge</option>
+                                {access.canEngineer && (
+                                  <>
+                                    <option value="assign">Assign</option>
+                                    <option value="investigate">
+                                      Investigate
+                                    </option>
+                                    <option value="note">Add note</option>
+                                    <option value="resolve">
+                                      Resolve with evidence
+                                    </option>
+                                    <option value="dismiss">
+                                      Dismiss / false positive
+                                    </option>
+                                  </>
+                                )}
+                                {access.canAdmin && (
+                                  <option value="accept_risk">
+                                    Accept time-limited risk
+                                  </option>
+                                )}
+                              </select>
+                            </label>
+                            {decision === "assign" && (
+                              <label className="block text-sm">
+                                Assign engineer
+                                <select
+                                  aria-label="Assign security engineer"
+                                  className={`ml-2 ${selectClass}`}
+                                  value={assignee}
+                                  onChange={(e) => setAssignee(e.target.value)}
+                                >
+                                  <option value="">Assign to me</option>
+                                  {assignees.data?.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                      {u.name ?? u.id}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
+                            {decision === "accept_risk" && (
+                              <label className="block text-sm">
+                                Risk expiry UTC
+                                <Input
+                                  aria-label="Risk acceptance expiry"
+                                  placeholder="2026-11-01T12:00:00Z"
+                                  value={riskUntil}
+                                  onChange={(e) => setRiskUntil(e.target.value)}
+                                />
+                              </label>
+                            )}
+                            <label className="block text-sm">
+                              Evidence and decision reason
+                              <Textarea
+                                aria-label="Investigation reason"
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                maxLength={2000}
+                              />
+                            </label>
+                            <Button
+                              disabled={
+                                reason.trim().length < 5 || action.isPending
+                              }
+                              onClick={() =>
+                                action.mutate({
+                                  id: selected,
+                                  expectedVersion: finding.data.version,
+                                  action: decision,
+                                  reason,
+                                  assignee: assignee
+                                    ? Number(assignee)
+                                    : undefined,
+                                  riskUntil:
+                                    decision === "accept_risk"
+                                      ? riskUntil
+                                      : undefined,
+                                  evidenceIds:
+                                    decision === "resolve"
+                                      ? finding.data.evidence
+                                          .slice(0, 20)
+                                          .map((e) => e.event_id)
+                                      : [],
+                                })
+                              }
+                            >
+                              Save investigation decision
+                            </Button>
+                          </div>
+                        )}
+                        <h3 className="font-semibold">
+                          Investigation timeline
+                        </h3>
+                        {finding.data.timeline.map((t) => (
+                          <div
+                            key={t.id}
+                            className="rounded border p-2 text-sm"
+                          >
+                            <p className="font-medium capitalize">
+                              {investigationLabels[t.action] ??
+                                t.action.replaceAll("_", " ")}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {time(t.created_at)}
+                            </p>
+                            {typeof (t.detail as Record<string, unknown>)
+                              ?.reason === "string" && (
+                              <p className="mt-2 whitespace-pre-wrap">
+                                {String(
+                                  (t.detail as Record<string, unknown>).reason,
+                                )}
+                              </p>
+                            )}
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-xs text-muted-foreground">
+                                Exact decision details
+                              </summary>
+                              <p className="mt-2 break-all font-mono text-xs">
+                                {t.action}
+                              </p>
+                              <pre className="whitespace-pre-wrap break-all text-xs">
+                                {json(t.detail)}
+                              </pre>
+                            </details>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+              </div>
             </div>
           </>
         )}
-        {selected &&
-          finding.data &&
-          filter.mode &&
-          finding.data.mode !== filter.mode && (
-            <p role="status" className="rounded border p-3 text-sm">
-              This finding is outside the selected evidence mode.{" "}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const p = new URLSearchParams(
-                    hashLocation.split("?")[1] ?? "",
-                  );
-                  p.set("mode", finding.data!.mode);
-                  navigate(`/cybersecurity?${p}`);
-                }}
-              >
-                Open matching evidence scope
-              </Button>
-            </p>
-          )}
-        {selected &&
-          finding.data &&
-          (!filter.mode || finding.data.mode === filter.mode) && (
-            <Card>
-              <CardHeader>
-                <CardTitle>{finding.data.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p>
-                  <Badge variant="outline">{finding.data.severity}</Badge> ·{" "}
-                  {finding.data.mode} · {finding.data.status} ·{" "}
-                  {finding.data.category} · confidence {finding.data.confidence}
-                </p>
-                <p className="text-sm">
-                  Rule {finding.data.rule_id} v{finding.data.rule_version} ·
-                  First {time(finding.data.first_seen)} · Last{" "}
-                  {time(finding.data.last_seen)} · {finding.data.occurrences}{" "}
-                  qualifying evaluations · {finding.data.recurrences}{" "}
-                  recurrences
-                </p>
-                <p className="text-sm">
-                  Resolving an investigation records a decision; it does not
-                  erase evidence or clear an active observed condition.
-                </p>
-                <details className="rounded border p-3">
-                  <summary className="cursor-pointer text-sm font-medium">
-                    Assessment calculation and rule context
-                  </summary>
-                  <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs">
-                    {json(finding.data.explanation)}
-                  </pre>
-                </details>
-                {finding.data.target && (
-                  <a
-                    className="text-primary underline"
-                    href={goTarget(finding.data.target)}
-                  >
-                    Follow affected registered identity
-                  </a>
-                )}
-                {finding.data.installed_component_id && (
-                  <a
-                    className="ml-3 text-primary underline"
-                    href={`#/equipment?securityFinding=${selected}`}
-                  >
-                    Focus mapped equipment component
-                  </a>
-                )}
-                <h3 className="font-semibold">Original normalized evidence</h3>
-                {!finding.data.evidence.length && (
-                  <p>Detailed evidence is unavailable to this role.</p>
-                )}
-                {finding.data.evidence.map((e) => (
-                  <details key={e.event_id} className="rounded border p-3">
-                    <summary className="cursor-pointer break-all text-sm">
-                      Evidence {e.event_id} · SHA-256{" "}
-                      {String(e.fingerprint).slice(0, 16)}…
-                    </summary>
-                    <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs">
-                      {json(e.snapshot)}
-                    </pre>
-                  </details>
-                ))}
-                {access.canReview && (
-                  <p className="text-sm">
-                    {finding.data.evidence.length} immutable snapshots
-                    displayed; at most {finding.data.evidenceLimit} are retained
-                    per finding. The occurrence counter counts qualifying
-                    evaluations. Raw event retention is separate.
-                  </p>
-                )}
-                {access.canReview && (
-                  <div className="space-y-3 rounded border p-3">
-                    <h3 className="font-semibold">Investigation decision</h3>
-                    <label className="block text-sm">
-                      Decision
-                      <select
-                        aria-label="Investigation decision"
-                        className={`ml-2 ${selectClass}`}
-                        value={decision}
-                        onChange={(e) =>
-                          setDecision(e.target.value as typeof decision)
-                        }
-                      >
-                        <option value="acknowledge">Acknowledge</option>
-                        {access.canEngineer && (
-                          <>
-                            <option value="assign">Assign</option>
-                            <option value="investigate">Investigate</option>
-                            <option value="note">Add note</option>
-                            <option value="resolve">
-                              Resolve with evidence
-                            </option>
-                            <option value="dismiss">
-                              Dismiss / false positive
-                            </option>
-                          </>
-                        )}
-                        {access.canAdmin && (
-                          <option value="accept_risk">
-                            Accept time-limited risk
-                          </option>
-                        )}
-                      </select>
-                    </label>
-                    {decision === "assign" && (
-                      <label className="block text-sm">
-                        Assign engineer
-                        <select
-                          aria-label="Assign security engineer"
-                          className={`ml-2 ${selectClass}`}
-                          value={assignee}
-                          onChange={(e) => setAssignee(e.target.value)}
-                        >
-                          <option value="">Assign to me</option>
-                          {assignees.data?.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.name ?? u.id}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    {decision === "accept_risk" && (
-                      <label className="block text-sm">
-                        Risk expiry UTC
-                        <Input
-                          aria-label="Risk acceptance expiry"
-                          placeholder="2026-11-01T12:00:00Z"
-                          value={riskUntil}
-                          onChange={(e) => setRiskUntil(e.target.value)}
-                        />
-                      </label>
-                    )}
-                    <label className="block text-sm">
-                      Evidence and decision reason
-                      <Textarea
-                        aria-label="Investigation reason"
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        maxLength={2000}
-                      />
-                    </label>
-                    <Button
-                      disabled={reason.trim().length < 5 || action.isPending}
-                      onClick={() =>
-                        action.mutate({
-                          id: selected,
-                          expectedVersion: finding.data.version,
-                          action: decision,
-                          reason,
-                          assignee: assignee ? Number(assignee) : undefined,
-                          riskUntil:
-                            decision === "accept_risk" ? riskUntil : undefined,
-                          evidenceIds:
-                            decision === "resolve"
-                              ? finding.data.evidence
-                                  .slice(0, 20)
-                                  .map((e) => e.event_id)
-                              : [],
-                        })
-                      }
-                    >
-                      Save investigation decision
-                    </Button>
-                  </div>
-                )}
-                <h3 className="font-semibold">Investigation timeline</h3>
-                {finding.data.timeline.map((t) => (
-                  <div key={t.id} className="rounded border p-2 text-sm">
-                    <strong>{t.action}</strong> · {time(t.created_at)}
-                    <pre className="whitespace-pre-wrap break-all text-xs">
-                      {json(t.detail)}
-                    </pre>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
         {tab === "Sources and policies" && (
           <SourcePolicies
             sources={sources.data}
@@ -1261,7 +1392,7 @@ function SourcePolicies({
         <CardContent className="space-y-3">
           {sources?.items.map((s: any) => (
             <div key={s.id} className="space-y-2 rounded border p-3">
-              <strong>{s.name}</strong>
+              <strong>{sourceLabel(s.name)}</strong>
               <p className="break-all text-xs">
                 {s.namespace} · {s.active ? "enabled" : "paused"} · last live
                 receipt {time(s.last_received_at)}

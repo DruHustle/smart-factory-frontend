@@ -1,27 +1,72 @@
+import { operatingEvidence } from "../operatingEvidence";
+import { sql } from "drizzle-orm";
+import { auditPage, connectionSummary } from "../administration";
 import { z } from "zod";
-import { adminProcedure, engineerProcedure, publicProcedure, router, viewerProcedure } from "./trpc";
+import {
+  adminProcedure,
+  engineerProcedure,
+  publicProcedure,
+  router,
+  viewerProcedure,
+} from "./trpc";
 import * as db from "../db";
+import { demoDataEnabled } from "../demoData";
 
 export const systemRouter = router({
+  operations: adminProcedure.query(() => operatingEvidence()),
+  audit: adminProcedure
+    .input(
+      z.object({
+        page: z.number().int().min(0).max(100000).default(0),
+        search: z.string().trim().max(100).default(""),
+      }),
+    )
+    .query(({ input }) => auditPage(input.page, input.search)),
+  connections: engineerProcedure.query(() => connectionSummary()),
   health: publicProcedure
     .input(
       z.object({
         timestamp: z.number().min(0, "timestamp cannot be negative"),
-      })
+      }),
     )
     .query(() => ({
       ok: true,
     })),
 
-  demoData: viewerProcedure.query(async () => ({ enabled: await db.refreshDemoDataSetting() })),
+  showcase: viewerProcedure.query(async () => {
+    if (!demoDataEnabled()) return null;
+    const connection = await db.getDb();
+    if (!connection) return null;
+    const [row] = await connection.execute(
+      sql`select value from system_settings where key='showcase_v1'`,
+    );
+    return (
+      (row?.value as
+        | {
+            version: number;
+            anchor: string;
+            from: string;
+            equipmentId: string;
+            assetRef: string;
+            assetId: string;
+            sensorRef: string;
+            gatewayRef: string;
+            incidentId: number;
+            securitySourceId: string;
+            label: string;
+          }
+        | undefined) ?? null
+    );
+  }),
+  demoData: viewerProcedure.query(() => ({ enabled: demoDataEnabled() })),
 
-  setDemoData: engineerProcedure
+  setDemoData: adminProcedure
     .input(z.object({ enabled: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
-      // The toggle is an explicit engineering opt-in, so it may add isolated,
-      // clearly marked demo records without replacing connected equipment.
-      if (input.enabled) await db.initializeDemoScenario({ allowAlongsideLive: true });
-      return { enabled: await db.setDemoDataSetting(input.enabled, ctx.user.id) };
+      // Viewing approved fixtures never seeds an operational installation.
+      return {
+        enabled: await db.setDemoDataSetting(input.enabled, ctx.user.id),
+      };
     }),
 
   notifyOwner: adminProcedure
@@ -29,12 +74,13 @@ export const systemRouter = router({
       z.object({
         title: z.string().min(1, "title is required"),
         content: z.string().min(1, "content is required"),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
-      console.log("[System] notifyOwner called:", input);
-      return {
-        success: true,
-      } as const;
+      throw new (await import("@trpc/server")).TRPCError({
+        code: "PRECONDITION_FAILED",
+        message:
+          "This legacy notification endpoint is retired. Use the owner-scoped notification inbox and configured delivery workflow.",
+      });
     }),
 });

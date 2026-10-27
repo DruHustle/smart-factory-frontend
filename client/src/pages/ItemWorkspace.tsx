@@ -1,6 +1,9 @@
+import { currentSample } from "@shared/measurements";
+import { ObservationValues } from "@/components/workspace/ObservationValues";
 import DeviceActions from "@/components/workspace/DeviceActions";
 import {
   ItemActivity,
+  ItemTelemetry,
   AssetTelemetry,
 } from "@/components/workspace/ItemEvidence";
 import { lazy, Suspense, useRef } from "react";
@@ -40,8 +43,14 @@ export default function ItemWorkspace() {
   const safeReturn =
     returnTo?.startsWith("/inventory?") ||
     returnTo?.startsWith("/cybersecurity?") ||
-    returnTo === "/inventory"
-      ? returnTo
+    returnTo?.startsWith("/monitoring?") ||
+    returnTo?.startsWith("/analytics?") ||
+    returnTo?.startsWith("/alerts?") ||
+    /^\/alerts\/[1-9]\d*(\?|$)/.test(returnTo ?? "") ||
+    ["/inventory", "/", "/monitoring", "/analytics", "/alerts"].includes(
+      returnTo ?? "",
+    )
+      ? returnTo!
       : "/inventory";
   const item = trpc.inventory.item.useQuery(
     { ref },
@@ -110,7 +119,8 @@ export default function ItemWorkspace() {
   if (security.data?.enabled && i.kind !== "equipment")
     sections.push(["security", "Security"]);
   if (
-    engineering &&
+    user?.access?.canEngineer &&
+    !i.isDemo &&
     i.kind === "asset" &&
     connections.data?.some((c) => c.protocol === "ada031_v4_serial")
   )
@@ -121,35 +131,49 @@ export default function ItemWorkspace() {
     !!i.equipmentId;
   if (is3D) opened3D.current = i.equipmentId;
   return (
-    <div className="min-w-0 space-y-5">
+    <div className={`min-w-0 ${is3D?"space-y-3":"space-y-5"}`}>
       <PageHeader
         title={i.name}
         eyebrow={
           <Link href={safeReturn} className="underline underline-offset-4">
             {safeReturn.startsWith("/cybersecurity")
               ? "Cybersecurity / Return to investigation"
-              : "Assets & devices / Return to results"}
+              : safeReturn.startsWith("/monitoring")
+                ? "Monitoring / Return to observations"
+                : safeReturn.startsWith("/alerts")
+                  ? "Alerts / Return to investigation"
+                  : safeReturn === "/analytics"
+                    ? "Analytics / Return to analysis"
+                    : "Assets & devices / Return to results"}
           </Link>
         }
-        description={`${i.itemType} · ${i.ref}`}
+        description={`${i.itemType} · ${i.zone || i.location || "Location unspecified"}`}
         action={
           <>
             <StatusBadge status={i.status} />
-            {i.kind === "device" && (
+            {i.kind === "device" && !i.isDemo && (
               <DeviceActions id={Number(i.id)} name={i.name} />
             )}
           </>
         }
       />
-      <CopyIdentifier value={i.identifier} />
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3 text-sm">
+      <details className="text-xs">
+        <summary className="cursor-pointer text-muted-foreground">
+          Item identity
+        </summary>
+        <div className="mt-2">
+          <CopyIdentifier value={i.identifier} />
+          <p className="mt-1 text-muted-foreground">{i.ref}</p>
+        </div>
+      </details>
+      <div className={`flex flex-wrap items-center rounded-lg border bg-card ${is3D?"gap-2 p-2 text-xs":"gap-3 p-3 text-sm"}`}>
         <Badge variant="outline" className="capitalize">
           {i.mode} evidence
         </Badge>
         <span>{i.route}</span>
         <span>
           Sample:{" "}
-          <SampleTime value={i.sampleAt} historical={i.status !== "live"} />
+          <SampleTime value={i.sampleAt} historical={!currentSample(i)} />
         </span>
         {i.lifecycle && (
           <span className="capitalize">Lifecycle: {i.lifecycle}</span>
@@ -191,6 +215,8 @@ export default function ItemWorkspace() {
           <ItemActivity item={i} />
         ) : section === "telemetry" && i.kind === "asset" && !engineering ? (
           <AssetTelemetry item={i} />
+        ) : section === "telemetry" && i.kind === "device" && !gateway ? (
+          <ItemTelemetry item={i} />
         ) : section === "firmware" ? (
           <EmptyState
             title="Firmware delivery unavailable"
@@ -268,6 +294,13 @@ function ItemOverview({
       </section>
       <section className="space-y-4 rounded-lg border bg-card p-5">
         <h2 className="font-semibold">Observed evidence</h2>
+        <ObservationValues
+          reading={{
+            ...i.values,
+            measurements: i.measurements,
+            integration: { sourceQuality: i.quality },
+          }}
+        />
         <dl className="space-y-3 text-sm">
           <div>
             <dt className="text-muted-foreground">Configuration</dt>
@@ -286,8 +319,8 @@ function ItemOverview({
           <div>
             <dt className="text-muted-foreground">Telemetry</dt>
             <dd>
-              <SampleTime value={i.sampleAt} historical={i.status !== "live"} />{" "}
-              · {i.quality} quality
+              <SampleTime value={i.sampleAt} historical={!currentSample(i)} /> ·{" "}
+              {i.quality} quality
             </dd>
           </div>
           <div>

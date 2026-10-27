@@ -1,4 +1,7 @@
 {
+  "evidenceKind": "historical-deployment-snapshot",
+  "currentRuntimeIdentity": "/api/runtime/contract",
+  "warning": "Records 16 October 2026 only; not current production evidence.",
   "deployed": "2026-10-16",
   "host": "152.70.22.84",
   "platform": "linux/arm64",

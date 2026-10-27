@@ -5,6 +5,7 @@ import {
   type APIRequestContext,
 } from "@playwright/test";
 import { mkdirSync } from "node:fs";
+import { selectSection, setTheme } from "./experience-helpers";
 const password = "Synthetic-security-only-2026!";
 async function call(
   r: APIRequestContext,
@@ -35,7 +36,9 @@ async function inventory(page: Page, search = "Workspace") {
   await expect(
     page.getByRole("heading", { name: "Assets & devices", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/matching items · View filters/)).toBeVisible();
+  await expect(
+    page.getByRole("status", { name: "Inventory results" }),
+  ).toBeVisible();
 }
 async function open(page: Page, name: string) {
   await page
@@ -53,6 +56,14 @@ test.describe("unified item workspace", () => {
   test("direct IoT registration completes and accepts telemetry without a gateway or AAS", async ({
     page,
   }) => {
+    let creationRequests = 0;
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        request.url().includes("devices.create")
+      )
+        creationRequests++;
+    });
     await login(page);
     await inventory(page);
     await page.getByRole("button", { name: "Add item", exact: true }).click();
@@ -68,7 +79,26 @@ test.describe("unified item workspace", () => {
     await page.getByRole("option", { name: "Direct MQTT over TLS" }).click();
     await page.getByLabel("Expected maximum sample age").fill("120");
     await page
+      .getByRole("button", { name: "Next: representation", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Next: review", exact: true })
+      .click();
+    await expect(
+      page.getByText("Review registration", { exact: true }),
+    ).toBeVisible();
+    expect(creationRequests).toBe(0);
+    await page
       .getByRole("button", { name: "Register Device", exact: true })
+      .click();
+    await expect(
+      page.getByText("Identity registered · observations not yet verified", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(creationRequests).toBe(1);
+    await page
+      .getByRole("button", { name: "Open item workspace", exact: true })
       .click();
     await expect(
       page.getByRole("heading", {
@@ -95,15 +125,30 @@ test.describe("unified item workspace", () => {
         deviceId: "workspace-browser-direct",
         timestamp: Date.now(),
         temperature: 24,
+        units: { temperature: "°C" },
+        integration: {
+          mode: "live",
+          sourceQuality: "good",
+          sourceConnection: "online",
+          gatewayReceivedAt: new Date().toISOString(),
+        },
       },
     });
     expect(ingress.ok()).toBe(true);
     await page.reload();
     await expect(page.getByText("Direct MQTT", { exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "Telemetry", exact: true }).click();
+    const trend = page.getByRole("region", {
+      name: "Workspace browser direct observations",
+      exact: true,
+    });
+    await expect(trend).toBeVisible();
+    await expect(trend).toContainText(/24(?:\.0)? °C/);
     await expect(
-      page.getByText("Historical Data", { exact: true }),
-    ).toBeVisible();
+      page.getByText("No verified measurements in this period", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("tab", { name: "AAS & submodels" }),
     ).toHaveCount(0);
@@ -160,9 +205,13 @@ test.describe("unified item workspace", () => {
   }) => {
     await login(page);
     await inventory(page, "Workspace child");
+    await page.getByRole("button", { name: /^Filters/ }).click();
     await page
       .getByLabel("Observed status", { exact: true })
       .selectOption("stale");
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
     await expect(
       page
         .getByRole("link", { name: "Workspace child A", exact: true })
@@ -180,16 +229,21 @@ test.describe("unified item workspace", () => {
     await page.goForward();
     await page.getByRole("link", { name: /Return to results/ }).click();
     await expect(
-      page.getByLabel("Observed status", { exact: true }),
-    ).toHaveValue("stale");
-    await expect(
-      page.getByLabel("Search inventory", { exact: true }),
-    ).toHaveValue("Workspace child");
-    await expect(
       page
         .getByRole("link", { name: "Workspace child A", exact: true })
         .filter({ visible: true }),
     ).toBeFocused();
+    await expect(
+      page.getByRole("button", { name: "Clear Status filter", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await expect(
+      page.getByLabel("Observed status", { exact: true }),
+    ).toHaveValue("stale");
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByLabel("Search inventory", { exact: true }),
+    ).toHaveValue("Workspace child");
     expect(
       new URLSearchParams(page.url().split("#")[1].split("?")[1]).get(
         "selected",
@@ -233,7 +287,7 @@ test.describe("unified item workspace", () => {
     await expect(page.getByRole("button", { name: "Add item" })).toHaveCount(0);
     await page.goto("/#/users");
     await expect(
-      page.getByRole("heading", { name: "404", exact: true }),
+      page.getByText("Administration unavailable", { exact: true }),
     ).toBeVisible();
   });
   test("mode scope reaches summary, events and exports; source facts retain raw details", async ({
@@ -340,13 +394,15 @@ test.describe("unified item workspace", () => {
       page.getByText("No inventory items yet", { exact: true }),
     ).toHaveCount(0);
     await page.screenshot({
-      path: "docs/evidence/workspace-20261026/inventory-error.png",
+      path: test.info().outputPath("inventory-error.png"),
       fullPage: true,
       animations: "disabled",
     });
     await page.unroute(/\/api\/trpc\/.*inventory\.list/);
     await page.getByRole("button", { name: "Try again", exact: true }).click();
-    await expect(page.getByText(/matching items · View filters/)).toBeVisible();
+    await expect(
+      page.getByRole("status", { name: "Inventory results" }),
+    ).toContainText("items");
   });
   test("keeps item-specific 3D context across inspection, observations and saved-view sections", async ({
     page,
@@ -385,21 +441,18 @@ test.describe("unified item workspace", () => {
       page.getByRole("heading", { name: "Motor · observations", exact: true }),
     ).toBeVisible();
   });
-  test("renders populated and empty inventory in both themes at 360, 390, tablet and desktop; mobile drawer restores focus", async ({
-    page,
-  }) => {
-    await login(page);
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    mkdirSync("docs/evidence/workspace-20261026", { recursive: true });
-    for (const width of [360, 390, 768, 1440])
-      for (const theme of ["light", "dark"]) {
+  for (const width of [360, 390, 768, 1024, 1440])
+    for (const theme of ["light", "dark"] as const)
+      test(`inventory, AAS, security and 3D at ${width}px ${theme}; drawer focus`, async ({
+        page,
+      }) => {
+        await login(page);
+        await page.emulateMedia({ reducedMotion: "reduce" });
         await page.setViewportSize({ width, height: 960 });
         await inventory(page);
-        const current = await page.locator("html").getAttribute("class");
-        if ((current?.includes("dark") ? "dark" : "light") !== theme)
-          await page
-            .getByRole("button", { name: `Switch to ${theme} theme` })
-            .click();
+        await setTheme(page, theme);
+        const folder = test.info().outputPath("preview");
+        mkdirSync(folder, { recursive: true });
         await expect
           .poll(() =>
             page.evaluate(
@@ -412,111 +465,101 @@ test.describe("unified item workspace", () => {
             .getByRole("link", { name: "Workspace direct sensor", exact: true })
             .filter({ visible: true }),
         ).toBeVisible();
-        await expect
-          .poll(() =>
-            page.evaluate(
-              () => getComputedStyle(document.documentElement).colorScheme,
-            ),
-          )
-          .toBe(theme);
         await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
-        // A toolbar can fit the viewport while squeezing a field to zero width.
-        const searchBox = await page.getByRole("textbox", { name: "Search inventory" }).boundingBox();
-        expect(searchBox?.width).toBeGreaterThanOrEqual(150);
+        expect(
+          (
+            await page
+              .getByRole("textbox", { name: "Search inventory" })
+              .boundingBox()
+          )?.width,
+        ).toBeGreaterThanOrEqual(150);
         await page.screenshot({
-          path: `docs/evidence/workspace-20261026/inventory-${theme}-${width}.png`,
+          path: `${folder}/inventory-${theme}-${width}.png`,
           fullPage: true,
           animations: "disabled",
         });
-      }
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page
-      .getByRole("button", { name: "Toggle navigation", exact: true })
-      .filter({ visible: true })
-      .first()
-      .click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(
-      page
-        .getByRole("button", { name: "Toggle navigation", exact: true })
-        .filter({ visible: true })
-        .first(),
-    ).toBeFocused();
-    await inventory(page, "no-such-inventory");
-    await expect(
-      page.getByText("No matching items", { exact: true }),
-    ).toBeVisible();
-    for (const [width, theme] of [
-      [390, "dark"],
-      [1440, "light"],
-    ] as const) {
-      await page.setViewportSize({ width, height: 960 });
-      if (
-        (await page.locator("html").getAttribute("class"))?.includes("dark") !==
-        (theme === "dark")
-      )
+        if (width < 768) {
+          const trigger = page
+            .getByRole("button", { name: "Toggle navigation", exact: true })
+            .filter({ visible: true })
+            .first();
+          await trigger.click();
+          await expect(page.getByRole("dialog")).toBeVisible();
+          await page.keyboard.press("Escape");
+          await expect(page.getByRole("dialog")).toHaveCount(0);
+          await expect(trigger).toBeFocused();
+        }
+        await inventory(page, "no-such-inventory");
+        await expect(
+          page.getByText("No matching items", { exact: true }),
+        ).toBeVisible();
+        await inventory(page, "Workspace imported");
+        await open(page, "Workspace imported asset");
+        await selectSection(page, "AAS & submodels");
         await page
-          .getByRole("button", { name: `Switch to ${theme} theme` })
+          .locator("summary")
+          .getByText("VendorNameplate", { exact: true })
           .click();
-      await inventory(page, "Workspace imported");
-      await open(page, "Workspace imported asset");
-      await page
-        .getByRole("tab", { name: "AAS & submodels", exact: true })
-        .click();
-      await page
-        .locator("summary")
-        .getByText("VendorNameplate", { exact: true })
-        .click();
-      await expect(
-        page.getByText("Isolated fixture manufacturer", { exact: true }),
-      ).toBeVisible();
-      await page.screenshot({
-        path: `docs/evidence/workspace-20261026/aas-${theme}-${width}.png`,
-        fullPage: true,
-        animations: "disabled",
-      });
-      await page.goto("/#/cybersecurity");
-      await page.getByText("Demonstration / setup", { exact: true }).click();
-      await page
-        .getByRole("button", {
-          name: "Load local security demonstration",
-          exact: true,
-        })
-        .click();
-      await expect(
-        page.getByText("Authored simulation and replay evidence is ready.", {
-          exact: true,
-        }),
-      ).toBeVisible();
-      await page.getByLabel("Filter evidence mode").selectOption("simulated");
-      await expect(
-        page.getByRole("button", { name: "Open high findings" }),
-      ).toBeVisible();
-      await page.screenshot({
-        path: `docs/evidence/workspace-20261026/security-${theme}-${width}.png`,
-        fullPage: true,
-        animations: "disabled",
-      });
-      await inventory(page, "Workspace standalone");
-      await open(page, "Workspace standalone pump");
-      await page
-        .getByRole("tab", { name: "3D inspection", exact: true })
-        .click();
-      await expect(page.locator("[data-state=ready]")).toBeVisible();
-      await expect
-        .poll(() =>
-          page.evaluate(
-            () => document.documentElement.scrollWidth <= innerWidth,
+        await expect(
+          page.getByText("Isolated fixture manufacturer", { exact: true }),
+        ).toBeVisible();
+        await page.screenshot({
+          path: `${folder}/aas-${theme}-${width}.png`,
+          fullPage: true,
+          animations: "disabled",
+        });
+        await page.goto("/#/cybersecurity");
+        await page.getByText("Demonstration / setup", { exact: true }).click();
+        await page
+          .getByRole("button", {
+            name: "Load local security demonstration",
+            exact: true,
+          })
+          .click();
+        await expect(
+          page.getByText("Authored simulation and replay evidence is ready.", {
+            exact: true,
+          }),
+        ).toBeVisible();
+        await page.getByLabel("Filter evidence mode").selectOption("simulated");
+        await expect(
+          page.getByRole("button", { name: "Open high findings" }),
+        ).toBeVisible();
+        await page.screenshot({
+          path: `${folder}/security-${theme}-${width}.png`,
+          fullPage: true,
+          animations: "disabled",
+        });
+        await inventory(page, "Workspace standalone");
+        // Standalone equipment opens directly in 3D; observe delivery before navigation.
+        // Authenticate and finish model transfer before checking renderer readiness.
+        // The renderer keeps its original 5s assertion and the journey its 60s budget.
+        const modelTransfer = page.waitForResponse((response) =>
+          /^\/api\/equipment\/[^/]+\/model$/.test(
+            new URL(response.url()).pathname,
           ),
-        )
-        .toBe(true);
-      await page.screenshot({
-        path: `docs/evidence/workspace-20261026/equipment-${theme}-${width}.png`,
-        fullPage: true,
-        animations: "disabled",
+        );
+        await open(page, "Workspace standalone pump");
+        await selectSection(page, "3D inspection");
+        const modelResponse = await modelTransfer;
+        expect(modelResponse.status()).toBe(200);
+        // The streamed fetch has finished when the viewer records its admitted byte count.
+        await expect(page.locator("[data-model-bytes]")).toHaveAttribute(
+          "data-model-bytes",
+          /^[1-9]\d*$/,
+        );
+        await expect(page.locator("[data-state=ready]")).toBeVisible();
+        await expect
+          .poll(() =>
+            page.evaluate(
+              () => document.documentElement.scrollWidth <= innerWidth,
+            ),
+          )
+          .toBe(true);
+        await page.screenshot({
+          path: `${folder}/equipment-${theme}-${width}.png`,
+          fullPage: true,
+          animations: "disabled",
+        });
       });
-    }
-  });
 });

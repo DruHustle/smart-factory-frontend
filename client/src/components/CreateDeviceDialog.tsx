@@ -1,3 +1,4 @@
+import { MqttTopicHint } from "./workspace/MqttTopicHint";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -45,8 +46,8 @@ const deviceSchema = z
     deviceId: z
       .string()
       .regex(
-        /^[A-Za-z0-9][A-Za-z0-9_.:-]{2,63}$/,
-        "Use 3–64 letters, numbers, dots, colons, underscores or hyphens",
+        /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/,
+        "Use 1–64 letters, numbers, dots, colons, underscores or hyphens",
       ),
     name: z
       .string()
@@ -101,15 +102,16 @@ export default function CreateDeviceDialog({
     { enabled: open },
   );
   const [step, setStep] = useState(0);
+  const [created, setCreated] = useState<{ id: number } | null>(null);
   const createMutation = trpc.devices.create.useMutation({
     onSuccess: (device) => {
       void utils.inventory.invalidate();
-      onCreated?.(device);
+      setCreated(device);
+      setStep(4);
       toast.success("Device registered");
       utils.devices.list.invalidate();
       utils.devices.getStats.invalidate();
-      onOpenChange(false);
-      form.reset();
+
       onSuccess?.();
     },
     onError: (error) =>
@@ -118,6 +120,8 @@ export default function CreateDeviceDialog({
   });
 
   const onSubmit = (values: DeviceFormValues) => {
+    if (step !== 3) return;
+    if (created) return;
     setIsSubmitting(true);
     createMutation.mutate(values);
   };
@@ -126,7 +130,7 @@ export default function CreateDeviceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>Register connectivity device</DialogTitle>
           <DialogDescription>
@@ -138,7 +142,16 @@ export default function CreateDeviceDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Step {step + 1} of 2 · {step === 0 ? "Identity" : "Connection"}
+              Step {step + 1} of 5 ·{" "}
+              {
+                [
+                  "Identity",
+                  "Connection",
+                  "Representation",
+                  "Review",
+                  "Registration result",
+                ][step]
+              }
             </p>
             <div hidden={step !== 0} className="space-y-4">
               <FormField
@@ -352,6 +365,69 @@ export default function CreateDeviceDialog({
                   credentials and a broker topic ACL separately. No credentials
                   or configuration are sent to equipment by this form.
                 </p>
+                {form.watch("route") !== "unconfigured" && (
+                  <MqttTopicHint identity={form.watch("deviceId")} />
+                )}
+              </div>
+            )}
+            {step === 2 && (
+              <div className="space-y-3 rounded-md border p-4">
+                <h3 className="font-medium">Optional representation</h3>
+                <p className="text-sm text-muted-foreground">
+                  This device works independently without an AAS or 3D model.
+                  Register its identity first, then link an existing AAS asset
+                  or create a separately reviewed 3D representation from the
+                  item workspace. A representation does not establish a physical
+                  connection.
+                </p>
+              </div>
+            )}
+            {step === 3 && (
+              <div className="space-y-3 rounded-md border p-4">
+                <h3 className="font-medium">Review registration</h3>
+                <dl className="grid grid-cols-[auto_1fr] gap-3 text-sm">
+                  <dt>Name / kind</dt>
+                  <dd>
+                    {form.watch("name")} · {form.watch("type")}
+                  </dd>
+                  <dt>Stable identity</dt>
+                  <dd className="break-all">{form.watch("deviceId")}</dd>
+                  <dt>Route</dt>
+                  <dd>
+                    {form.watch("route")}
+                    {form.watch("gatewayId")
+                      ? ` via ${form.watch("gatewayId")}`
+                      : ""}
+                  </dd>
+                  <dt>Freshness</dt>
+                  <dd>
+                    {form.watch("freshnessSeconds")
+                      ? `${form.watch("freshnessSeconds")} seconds`
+                      : "Not commissioned; current availability unknown"}
+                  </dd>
+                  <dt>Representation</dt>
+                  <dd>
+                    Independent device. No AAS or 3D representation is created
+                    automatically.
+                  </dd>
+                </dl>
+              </div>
+            )}
+            {step === 4 && created && (
+              <div
+                role="status"
+                className="space-y-3 rounded-md border border-info/40 bg-info/5 p-4"
+              >
+                <h3 className="font-medium">
+                  Identity registered · observations not yet verified
+                </h3>
+                <p className="text-sm">
+                  The software route was saved. Configure device-scoped broker
+                  credentials and topic ACLs separately, publish and verify any
+                  required gateway profile, then inspect the first eligible
+                  acquisition. Saving this form did not contact equipment or
+                  confirm a physical connection.
+                </p>
               </div>
             )}
             <DialogFooter className="pt-4">
@@ -360,36 +436,59 @@ export default function CreateDeviceDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                {created ? "Done" : "Cancel"}
               </Button>
-              {step === 0 ? (
+              {step > 0 && step < 4 && (
                 <Button
                   type="button"
-                  onClick={async () => {
-                    if (await form.trigger(["name", "deviceId", "type"]))
-                      setStep(1);
+                  variant="outline"
+                  disabled={isSubmitting}
+                  onClick={() => setStep((v) => v - 1)}
+                >
+                  Back
+                </Button>
+              )}
+              {step < 3 ? (
+                <Button
+                  key="registration-next"
+                  type="button"
+                  onClick={async (event) => {
+                    event.preventDefault();
+                    const keys =
+                      step === 0
+                        ? ["name", "deviceId", "type"]
+                        : step === 1
+                          ? ["route", "gatewayId", "freshnessSeconds"]
+                          : [];
+                    if (await form.trigger(keys as (keyof DeviceFormValues)[]))
+                      setStep((v) => v + 1);
                   }}
                 >
-                  Next: connection
+                  Next: {["connection", "representation", "review"][step]}
                 </Button>
-              ) : (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setStep(0)}
-                  >
-                    Back
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting
-                      ? "Registering…"
-                      : isGateway
-                        ? "Register Gateway"
-                        : "Register Device"}
-                  </Button>
-                </>
-              )}
+              ) : step === 3 ? (
+                <Button
+                  key="registration-submit"
+                  type="submit"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Registering…"
+                    : isGateway
+                      ? "Register Gateway"
+                      : "Register Device"}
+                </Button>
+              ) : created ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onCreated?.(created);
+                  }}
+                >
+                  Open item workspace
+                </Button>
+              ) : null}
             </DialogFooter>
           </form>
         </Form>

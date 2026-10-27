@@ -1,9 +1,17 @@
+import { currentSample } from "@shared/measurements";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import {
+  metrics,
+  measurementValue,
+  measurementUnit,
+} from "@shared/measurements";
+import { Measurement } from "@/components/workspace/Primitives";
+import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
-import { canViewEngineering } from "@/lib/access";
 import { safeLocalStorage } from "@/lib/storage";
 import {
   PageHeader,
@@ -29,7 +37,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Plus } from "lucide-react";
+import {
+  MoreHorizontal,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import CreateDeviceDialog from "@/components/CreateDeviceDialog";
 import { CreateAssetDialog } from "@/components/CreateAssetDialog";
 import type { InventoryItem } from "@shared/inventory";
@@ -43,6 +57,7 @@ const views = [
 ];
 export default function Inventory() {
   const { user } = useAuth();
+  const active = useDocumentActive();
   const [location, navigate] = useHashLocation();
   const restoredSelection = useRef<string | null>(null);
   const params = new URLSearchParams(location.split("?")[1] ?? "");
@@ -52,6 +67,14 @@ export default function Inventory() {
     null,
   );
   const [assetOpen, setAssetOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [draft, setDraft] = useState({
+    zone: "",
+    status: "all",
+    mode: "all",
+    capability: "all",
+    sort: "name",
+  });
   const filter = {
     search: params.get("search") ?? "",
     view: (params.get("view") ?? "all") as "all",
@@ -69,10 +92,16 @@ export default function Inventory() {
       if (saved?.startsWith("/inventory?")) navigate(saved, { replace: true });
     }
   }, []);
-  const result = trpc.inventory.list.useQuery(filter, {
-    retry: false,
-    refetchInterval: 30000,
-  });
+  const settledSearch = useDebouncedValue(filter.search);
+  const result = trpc.inventory.list.useQuery(
+    { ...filter, search: settledSearch },
+    {
+      retry: false,
+      placeholderData: (previous) => previous,
+      refetchInterval: active ? 30000 : false,
+      refetchIntervalInBackground: false,
+    },
+  );
   const utils = trpc.useUtils();
   function update(values: Record<string, string | number>) {
     const p = new URLSearchParams(params);
@@ -86,6 +115,29 @@ export default function Inventory() {
     safeLocalStorage.setItem(key, next);
     navigate(next);
   }
+  const filterLabels: Record<string, string> = {
+    zone: "Zone",
+    status: "Status",
+    mode: "Mode",
+    capability: "Capability",
+    sort: "Sort",
+  };
+  const activeFilters = Object.entries({
+    zone: filter.zone,
+    status: filter.status,
+    mode: filter.mode,
+    capability: filter.capability,
+    sort: filter.sort,
+  }).filter(
+    ([field, value]) =>
+      value !== "" &&
+      value !== "all" &&
+      !(field === "sort" && value === "name"),
+  );
+  const clear = () => {
+    safeLocalStorage.removeItem(key);
+    navigate("/inventory");
+  };
   const selected = params.get("selected");
   const returnUrl = (item: InventoryItem) => {
     const p = new URLSearchParams(params);
@@ -132,9 +184,9 @@ export default function Inventory() {
     <div className="min-w-0 space-y-5">
       <PageHeader
         title="Assets & devices"
-        description="One inventory. Explicit connections, digital representations and observed evidence."
+        description="Find equipment, inspect observations and open the right workspace."
         action={
-          canViewEngineering(user?.role) && (
+          user?.access?.canEngineer && (
             <>
               <Button
                 variant="outline"
@@ -163,78 +215,72 @@ export default function Inventory() {
         onChange={(view) => update({ view })}
       >
         <FilterToolbar>
-          <label className="basis-full flex-1 text-xs sm:basis-48">
-            Search inventory
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">Search inventory</span>
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+            />
             <Input
               aria-label="Search inventory"
+              className="pl-9 pr-10"
               value={filter.search}
-              placeholder="Name or full identifier"
-              onChange={(e) => update({ search: e.target.value })}
+              maxLength={200}
+              placeholder="Search name or identifier"
+              onChange={(event) => update({ search: event.target.value })}
             />
-          </label>
-          <label className="text-xs">
-            Zone
-            <Input
-              aria-label="Filter zone"
-              className="w-32"
-              value={filter.zone}
-              onChange={(e) => update({ zone: e.target.value })}
-            />
-          </label>
-          {[
-            [
-              "status",
-              "Observed status",
-              [
-                "all",
-                "live",
-                "stale",
-                "offline",
-                "unknown",
-                "maintenance",
-                "error",
-              ],
-            ],
-            [
-              "mode",
-              "Evidence mode",
-              ["all", "live", "simulated", "replay", "unknown"],
-            ],
-            ["capability", "Capability", ["all", "aas", "3d"]],
-            ["sort", "Sort", ["name", "recent"]],
-          ].map(([field, label, options]) => (
-            <label className="text-xs" key={String(field)}>
-              {label}
-              <select
-                aria-label={String(label)}
-                className="mt-1 block h-9 rounded-md border bg-background px-2 text-sm"
-                value={filter[field as keyof typeof filter]}
-                onChange={(e) => update({ [String(field)]: e.target.value })}
+            {!!filter.search && (
+              <button
+                type="button"
+                className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Clear search"
+                onClick={() => update({ search: "" })}
               >
-                {(options as string[]).map((o) => (
-                  <option key={o} value={o}>
-                    {o === "all"
-                      ? "All"
-                      : o === "recent"
-                        ? "Newest samples"
-                        : o === "name"
-                          ? "Name A–Z"
-                          : o.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </label>
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={() => {
-              safeLocalStorage.removeItem(key);
-              navigate("/inventory");
+              setDraft({
+                zone: filter.zone,
+                status: filter.status,
+                mode: filter.mode,
+                capability: filter.capability,
+                sort: filter.sort,
+              });
+              setFiltersOpen(true);
             }}
           >
-            Clear filters
+            <SlidersHorizontal className="h-4 w-4" />
+            Filters{activeFilters.length ? ` (${activeFilters.length})` : ""}
           </Button>
         </FilterToolbar>
+        {!!activeFilters.length && (
+          <div
+            className="flex flex-wrap items-center gap-2"
+            aria-label="Active inventory filters"
+          >
+            {activeFilters.map(([field, value]) => (
+              <Button
+                key={field}
+                variant="secondary"
+                size="sm"
+                aria-label={`Clear ${filterLabels[field]} filter`}
+                onClick={() =>
+                  update({ [field]: field === "sort" ? "name" : "" })
+                }
+              >
+                {filterLabels[field]}: {value}
+                <X className="h-3 w-3" />
+              </Button>
+            ))}
+            <Button variant="ghost" size="sm" onClick={clear}>
+              Clear filters
+            </Button>
+          </div>
+        )}
         {result.isLoading ? (
           <EmptyState title="Loading inventory…" />
         ) : result.error ? (
@@ -250,9 +296,14 @@ export default function Inventory() {
           />
         ) : (
           <>
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              {result.data?.total ?? 0} matching items · View filters overlap;
-              3D is a capability.
+            <p
+              role="status"
+              aria-label="Inventory results"
+              className="text-xs text-muted-foreground"
+              aria-live="polite"
+            >
+              {result.isFetching ? "Updating inventory · " : ""}
+              {result.data?.total ?? 0} items
             </p>
             {!result.data?.items.length ? (
               <EmptyState
@@ -267,7 +318,7 @@ export default function Inventory() {
               />
             ) : (
               <>
-                <div className="hidden rounded-lg border bg-card md:block">
+                <div className="hidden rounded-lg border bg-card lg:block">
                   <table className="w-full table-fixed text-left text-sm">
                     <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
                       <tr>
@@ -305,8 +356,12 @@ export default function Inventory() {
                             >
                               {item.name}
                             </Link>
-                            <p className="mt-1 break-all text-xs text-muted-foreground">
-                              {item.itemType} · {item.identifier}
+                            <p
+                              title={item.identifier}
+                              className="mt-1 truncate text-xs text-muted-foreground"
+                            >
+                              {item.itemType.replaceAll("_", " ")} ·{" "}
+                              {item.identifier}
                             </p>
                           </td>
                           <td className="p-3">
@@ -328,9 +383,10 @@ export default function Inventory() {
                             </p>
                           </td>
                           <td className="p-3 text-xs">
+                            <ItemMeasurements item={item} />
                             <SampleTime
                               value={item.sampleAt}
-                              historical={item.status !== "live"}
+                              historical={!currentSample(item)}
                             />
                             <p className="mt-1 capitalize">
                               {item.mode} evidence
@@ -376,11 +432,11 @@ export default function Inventory() {
                     </tbody>
                   </table>
                 </div>
-                <div className="space-y-3 md:hidden">
+                <div className="space-y-3 lg:hidden">
                   {result.data.items.map((item) => (
                     <article
                       data-selected={selected === item.ref || undefined}
-                      className={`space-y-3 rounded-lg border bg-card p-4 ${selected === item.ref ? "border-primary" : ""}`}
+                      className={`space-y-2 rounded-lg border bg-card p-4 ${selected === item.ref ? "border-primary" : ""}`}
                       key={item.ref}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -394,8 +450,12 @@ export default function Inventory() {
                           >
                             {item.name}
                           </Link>
-                          <p className="break-all text-xs text-muted-foreground">
-                            {item.itemType} · {item.identifier}
+                          <p
+                            title={item.identifier}
+                            className="mt-1 truncate text-xs text-muted-foreground"
+                          >
+                            {item.itemType.replaceAll("_", " ")} ·{" "}
+                            {item.identifier}
                           </p>
                         </div>
                         <Button asChild variant="outline" size="sm">
@@ -407,15 +467,17 @@ export default function Inventory() {
                           </Link>
                         </Button>
                       </div>
-                      <StatusBadge status={item.status} />
-                      <p className="text-sm text-muted-foreground">
-                        {item.route} ·{" "}
-                        {item.zone || item.location || "No location"}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={item.status} />
+                        <span className="text-xs text-muted-foreground">
+                          {item.zone || item.location || item.route}
+                        </span>
+                      </div>
+                      <ItemMeasurements item={item} />
                       <p className="text-xs">
                         <SampleTime
                           value={item.sampleAt}
-                          historical={item.status !== "live"}
+                          historical={!currentSample(item)}
                         />{" "}
                         · <span className="capitalize">{item.mode}</span>
                       </p>
@@ -431,7 +493,7 @@ export default function Inventory() {
             >
               <Button
                 variant="outline"
-                disabled={!filter.page}
+                disabled={!filter.page || result.isFetching}
                 onClick={() => update({ page: filter.page - 1 })}
               >
                 Previous
@@ -442,7 +504,10 @@ export default function Inventory() {
               </span>
               <Button
                 variant="outline"
-                disabled={(filter.page + 1) * 25 >= (result.data?.total ?? 0)}
+                disabled={
+                  result.isFetching ||
+                  (filter.page + 1) * 25 >= (result.data?.total ?? 0)
+                }
                 onClick={() => update({ page: filter.page + 1 })}
               >
                 Next
@@ -451,6 +516,106 @@ export default function Inventory() {
           </>
         )}
       </SectionNav>
+      <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Filter inventory</DialogTitle>
+            <DialogDescription>
+              Narrow the current view by location, evidence and capability.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="space-y-1 text-xs font-medium">
+              Zone
+              <Input
+                aria-label="Filter zone"
+                value={draft.zone}
+                onChange={(event) =>
+                  setDraft({ ...draft, zone: event.target.value })
+                }
+              />
+            </label>
+            {(
+              [
+                [
+                  "status",
+                  "Observed status",
+                  [
+                    "all",
+                    "live",
+                    "stale",
+                    "offline",
+                    "unknown",
+                    "maintenance",
+                    "error",
+                  ],
+                ],
+                [
+                  "mode",
+                  "Evidence mode",
+                  ["all", "live", "simulated", "replay", "unknown"],
+                ],
+                ["capability", "Capability", ["all", "aas", "3d"]],
+                ["sort", "Sort", ["name", "recent"]],
+              ] as const
+            ).map(([field, label, options]) => (
+              <label key={field} className="space-y-1 text-xs font-medium">
+                {label}
+                <select
+                  aria-label={label}
+                  className="block h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+                  value={draft[field]}
+                  onChange={(event) =>
+                    setDraft({ ...draft, [field]: event.target.value })
+                  }
+                >
+                  {options.map((value) => (
+                    <option key={value} value={value}>
+                      {value === "all"
+                        ? "All"
+                        : value === "name"
+                          ? "Name A–Z"
+                          : value === "recent"
+                            ? "Newest observation"
+                            : value === "unknown"
+                              ? "Unknown / unclassified"
+                              : value === "aas"
+                                ? "AAS"
+                                : value === "3d"
+                                  ? "3D equipment"
+                                  : value[0].toUpperCase() + value.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap justify-between gap-2">
+            <Button
+              variant="ghost"
+              onClick={() =>
+                setDraft({
+                  zone: "",
+                  status: "all",
+                  mode: "all",
+                  capability: "all",
+                  sort: "name",
+                })
+              }
+            >
+              Reset filters
+            </Button>
+            <Button
+              onClick={() => {
+                update(draft);
+                setFiltersOpen(false);
+              }}
+            >
+              Apply filters
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={add} onOpenChange={setAdd}>
         <DialogContent>
           <DialogHeader>
@@ -516,6 +681,25 @@ export default function Inventory() {
         }}
       />
       <CreateAssetDialog open={assetOpen} onOpenChange={setAssetOpen} />
+    </div>
+  );
+}
+function ItemMeasurements({ item }: { item: InventoryItem }) {
+  const reading = { ...item.values, measurements: item.measurements },
+    available = metrics.filter(
+      (m) => reading[m] != null || item.measurements?.[m],
+    );
+  return (
+    <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1">
+      {available.slice(0, 2).map((m) => (
+        <span key={m} className="text-sm" title={m}>
+          <span className="sr-only">{m}: </span>
+          <Measurement
+            value={measurementValue(reading, m)}
+            unit={measurementUnit(reading, m)}
+          />
+        </span>
+      ))}
     </div>
   );
 }

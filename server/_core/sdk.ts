@@ -7,6 +7,10 @@ import type { User } from "../../drizzle/schema";
 import * as db from "../db";
 import { ENV } from "./env";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "node:crypto";
+import { sessionRevoked, revokeSession } from "../accountAccess";
+import { demoAccountsEnabled } from "../../shared/demo-accounts";
+import { sharedDemoIdentity } from "../../shared/access-policy";
 
 // Utility function
 const isNonEmptyString = (value: unknown): value is string =>
@@ -18,6 +22,10 @@ export type SessionPayload = {
   name: string;
   email?: string;
   role?: string;
+  sessionId?: string;
+  authVersion?: number;
+  expiresAt?: number;
+  credentialChange?: boolean;
 };
 
 class SDKServer {
@@ -54,7 +62,7 @@ class SDKServer {
    */
   async createSessionToken(
     user: User,
-    options: { expiresInMs?: number } = {}
+    options: { expiresInMs?: number; sessionId?: string } = {}
   ): Promise<string> {
     return this.signSession(
       {
@@ -63,6 +71,8 @@ class SDKServer {
         name: user.name || "User",
         email: user.email || undefined,
         role: user.role,
+        authVersion: user.authVersion ?? 0,
+        credentialChange: user.passwordChangeRequired === true,
       },
       options
     );
@@ -70,7 +80,7 @@ class SDKServer {
 
   async signSession(
     payload: SessionPayload,
-    options: { expiresInMs?: number } = {}
+    options: { expiresInMs?: number; sessionId?: string } = {}
   ): Promise<string> {
     const issuedAt = Date.now();
     const expiresInMs = options.expiresInMs ?? 8 * 60 * 60 * 1000;
@@ -83,11 +93,15 @@ class SDKServer {
       name: payload.name,
       email: payload.email,
       role: payload.role,
+      sid: options.sessionId ?? payload.sessionId ?? randomUUID(),
+      sv: payload.authVersion ?? 0,
+      pc: payload.credentialChange === true,
     })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
       .setIssuer("smart-factory-iot")
       .setAudience("smart-factory-iot-api")
       .setSubject(payload.openId)
+      .setIssuedAt(Math.floor(issuedAt / 1000))
       .setExpirationTime(expirationSeconds)
       .sign(secretKey);
   }
@@ -122,14 +136,17 @@ class SDKServer {
         name,
         email: typeof email === "string" ? email : undefined,
         role: typeof role === "string" ? role : undefined,
+        sessionId: typeof payload.sid === "string" ? payload.sid : undefined,
+        authVersion: typeof payload.sv === "number" ? payload.sv : undefined,
+        expiresAt: typeof payload.exp === "number" ? payload.exp * 1000 : undefined,
+        credentialChange: payload.pc === true,
       };
     } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
       return null;
     }
   }
 
-  async authenticateRequest(req: Request): Promise<User> {
+  requestToken(req: Pick<Request, "headers">): string | undefined {
     // Check Authorization header first
     const authHeader = req.headers.authorization;
     let token: string | undefined;
@@ -142,18 +159,35 @@ class SDKServer {
       token = cookies.get(COOKIE_NAME);
     }
 
-    const session = await this.verifySession(token);
+    return token;
+  }
 
-    if (!session) {
+  async authenticateRequestWithSession(req: Request): Promise<{ user: User; session: SessionPayload }> {
+    const session = await this.verifySession(this.requestToken(req));
+
+    if (!session || !session.sessionId || !/^[0-9a-f-]{36}$/.test(session.sessionId) ||
+        !Number.isSafeInteger(session.authVersion) || !session.expiresAt) {
       throw ForbiddenError("Invalid or missing authentication");
     }
 
     const user = await db.getUserByOpenId(session.openId);
-    if (!user) {
-      throw ForbiddenError("User not found");
+    if (!user || user.disabledAt || session.authVersion !== user.authVersion ||
+        (user.passwordChangeRequired && (!session.credentialChange || !user.temporaryCredentialExpiresAt || user.temporaryCredentialExpiresAt.getTime() <= Date.now())) ||
+        (sharedDemoIdentity(user) && !demoAccountsEnabled()) || await sessionRevoked(session.sessionId)) {
+      throw ForbiddenError("Session is no longer active");
     }
+    return { user, session };
+  }
 
-    return user;
+  async authenticateRequest(req: Request): Promise<User> {
+    return (await this.authenticateRequestWithSession(req)).user;
+  }
+
+  async revokeRequestSession(req: Request): Promise<string | null> {
+    const session = await this.verifySession(this.requestToken(req));
+    if (!session?.sessionId || !session.expiresAt) return null;
+    await revokeSession(session.sessionId, session.openId, session.expiresAt);
+    return session.sessionId;
   }
 }
 

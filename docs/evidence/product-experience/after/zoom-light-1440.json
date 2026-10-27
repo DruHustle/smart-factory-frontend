@@ -1,0 +1,11 @@
+{
+  "method": "200% layout emulation: 720 CSS pixels at DPR 2 for a 1440px desktop",
+  "theme": "light",
+  "viewport": {
+    "width": 720,
+    "height": 450
+  },
+  "deviceScaleFactor": 2,
+  "keyboardFocus": true,
+  "horizontalOverflow": false
+}

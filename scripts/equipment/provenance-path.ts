@@ -17,6 +17,16 @@ if (process.argv[2] === "seed") {
       name: "Smart Factory simulated/replay proof",
       type: "gateway",
       status: "offline",
+      metadata: {
+        commissioning: {
+          route: "direct",
+          revision: 1,
+          maxLatenessSeconds: 120,
+          clockSkewSeconds: 30,
+          legacyCurrent: false,
+          legacyUnits: {},
+        },
+      },
       isDemo: false,
     })
     .returning();
@@ -57,7 +67,7 @@ if (process.argv[2] === "seed") {
     console.log(
       JSON.stringify({
         verification:
-          "actual Smart Factory edge durable publisher / Mosquitto / .NET 8 / authenticated Node; optional peer export disabled",
+          "actual Smart Factory edge durable publisher / Mosquitto / .NET 10 / authenticated Node; optional peer export disabled",
         sourceModes: rows,
         sourceSamples: 20,
         physicalEquipment: false,

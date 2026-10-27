@@ -92,7 +92,7 @@ Threshold-generated incidents use stable `SF-*` platform classifications. A vend
 |---|---|
 | users | Local identity, bcrypt password hash in `password`, role, and sign-in timestamps. Never expose the hash in API responses. |
 | system_settings | Durable application-wide settings changed by administrators. `demo_data_enabled` controls whether demo rows are included; replicas refresh it without requiring a deployment. |
-| devices | Connectivity devices. New registrations use enum type `gateway` or `edge_device`; legacy sensor/actuator/controller values remain readable. Includes status, location, firmware, and simulator marker. Migration `0015_melted_dragon_lord` adds `edge_device`. |
+| devices | Connectivity devices. Registrations support gateways, edge devices, sensors, actuators and controllers. Includes status, location, firmware, and simulator marker. Migration `0015_melted_dragon_lord` adds `edge_device`. |
 | assets | Equipment identity, manufacturer name/designation, separate required postal fields, article and order codes, optional serial/rated values, lifecycle, current AAS JSON, monotonic AAS revision, and simulator marker. |
 | asset_devices | Asset-to-gateway protocol, endpoint, and tag/register mappings. Store credentials on the edge gateway, not in mappings. |
 | asset_lifecycle_events | Actor, transition, timestamp, and engineering note audit history. |
@@ -103,7 +103,7 @@ Threshold-generated incidents use stable `SF-*` platform classifications. A vend
 | alert_thresholds | Enabled per-device warning and critical bands used to classify telemetry into incidents. |
 | firmware_versions, ota_deployments | Firmware catalog metadata and legacy rollout rows. OTA is disabled; a rollout row is not proof that a device downloaded, verified, installed, or booted a release. |
 
-Connection and lifecycle ids are application-level relationships, not database-enforced foreign keys in the current schema. Oracle-hosted BaSyx owns separate storage in the Aiven `basyx` PostgreSQL database; it is not part of the Drizzle application schema. Demo rows are marked `isDemo`; startup seeding remains conservative when live assets exist, while an explicit admin toggle can seed and reveal isolated demo records alongside them.
+Connection and lifecycle ids are application-level relationships, not database-enforced foreign keys in the current schema. Oracle-hosted BaSyx owns separate storage in the Aiven `basyx` PostgreSQL database; it is not part of the Drizzle application schema. Demo rows are marked `isDemo`; startup and viewing never seed. An explicit local CLI creates isolated showcase fixtures. Administrators control visibility separately; shared identities see only approved demo records.
 
 Review migration SQL before applying changes. Set DATABASE_URL to the intended database before running pnpm db:migrate. pnpm e2e uses its own disposable PostgreSQL container.
 
@@ -116,3 +116,10 @@ Each row belongs to one account, optionally links to an alert, and retains title
 The inbox is queryable only by its owner. Reads do not acknowledge/resolve the factory incident. Email-provider credentials, sender identity and recipient policy are runtime secrets/configuration, not editable browser notification settings. Plan retention/archive policies for both telemetry and inbox history before long-term production operation.
 
 Migration `0014_account_email_identity` adds a case-insensitive unique email index. Null emails remain allowed for legacy identity records. Existing duplicate case-folded email addresses must be reconciled by an administrator before migration. Production self-registration is closed; further accounts are created by an authenticated administrator after private first-admin bootstrap. Passwords are never included in account API responses.
+
+
+## Trusted observation and access additions
+
+Migrations 0024–0028 add disabled/recovery/session-generation state, hashed session revocations, immutable selected-field passport publications, engineering conversion metadata, reviewed threshold units, bounded ingestion quarantine with continuing counters, incident snapshots and append-only review history, acquired/received gateway observations, and a singleton authenticated worker-status receipt. Acquisition time, receipt time, current eligibility and evidence mode are separate fields.
+
+Scopes precede sample selection and aggregation. Source values, units, conversion version and quality remain inspectable. Unitless thresholds require review. Passport publication is explicit and revocable. Runtime checks compare migration hashes with the applied ledger.

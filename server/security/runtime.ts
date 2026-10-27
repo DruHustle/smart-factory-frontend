@@ -17,6 +17,7 @@ import {
   securityTransaction,
 } from "./store";
 import { finding } from "./rules";
+let wakeSecurity: (() => void) | undefined;
 let inFlight = 0,
   failed = 0,
   lastFailure: string | null = null;
@@ -79,6 +80,7 @@ export async function nativeEvent(
         sql`insert into security_outbox(id,producer,event_type,attributes,occurred_at) values(${event.sourceEventId},'node-app',${type},${JSON.stringify(event)}::jsonb,${event.occurredAt})`,
       );
     });
+    wakeSecurity?.();
   } catch {
     failed++;
     lastFailure = "capture_unavailable";
@@ -118,13 +120,13 @@ export async function drainOutbox() {
     }
   }
 }
-export async function sweep() {
+export async function sweep(includeDrain = true) {
   if (!enabled()) return;
   await initialize();
-  await drainOutbox();
+  if (includeDrain) await drainOutbox();
   const db = await database(),
     now = new Date();
-  await securityTransaction(async (tx) => {
+  return securityTransaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(2026102702)`);
     await tx.execute(sql`select pg_advisory_xact_lock(2026102703)`);
     await tx.execute(
@@ -140,7 +142,7 @@ export async function sweep() {
       tx,
       sql`select * from security_rules where id='collector-coverage' and active=true`,
     );
-    if (!rule?.settings.enabled) return;
+    if (!rule?.settings.enabled) return false;
     const sources = await rows(
       tx,
       sql`select * from security_sources where active=true and is_demo=false and system_key is null limit 100`,
@@ -209,48 +211,89 @@ export async function sweep() {
         now,
       );
     }
+    return sources.some(
+      (source) =>
+        source.policy.modes.includes("live") &&
+        source.policy.expectedIntervalSeconds,
+    );
   });
 }
+/** One completion-driven schedule per worker; idle report queues back off to 30s. */
 export function startSecurity() {
-  let busy = false,
-    lastHealth = 0;
+  let stopped = false,
+    sweepTimer: ReturnType<typeof setTimeout> | undefined,
+    reportTimer: ReturnType<typeof setTimeout> | undefined,
+    lastHealth = 0,
+    nextSweep = 0,
+    running = false,
+    wakeRequested = false,
+    idleReportMs = 1000;
   const run = async () => {
-    if (busy || !enabled()) return;
-    busy = true;
+    running = true;
+    wakeRequested = false;
     try {
-      await sweep();
-      if (Date.now() - lastHealth >= 300000) {
-        lastHealth = Date.now();
-        await nativeEvent(
-          "collector.health",
-          { state: "online", expectedIntervalSeconds: 300 },
-          "Application security collector is running.",
-        );
+      if (enabled()) {
+        if (Date.now() >= nextSweep) {
+          const configured = await sweep(false);
+          nextSweep = Date.now() + (configured ? 10000 : 60000);
+        }
+        await drainOutbox();
+        if (Date.now() - lastHealth >= 300000) {
+          lastHealth = Date.now();
+          await nativeEvent(
+            "collector.health",
+            { state: "online", expectedIntervalSeconds: 300 },
+            "Application security collector is running.",
+          );
+        }
       }
     } catch {
       lastFailure = "security_sweep_unavailable";
     } finally {
-      busy = false;
+      running = false;
+      if (!stopped) {
+        // Cross-service outboxes get a bounded 5s delivery check; expensive
+        // coverage sweeps retain their independent 10s/60s cadence.
+        sweepTimer = setTimeout(() => void run(), wakeRequested ? 25 : 5000);
+        sweepTimer.unref();
+      }
     }
   };
-  const timer = setInterval(() => void run(), 10000);
-  timer.unref();
-  void run();
-  let reportBusy = false;
-  const reportTimer = setInterval(async () => {
-    if (reportBusy || !enabled()) return;
-    reportBusy = true;
+  const reports = async () => {
     try {
-      await (await import("./report-worker")).processReportChunk();
+      if (enabled()) {
+        const worked = await (
+          await import("./report-worker")
+        ).processReportChunk();
+        idleReportMs = worked ? 1000 : Math.min(30000, idleReportMs * 2);
+      } else idleReportMs = 30000;
     } catch {
       lastFailure = "report_processing_unavailable";
+      idleReportMs = Math.min(30000, idleReportMs * 2);
     } finally {
-      reportBusy = false;
+      if (!stopped) {
+        reportTimer = setTimeout(() => void reports(), idleReportMs);
+        reportTimer.unref();
+      }
     }
-  }, 1000);
-  reportTimer.unref();
+  };
+  const wake = () => {
+    if (stopped) return;
+    if (running) {
+      wakeRequested = true;
+      return;
+    }
+    clearTimeout(sweepTimer);
+    sweepTimer = setTimeout(() => void run(), 25);
+    sweepTimer.unref();
+  };
+  wakeSecurity = wake;
+  void run();
+  void reports();
   return () => {
-    clearInterval(timer);
-    clearInterval(reportTimer);
+    stopped = true;
+    if (wakeSecurity === wake) wakeSecurity = undefined;
+    clearTimeout(sweepTimer);
+    clearTimeout(reportTimer);
   };
 }

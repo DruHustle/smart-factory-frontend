@@ -14,7 +14,10 @@ import {
 
 async function loginAsAdmin(page: Page) {
   await page.goto("/#/login");
-  await page.getByRole("button", { name: "Demo Admin", exact: true }).click();
+  await page.getByLabel("Email").fill("security-admin@example.test");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("Synthetic-security-only-2026!");
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 }
@@ -44,95 +47,97 @@ async function expectPrintCalled(page: Page) {
     .toBe(1);
 }
 
-test("public EUDPP exposes a valid QR target and isolated print layout", async ({
+test("private preview, explicit publication, public QR, print and revocation preserve field scope", async ({
   context,
   page,
+  browser,
 }) => {
   await mockBrowserPrint(context);
-  await page.route(/\/api\/trpc\/.*assets\.getPassport/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify([
-        {
-          result: {
-            data: {
-              json: {
-                id: 1,
-                assetId: "urn:e2e:passport:compressor-01",
-                name: "Compressed Air Compressor 01",
-                assetType: "compressor",
-                manufacturer: "E2E Equipment GmbH",
-                model: "E2E Compressor",
-                serialNumber: "E2E-001",
-                manufacturerStreet: "Test Bench 1",
-                manufacturerZipcode: "10115",
-                manufacturerCityTown: "Berlin",
-                manufacturerNationalCode: "DE",
-                manufacturerArticleNumber: "E2E-COMP-01",
-                orderCodeOfManufacturer: "E2E-ORDER-01",
-                ratedValue: "75",
-                ratedUnit: "kW",
-                lifecycleStage: "operational",
-                aasVersion: 1,
-                updatedAt: "2026-10-06T07:00:00.000Z",
-              },
-            },
-          },
-        },
-      ]),
-    }),
-  );
-  await page.goto("/?print=1#/passport/1");
-
-  await expect(
-    page.getByRole("heading", {
-      level: 1,
-      name: "Compressed Air Compressor 01",
-    }),
-  ).toBeVisible({ timeout: 15_000 });
-  await expectPrintCalled(page);
-  await expect(page.locator("main")).toHaveCount(1);
-  await expect(page.getByLabel("Primary navigation")).toHaveCount(0);
-
-  const publicUrl = await page.evaluate(
-    () => `${window.location.origin}${window.location.pathname}#/passport/1`,
-  );
-  const qr = page.getByTestId("passport-qr");
-  await expect(qr).toHaveAttribute("data-qr-value", publicUrl);
-  await expect(
-    qr.getByRole("img", {
-      name: "Passport QR code for Compressed Air Compressor 01",
-    }),
-  ).toBeVisible();
-  expect(await qr.locator("svg path").count()).toBeGreaterThan(0);
-  await expect(page.getByText(publicUrl, { exact: true })).toBeVisible();
-
-  await page.emulateMedia({ media: "print" });
-  await expect(
-    page.getByRole("button", { name: "Print EUDPP and QR label" }),
-  ).toBeHidden();
-  await expect(page.getByLabel("Primary navigation")).toHaveCount(0);
-
-  await page.emulateMedia({ media: "screen" });
-  await loginAsAdmin(page);
   await page.goto("/#/passport/1");
   await expect(
-    page.getByRole("heading", {
-      level: 1,
-      name: "Compressed Air Compressor 01",
-    }),
+    page.getByText("Private passport preview", { exact: true }),
   ).toBeVisible();
-  await expect(page.locator("main")).toHaveCount(1);
-  await expect(page.getByLabel("Primary navigation")).toHaveCount(0);
-  await page.getByRole("button", { name: "Print EUDPP and QR label" }).click();
+  await expect(page.getByTestId("passport-qr")).toHaveCount(0);
+  await loginAsAdmin(page);
+  const listed = await page.request.get("/api/trpc/assets.list");
+  const asset = (await listed.json()).result.data.json.find(
+    (a: any) => a.name === "Workspace imported asset",
+  );
+  expect(asset).toBeTruthy();
+  await page.goto(`/#/passport/${asset.id}`);
+  await expect(
+    page.getByRole("heading", { name: asset.name, exact: true }),
+  ).toBeVisible();
+  await expect(page.getByTestId("passport-qr")).toHaveCount(0);
+  await expect(
+    page.getByText(/No asset-specific guidance has been reviewed/),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Publish reviewed snapshot", exact: true })
+    .click();
+  const link = page
+    .getByRole("link", { name: "Open public passport", exact: true })
+    .first();
+  await expect(link).toBeVisible();
+  const publicPath = await link.getAttribute("href");
+  const publicContext = await browser.newContext();
+  const publicPage = await publicContext.newPage();
+  await publicPage.goto(new URL(publicPath!, page.url()).href);
+  await expect(
+    publicPage.getByRole("heading", { name: asset.name, exact: true }),
+  ).toBeVisible();
+  const qr = publicPage.getByTestId("passport-qr");
+  await expect(qr).toHaveAttribute(
+    "data-qr-value",
+    /#\/passport\/published\/[a-f0-9-]{36}$/,
+  );
+  await expect(
+    qr.getByRole("img", { name: `Passport QR code for ${asset.name}` }),
+  ).toBeVisible();
+  expect(await qr.locator("svg path").count()).toBeGreaterThan(0);
+  await expect(
+    publicPage.getByText("Serial number", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    publicPage.getByText(/Voluntary prototype passport/),
+  ).toBeVisible();
+  await expect(
+    publicPage.getByText(/No asset-specific guidance has been published/),
+  ).toBeVisible();
+  await expect(publicPage.getByLabel("Primary navigation")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Print passport", exact: true })
+    .click();
   await expectPrintCalled(page);
+  await page.emulateMedia({ media: "print" });
+  await expect(
+    page.getByRole("button", {
+      name: "Publish reviewed snapshot",
+      exact: true,
+    }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Print passport", exact: true }),
+  ).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
+  await page
+    .getByRole("button", { name: "Revoke", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByText("Public passport revoked.", { exact: true }),
+  ).toBeVisible();
+  await publicPage.reload();
+  await expect(
+    publicPage.getByText("Passport unavailable", { exact: true }),
+  ).toBeVisible();
+  await publicContext.close();
 });
 
-test("EUDPP distinguishes a service failure from a missing passport", async ({
+test("published passport service failures remain explicit", async ({
   page,
 }) => {
-  await page.route(/\/api\/trpc\/.*assets\.getPassport/, (route) =>
+  await page.route(/\/api\/trpc\/.*assets\.getPublishedPassport/, (route) =>
     route.fulfill({
       status: 503,
       contentType: "application/json",
@@ -149,12 +154,16 @@ test("EUDPP distinguishes a service failure from a missing passport", async ({
       ]),
     }),
   );
-  await page.goto("/#/passport/1");
-  const alert = page.getByRole("alert");
+  await page.goto("/#/passport/published/00000000-0000-4000-8000-000000000001");
   await expect(
-    alert.getByRole("heading", { name: "Product passport unavailable" }),
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(alert.getByRole("button", { name: "Try again" })).toBeVisible();
+    page.getByText("Passport unavailable", {exact:true}),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "The application service is temporarily unavailable. Check your connection and try again.",
+      { exact: true },
+    ),
+  ).toBeVisible();
 });
 
 test("ADA031 controls stay interlocked and publish only to the safe E2E mock", async ({
@@ -205,6 +214,8 @@ test("ADA031 controls stay interlocked and publish only to the safe E2E mock", a
   await page
     .getByLabel("Machine endpoint")
     .fill("serial:///dev/serial/by-id/usb-e2e-ada031?baudrate=9600");
+  for (let step = 0; step < 2; step++)
+    await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: /register and provision/i }).click();
   await expect(
     page.getByText(assetName, { exact: true }).filter({ visible: true }),
@@ -217,11 +228,9 @@ test("ADA031 controls stay interlocked and publish only to the safe E2E mock", a
     page.getByRole("heading", { name: "ADA031 operation control" }),
   ).toBeVisible();
 
-  const operationCard = page
-    .locator('[data-slot="card"]')
-    .filter({
-      has: page.getByRole("heading", { name: "ADA031 operation control" }),
-    });
+  const operationCard = page.locator('[data-slot="card"]').filter({
+    has: page.getByRole("heading", { name: "ADA031 operation control" }),
+  });
   const repeatButton = operationCard.getByRole("button", {
     name: "Run pick A → B → A repeatedly",
   });
@@ -307,11 +316,9 @@ test("ADA031 controls stay interlocked and publish only to the safe E2E mock", a
     .getByRole("button", { name: "Run pickup / rotate demonstration" })
     .click();
   await expect(
-    operationCard
-      .getByRole("alert")
-      .filter({
-        hasText: /demonstration profile was rejected: Safe mock rejection/i,
-      }),
+    operationCard.getByRole("alert").filter({
+      hasText: /demonstration profile was rejected: Safe mock rejection/i,
+    }),
   ).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -329,11 +336,11 @@ test("ADA031 controls stay interlocked and publish only to the safe E2E mock", a
   await expect(
     popup.getByRole("heading", { level: 1, name: assetName }),
   ).toBeVisible();
+  await popup
+    .getByRole("button", { name: "Print passport", exact: true })
+    .click();
   await expectPrintCalled(popup);
   await expect(popup.getByLabel("Primary navigation")).toHaveCount(0);
-  await expect(popup.getByTestId("passport-qr")).toHaveAttribute(
-    "data-qr-value",
-    /#\/passport\/\d+$/,
-  );
+  await expect(popup.getByTestId("passport-qr")).toHaveCount(0);
   await popup.close();
 });

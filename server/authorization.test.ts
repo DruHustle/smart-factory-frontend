@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import * as fixtureBoundary from "./demoTarget";
+import * as accounts from "./accountAccess";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { User } from "../drizzle/schema";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
@@ -27,17 +29,28 @@ function contextFor(role?: User["role"]): TrpcContext {
 }
 
 describe("role based access control", () => {
+  beforeEach(() => {
+    vi.spyOn(fixtureBoundary, "rejectFixtureMutation").mockResolvedValue(
+      undefined,
+    );
+  });
   afterEach(() => vi.restoreAllMocks());
 
   it("requires a signed-in account before reading devices", async () => {
     const caller = appRouter.createCaller(contextFor());
-    await expect(caller.devices.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    await expect(caller.assistant.ask({ question: "How do I import an AASX package?" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.devices.list()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(
+      caller.assistant.ask({ question: "How do I import an AASX package?" }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("allows viewers to use the documentation assistant", async () => {
     const caller = appRouter.createCaller(contextFor("viewer"));
-    const result = await caller.assistant.ask({ question: "How do I import an AASX package?" });
+    const result = await caller.assistant.ask({
+      question: "How do I import an AASX package?",
+    });
     expect(result.sources.length).toBeGreaterThan(0);
     expect(result).not.toHaveProperty("provider");
     expect(result).not.toHaveProperty("model");
@@ -45,9 +58,15 @@ describe("role based access control", () => {
 
   it("lets viewers read the asset catalog but prevents shell and lifecycle access", async () => {
     const caller = appRouter.createCaller(contextFor("viewer"));
-    await expect(caller.assets.getShell({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(caller.assets.exportAas({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(caller.assets.getLifecycle({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.assets.getShell({ id: 1 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(caller.assets.exportAas({ id: 1 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(caller.assets.getLifecycle({ id: 1 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
   });
 
   it("limits operational mutations to operators and above", async () => {
@@ -56,61 +75,107 @@ describe("role based access control", () => {
       caller.alerts.updateStatus({ id: 1, status: "acknowledged" }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(
-      caller.readings.create({ deviceId: 1, temperature: 42, timestamp: Date.now() }),
+      caller.readings.create({
+        deviceId: 1,
+        temperature: 42,
+        timestamp: Date.now(),
+      }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
 
     const operator = appRouter.createCaller(contextFor("operator"));
-    await expect(operator.alerts.resolve({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(operator.alerts.resolve({ id: 1 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
   });
 
   it("limits engineering procedures to engineers and admins", async () => {
     const operator = appRouter.createCaller(contextFor("operator"));
     const engineer = appRouter.createCaller(contextFor("engineer"));
-    await expect(operator.thresholds.getForDevice({ deviceId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(operator.assets.create({
-      assetId: "asset-test",
-      name: "Test asset",
-      assetType: "compressor",
-      manufacturer: "Test manufacturer",
-      model: "Test model",
-      manufacturerArticleNumber: "TEST-ART-001",
-      orderCodeOfManufacturer: "TEST-001",
-    })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(engineer.users.list()).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(engineer.assets.delete({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(engineer.devices.delete({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(operator.assets.controlAda031({ id: 1, command: { action: "jog", joint: "base", direction: "increase" } }))
-      .rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      operator.thresholds.getForDevice({ deviceId: 1 }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      operator.assets.create({
+        assetId: "asset-test",
+        name: "Test asset",
+        assetType: "compressor",
+        manufacturer: "Test manufacturer",
+        model: "Test model",
+        manufacturerArticleNumber: "TEST-ART-001",
+        orderCodeOfManufacturer: "TEST-001",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(engineer.users.list()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(engineer.assets.delete({ id: 1 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(engineer.devices.delete({ id: 1 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(
+      operator.assets.controlAda031({
+        id: 1,
+        command: { action: "jog", joint: "base", direction: "increase" },
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("allows operators to invoke the commissioned LED control while viewers remain blocked", async () => {
     const viewer = appRouter.createCaller(contextFor("viewer"));
-    await expect(viewer.devices.pulseIndicator({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      viewer.devices.pulseIndicator({ id: 1 }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
 
     vi.spyOn(db, "getDeviceById").mockResolvedValue(undefined);
     const operator = appRouter.createCaller(contextFor("operator"));
-    await expect(operator.devices.pulseIndicator({ id: 1 })).rejects.toThrow("A live gateway-connected WROVER edge device is required");
+    await expect(operator.devices.pulseIndicator({ id: 1 })).rejects.toThrow(
+      "A live gateway-connected WROVER edge device is required",
+    );
   });
 
   it("reserves user and notification administration for admins", async () => {
     const engineer = appRouter.createCaller(contextFor("engineer"));
-    await expect(engineer.users.list()).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(engineer.notifications.getConfigs()).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(engineer.users.create({ email: "unauthorized@example.com", name: "Blocked", password: "Blocked-password-123!", role: "admin" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(engineer.users.list()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(engineer.notifications.getConfigs()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(
+      engineer.users.create({
+        email: "unauthorized@example.com",
+        name: "Blocked",
+        password: "Blocked-password-123!",
+        role: "admin",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("allows only admins to provision user roles", async () => {
     const operator = appRouter.createCaller(contextFor("operator"));
-    await expect(operator.users.setRole({ id: 7, role: "engineer" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      operator.users.setRole({ id: 7, role: "engineer" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
 
-    const updateUserRole = vi.spyOn(db, "updateUserRole").mockResolvedValue(contextFor("engineer").user!);
+    const updateUserRole = vi
+      .spyOn(accounts, "changeUserAccess")
+      .mockResolvedValue(contextFor("engineer").user!);
     const admin = appRouter.createCaller(contextFor("admin"));
-    await expect(admin.users.setRole({ id: 7, role: "engineer" })).resolves.toMatchObject({ role: "engineer" });
-    expect(updateUserRole).toHaveBeenCalledWith(7, "engineer");
+    await expect(
+      admin.users.setRole({ id: 7, role: "engineer" }),
+    ).resolves.toMatchObject({ role: "engineer" });
+    expect(updateUserRole).toHaveBeenCalledWith(7, {
+      role: "engineer",
+      expectedVersion: undefined,
+    });
   });
 
   it("allows engineers, but not operators, to control demo data", async () => {
     const operator = appRouter.createCaller(contextFor("operator"));
-    await expect(operator.system.setDemoData({ enabled: true })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      operator.system.setDemoData({ enabled: true }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

@@ -83,7 +83,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm, cache-dependency-path: smart-factory-iot/pnpm-lock.yaml }
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
-        with: { dotnet-version: 8.0.x }
+        with: { dotnet-version: 10.0.403 }
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with: { python-version: '3.11' }
       - name: Audit all NuGet dependencies
@@ -118,7 +118,7 @@ jobs:
         working-directory: smart-factory-iot
         run: |
           python scripts/prepare-backend-context.py ../smart-factory-iot-backend "$RUNNER_TEMP/backend-context"
-          docker buildx build --load --platform linux/amd64 --build-context backend="$RUNNER_TEMP/backend-context" -f deploy/render/Dockerfile -t smart-factory-render-review:local .
+          docker buildx build --load --platform linux/amd64 --build-arg SOURCE_REVISION="$GITHUB_SHA" --build-arg BACKEND_SOURCE_REVISION="$(git -C ../smart-factory-iot-backend rev-parse HEAD)" --build-arg EDGE_SOURCE_REVISION="$(git -C ../smart-factory-iot-edge rev-parse HEAD)" --build-context backend="$RUNNER_TEMP/backend-context" -f deploy/render/Dockerfile -t smart-factory-render-review:local .
           python scripts/bundle-smoke.py
       - name: Audit the exact runtime image locally
         working-directory: smart-factory-iot

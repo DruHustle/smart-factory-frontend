@@ -130,6 +130,32 @@ describe("proposed producer contract and semantics", () => {
       }).success,
     ).toBe(false);
   });
+  it("uses actual preserved acquisition units instead of an assumed binding label", () => {
+    const r = structuredClone(regs[0]);
+    r.bindings[0].sourceUnit = "Pa";
+    const measured = sample({
+      pressure: 200,
+      measurements: {
+        pressure: {
+          sourceValue: 200,
+          sourceUnit: "kPa",
+          canonicalValue: 200000,
+          canonicalUnit: "Pa",
+          quality: "good",
+          conversionVersion: "sf-units-v1",
+        },
+      },
+    });
+    const event = normalize(measured, r, mappings[0], scope, 2).find(
+      (e) => e.metric?.meaning === "pressure",
+    )!;
+    expect(event.value).toBeCloseTo(2);
+    expect(event.provenance).toMatchObject({
+      rawValue: 200,
+      rawUnit: "kPa",
+      conversion: { factor: 0.01, offset: 0 },
+    });
+  });
   it("records compatible conversion rules without aggregating", () => {
     const r = structuredClone(regs[0]);
     r.bindings[0].sourceUnit = "Pa";

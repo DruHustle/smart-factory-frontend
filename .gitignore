@@ -10,6 +10,7 @@ test-results/
 __pycache__/
 .pio/
 container-audit.json
+!docs/evidence/product-experience/qualification/container-audit.json
 *.pyc
 
 # Production

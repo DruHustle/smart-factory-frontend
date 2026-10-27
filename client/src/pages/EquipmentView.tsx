@@ -1,3 +1,13 @@
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useDocumentActive } from "@/hooks/useDocumentActive";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { EquipmentBindingEditor } from "@/components/workspace/MappingEditors";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
@@ -313,12 +323,19 @@ function LocalWorkspace({
   section?: string;
   active: boolean;
 }) {
+  const wide = useMediaQuery("(min-width:1280px)"),
+    documentActive = useDocumentActive();
+  const [treeOpen, setTreeOpen] = useState(false),
+    [inspectorOpen, setInspectorOpen] = useState(false);
   const [stream, setStream] = useState<"live" | "simulated" | undefined>(
     undefined,
   );
   const data = trpc.equipment.get.useQuery(
     { id, mode: stream },
-    { refetchInterval: active ? 5000 : false },
+    {
+      refetchInterval: active && documentActive ? 30000 : false,
+      refetchIntervalInBackground: false,
+    },
   );
   const utils = trpc.useUtils();
   const [selected, setSelected] = useState<string | null>(null),
@@ -397,84 +414,231 @@ function LocalWorkspace({
   );
   const notes = w.annotations.filter((a) => a.componentId === selected);
   const canEdit = writable && !w.isDemo;
+  const tree = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Components</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        <Input
+          aria-label="Search BOM"
+          placeholder="Search assembly / BOM"
+          value={componentSearch}
+          onChange={(e) => setComponentSearch(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          {w.components.length} selectable entries · repeated sets show quantity
+        </p>
+        <div className="flex max-h-[500px] flex-col gap-2 overflow-y-auto">
+          {w.components
+            .filter((c) =>
+              c.name.toLowerCase().includes(componentSearch.toLowerCase()),
+            )
+            .map((c) => (
+              <Button
+                key={c.installedComponentId}
+                aria-label={c.name}
+                aria-pressed={selected === c.installedComponentId}
+                variant={
+                  selected === c.installedComponentId ? "default" : "outline"
+                }
+                onClick={() => setSelected(c.installedComponentId)}
+                title={`${c.designation ?? c.name} · quantity ${c.quantity ?? 1}`}
+                style={{
+                  paddingLeft: `${0.6 + Math.min(4, c.nodePath.split("/").length - 2) * 0.6}rem`,
+                }}
+                className="min-h-10 h-auto justify-start whitespace-normal border-0 text-left text-sm"
+              >
+                {c.parentTemplateComponentId ? "↳ " : ""}
+                {c.name}
+              </Button>
+            ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+  const inspector = (
+    <Card className="min-w-0">
+      <CardHeader>
+        <CardTitle>{component?.name ?? "Component inspector"}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {component ? (
+          <>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  Designation / material
+                </dt>
+                <dd>
+                  {component.designation ?? component.name} ·{" "}
+                  {component.material ?? "Not specified"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Quantity</dt>
+                <dd>{component.quantity ?? 1}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Description</dt>
+                <dd>
+                  {component.description ?? "No reviewed component description"}
+                </dd>
+              </div>
+            </dl>
+            <details className="text-xs">
+              <summary className="cursor-pointer font-medium">
+                Exact component identities
+              </summary>
+              <p className="mt-2 break-all">
+                Installed: {component.installedComponentId}
+                <br />
+                Template: {component.templateComponentId}
+              </p>
+            </details>
+            <div className="space-y-3 border-t pt-3">
+              <h3 className="text-sm font-semibold">Linked observations</h3>
+              {observations.length ? (
+                observations.map((o) => (
+                  <div key={o.metric} className="rounded-md border p-3 text-sm">
+                    <p className="capitalize">{o.metric}</p>
+                    <p className="mt-1 font-semibold">
+                      {o.value == null
+                        ? "Unavailable"
+                        : `${Number(o.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${o.unit}`}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {String(o.mode)} · {o.freshness} ·{" "}
+                      {String(o.sourceQuality)}
+                    </p>
+                    <p className="mt-1 break-all text-xs text-muted-foreground">
+                      {o.observedAt ?? "No observation time"}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No component-specific measurements are linked. Parent
+                  equipment values are not assigned to this component.
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Select a component in the viewer or assembly tree.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold">{w.name}</h2>
-        <Badge variant="outline">
-          {w.kind === "simulated" ? "Simulated equipment" : "Real equipment"}
-        </Badge>
-        {w.isDemo && <Badge variant="outline">Read-only demonstration</Badge>}
-      </div>
-      <p className="break-all text-xs text-muted-foreground">
-        {w.serialNumber} · instance {w.id} · local revision {w.version}
-      </p>
-      <label className="block text-sm">
+      {!section && (
+        <>
+          {" "}
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-xl font-semibold">{w.name}</h2>
+            <Badge variant="outline">
+              {w.kind === "simulated"
+                ? "Simulated equipment"
+                : "Real equipment"}
+            </Badge>
+            {w.isDemo && (
+              <Badge variant="outline">Read-only demonstration</Badge>
+            )}
+          </div>
+          <p className="break-all text-xs text-muted-foreground">
+            {w.serialNumber} · instance {w.id} · local revision {w.version}
+          </p>
+        </>
+      )}
+      <label className="flex flex-wrap items-center gap-2 text-sm">
         Observation stream
         <select
-          className="ml-2 rounded border bg-background p-2"
+          className="h-10 min-w-0 flex-1 rounded border border-input bg-background px-2 sm:flex-none"
           value={stream ?? w.stream}
           onChange={(e) => {
             setStream(e.target.value as "live" | "simulated");
             setReplayAt(null);
           }}
         >
-          <option value="live">Live / legacy source</option>
+          <option value="live">Explicit live evidence</option>
           <option value="simulated">Explicitly simulated source</option>
         </select>
       </label>
+      {!wide && (
+        <div className="flex gap-2">
+          <Sheet open={treeOpen} onOpenChange={setTreeOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline">Assembly / BOM</Button>
+            </SheetTrigger>
+            <SheetContent
+              side="bottom"
+              className="max-h-[65dvh] overflow-y-auto"
+            >
+              <SheetHeader>
+                <SheetTitle>Assembly and components</SheetTitle>
+                <SheetDescription>
+                  Select a component; close this panel to inspect it in the
+                  viewer.
+                </SheetDescription>
+              </SheetHeader>
+              {tree}
+            </SheetContent>
+          </Sheet>
+          <Sheet open={inspectorOpen} onOpenChange={setInspectorOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline">Component details</Button>
+            </SheetTrigger>
+            <SheetContent
+              side="bottom"
+              className="max-h-[65dvh] overflow-y-auto"
+            >
+              <SheetHeader>
+                <SheetTitle>Component inspector</SheetTitle>
+                <SheetDescription>
+                  Identity and explicitly linked evidence for the selected
+                  component.
+                </SheetDescription>
+              </SheetHeader>
+              {inspector}
+            </SheetContent>
+          </Sheet>
+        </div>
+      )}
       <div
-        className={`grid gap-4 lg:grid-cols-[14rem_1fr] ${section === "observations" ? "hidden" : ""}`}
+        className={`grid items-start gap-4 xl:grid-cols-[13rem_minmax(0,1fr)_16rem] ${section === "observations" ? "hidden" : ""}`}
       >
-        <Card>
-          <CardHeader>
-            <CardTitle>Components</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <Input
-              aria-label="Search BOM"
-              placeholder="Search assembly / BOM"
-              value={componentSearch}
-              onChange={(e) => setComponentSearch(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              {w.components.length} selectable entries · repeated sets show
-              quantity
-            </p>
-            <div className="flex max-h-[500px] flex-col gap-2 overflow-y-auto">
-              {w.components
-                .filter((c) =>
-                  c.name.toLowerCase().includes(componentSearch.toLowerCase()),
-                )
-                .map((c) => (
-                  <Button
-                    key={c.installedComponentId}
-                    aria-label={c.name}
-                    aria-pressed={selected === c.installedComponentId}
-                    variant={
-                      selected === c.installedComponentId
-                        ? "default"
-                        : "outline"
-                    }
-                    onClick={() => setSelected(c.installedComponentId)}
-                    title={`${c.designation ?? c.name} · quantity ${c.quantity ?? 1}`}
-                    style={{
-                      paddingLeft: `${0.6 + Math.min(4, c.nodePath.split("/").length - 2) * 0.6}rem`,
-                    }}
-                    className="h-auto justify-start whitespace-normal text-left text-xs"
-                  >
-                    {c.parentTemplateComponentId ? "↳ " : ""}
-                    {c.name}
-                  </Button>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardTitle>Local 3D equipment</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        {wide && tree}
+        <Card className="min-w-0 py-3">
+          {!section && (
+            <CardHeader className="py-1">
+              <CardTitle className="text-sm">3D inspection</CardTitle>
+            </CardHeader>
+          )}
+          <CardContent className="space-y-3 px-3 sm:px-4">
+            <Suspense
+              fallback={<p role="status">Loading app-owned renderer…</p>}
+            >
+              <LocalEquipmentRenderer
+                ref={renderer}
+                modelUrl={w.modelUrl}
+                components={w.components}
+                selected={selected}
+                onSelect={setSelected}
+                focusComponentId={
+                  linkedFinding.data?.equipmentId === id
+                    ? linkedFinding.data.componentId
+                    : undefined
+                }
+                securityFindings={
+                  securityOverlay ? security.data?.mapped : undefined
+                }
+                observations={activeObservations}
+                annotations={w.annotations}
+              />
+            </Suspense>
             {securityAccess.data?.enabled && (
               <div className="space-y-2 rounded border p-3 text-sm">
                 <label className="flex gap-2">
@@ -526,27 +690,7 @@ function LocalWorkspace({
                 )}
               </div>
             )}
-            <Suspense
-              fallback={<p role="status">Loading app-owned renderer…</p>}
-            >
-              <LocalEquipmentRenderer
-                ref={renderer}
-                modelUrl={w.modelUrl}
-                components={w.components}
-                selected={selected}
-                onSelect={setSelected}
-                focusComponentId={
-                  linkedFinding.data?.equipmentId === id
-                    ? linkedFinding.data.componentId
-                    : undefined
-                }
-                securityFindings={
-                  securityOverlay ? security.data?.mapped : undefined
-                }
-                observations={activeObservations}
-                annotations={w.annotations}
-              />
-            </Suspense>
+
             <div className="flex flex-wrap gap-4 text-sm">
               <a
                 className="text-primary underline"
@@ -574,6 +718,7 @@ function LocalWorkspace({
             </p>
           </CardContent>
         </Card>
+        {wide && inspector}
       </div>
       {replayAt && (
         <p role="status" className="rounded border p-3 text-sm">
@@ -641,7 +786,9 @@ function LocalWorkspace({
                 >
                   <span>{o.metric}</span>
                   <strong>
-                    {o.value == null ? "Unavailable" : `${o.value} ${o.unit}`}
+                    {o.value == null
+                      ? "Unavailable"
+                      : `${Number(o.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${o.unit}`}
                   </strong>
                   <span>
                     {String(o.mode)} · {o.freshness} · quality{" "}
@@ -665,8 +812,8 @@ function LocalWorkspace({
               ))
             ) : (
               <p className="text-sm text-muted-foreground">
-                No metric binding for this component. Select Pump or Motor.
-                Missing data is unavailable.
+                No metric binding for this component. Select a component with an
+                explicit source binding. Missing data is unavailable.
               </p>
             )}
             {canEdit && w.kind === "simulated" && (
@@ -814,7 +961,9 @@ function LocalWorkspace({
                 <div key={i} className="rounded border p-2 text-xs">
                   <strong>
                     {o.metric}:{" "}
-                    {o.value == null ? "Unavailable" : `${o.value} ${o.unit}`}
+                    {o.value == null
+                      ? "Unavailable"
+                      : `${Number(o.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${o.unit}`}
                   </strong>
                   <p>
                     {o.observedAt} · {String(o.mode)} · quality{" "}

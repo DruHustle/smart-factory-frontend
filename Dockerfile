@@ -9,7 +9,10 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM dependencies AS build
+ARG SOURCE_REVISION
+ENV RELEASE_SHA=$SOURCE_REVISION
 COPY . .
+RUN node -e 'if(!/^[a-f0-9]{40}$/.test(process.env.RELEASE_SHA??""))throw Error("A reviewed SOURCE_REVISION is required")'
 RUN pnpm build
 
 FROM dependencies AS development
@@ -24,6 +27,9 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
 FROM base AS runtime
+ARG SOURCE_REVISION
+ENV SOURCE_REVISION=$SOURCE_REVISION
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 ENV NODE_ENV=production
 ENV PORT=3000
 WORKDIR /app
@@ -36,6 +42,8 @@ COPY --chown=node:node fixtures/equipment ./fixtures/equipment
 COPY --chown=node:node docs/equipment-view.md ./docs/equipment-view.md
 COPY --chown=node:node docs/onesa ./docs/onesa
 COPY --chown=node:node README.md API_DOCUMENTATION.md AUTHENTICATION.md LOGIN_TROUBLESHOOTING.md IMPLEMENTATION_GUIDE.md RENDER_DEPLOYMENT.md SYSTEM_DIAGRAMS.md ARCHITECTURE_DOCUMENTATION.md ./
+COPY --chown=node:node deploy/oracle/README.md ./deploy/oracle/README.md
+COPY --chown=node:node docs/operations.md docs/access-and-publication.md docs/telemetry-contract.md ./docs/
 COPY --chown=node:node docs/architecture.md docs/system-architecture.md docs/authorization-and-aas.md docs/AASX-and-Edge-Configuration.md docs/automationml-integration.md docs/api-flows.md docs/database-schema.md docs/assistant.md docs/troubleshooting.md ./docs/
 COPY --from=build --chown=node:node /app/dist/public ./dist/public
 USER node

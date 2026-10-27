@@ -3,10 +3,15 @@ import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { useParams,Redirect, Route, Switch, Router as WouterRouter } from "wouter";
+import {
+  useParams,
+  Redirect,
+  Route,
+  Switch,
+  Router as WouterRouter,
+} from "wouter";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import DashboardLayout from "./components/DashboardLayout";
 import { canAdministerUsers, canViewEngineering } from "@/lib/access";
@@ -32,8 +37,10 @@ const Assets = lazy(() => import("./pages/Assets"));
 const AssetAdministrationShell = lazy(
   () => import("./pages/AssetAdministrationShell"),
 );
+const Administration = lazy(() => import("./pages/Administration"));
 const UserAccess = lazy(() => import("./pages/UserAccess"));
 const ProductPassport = lazy(() => import("./pages/ProductPassport"));
+const ChangePassword = lazy(() => import("./pages/ChangePassword"));
 
 // Keep hash query context available to each workspace while matching the route path.
 function useHashPath(): ReturnType<typeof useHashLocation> {
@@ -53,10 +60,23 @@ function RouteLoading() {
   );
 }
 
-function LegacyItem({kind,section}:{kind:"asset"|"device";section:string}) {
- const params=useParams<{id:string}>();const [hash]=useHashLocation();
- const q=new URLSearchParams(hash.split('?')[1]??'');const nextSection=q.get('section')??section;q.delete('section');
- return <Redirect to={`/inventory/${kind}:${params.id}/${nextSection}${q.size?'?'+q:''}`}/>;
+function LegacyItem({
+  kind,
+  section,
+}: {
+  kind: "asset" | "device";
+  section: string;
+}) {
+  const params = useParams<{ id: string }>();
+  const [hash] = useHashLocation();
+  const q = new URLSearchParams(hash.split("?")[1] ?? "");
+  const nextSection = q.get("section") ?? section;
+  q.delete("section");
+  return (
+    <Redirect
+      to={`/inventory/${kind}:${params.id}/${nextSection}${q.size ? "?" + q : ""}`}
+    />
+  );
 }
 
 function AppRouter() {
@@ -86,6 +106,10 @@ function AppRouter() {
       <WouterRouter hook={useHashPath}>
         <Suspense fallback={<RouteLoading />}>
           <Switch>
+            <Route
+              path="/passport/published/:publicId"
+              component={ProductPassport}
+            />
             <Route path="/passport/:id" component={ProductPassport} />
             <Route path="/login" component={Login} />
             <Route path="/register" component={Register} />
@@ -98,61 +122,84 @@ function AppRouter() {
     );
   }
 
+  if (user.passwordChangeRequired)
+    return (
+      <Suspense fallback={<RouteLoading />}>
+        <ChangePassword />
+      </Suspense>
+    );
   return (
     <WouterRouter hook={useHashPath}>
       <Suspense fallback={<RouteLoading />}>
         <Switch>
           {/* Keep the public passport in a standalone shell even when the
               viewer is signed in, so navigation never enters print output. */}
+          <Route
+            path="/passport/published/:publicId"
+            component={ProductPassport}
+          />
           <Route path="/passport/:id" component={ProductPassport} />
           <Route>
             <DashboardLayout>
-              <Suspense fallback={<RouteLoading />}><Switch>
-                <Route path="/inventory" component={Inventory}/>
-                <Route path="/inventory/:ref/:section" component={ItemWorkspace}/>
-                <Route path="/inventory/:ref" component={ItemWorkspace}/>
-                <Route path="/" component={Home} />
-                <Route path="/monitoring" component={Monitoring} />
-                <Route path="/devices"><Redirect to="/inventory?view=devices"/></Route>
-                <Route path="/devices/:id"><LegacyItem kind="device" section="overview"/></Route>
-                <Route path="/cybersecurity" component={Cybersecurity} />
-                <Route path="/equipment"><EquipmentView/></Route>
-                <Route path="/assets"><Redirect to="/inventory?view=assets"/></Route>
-                <Route
-                  path="/assets/:id/aas"
-                ><LegacyItem kind="asset" section="aas"/></Route>
-                <Route path="/integrations/onesa">
-                  {canViewEngineering(user.role) ? (
-                    <OnesaIntegration />
-                  ) : (
-                    <NotFound />
-                  )}
-                </Route>
-                <Route path="/users">
-                  {canAdministerUsers(user.role) ? (
-                    <UserAccess />
-                  ) : (
-                    <NotFound />
-                  )}
-                </Route>
-                <Route path="/alerts" component={Alerts} />
-                <Route path="/alerts/:eventId" component={Alerts} />
-                <Route path="/notifications" component={Notifications} />
-                <Route path="/alert-history">
-                  <Redirect to="/alerts" />
-                </Route>
-                <Route path="/analytics" component={AnalyticsPage} />
-                <Route path="/assistant" component={Assistant} />
-                <Route path="/ota">
-                  {canViewEngineering(user.role) ? (
-                    <OTAUpdates />
-                  ) : (
-                    <NotFound />
-                  )}
-                </Route>
-                <Route path="/404" component={NotFound} />
-                <Route component={NotFound} />
-              </Switch></Suspense>
+              <Suspense fallback={<RouteLoading />}>
+                <Switch>
+                  <Route path="/account/password" component={ChangePassword} />
+                  <Route path="/inventory" component={Inventory} />
+                  <Route
+                    path="/inventory/:ref/:section"
+                    component={ItemWorkspace}
+                  />
+                  <Route path="/inventory/:ref" component={ItemWorkspace} />
+                  <Route path="/" component={Home} />
+                  <Route path="/monitoring" component={Monitoring} />
+                  <Route path="/devices">
+                    <Redirect to="/inventory?view=devices" />
+                  </Route>
+                  <Route path="/devices/:id">
+                    <LegacyItem kind="device" section="overview" />
+                  </Route>
+                  <Route path="/cybersecurity" component={Cybersecurity} />
+                  <Route path="/equipment">
+                    <EquipmentView />
+                  </Route>
+                  <Route path="/assets">
+                    <Redirect to="/inventory?view=assets" />
+                  </Route>
+                  <Route path="/assets/:id/aas">
+                    <LegacyItem kind="asset" section="aas" />
+                  </Route>
+                  <Route
+                    path="/administration/:section"
+                    component={Administration}
+                  />
+                  <Route path="/administration">
+                    <Redirect to="/administration/integrations" />
+                  </Route>
+                  <Route path="/integrations/onesa">
+                    <Redirect to="/administration/integrations" />
+                  </Route>
+                  <Route path="/users">
+                    <Redirect to="/administration/users" />
+                  </Route>
+                  <Route path="/alerts" component={Alerts} />
+                  <Route path="/alerts/:eventId" component={Alerts} />
+                  <Route path="/notifications" component={Notifications} />
+                  <Route path="/alert-history">
+                    <Redirect to="/alerts" />
+                  </Route>
+                  <Route path="/analytics" component={AnalyticsPage} />
+                  <Route path="/assistant" component={Assistant} />
+                  <Route path="/ota">
+                    {canViewEngineering(user.role) ? (
+                      <OTAUpdates />
+                    ) : (
+                      <NotFound />
+                    )}
+                  </Route>
+                  <Route path="/404" component={NotFound} />
+                  <Route component={NotFound} />
+                </Switch>
+              </Suspense>
             </DashboardLayout>
           </Route>
         </Switch>
@@ -165,13 +212,11 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <ThemeProvider defaultTheme="dark" switchable>
-          <TooltipProvider>
-            <Toaster />
-            <AppRouter />
-            {import.meta.env.PROD && <Analytics />}
-          </TooltipProvider>
-        </ThemeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <AppRouter />
+          {import.meta.env.PROD && <Analytics />}
+        </TooltipProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

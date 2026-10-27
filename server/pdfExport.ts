@@ -1,14 +1,33 @@
+import type { ReadingSummary } from "./reporting";
 import { format } from "date-fns";
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[character]!);
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character]!,
+  );
 }
-
 
 // PDF generation types
 export interface DeviceReportData {
+  summary?: ReadingSummary;
+  metadata?: {
+    scope: string;
+    statisticsComplete: boolean;
+    totalReadings: number;
+    totalIncidents: number;
+    returnedIncidents: number;
+    hasMoreIncidents: boolean;
+    incidentDetailLimit: number;
+    truncated: boolean;
+  };
   device: {
     id: number;
     deviceId: string;
@@ -51,12 +70,25 @@ export interface DeviceReportData {
 }
 
 export interface AssetAnalyticsReportData {
+  metadata?: {
+    scope: string;
+    intervalMs: number;
+    total: number;
+    returned: number;
+    truncated: boolean;
+    unitPolicy: string;
+  };
   assetCount: number;
   sampleCount: number;
   avgPower: number | null;
   avgTemperature: number | null;
   avgVibration: number | null;
-  assets: { name: string; assetType: string; zone: string | null; sampleCount: number }[];
+  assets: {
+    name: string;
+    assetType: string;
+    zone: string | null;
+    sampleCount: number;
+  }[];
   timeline: {
     timestamp: number;
     avgPower: number | null;
@@ -72,6 +104,15 @@ export interface AssetAnalyticsReportData {
 }
 
 export interface AlertHistoryReportData {
+  metadata?: {
+    total: number;
+    returned: number;
+    hasMore: boolean;
+    truncated: boolean;
+    scope: unknown;
+    statisticsComplete: boolean;
+    detailLimit: number;
+  };
   alerts: {
     id: number;
     deviceName: string;
@@ -103,7 +144,7 @@ export function generateDeviceReportHtml(data: DeviceReportData): string {
   const { device, readings, thresholds, alerts, dateRange } = data;
 
   // Calculate statistics from readings
-  const stats = calculateReadingStats(readings);
+  const stats = data.summary?.metrics ?? calculateReadingStats(readings);
 
   return `
 <!DOCTYPE html>
@@ -268,54 +309,81 @@ export function generateDeviceReportHtml(data: DeviceReportData): string {
   </div>
 
   <div class="section">
-    <h2>Sensor Statistics (${readings.length} readings)</h2>
+    <h2>Sensor Statistics (${data.summary?.total ?? readings.length} readings)</h2>
+    <p>${data.summary ? `Full-range statistics. Evidence scope: ${escapeHtml(data.summary.scope)}. Only reviewed canonical units with good source quality enter averages. Missing values remain unavailable.` : "Statistics describe only the supplied detail rows; completeness was not attested."}</p>
     <div class="stats-grid">
-      ${stats.temperature ? `
+      ${
+        stats.temperature
+          ? `
       <div class="stat-card">
         <div class="metric">Temperature</div>
         <div class="value">${stats.temperature.avg.toFixed(1)}°C</div>
         <div class="range">${stats.temperature.min.toFixed(1)} - ${stats.temperature.max.toFixed(1)}°C</div>
       </div>
-      ` : ""}
-      ${stats.humidity ? `
+      `
+          : ""
+      }
+      ${
+        stats.humidity
+          ? `
       <div class="stat-card">
         <div class="metric">Humidity</div>
         <div class="value">${stats.humidity.avg.toFixed(1)}%</div>
         <div class="range">${stats.humidity.min.toFixed(1)} - ${stats.humidity.max.toFixed(1)}%</div>
       </div>
-      ` : ""}
-      ${stats.power ? `
+      `
+          : ""
+      }
+      ${
+        stats.power
+          ? `
       <div class="stat-card">
         <div class="metric">Power</div>
         <div class="value">${stats.power.avg.toFixed(0)}W</div>
         <div class="range">${stats.power.min.toFixed(0)} - ${stats.power.max.toFixed(0)}W</div>
       </div>
-      ` : ""}
-      ${stats.vibration ? `
+      `
+          : ""
+      }
+      ${
+        stats.vibration
+          ? `
       <div class="stat-card">
         <div class="metric">Vibration</div>
         <div class="value">${stats.vibration.avg.toFixed(2)}</div>
         <div class="range">${stats.vibration.min.toFixed(2)} - ${stats.vibration.max.toFixed(2)}</div>
       </div>
-      ` : ""}
-      ${stats.rpm ? `
+      `
+          : ""
+      }
+      ${
+        stats.rpm
+          ? `
       <div class="stat-card">
         <div class="metric">RPM</div>
         <div class="value">${stats.rpm.avg.toFixed(0)}</div>
         <div class="range">${stats.rpm.min.toFixed(0)} - ${stats.rpm.max.toFixed(0)}</div>
       </div>
-      ` : ""}
-      ${stats.pressure ? `
+      `
+          : ""
+      }
+      ${
+        stats.pressure
+          ? `
       <div class="stat-card">
         <div class="metric">Pressure</div>
-        <div class="value">${stats.pressure.avg.toFixed(2)} (reported unit)</div>
-        <div class="range">${stats.pressure.min.toFixed(2)} - ${stats.pressure.max.toFixed(2)} (reported unit)</div>
+        <div class="value">${stats.pressure.avg.toFixed(2)} Pa</div>
+        <div class="range">${stats.pressure.min.toFixed(2)} - ${stats.pressure.max.toFixed(2)} Pa</div>
       </div>
-      ` : ""}
+      `
+          : ""
+      }
     </div>
   </div>
 
-  ${thresholds.length > 0 ? `
+  ${
+    thresholds.length > 0
+      ? `
   <div class="section">
     <h2>Alert Thresholds</h2>
     <table>
@@ -330,7 +398,9 @@ export function generateDeviceReportHtml(data: DeviceReportData): string {
         </tr>
       </thead>
       <tbody>
-        ${thresholds.map(t => `
+        ${thresholds
+          .map(
+            (t) => `
         <tr>
           <td>${escapeHtml(t.metric)}</td>
           <td>${t.minValue ?? "—"}</td>
@@ -339,15 +409,21 @@ export function generateDeviceReportHtml(data: DeviceReportData): string {
           <td>${t.warningMax ?? "—"}</td>
           <td>${t.enabled ? "Enabled" : "Disabled"}</td>
         </tr>
-        `).join("")}
+        `,
+          )
+          .join("")}
       </tbody>
     </table>
   </div>
-  ` : ""}
+  `
+      : ""
+  }
 
-  ${alerts.length > 0 ? `
+  ${
+    alerts.length > 0
+      ? `
   <div class="section">
-    <h2>Recent Alerts (${alerts.length})</h2>
+    <h2>Incident details (${alerts.length} returned; ${data.metadata?.totalIncidents ?? alerts.length} total in period)</h2>
     <table>
       <thead>
         <tr>
@@ -358,33 +434,61 @@ export function generateDeviceReportHtml(data: DeviceReportData): string {
         </tr>
       </thead>
       <tbody>
-        ${alerts.slice(0, 20).map(a => `
+        ${alerts
+          .map(
+            (a) => `
         <tr>
           <td>${format(new Date(a.createdAt), "MMM d, HH:mm")}</td>
           <td><span class="status-badge status-${escapeHtml(a.severity)}">${escapeHtml(a.severity)}</span></td>
           <td>${escapeHtml(a.message)}</td>
           <td>${escapeHtml(a.status)}</td>
         </tr>
-        `).join("")}
+        `,
+          )
+          .join("")}
       </tbody>
     </table>
   </div>
-  ` : ""}
+  `
+      : ""
+  }
 
   <div class="footer">
-    Smart Factory IoT Dashboard | Device Report | Page 1 of 1
+    ${data.metadata ? `Incident detail limit: ${data.metadata.incidentDetailLimit}. ${data.metadata.hasMoreIncidents ? "Additional matching incidents are available through the paginated incident queue." : "All matching incident details are included."}` : ""}<br>
+    Smart Factory IoT Dashboard | Device Report
   </div>
 </body>
 </html>
   `;
 }
 
-export function generateAssetAnalyticsReportHtml(data: AssetAnalyticsReportData): string {
-  const { assetCount, sampleCount, avgPower, avgTemperature, avgVibration, assets, timeline, dateRange } = data;
-  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
-  })[character]!);
-  const display = (value: number | null, digits = 1) => value === null ? "—" : value.toFixed(digits);
+export function generateAssetAnalyticsReportHtml(
+  data: AssetAnalyticsReportData,
+): string {
+  const {
+    assetCount,
+    sampleCount,
+    avgPower,
+    avgTemperature,
+    avgVibration,
+    assets,
+    timeline,
+    dateRange,
+  } = data;
+  const escapeHtml = (value: string) =>
+    value.replace(
+      /[&<>"']/g,
+      (character) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[character]!,
+    );
+  const display = (value: number | null, digits = 1) =>
+    value === null ? "—" : value.toFixed(digits);
   return `
 <!DOCTYPE html>
 <html>
@@ -420,9 +524,11 @@ export function generateAssetAnalyticsReportHtml(data: AssetAnalyticsReportData)
       ${assets.map((asset) => `<tr><td>${escapeHtml(asset.name)}</td><td>${escapeHtml(asset.assetType)}</td><td>${escapeHtml(asset.zone ?? "—")}</td><td>${asset.sampleCount}</td></tr>`).join("") || '<tr><td colspan="4">No assets matched this selection.</td></tr>'}
     </tbody></table>
   </section>
-  ${timeline.length > 0 ? `
+  ${
+    timeline.length > 0
+      ? `
   <section>
-    <h2>Telemetry averages by interval</h2>
+    <h2>Telemetry averages by interval</h2><p>Complete displayed bucket series: ${timeline.length} buckets. ${data.metadata ? `Scope: ${escapeHtml(data.metadata.scope)}. Effective interval: ${data.metadata.intervalMs} ms. Full-range statistics cover ${data.metadata.total} stored observations. ${escapeHtml(data.metadata.unitPolicy)}` : "Legacy report scope and completeness were not attested."} UTC window: ${escapeHtml(dateRange.start.toISOString())} to ${escapeHtml(dateRange.end.toISOString())}.</p>
     <table>
       <thead>
         <tr>
@@ -430,25 +536,31 @@ export function generateAssetAnalyticsReportHtml(data: AssetAnalyticsReportData)
           <th>Avg Power (W)</th>
           <th>Avg Temp (°C)</th>
           <th>Avg Humidity (%)</th>
-          <th>Avg Vibration</th>
+          <th>Avg Vibration (mm/s)</th>
           <th>Samples</th>
         </tr>
       </thead>
       <tbody>
-        ${timeline.slice(0, 100).map(d => `
+        ${timeline
+          .map(
+            (d) => `
         <tr>
-          <td>${format(new Date(d.timestamp), "MMM d, HH:mm")}</td>
+          <td>${new Date(d.timestamp).toISOString()}</td>
           <td>${display(d.avgPower, 0)}</td>
           <td>${display(d.avgTemperature)}</td>
           <td>${display(d.avgHumidity)}</td>
           <td>${display(d.avgVibration, 2)}</td>
           <td>${d.count}</td>
         </tr>
-        `).join("")}
+        `,
+          )
+          .join("")}
       </tbody>
     </table>
   </section>
-  ` : ""}
+  `
+      : ""
+  }
 
   <div class="footer">
     Smart Factory IoT Dashboard | Asset telemetry report · vibration average ${display(avgVibration, 2)}
@@ -458,11 +570,22 @@ export function generateAssetAnalyticsReportHtml(data: AssetAnalyticsReportData)
   `;
 }
 
-export function generateAlertHistoryReportHtml(data: AlertHistoryReportData): string {
+export function generateAlertHistoryReportHtml(
+  data: AlertHistoryReportData,
+): string {
   const { alerts, summary, dateRange } = data;
-  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[character] ?? character);
+  const escapeHtml = (value: string) =>
+    value.replace(
+      /[&<>"']/g,
+      (character) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[character] ?? character,
+    );
   const duration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -610,7 +733,7 @@ export function generateAlertHistoryReportHtml(data: AlertHistoryReportData): st
   </div>
 
   <div class="section">
-    <h2>Alert Details (${alerts.length} alerts)</h2>
+    <h2>Alert Details (${alerts.length} returned / ${summary.total} total)</h2>
     <table>
       <thead>
         <tr>
@@ -626,7 +749,9 @@ export function generateAlertHistoryReportHtml(data: AlertHistoryReportData): st
         </tr>
       </thead>
       <tbody>
-        ${alerts.map(a => `
+        ${alerts
+          .map(
+            (a) => `
         <tr>
           <td>${format(new Date(a.createdAt), "MMM d, HH:mm")}</td>
           <td>${escapeHtml(a.deviceName)}</td>
@@ -638,13 +763,15 @@ export function generateAlertHistoryReportHtml(data: AlertHistoryReportData): st
           <td>${a.downtimeStartedAt && a.resolvedAt ? duration(Math.max(0, Math.floor((new Date(a.resolvedAt).getTime() - new Date(a.downtimeStartedAt).getTime()) / 1000))) : "—"}</td>
           <td><span class="status-badge status-${escapeHtml(a.status)}">${escapeHtml(a.status)}</span></td>
         </tr>
-        `).join("")}
+        `,
+          )
+          .join("")}
       </tbody>
     </table>
   </div>
 
   <div class="footer">
-    Smart Factory IoT Dashboard | Alert History Report | Page 1 of 1
+    ${data.metadata ? `Full-range statistics; detail limit ${data.metadata.detailLimit}; returned ${data.metadata.returned} of ${data.metadata.total}; ${data.metadata.truncated ? "details truncated; use the paginated queue for the remainder" : "all matching details included"}.` : "Completeness is not attested for supplied rows."}<br>Smart Factory IoT Dashboard | Alert History Report
   </div>
 </body>
 </html>
@@ -653,7 +780,10 @@ export function generateAlertHistoryReportHtml(data: AlertHistoryReportData): st
 
 // Helper function to calculate statistics from readings
 function calculateReadingStats(readings: DeviceReportData["readings"]) {
-  const stats: Record<string, { min: number; max: number; avg: number; count: number } | null> = {
+  const stats: Record<
+    string,
+    { min: number; max: number; avg: number; count: number } | null
+  > = {
     temperature: null,
     humidity: null,
     vibration: null,
@@ -662,7 +792,14 @@ function calculateReadingStats(readings: DeviceReportData["readings"]) {
     pressure: null,
   };
 
-  const metrics = ["temperature", "humidity", "vibration", "power", "rpm", "pressure"] as const;
+  const metrics = [
+    "temperature",
+    "humidity",
+    "vibration",
+    "power",
+    "rpm",
+    "pressure",
+  ] as const;
 
   for (const metric of metrics) {
     const values = readings

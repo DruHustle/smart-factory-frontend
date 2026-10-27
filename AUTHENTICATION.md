@@ -1,22 +1,11 @@
-# Authentication and Authorization
+# Authentication and access
 
-The Node API verifies bcrypt password hashes and issues an eight-hour HS256 JWT in an HttpOnly cookie. Browser JavaScript cannot read the token; it is not stored in localStorage or sessionStorage. Protected requests reload the user's current database role. Unsafe requests with an Origin header must match the request origin or an exact ALLOWED_ORIGIN value. Dashboard login currently uses this local account flow; `AAS_OIDC_*` credentials authenticate backend services to the AAS repository and do not provide Entra user SSO.
+The Node API verifies bcrypt passwords and issues an eight-hour HS256 HttpOnly cookie. Every protected request checks persisted current role, disabled state, session generation, recovery restriction and revocation. Browser code never stores the JWT. Sockets retain identity and expiry and enforce revocation; .NET delegated routes independently verify the persisted session and current role. Unsafe cookie requests enforce the exact allowed origin.
 
-| Role | Permissions |
-|---|---|
-| Viewer | Read dashboard, device/asset summaries, alerts, analytics, and telemetry |
-| Operator | Viewer permissions plus operational readings, alert acknowledgement, and commissioned WROVER indicator LED control |
-| Engineer | Operator permissions plus alert assignment/downtime resolution, asset/device registration, AAS details, lifecycle, mappings, thresholds, and read-only firmware inventory/history. OTA delivery is disabled until a verified updater is integrated. |
-| Admin | Engineer permissions plus user and administrative device management |
+Private installations support viewer, operator, engineer and administrator roles. Shared reserved demo identities and public-demo deployments are always read-only and limited to approved demonstration records. A displayed engineer/admin role never grants a shared identity operational writes. Fixture records remain read-only even for individual users. Disabling demo sign-in rejects already-issued reserved sessions too.
 
-Development registration creates viewers. Production public registration is disabled. Administrators create accounts and assign roles through User access; the first admin is created through the private bootstrap task in the deployment guide. UI visibility is not an authorization check; server procedures enforce policy.
+New passwords require at least 12 characters within bcrypt's 72-byte UTF-8 limit. PostgreSQL login counters apply across replicas. Configure trusted proxy attribution for Vercel/Caddy and retain ingress rate limits. Production requires verified TLS, distinct secrets and exact allowed origins.
 
-New passwords require at least 12 characters and cannot exceed bcrypt's 72-byte UTF-8 limit. Login attempts are rate-limited per client IP and email using PostgreSQL. Verify trusted proxy attribution through Vercel/Render and enforce an ingress/WAF limit as well.
+Use [access, recovery and publication](docs/access-and-publication.md) for private first-admin bootstrap, verified administrator recovery, temporary single-use 30-minute credentials, forced initial password change, disablement, revocation and last-usable-admin protection. Public self-registration cannot grant factory access. Password assistance directs users to this supported administrator workflow; no email reset link is invented.
 
-## Development demo accounts
-
-Set `ENABLE_DEMO_ACCOUNTS=true` only for local development or an isolated demonstration tenant. The API provides Demo Viewer (`demo@dev.local`), Demo Operator (`operator@dev.local`), Demo Engineer (`tech@dev.local`), and Demo Admin (`admin@dev.local`) and returns the shared demo credential with the enabled shortcuts. When the flag is false, the UI shortcuts disappear and the API rejects reserved demo identities even if older database rows remain. Production defaults the flag off but honors an explicit setting for an isolated demonstration tenant.
-
-Login attempt limits are stored as hashed identifiers in PostgreSQL and are shared between app replicas. Set an ingress/WAF rate limit as well. Leave `TRUST_PROXY` unset unless the service is behind a reverse proxy; then trust only that proxy's known IP/CIDR range or a fixed hop count.
-
-ENABLE_DEMO_DATA separately seeds visibly simulated PostgreSQL assets. Password reset remains a UI placeholder; an email recovery flow is not implemented. Production requires TLS, a random JWT_SECRET of at least 32 bytes, exact allowed origins, and managed secrets for database, telemetry, and AAS credentials. See [deployment](RENDER_DEPLOYMENT.md), [login troubleshooting](LOGIN_TROUBLESHOOTING.md), and [the Entra AAS service credential guide](docs/authorization-and-aas.md#entra-id-for-aas-service-credentials).
+Demonstration identity creation is separate from fixture seeding. The persisted visibility setting never seeds. See [operations](docs/operations.md) and [Oracle deployment](deploy/oracle/README.md). AAS service credentials are server-only OAuth identities; they do not provide user SSO. See [AAS authorization](docs/authorization-and-aas.md).

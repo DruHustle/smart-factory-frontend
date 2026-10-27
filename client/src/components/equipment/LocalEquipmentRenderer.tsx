@@ -764,20 +764,16 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             </div>
           )}
         </div>
-        <div className="flex flex-wrap gap-2" aria-label="Local 3D controls">
+        <div
+          className="flex flex-wrap items-center gap-2"
+          aria-label="Local 3D controls"
+        >
           <Button
             variant="outline"
             disabled={state !== "ready"}
             onClick={() => runtime.current?.fit()}
           >
             Fit / reset
-          </Button>
-          <Button
-            variant="outline"
-            disabled={state !== "ready" || !props.selected}
-            onClick={() => latest.current.onSelect(null)}
-          >
-            Clear selection
           </Button>
           <Button
             variant="outline"
@@ -789,438 +785,483 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           </Button>
           <Button
             variant="outline"
-            disabled={state !== "ready" || !props.selected}
+            disabled={
+              state !== "ready" || !props.components.some((c) => c.explode)
+            }
             onClick={() =>
-              props.selected &&
-              setHidden((v) =>
-                v.includes(props.selected!)
-                  ? v.filter((x) => x !== props.selected)
-                  : [...v, props.selected!],
-              )
+              setInspection((v) => ({
+                ...v,
+                explode: v.explode ? 0 : 100,
+                immediate: false,
+              }))
             }
           >
-            {props.selected && hidden.includes(props.selected)
-              ? "Show selected"
-              : "Hide selected"}
+            {inspection.explode ? "Reassemble" : "Explode"}
           </Button>
-          <Button
-            variant="outline"
-            disabled={state !== "ready" || !props.selected}
-            aria-pressed={!!isolated}
-            onClick={() => setIsolated((v) => (v ? null : props.selected))}
-          >
-            Isolate selected
-          </Button>
-          <Button
-            variant="outline"
-            disabled={state !== "ready"}
-            onClick={() => {
-              setHidden([]);
-              setIsolated(null);
-              setInspection((v) => ({ ...v, covers: false, ghost: false }));
-            }}
-          >
-            Show all
-          </Button>
-          <Button
-            variant="outline"
-            disabled={state !== "ready"}
-            aria-pressed={transparent}
-            onClick={() =>
-              setInspection((v) => ({ ...v, opacity: transparent ? 1 : 0.32 }))
-            }
-          >
-            Transparency
-          </Button>
+          <details className="rounded-md border px-3 py-2">
+            <summary className="cursor-pointer text-sm font-medium">
+              Framing and visibility
+            </summary>
+            <div className="mt-3 flex max-h-72 flex-wrap gap-2 overflow-auto">
+              <Button
+                variant="outline"
+                disabled={state !== "ready" || !props.selected}
+                onClick={() => latest.current.onSelect(null)}
+              >
+                Clear selection
+              </Button>
+
+              <Button
+                variant="outline"
+                disabled={state !== "ready" || !props.selected}
+                onClick={() =>
+                  props.selected &&
+                  setHidden((v) =>
+                    v.includes(props.selected!)
+                      ? v.filter((x) => x !== props.selected)
+                      : [...v, props.selected!],
+                  )
+                }
+              >
+                {props.selected && hidden.includes(props.selected)
+                  ? "Show selected"
+                  : "Hide selected"}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={state !== "ready" || !props.selected}
+                aria-pressed={!!isolated}
+                onClick={() => setIsolated((v) => (v ? null : props.selected))}
+              >
+                Isolate selected
+              </Button>
+              <Button
+                variant="outline"
+                disabled={state !== "ready"}
+                onClick={() => {
+                  setHidden([]);
+                  setIsolated(null);
+                  setInspection((v) => ({ ...v, covers: false, ghost: false }));
+                }}
+              >
+                Show all
+              </Button>
+              <Button
+                variant="outline"
+                disabled={state !== "ready"}
+                aria-pressed={transparent}
+                onClick={() =>
+                  setInspection((v) => ({
+                    ...v,
+                    opacity: transparent ? 1 : 0.32,
+                  }))
+                }
+              >
+                Transparency
+              </Button>
+            </div>
+          </details>
         </div>
         {sectionNotice && (
           <p role="status" className="text-sm">
             {sectionNotice}
           </p>
         )}
-        <div
-          className="grid gap-3 rounded border p-3 text-sm sm:grid-cols-2"
-          aria-label="Internal inspection"
-        >
-          {props.components.some((c) => c.explode) ? (
-            <>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    setInspection((v) => ({
-                      ...v,
-                      explode: v.explode ? 0 : 100,
-                      immediate: false,
-                    }))
-                  }
-                >
-                  {inspection.explode ? "Reassemble" : "Explode"}
-                </Button>
+        <details className="rounded-md border p-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Explode, section and inspection tools
+          </summary>
+          <div
+            className="mt-3 grid max-h-[50dvh] gap-3 overflow-y-auto text-sm sm:grid-cols-2"
+            aria-label="Internal inspection"
+          >
+            {props.components.some((c) => c.explode) ? (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setInspection((v) => ({
+                        ...v,
+                        explode: v.explode ? 0 : 100,
+                        immediate: false,
+                      }))
+                    }
+                  >
+                    {inspection.explode
+                      ? "Reassemble inspection"
+                      : "Explode inspection"}
+                  </Button>
+                  <label>
+                    Explode {inspection.explode}%
+                    <input
+                      className="block w-full"
+                      aria-label="Explosion percentage"
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={inspection.explode}
+                      onChange={(e) =>
+                        setInspection((v) => ({
+                          ...v,
+                          explode: +e.target.value,
+                          immediate: true,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
                 <label>
-                  Explode {inspection.explode}%
-                  <input
-                    className="block w-full"
-                    aria-label="Explosion percentage"
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={inspection.explode}
+                  Explosion scope
+                  <select
+                    aria-label="Explosion scope"
+                    className="block max-w-full rounded border bg-background p-2"
+                    value={inspection.scope ?? ""}
                     onChange={(e) =>
                       setInspection((v) => ({
                         ...v,
-                        explode: +e.target.value,
-                        immediate: true,
+                        scope: e.target.value || null,
                       }))
+                    }
+                  >
+                    <option value="">Whole assembly</option>
+                    {props.components
+                      .filter((p) => p.role === "group")
+                      .map((p) => (
+                        <option
+                          key={p.installedComponentId}
+                          value={p.installedComponentId}
+                        >
+                          {p.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={inspection.guides}
+                    onChange={(e) =>
+                      setInspection((v) => ({ ...v, guides: e.target.checked }))
+                    }
+                  />{" "}
+                  Explosion guides
+                </label>
+              </>
+            ) : (
+              <p>Authored explosion unavailable for this model.</p>
+            )}
+            {props.components.some((c) => c.solid) ? (
+              <>
+                <label>
+                  Section axis
+                  <select
+                    aria-label="Section axis"
+                    className="ml-2 rounded border bg-background p-2"
+                    value={inspection.section}
+                    onChange={(e) =>
+                      setInspection((v) => ({
+                        ...v,
+                        section: e.target.value as InspectionState["section"],
+                      }))
+                    }
+                  >
+                    {["off", "X", "Y", "Z"].map((a) => (
+                      <option key={a}>{a}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Section position {inspection.cut}%
+                  <input
+                    className="block w-full"
+                    aria-label="Section position"
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={inspection.cut}
+                    onChange={(e) =>
+                      setInspection((v) => ({ ...v, cut: +e.target.value }))
                     }
                   />
                 </label>
-              </div>
-              <label>
-                Explosion scope
-                <select
-                  aria-label="Explosion scope"
-                  className="block max-w-full rounded border bg-background p-2"
-                  value={inspection.scope ?? ""}
-                  onChange={(e) =>
-                    setInspection((v) => ({
-                      ...v,
-                      scope: e.target.value || null,
-                    }))
-                  }
-                >
-                  <option value="">Whole assembly</option>
-                  {props.components
-                    .filter((p) => p.role === "group")
-                    .map((p) => (
-                      <option
-                        key={p.installedComponentId}
-                        value={p.installedComponentId}
-                      >
-                        {p.name}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={inspection.guides}
-                  onChange={(e) =>
-                    setInspection((v) => ({ ...v, guides: e.target.checked }))
-                  }
-                />{" "}
-                Explosion guides
-              </label>
-            </>
-          ) : (
-            <p>Authored explosion unavailable for this model.</p>
-          )}
-          {props.components.some((c) => c.solid) ? (
-            <>
-              <label>
-                Section axis
-                <select
-                  aria-label="Section axis"
-                  className="ml-2 rounded border bg-background p-2"
-                  value={inspection.section}
-                  onChange={(e) =>
-                    setInspection((v) => ({
-                      ...v,
-                      section: e.target.value as InspectionState["section"],
-                    }))
-                  }
-                >
-                  {["off", "X", "Y", "Z"].map((a) => (
-                    <option key={a}>{a}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Section position {inspection.cut}%
-                <input
-                  className="block w-full"
-                  aria-label="Section position"
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={inspection.cut}
-                  onChange={(e) =>
-                    setInspection((v) => ({ ...v, cut: +e.target.value }))
-                  }
-                />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    setInspection((v) => ({ ...v, flip: !v.flip }))
-                  }
-                >
-                  Reverse section
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    setInspection((v) => ({
-                      ...v,
-                      section: "off",
-                      cut: 50,
-                      flip: false,
-                    }))
-                  }
-                >
-                  Reset section
-                </Button>
-              </div>
-            </>
-          ) : (
-            <p>Solid section caps unavailable for this model.</p>
-          )}
-          <label>
-            <input
-              type="checkbox"
-              aria-label="Ghost housings"
-              checked={inspection.ghost}
-              onChange={(e) =>
-                setInspection((v) => ({ ...v, ghost: e.target.checked }))
-              }
-            />{" "}
-            Ghost housings
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              aria-label="Hide covers"
-              checked={inspection.covers}
-              onChange={(e) =>
-                setInspection((v) => ({ ...v, covers: e.target.checked }))
-              }
-            />{" "}
-            Hide covers
-          </label>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setInspection({ ...defaultInspection });
-              setHidden([]);
-              setIsolated(null);
-            }}
-          >
-            Restore assembly
-          </Button>
-          <Button
-            variant="outline"
-            disabled={measuring || state !== "ready"}
-            onClick={async () => {
-              const r = runtime.current;
-              if (!r) return;
-              setMeasuring(true);
-              setPerformanceReport("");
-              host.current?.scrollIntoView({
-                block: "center",
-                behavior: "instant",
-              });
-              try {
-                const result = await measureOrbit(
-                  r,
-                  () => runtime.current === r,
-                  500,
-                  2500,
-                );
-                if (runtime.current === r)
-                  setPerformanceReport(
-                    JSON.stringify({
-                      ...result,
-                      ...r.inspector.diagnostics(),
-                      modelBytes: Number(host.current?.dataset.modelBytes),
-                      externalModelTextureBytes: 0,
-                      generatedEnvironmentTextureBytes: null,
-                      loadInteractiveMs: Number(
-                        host.current?.dataset.loadInteractiveMs,
-                      ),
-                    }),
-                  );
-              } finally {
-                setMeasuring(false);
-              }
-            }}
-          >
-            {measuring ? "Measuring…" : "Measure render"}
-          </Button>
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={inspection.labels ?? false}
-              onChange={(e) =>
-                setInspection((v) => ({ ...v, labels: e.target.checked }))
-              }
-            />
-            Selection label
-          </label>
-          <Button
-            variant="outline"
-            disabled={measuring || state !== "ready"}
-            onClick={async () => {
-              const r = runtime.current;
-              if (!r) return;
-              const original = {
-                  ...inspection,
-                  hidden: [...hidden],
-                  isolated,
-                  selected: props.selected,
-                },
-                eye = r.camera.position.clone(),
-                target = r.controls.target.clone();
-              setMeasuring(true);
-              setPerformanceReport("");
-              host.current?.scrollIntoView({
-                block: "center",
-                behavior: "instant",
-              });
-              const part = (name: string) =>
-                props.components.find((p) => p.name === name)
-                  ?.installedComponentId ?? null;
-              const base = {
-                ...defaultInspection,
-                hidden: [] as string[],
-                selected: null,
-              };
-              const stages = [
-                { name: "assembled orbit", state: base },
-                {
-                  name: "whole assembly explosion and immediate scrub",
-                  state: { ...base, explode: 100 },
-                },
-                {
-                  name: "motor subassembly inspection",
-                  state: {
-                    ...base,
-                    explode: 65,
-                    scope: part("Motor"),
-                    isolated: part("Motor"),
-                  },
-                },
-                {
-                  name: "moving hollow section",
-                  state: { ...base, section: "Y" as const, cut: 50 },
-                },
-                {
-                  name: "transparent housings",
-                  state: { ...base, ghost: true },
-                },
-                {
-                  name: "focused winding bundles",
-                  state: {
-                    ...base,
-                    isolated: part("Stator assembly"),
-                    hidden: [
-                      part("Stator laminated core"),
-                      part("Stator teeth"),
-                    ].filter(Boolean) as string[],
-                  },
-                },
-                { name: "exact restoration", state: base },
-              ];
-              const results = [];
-              try {
-                for (const stage of stages) {
-                  if (runtime.current !== r) break;
-                  const apply = (state: InspectionState) => {
-                    setHidden(state.hidden);
-                    setIsolated(state.isolated);
-                    setInspection(state);
-                  };
-                  apply(stage.state);
-                  await new Promise((resolve) => setTimeout(resolve, 600));
-                  if (stage.name === "focused winding bundles") {
-                    const node = r.nodes.get(part("Stator assembly") ?? "");
-                    if (node) r.focus(node);
-                  } else r.fit();
-                  let last = 0;
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setInspection((v) => ({ ...v, flip: !v.flip }))
+                    }
+                  >
+                    Reverse section
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setInspection((v) => ({
+                        ...v,
+                        section: "off",
+                        cut: 50,
+                        flip: false,
+                      }))
+                    }
+                  >
+                    Reset section
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p>Solid section caps unavailable for this model.</p>
+            )}
+            <label>
+              <input
+                type="checkbox"
+                aria-label="Ghost housings"
+                checked={inspection.ghost}
+                onChange={(e) =>
+                  setInspection((v) => ({ ...v, ghost: e.target.checked }))
+                }
+              />{" "}
+              Ghost housings
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                aria-label="Hide covers"
+                checked={inspection.covers}
+                onChange={(e) =>
+                  setInspection((v) => ({ ...v, covers: e.target.checked }))
+                }
+              />{" "}
+              Hide covers
+            </label>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setInspection({ ...defaultInspection });
+                setHidden([]);
+                setIsolated(null);
+              }}
+            >
+              Restore assembly
+            </Button>
+            <Button
+              variant="outline"
+              disabled={measuring || state !== "ready"}
+              onClick={async () => {
+                const r = runtime.current;
+                if (!r) return;
+                setMeasuring(true);
+                setPerformanceReport("");
+                host.current?.scrollIntoView({
+                  block: "center",
+                  behavior: "instant",
+                });
+                try {
                   const result = await measureOrbit(
                     r,
                     () => runtime.current === r,
-                    1500,
-                    8000,
-                    (elapsed) => {
-                      if (elapsed - last < 120) return;
-                      last = elapsed;
-                      if (stage.name === "moving hollow section")
-                        apply({
-                          ...stage.state,
-                          cut: 50 + 25 * Math.sin(elapsed / 1800),
-                        });
-                      if (
-                        stage.name ===
-                        "whole assembly explosion and immediate scrub"
-                      )
-                        apply({
-                          ...stage.state,
-                          explode: 50 + 50 * Math.cos(elapsed / 1500),
-                          immediate: true,
-                        });
-                    },
+                    500,
+                    2500,
                   );
-                  results.push({
-                    stage: stage.name,
-                    ...result,
-                    ...r.inspector.diagnostics(),
-                  });
+                  if (runtime.current === r)
+                    setPerformanceReport(
+                      JSON.stringify({
+                        ...result,
+                        ...r.inspector.diagnostics(),
+                        modelBytes: Number(host.current?.dataset.modelBytes),
+                        externalModelTextureBytes: 0,
+                        generatedEnvironmentTextureBytes: null,
+                        loadInteractiveMs: Number(
+                          host.current?.dataset.loadInteractiveMs,
+                        ),
+                      }),
+                    );
+                } finally {
+                  setMeasuring(false);
                 }
-                if (runtime.current === r)
-                  setPerformanceReport(
-                    JSON.stringify({
-                      protocol: "smart-factory-inspection-v2",
-                      modelBytes: Number(host.current?.dataset.modelBytes),
-                      externalModelTextureBytes: 0,
-                      generatedEnvironmentTextureBytes: null,
-                      loadInteractiveMs: Number(
-                        host.current?.dataset.loadInteractiveMs,
-                      ),
-                      stages: results,
-                    }),
-                  );
-              } finally {
-                if (runtime.current === r) {
-                  setInspection(original);
-                  setHidden(original.hidden);
-                  setIsolated(original.isolated);
-                  r.camera.position.copy(eye);
-                  r.controls.target.copy(target);
-                  r.controls.update();
-                  r.render();
-                }
-                setMeasuring(false);
-              }
-            }}
-          >
-            Run inspection benchmark
-          </Button>
-          <details className="sm:col-span-2">
-            <summary className="cursor-pointer text-xs">
-              Render measurement details
-            </summary>
-            <output
-              className="block max-h-40 overflow-auto break-all text-xs"
-              aria-label="Render measurement"
+              }}
             >
-              {performanceReport}
-            </output>
-          </details>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Explosion is authored inspection choreography. Sections show existing
-          solids; open or ambiguous contours are left uncapped. Critical
-          internals are retained on mobile. Restore assembly resets reveal
-          controls.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Drag to orbit · right-drag / two fingers to pan · scroll / pinch to
-          zoom · Home to fit. Component buttons provide keyboard selection.
-          Markers: fresh observation green, stale amber, unknown gray, source
-          alarm red, annotation violet. Geometry is illustrative.
-        </p>
+              {measuring ? "Measuring…" : "Measure render"}
+            </Button>
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={inspection.labels ?? false}
+                onChange={(e) =>
+                  setInspection((v) => ({ ...v, labels: e.target.checked }))
+                }
+              />
+              Selection label
+            </label>
+            <Button
+              variant="outline"
+              disabled={measuring || state !== "ready"}
+              onClick={async () => {
+                const r = runtime.current;
+                if (!r) return;
+                const original = {
+                    ...inspection,
+                    hidden: [...hidden],
+                    isolated,
+                    selected: props.selected,
+                  },
+                  eye = r.camera.position.clone(),
+                  target = r.controls.target.clone();
+                setMeasuring(true);
+                setPerformanceReport("");
+                host.current?.scrollIntoView({
+                  block: "center",
+                  behavior: "instant",
+                });
+                const part = (name: string) =>
+                  props.components.find((p) => p.name === name)
+                    ?.installedComponentId ?? null;
+                const base = {
+                  ...defaultInspection,
+                  hidden: [] as string[],
+                  selected: null,
+                };
+                const stages = [
+                  { name: "assembled orbit", state: base },
+                  {
+                    name: "whole assembly explosion and immediate scrub",
+                    state: { ...base, explode: 100 },
+                  },
+                  {
+                    name: "motor subassembly inspection",
+                    state: {
+                      ...base,
+                      explode: 65,
+                      scope: part("Motor"),
+                      isolated: part("Motor"),
+                    },
+                  },
+                  {
+                    name: "moving hollow section",
+                    state: { ...base, section: "Y" as const, cut: 50 },
+                  },
+                  {
+                    name: "transparent housings",
+                    state: { ...base, ghost: true },
+                  },
+                  {
+                    name: "focused winding bundles",
+                    state: {
+                      ...base,
+                      isolated: part("Stator assembly"),
+                      hidden: [
+                        part("Stator laminated core"),
+                        part("Stator teeth"),
+                      ].filter(Boolean) as string[],
+                    },
+                  },
+                  { name: "exact restoration", state: base },
+                ];
+                const results = [];
+                try {
+                  for (const stage of stages) {
+                    if (runtime.current !== r) break;
+                    const apply = (state: InspectionState) => {
+                      setHidden(state.hidden);
+                      setIsolated(state.isolated);
+                      setInspection(state);
+                    };
+                    apply(stage.state);
+                    await new Promise((resolve) => setTimeout(resolve, 600));
+                    if (stage.name === "focused winding bundles") {
+                      const node = r.nodes.get(part("Stator assembly") ?? "");
+                      if (node) r.focus(node);
+                    } else r.fit();
+                    let last = 0;
+                    const result = await measureOrbit(
+                      r,
+                      () => runtime.current === r,
+                      1500,
+                      8000,
+                      (elapsed) => {
+                        if (elapsed - last < 120) return;
+                        last = elapsed;
+                        if (stage.name === "moving hollow section")
+                          apply({
+                            ...stage.state,
+                            cut: 50 + 25 * Math.sin(elapsed / 1800),
+                          });
+                        if (
+                          stage.name ===
+                          "whole assembly explosion and immediate scrub"
+                        )
+                          apply({
+                            ...stage.state,
+                            explode: 50 + 50 * Math.cos(elapsed / 1500),
+                            immediate: true,
+                          });
+                      },
+                    );
+                    results.push({
+                      stage: stage.name,
+                      ...result,
+                      ...r.inspector.diagnostics(),
+                    });
+                  }
+                  if (runtime.current === r)
+                    setPerformanceReport(
+                      JSON.stringify({
+                        protocol: "smart-factory-inspection-v2",
+                        modelBytes: Number(host.current?.dataset.modelBytes),
+                        externalModelTextureBytes: 0,
+                        generatedEnvironmentTextureBytes: null,
+                        loadInteractiveMs: Number(
+                          host.current?.dataset.loadInteractiveMs,
+                        ),
+                        stages: results,
+                      }),
+                    );
+                } finally {
+                  if (runtime.current === r) {
+                    setInspection(original);
+                    setHidden(original.hidden);
+                    setIsolated(original.isolated);
+                    r.camera.position.copy(eye);
+                    r.controls.target.copy(target);
+                    r.controls.update();
+                    r.render();
+                  }
+                  setMeasuring(false);
+                }
+              }}
+            >
+              Run inspection benchmark
+            </Button>
+            <details className="sm:col-span-2">
+              <summary className="cursor-pointer text-xs">
+                Render measurement details
+              </summary>
+              <output
+                className="block max-h-40 overflow-auto break-all text-xs"
+                aria-label="Render measurement"
+              >
+                {performanceReport}
+              </output>
+            </details>
+          </div>
+        </details>
+        <details className="rounded-md border p-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Model and inspection help
+          </summary>
+          <p className="text-xs text-muted-foreground">
+            Explosion is authored inspection choreography. Sections show
+            existing solids; open or ambiguous contours are left uncapped.
+            Critical internals are retained on mobile. Restore assembly resets
+            reveal controls.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Drag to orbit · right-drag / two fingers to pan · scroll / pinch to
+            zoom · Home to fit. Component buttons provide keyboard selection.
+            Markers: fresh observation green, stale amber, unknown gray, source
+            alarm red, annotation violet. Geometry is illustrative.
+          </p>
+        </details>
       </div>
     );
   },

@@ -1,5 +1,24 @@
+import { publicDemoDeployment } from "../shared/access-policy";
+import {
+  notificationPage,
+  notificationSummary,
+  emptyNotificationPage,
+} from "./notifications";
+import { incidentHistory, addIncidentNote } from "./incidents";
+import { canonicalUnits } from "../shared/measurements";
+import { observationTrend } from "./trends";
+import { deviceReadingSummary } from "./reporting";
+import { monitoringInput, monitoringPage } from "./monitoring";
+import { evidenceScope } from "./evidenceScope";
+import * as passports from "./passport";
+import { demoOnlyRead } from "./demoData";
 import { inventoryRouter } from "./inventory";
-import { registerDeviceInput, registerDevice } from "./deviceRegistration";
+import {
+  registerDeviceInput,
+  editCommissioningInput,
+  updateCommissioning,
+  registerDevice,
+} from "./deviceRegistration";
 import { securityRouter } from "./security/router";
 import { nativeEvent, principal } from "./security/runtime";
 import { equipmentRouter } from "./equipment/router";
@@ -9,48 +28,136 @@ import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { sdk } from "./_core/sdk";
-import { publicProcedure, viewerProcedure, operatorProcedure, engineerProcedure, adminProcedure, router } from "./_core/trpc";
+import {
+  publicProcedure,
+  viewerProcedure,
+  operatorProcedure,
+  engineerProcedure,
+  adminProcedure,
+  router,
+} from "./_core/trpc";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import * as db from "./db";
 import * as pdf from "./pdfExport";
-import { listNotifications, readNotification, retryNotification, notificationConfiguration } from "./notifications";
-import { bundleEnabled, internalService, type AssetCoverage } from "./internalServices";
-import { provisionAas, removeProvisionedAas, removeImportedAasxAsset, updateProvisionedAas, publishEdgeConfiguration, publishAda031Control, publishWroverIndicator } from "./aasProvisioningClient";
-import { DEMO_ACCOUNTS, demoAccountsEnabled, isDemoAccount } from "../shared/demo-accounts";
+import {
+  listNotifications,
+  readNotification,
+  retryNotification,
+  notificationConfiguration,
+} from "./notifications";
+import {
+  bundleEnabled,
+  internalService,
+  type AssetCoverage,
+} from "./internalServices";
+import {
+  provisionAas,
+  removeProvisionedAas,
+  removeImportedAasxAsset,
+  updateProvisionedAas,
+  publishEdgeConfiguration,
+  publishAda031Control,
+  publishWroverIndicator,
+} from "./aasProvisioningClient";
+import {
+  DEMO_ACCOUNTS,
+  demoAccountsEnabled,
+  isDemoAccount,
+} from "../shared/demo-accounts";
 import { edgeTagMappingsSchema } from "../shared/edge-configuration";
 import { answerFactoryQuestion } from "./assistantKnowledge";
+import {
+  AccountAccessError,
+  changeUserAccess,
+  resetAccountCredential,
+  consumeTemporaryCredential,
+  changeOwnPassword,
+} from "./accountAccess";
+import { wsManager } from "./websocket";
+import {
+  accountCapabilities,
+  demonstrationOnly,
+} from "../shared/access-policy";
 
-const deviceTypeEnum = z.enum(["sensor", "actuator", "controller", "gateway", "edge_device"]);
+const deviceTypeEnum = z.enum([
+  "sensor",
+  "actuator",
+  "controller",
+  "gateway",
+  "edge_device",
+]);
 const deviceStatusEnum = z.enum(["online", "offline", "maintenance", "error"]);
 const alertSeverityEnum = z.enum(["info", "warning", "critical"]);
-const otaUnavailableMessage = "OTA delivery is disabled: no verified firmware release service and device update agent are connected. No update request was queued.";
-const metricEnum = z.enum(["temperature", "humidity", "vibration", "power", "pressure", "rpm"]);
-const assetLifecycleStageEnum = z.enum(["planned", "engineered", "commissioned", "operational", "maintenance", "decommissioned"]);
-const telemetryRangeInput = z.object({
-  startTime: z.number().int().positive(),
-  endTime: z.number().int().positive().max(8_640_000_000_000_000),
-  intervalMs: z.number().int().min(60_000).max(86_400_000).optional(),
-}).refine((input) => input.endTime > input.startTime, "End time must be after start time")
-  .refine((input) => input.endTime - input.startTime <= 93 * 86_400_000, "Select a time range of 93 days or fewer");
-const assetTelemetryInput = telemetryRangeInput.safeExtend({ assetIds: z.array(z.string().min(3).max(128)).max(1000) });
-const passwordInput = z.string().min(1).max(256).refine(
-  (value) => Buffer.byteLength(value, "utf8") <= 72,
-  "Password must be 72 UTF-8 bytes or fewer",
-);
+const otaUnavailableMessage =
+  "OTA delivery is disabled: no verified firmware release service and device update agent are connected. No update request was queued.";
+const metricEnum = z.enum([
+  "temperature",
+  "humidity",
+  "vibration",
+  "power",
+  "pressure",
+  "rpm",
+]);
+const assetLifecycleStageEnum = z.enum([
+  "planned",
+  "engineered",
+  "commissioned",
+  "operational",
+  "maintenance",
+  "decommissioned",
+]);
+const telemetryRangeInput = z
+  .object({
+    startTime: z.number().int().positive(),
+    endTime: z.number().int().positive().max(8_640_000_000_000_000),
+    intervalMs: z.number().int().min(60_000).max(86_400_000).optional(),
+    scope: evidenceScope.optional(),
+  })
+  .refine(
+    (input) => input.endTime > input.startTime,
+    "End time must be after start time",
+  )
+  .refine(
+    (input) => input.endTime - input.startTime <= 93 * 86_400_000,
+    "Select a time range of 93 days or fewer",
+  );
+const assetTelemetryInput = telemetryRangeInput.safeExtend({
+  assetIds: z.array(z.string().min(3).max(128)).max(1000),
+});
+const passwordInput = z
+  .string()
+  .min(1)
+  .max(256)
+  .refine(
+    (value) => Buffer.byteLength(value, "utf8") <= 72,
+    "Password must be 72 UTF-8 bytes or fewer",
+  );
 const newPasswordInput = passwordInput.refine(
   (value) => value.length >= 12,
   "New passwords must contain at least 12 characters",
 );
 const assetIdentityInput = z.object({
   name: z.string().trim().min(2).max(255),
-  assetType: z.enum(["compressor", "transformer", "pump", "motor", "wind_turbine", "robotic_arm", "other"]),
+  assetType: z.enum([
+    "compressor",
+    "transformer",
+    "pump",
+    "motor",
+    "wind_turbine",
+    "robotic_arm",
+    "other",
+  ]),
   manufacturer: z.string().trim().min(1).max(255),
   model: z.string().trim().min(1).max(255),
   manufacturerStreet: z.string().trim().min(1).max(255),
   manufacturerZipcode: z.string().trim().min(1).max(32),
   manufacturerCityTown: z.string().trim().min(1).max(255),
-  manufacturerNationalCode: z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()),
+  manufacturerNationalCode: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z]{2}$/)
+    .transform((value) => value.toUpperCase()),
   manufacturerArticleNumber: z.string().trim().min(1).max(128),
   orderCodeOfManufacturer: z.string().trim().min(1).max(128),
   serialNumber: z.string().trim().max(128).optional(),
@@ -70,7 +177,9 @@ function requiredAasFields(asset: db.Asset) {
     ["manufacturer country code", asset.manufacturerNationalCode],
     ["manufacturer article number", asset.manufacturerArticleNumber],
     ["manufacturer order code", asset.orderCodeOfManufacturer],
-  ].filter(([, value]) => typeof value !== "string" || value.trim() === "").map(([name]) => name as string);
+  ]
+    .filter(([, value]) => typeof value !== "string" || value.trim() === "")
+    .map(([name]) => name as string);
 }
 
 async function updateAssetRevision(
@@ -81,13 +190,19 @@ async function updateAssetRevision(
   changeNote: string,
 ) {
   try {
-    return await db.updateAsset(id, expectedVersion, identity, changedBy, changeNote, async (assetId, nextVersion, currentVersion) =>
-      updateProvisionedAas({
-        assetId,
-        ...identity,
-        aasVersion: nextVersion,
-        expectedAasVersion: currentVersion,
-      }),
+    return await db.updateAsset(
+      id,
+      expectedVersion,
+      identity,
+      changedBy,
+      changeNote,
+      async (assetId, nextVersion, currentVersion) =>
+        updateProvisionedAas({
+          assetId,
+          ...identity,
+          aasVersion: nextVersion,
+          expectedAasVersion: currentVersion,
+        }),
     );
   } catch (error) {
     if (error instanceof Error && error.message.includes("version conflict")) {
@@ -99,39 +214,79 @@ async function updateAssetRevision(
 
 function publicUser(user: db.User | null | undefined) {
   if (!user) return null;
-  const { password: _password, ...safeUser } = user;
-  return safeUser;
+  const { password: _password, authVersion: _authVersion, ...safeUser } = user;
+  return { ...safeUser, access: accountCapabilities(user) };
+}
+
+async function accountAction<T>(action: () => Promise<T>): Promise<T> {
+  try {
+    return await action();
+  } catch (error) {
+    if (error instanceof AccountAccessError)
+      throw new TRPCError({ code: error.code, message: error.message });
+    throw error;
+  }
 }
 
 async function runIncidentMutation<T>(action: () => Promise<T | undefined>) {
   try {
     const result = await action();
-    if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Alert not found" });
+    if (!result)
+      throw new TRPCError({ code: "NOT_FOUND", message: "Alert not found" });
     return result;
   } catch (error) {
     if (error instanceof TRPCError) throw error;
-    const message = error instanceof Error ? error.message : "Incident update failed";
-    if (message.startsWith("Failed query:")) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Incident update could not be saved. Try again shortly." });
-    const code = message.startsWith("Only ") ? "FORBIDDEN" : message.startsWith("Resolved") || message.startsWith("Alert is already") ? "BAD_REQUEST" : "PRECONDITION_FAILED";
+    const message =
+      error instanceof Error ? error.message : "Incident update failed";
+    if (message.startsWith("Failed query:"))
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Incident update could not be saved. Try again shortly.",
+      });
+    const code = message.startsWith("Only ")
+      ? "FORBIDDEN"
+      : message.startsWith("Resolved") || message.startsWith("Alert is already")
+        ? "BAD_REQUEST"
+        : "PRECONDITION_FAILED";
     throw new TRPCError({ code, message });
   }
 }
 
-const thresholdInputSchema = z.object({
-  deviceId: z.number().int().positive(),
-  metric: metricEnum,
-  minValue: z.number().nullable().optional(),
-  maxValue: z.number().nullable().optional(),
-  warningMin: z.number().nullable().optional(),
-  warningMax: z.number().nullable().optional(),
-  enabled: z.boolean().optional(),
-}).superRefine((input, context) => {
-  const ordered = [input.minValue, input.warningMin, input.warningMax, input.maxValue]
-    .filter((value): value is number => value !== null && value !== undefined);
-  if (ordered.some((value, index) => index > 0 && value < ordered[index - 1])) {
-    context.addIssue({ code: "custom", message: "Limits must be ordered: critical minimum ≤ warning minimum ≤ warning maximum ≤ critical maximum" });
-  }
-});
+const thresholdInputSchema = z
+  .object({
+    deviceId: z.number().int().positive(),
+    metric: metricEnum,
+    unit: z.string().max(16),
+    minValue: z.number().nullable().optional(),
+    maxValue: z.number().nullable().optional(),
+    warningMin: z.number().nullable().optional(),
+    warningMax: z.number().nullable().optional(),
+    enabled: z.boolean().optional(),
+  })
+  .superRefine((input, context) => {
+    if (input.unit !== canonicalUnits[input.metric])
+      context.addIssue({
+        code: "custom",
+        path: ["unit"],
+        message:
+          "Review limits in the canonical engineering unit before enabling them.",
+      });
+    const ordered = [
+      input.minValue,
+      input.warningMin,
+      input.warningMax,
+      input.maxValue,
+    ].filter((value): value is number => value !== null && value !== undefined);
+    if (
+      ordered.some((value, index) => index > 0 && value < ordered[index - 1])
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "Limits must be ordered: critical minimum ≤ warning minimum ≤ warning maximum ≤ critical maximum",
+      });
+    }
+  });
 
 export const appRouter = router({
   security: securityRouter,
@@ -139,32 +294,114 @@ export const appRouter = router({
   onesa: onesaRouter,
   system: systemRouter,
   auth: router({
-    registrationPolicy: publicProcedure.query(() => ({ enabled: process.env.NODE_ENV !== "production" })),
+    registrationPolicy: publicProcedure.query(() => ({
+      enabled: process.env.NODE_ENV !== "production" && !publicDemoDeployment(),
+    })),
     me: publicProcedure.query(async ({ ctx }) => {
-      if (!ctx.user || !bundleEnabled()) return publicUser(ctx.user);
-      const profile = await internalService<{ id: number; openId: string; name: string | null; email: string | null; role: db.User["role"] }>(3104, "/api/auth/profile", ctx.user.id);
+      if (
+        !ctx.user ||
+        demonstrationOnly(ctx.user) ||
+        ctx.user.passwordChangeRequired ||
+        !bundleEnabled()
+      )
+        return publicUser(ctx.user);
+      const profile = await internalService<{
+        id: number;
+        openId: string;
+        name: string | null;
+        email: string | null;
+        role: db.User["role"];
+      }>(3104, "/api/auth/profile", ctx.user.id, undefined, ctx.session);
       return { ...publicUser(ctx.user)!, ...profile };
     }),
-    demoAccounts: publicProcedure.query(() => demoAccountsEnabled()
-      ? DEMO_ACCOUNTS.map(({ label, email, password, role, description }) => ({ label, email, password, role, description }))
-      : []),
+    demoAccounts: publicProcedure.query(() =>
+      demoAccountsEnabled()
+        ? DEMO_ACCOUNTS.map(
+            ({ label, email, password, role, description }) => ({
+              label,
+              email,
+              password,
+              role,
+              description,
+            }),
+          )
+        : [],
+    ),
     login: publicProcedure
       .input(z.object({ email: z.string().email(), password: passwordInput }))
       .mutation(async ({ input, ctx }) => {
-        const user = await db.getUserByEmail(input.email);
-        if ((isDemoAccount(input.email) && !demoAccountsEnabled()) || !user || !user.password || !(await sdk.comparePassword(input.password, user.password))) {
-          await nativeEvent("auth.authentication_failed", { service: "dashboard", outcome: "denied", reasonCode: "INVALID_CREDENTIALS", principalRef: principal(input.email) }, "A dashboard sign-in was rejected.");
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" });
+        let user = await db.getUserByEmail(input.email);
+        if (
+          (isDemoAccount(input.email) && !demoAccountsEnabled()) ||
+          !user ||
+          user.disabledAt ||
+          !user.password ||
+          !(await sdk.comparePassword(input.password, user.password))
+        ) {
+          await nativeEvent(
+            "auth.authentication_failed",
+            {
+              service: "dashboard",
+              outcome: "denied",
+              reasonCode: "INVALID_CREDENTIALS",
+              principalRef: principal(input.email),
+            },
+            "A dashboard sign-in was rejected.",
+          );
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid email or password",
+          });
         }
-        const token = await sdk.createSessionToken(user);
+        if (user.passwordChangeRequired) {
+          const consumed = await consumeTemporaryCredential(
+            user.id,
+            user.authVersion,
+          );
+          if (!consumed)
+            throw new TRPCError({
+              code: "UNAUTHORIZED",
+              message:
+                "The temporary credential is expired or already used. Ask an administrator for recovery.",
+            });
+          user = consumed;
+        }
+        const token = await sdk.createSessionToken(
+          user,
+          user.passwordChangeRequired
+            ? {
+                expiresInMs: Math.max(
+                  1,
+                  user.temporaryCredentialExpiresAt!.getTime() - Date.now(),
+                ),
+              }
+            : {},
+        );
         ctx.res.cookie(COOKIE_NAME, token, getSessionCookieOptions(ctx.req));
         return { user: publicUser(user) };
       }),
     register: publicProcedure
-      .input(z.object({ email: z.string().email(), password: newPasswordInput, name: z.string().trim().min(1).max(255) }))
+      .input(
+        z.object({
+          email: z.string().email(),
+          password: newPasswordInput,
+          name: z.string().trim().min(1).max(255),
+        }),
+      )
       .mutation(async ({ input, ctx }) => {
-        if (process.env.NODE_ENV === "production") throw new TRPCError({ code: "FORBIDDEN", message: "Public registration is disabled for this factory. Ask an administrator to create your account." });
-        if (await db.getUserByEmail(input.email)) throw new Error("Email already registered");
+        if (process.env.NODE_ENV === "production")
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "Public registration is disabled for this factory. Ask an administrator to create your account.",
+          });
+        if (isDemoAccount(input.email))
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "This address is reserved for the shared walkthrough.",
+          });
+        if (await db.getUserByEmail(input.email))
+          throw new Error("Email already registered");
         const user = await db.createUser({
           email: input.email,
           password: await sdk.hashPassword(input.password),
@@ -173,261 +410,554 @@ export const appRouter = router({
           role: "viewer",
         });
 
-        await db.enqueueWelcomeEmail(user).catch((error) =>
-          console.error("[Email] Could not queue account welcome message:", error instanceof Error ? error.message : "unknown error"));
+        await db
+          .enqueueWelcomeEmail(user)
+          .catch((error) =>
+            console.error(
+              "[Email] Could not queue account welcome message:",
+              error instanceof Error ? error.message : "unknown error",
+            ),
+          );
 
         const token = await sdk.createSessionToken(user);
         ctx.res.cookie(COOKIE_NAME, token, getSessionCookieOptions(ctx.req));
         return { user: publicUser(user) };
       }),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, cookieOptions);
+    changePassword: viewerProcedure
+      .input(
+        z.object({
+          currentPassword: passwordInput.optional(),
+          newPassword: newPasswordInput,
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (
+          !ctx.user.password ||
+          (!ctx.user.passwordChangeRequired &&
+            (!input.currentPassword ||
+              !(await sdk.comparePassword(
+                input.currentPassword,
+                ctx.user.password,
+              ))))
+        )
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "The current password could not be verified.",
+          });
+        if (await sdk.comparePassword(input.newPassword, ctx.user.password))
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Choose a different password from the previous or temporary credential.",
+          });
+        const passwordHash = await sdk.hashPassword(input.newPassword);
+        const updated = await accountAction(() =>
+          changeOwnPassword(ctx.user.id, ctx.user.authVersion, passwordHash),
+        );
+        await wsManager.invalidateUser(ctx.user.id);
+        ctx.res.cookie(
+          COOKIE_NAME,
+          await sdk.createSessionToken(updated),
+          getSessionCookieOptions(ctx.req),
+        );
+        return { user: publicUser(updated) };
+      }),
+    logout: publicProcedure.mutation(async ({ ctx }) => {
+      try {
+        const sessionId = await sdk.revokeRequestSession(ctx.req);
+        if (sessionId) await wsManager.invalidateSession(sessionId);
+      } finally {
+        ctx.res.clearCookie(COOKIE_NAME, getSessionCookieOptions(ctx.req));
+      }
       return { success: true };
     }),
   }),
 
   inventory: inventoryRouter,
   devices: router({
-    list: viewerProcedure.input(z.object({ status: deviceStatusEnum.optional(), type: deviceTypeEnum.optional(), zone: z.string().optional() }).optional()).query(({ input }) => db.getDevices(input)),
-    getById: viewerProcedure.input(z.object({ id: z.number() })).query(({ input }) => db.getDeviceById(input.id)),
-    getConnectedDevices: viewerProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
-      const gateway = await db.getDeviceById(input.id);
-      if (!gateway || gateway.type !== "gateway") return [];
-      const connected = await db.getDevicesForGateway(gateway.deviceId);
-      const latest = await db.getLatestReadings(connected.map((child) => child.id));
-      const latestByDevice = new Map(latest.map((reading) => [reading.deviceId, reading]));
-      return connected.map((child) => ({ ...child, latestReading: latestByDevice.get(child.id) ?? null }));
-    }),
-    getConnectedAssets: viewerProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
-      const gateway = await db.getDeviceById(input.id);
-      if (!gateway || gateway.type !== "gateway") return [];
-      return db.getAssetsForGateway(gateway.deviceId);
-    }),
-    create: engineerProcedure.input(registerDeviceInput).mutation(({ input }) => registerDevice(input)),
-    update: engineerProcedure.input(z.object({ id: z.number(), name: z.string().optional(), status: deviceStatusEnum.optional() })).mutation(({ input: { id, ...data } }) => db.updateDevice(id, data)),
-    delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
-      if (!await db.deleteDevice(input.id)) throw new TRPCError({ code: "NOT_FOUND", message: "Device not found" });
-      return { deleted: true };
-    }),
+    heartbeatHistory: viewerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(({ input }) => db.gatewayObservationHistory(input.id)),
+    monitor: viewerProcedure
+      .input(monitoringInput)
+      .query(({ input }) => monitoringPage(input)),
+    updateCommissioning: engineerProcedure
+      .input(editCommissioningInput)
+      .mutation(({ input, ctx }) => updateCommissioning(input, ctx.user.id)),
+    list: viewerProcedure
+      .input(
+        z
+          .object({
+            status: deviceStatusEnum.optional(),
+            type: deviceTypeEnum.optional(),
+            zone: z.string().optional(),
+          })
+          .optional(),
+      )
+      .query(({ input }) => db.getDevices(input)),
+    getById: viewerProcedure
+      .input(z.object({ id: z.number() }))
+      .query(({ input }) => db.getDeviceById(input.id)),
+    getConnectedDevices: viewerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const gateway = await db.getDeviceById(input.id);
+        if (!gateway || gateway.type !== "gateway") return [];
+        const connected = await db.getDevicesForGateway(gateway.deviceId);
+        const latest = await db.getLatestReadings(
+          connected.map((child) => child.id),
+        );
+        const latestByDevice = new Map(
+          latest.map((reading) => [reading.deviceId, reading]),
+        );
+        return connected.map((child) => ({
+          ...child,
+          latestReading: latestByDevice.get(child.id) ?? null,
+        }));
+      }),
+    getConnectedAssets: viewerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const gateway = await db.getDeviceById(input.id);
+        if (!gateway || gateway.type !== "gateway") return [];
+        return db.getAssetsForGateway(gateway.deviceId);
+      }),
+    create: engineerProcedure
+      .input(registerDeviceInput)
+      .mutation(({ input, ctx }) => registerDevice(input, ctx.user.id)),
+    update: engineerProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          status: deviceStatusEnum.optional(),
+        }),
+      )
+      .mutation(({ input: { id, ...data } }) => db.updateDevice(id, data)),
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        if (!(await db.deleteDevice(input.id)))
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Device not found",
+          });
+        return { deleted: true };
+      }),
     getStats: viewerProcedure.query(() => db.getDeviceStats()),
-    pulseIndicator: operatorProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
-      const device = await db.getDeviceById(input.id);
-      const gatewayDeviceId = typeof device?.metadata?.gatewayId === "string" ? device.metadata.gatewayId : undefined;
-      if (!device || device.isDemo || !["edge_device", "sensor"].includes(device.type) || !gatewayDeviceId) {
-        throw new Error("A live gateway-connected WROVER edge device is required");
-      }
-      const commandId = randomUUID();
-      const userToken = await sdk.createSessionToken(ctx.user, { expiresInMs: 60_000 });
-      return publishWroverIndicator({ gatewayDeviceId, targetDeviceId: device.deviceId,
-        commandId, expiresAt: Date.now() + 10_000 }, userToken);
-    }),
+    pulseIndicator: operatorProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const device = await db.getDeviceById(input.id);
+        const gatewayDeviceId =
+          typeof device?.metadata?.gatewayId === "string"
+            ? device.metadata.gatewayId
+            : undefined;
+        if (
+          !device ||
+          device.isDemo ||
+          !["edge_device", "sensor"].includes(device.type) ||
+          !gatewayDeviceId
+        ) {
+          throw new Error(
+            "A live gateway-connected WROVER edge device is required",
+          );
+        }
+        const commandId = randomUUID();
+        const userToken = await sdk.createSessionToken(ctx.user, {
+          expiresInMs: 60_000,
+          sessionId: ctx.session?.sessionId,
+        });
+        return publishWroverIndicator(
+          {
+            gatewayDeviceId,
+            targetDeviceId: device.deviceId,
+            commandId,
+            expiresAt: Date.now() + 10_000,
+          },
+          userToken,
+        );
+      }),
   }),
 
   assets: router({
     list: viewerProcedure.query(() => db.getAssets()),
-    getPassport: publicProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
-      const asset = await db.getAssetById(input.id);
-      if (!asset) throw new TRPCError({ code: "NOT_FOUND", message: "Product passport not found" });
-      return {
-        id: asset.id, assetId: asset.assetId, name: asset.name, assetType: asset.assetType,
-        manufacturer: asset.manufacturer, model: asset.model, serialNumber: asset.serialNumber,
-        manufacturerStreet: asset.manufacturerStreet, manufacturerZipcode: asset.manufacturerZipcode,
-        manufacturerCityTown: asset.manufacturerCityTown, manufacturerNationalCode: asset.manufacturerNationalCode,
-        manufacturerArticleNumber: asset.manufacturerArticleNumber, orderCodeOfManufacturer: asset.orderCodeOfManufacturer,
-        ratedValue: asset.ratedValue, ratedUnit: asset.ratedUnit, lifecycleStage: asset.lifecycleStage,
-        aasVersion: asset.aasVersion, updatedAt: asset.updatedAt,
-      };
-    }),
-    getById: viewerProcedure.input(z.object({ id: z.number() })).query(({ input }) => db.getAssetById(input.id)),
-    getAllForDevice: viewerProcedure.input(z.object({ devicePk: z.number().int().positive() })).query(({ input }) => db.getAssetsForDevice(input.devicePk)),
-    getForDevice: viewerProcedure.input(z.object({ devicePk: z.number() })).query(({ input }) => db.getAssetForDevice(input.devicePk)),
-    getShell: engineerProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
-      const asset = await db.getAssetRecordById(input.id);
-      if (!asset) return undefined;
-      const missingRequiredFields = asset.aasxImported ? [] : requiredAasFields(asset);
-      if (missingRequiredFields.length) return { shell: null, submodels: [], isDemo: asset.isDemo, missingRequiredFields };
-      return { shell: asset.aasShell, submodels: asset.aasSubmodels, conceptDescriptions: asset.aasConceptDescriptions, isDemo: asset.isDemo, missingRequiredFields: [] };
-    }),
-    exportAas: engineerProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
-      const asset = await db.getAssetRecordById(input.id);
-      if (!asset) return undefined;
-      if (!asset.aasxImported && requiredAasFields(asset).length) {
-        throw new Error("Complete the manufacturer identity and postal address fields before exporting this AAS");
-      }
-      return {
-        assetAdministrationShells: [asset.aasShell],
-        submodels: asset.aasSubmodels,
-        conceptDescriptions: asset.aasConceptDescriptions,
-      };
-    }),
-    getLifecycle: engineerProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
-      if (!await db.getAssetById(input.id)) return undefined;
-      return db.getAssetLifecycleEvents(input.id);
-    }),
-    getVersions: engineerProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
-      if (!await db.getAssetById(input.id)) return undefined;
-      return db.getAssetVersions(input.id);
-    }),
-    getConnections: engineerProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
-      if (!await db.getAssetById(input.id)) return undefined;
-      return db.getAssetConnections(input.id);
-    }),
-    create: engineerProcedure.input(z.object({
-      assetId: z.string().min(3).max(128),
-      ...assetIdentityInput.shape,
-      gatewayDevicePk: z.number().optional(),
-      connectionMode: z.enum(["gateway", "direct_mqtt"]).default("gateway"),
-      directDeviceId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/).optional(),
-      protocol: z.enum(["mqtt", "opcua", "modbus_tcp", "modbus_rtu", "serial", "ada031_v4_serial", "mqtt_direct"]).default("mqtt"),
-      endpoint: z.string().max(512).refine((value) => !/:\/\/[^/]*@/.test(value), "Machine endpoints must not include credentials").optional(),
-      tagMappings: edgeTagMappingsSchema.default([]),
-    }).superRefine((input, context) => {
-      if (input.connectionMode === "direct_mqtt" && (!input.directDeviceId || input.protocol !== "mqtt_direct" || input.gatewayDevicePk)) {
-        context.addIssue({ code: "custom", message: "Direct MQTT requires its device ID and cannot also select a gateway", path: ["directDeviceId"] });
-      }
-      if (input.connectionMode === "gateway" && input.protocol === "mqtt_direct") {
-        context.addIssue({ code: "custom", message: "Select Direct MQTT for a device that connects without a gateway", path: ["connectionMode"] });
-      }
-    })).mutation(async ({ input, ctx }) => {
-      const assetIdentity = {
-        assetId: input.assetId,
-        name: input.name,
-        assetType: input.assetType,
-        manufacturer: input.manufacturer,
-        model: input.model,
-        manufacturerStreet: input.manufacturerStreet,
-        manufacturerZipcode: input.manufacturerZipcode,
-        manufacturerCityTown: input.manufacturerCityTown,
-        manufacturerNationalCode: input.manufacturerNationalCode,
-        manufacturerArticleNumber: input.manufacturerArticleNumber,
-        orderCodeOfManufacturer: input.orderCodeOfManufacturer,
-        serialNumber: input.serialNumber,
-        ratedValue: input.ratedValue,
-        ratedUnit: input.ratedUnit,
-      };
-      const { documents: aas, remote } = await provisionAas(assetIdentity);
-      try {
-      const created = await db.createAsset({
-        assetId: input.assetId,
-        name: input.name,
-        assetType: input.assetType,
-        manufacturer: input.manufacturer || null,
-        model: input.model || null,
-        manufacturerStreet: input.manufacturerStreet,
-        manufacturerZipcode: input.manufacturerZipcode,
-        manufacturerCityTown: input.manufacturerCityTown,
-        manufacturerNationalCode: input.manufacturerNationalCode,
-        manufacturerArticleNumber: input.manufacturerArticleNumber,
-        orderCodeOfManufacturer: input.orderCodeOfManufacturer,
-        ratedValue: input.ratedValue || null,
-        ratedUnit: input.ratedUnit || null,
-        serialNumber: input.serialNumber || null,
-        location: input.location || null,
-        zone: input.zone || null,
-        lifecycleStage: "planned",
-        isDemo: false,
-        aasShell: aas.shell,
-        aasSubmodels: aas.submodels,
-      }, input.connectionMode === "direct_mqtt" ? {
-        mode: "direct_mqtt" as const,
-        deviceId: input.directDeviceId!,
-      } : input.gatewayDevicePk ? {
-        mode: "gateway" as const,
-        deviceId: input.gatewayDevicePk,
-        protocol: input.protocol,
-        endpoint: input.endpoint,
-        tagMappings: input.tagMappings,
-        } : undefined, ctx.user.id);
-      let edgeSync: "not_requested" | "published" | "pending" = "not_requested";
-      if (input.gatewayDevicePk) {
-        const gateway = await db.getDeviceById(input.gatewayDevicePk);
-        if (gateway) {
+    getPassport: viewerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(({ input }) => passports.previewPassport(input.id)),
+    getPublishedPassport: publicProcedure
+      .input(z.object({ publicId: z.uuid() }))
+      .query(({ input }) => passports.getPublishedPassport(input.publicId)),
+    passportPublications: engineerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(({ input }) => passports.publications(input.id)),
+    publishPassport: engineerProcedure
+      .input(passports.publicationInput)
+      .mutation(({ input, ctx }) =>
+        passports.publishPassport(input, ctx.user.id),
+      ),
+    revokePassport: engineerProcedure
+      .input(z.object({ publicId: z.uuid() }))
+      .mutation(({ input }) => passports.revokePassport(input.publicId)),
+    getById: viewerProcedure
+      .input(z.object({ id: z.number() }))
+      .query(({ input }) => db.getAssetById(input.id)),
+    getAllForDevice: viewerProcedure
+      .input(z.object({ devicePk: z.number().int().positive() }))
+      .query(({ input }) => db.getAssetsForDevice(input.devicePk)),
+    getForDevice: viewerProcedure
+      .input(z.object({ devicePk: z.number() }))
+      .query(({ input }) => db.getAssetForDevice(input.devicePk)),
+    getShell: engineerProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const asset = await db.getAssetRecordById(input.id);
+        if (!asset) return undefined;
+        const missingRequiredFields = asset.aasxImported
+          ? []
+          : requiredAasFields(asset);
+        if (missingRequiredFields.length)
+          return {
+            shell: null,
+            submodels: [],
+            isDemo: asset.isDemo,
+            missingRequiredFields,
+          };
+        return {
+          shell: asset.aasShell,
+          submodels: asset.aasSubmodels,
+          conceptDescriptions: asset.aasConceptDescriptions,
+          isDemo: asset.isDemo,
+          missingRequiredFields: [],
+        };
+      }),
+    exportAas: engineerProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const asset = await db.getAssetRecordById(input.id);
+        if (!asset) return undefined;
+        if (!asset.aasxImported && requiredAasFields(asset).length) {
+          throw new Error(
+            "Complete the manufacturer identity and postal address fields before exporting this AAS",
+          );
+        }
+        return {
+          assetAdministrationShells: [asset.aasShell],
+          submodels: asset.aasSubmodels,
+          conceptDescriptions: asset.aasConceptDescriptions,
+        };
+      }),
+    getLifecycle: engineerProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        if (!(await db.getAssetById(input.id))) return undefined;
+        return db.getAssetLifecycleEvents(input.id);
+      }),
+    getVersions: engineerProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        if (!(await db.getAssetById(input.id))) return undefined;
+        return db.getAssetVersions(input.id);
+      }),
+    getConnections: engineerProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        if (!(await db.getAssetById(input.id))) return undefined;
+        return db.getAssetConnections(input.id);
+      }),
+    create: engineerProcedure
+      .input(
+        z
+          .object({
+            assetId: z.string().min(3).max(128),
+            ...assetIdentityInput.shape,
+            gatewayDevicePk: z.number().optional(),
+            connectionMode: z
+              .enum(["gateway", "direct_mqtt"])
+              .default("gateway"),
+            directDeviceId: z
+              .string()
+              .regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/)
+              .optional(),
+            protocol: z
+              .enum([
+                "mqtt",
+                "opcua",
+                "modbus_tcp",
+                "modbus_rtu",
+                "serial",
+                "ada031_v4_serial",
+                "mqtt_direct",
+              ])
+              .default("mqtt"),
+            endpoint: z
+              .string()
+              .max(512)
+              .refine(
+                (value) => !/:\/\/[^/]*@/.test(value),
+                "Machine endpoints must not include credentials",
+              )
+              .optional(),
+            tagMappings: edgeTagMappingsSchema.default([]),
+          })
+          .superRefine((input, context) => {
+            if (
+              input.connectionMode === "direct_mqtt" &&
+              (!input.directDeviceId ||
+                input.protocol !== "mqtt_direct" ||
+                input.gatewayDevicePk)
+            ) {
+              context.addIssue({
+                code: "custom",
+                message:
+                  "Direct MQTT requires its device ID and cannot also select a gateway",
+                path: ["directDeviceId"],
+              });
+            }
+            if (
+              input.connectionMode === "gateway" &&
+              input.protocol === "mqtt_direct"
+            ) {
+              context.addIssue({
+                code: "custom",
+                message:
+                  "Select Direct MQTT for a device that connects without a gateway",
+                path: ["connectionMode"],
+              });
+            }
+          }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const assetIdentity = {
+          assetId: input.assetId,
+          name: input.name,
+          assetType: input.assetType,
+          manufacturer: input.manufacturer,
+          model: input.model,
+          manufacturerStreet: input.manufacturerStreet,
+          manufacturerZipcode: input.manufacturerZipcode,
+          manufacturerCityTown: input.manufacturerCityTown,
+          manufacturerNationalCode: input.manufacturerNationalCode,
+          manufacturerArticleNumber: input.manufacturerArticleNumber,
+          orderCodeOfManufacturer: input.orderCodeOfManufacturer,
+          serialNumber: input.serialNumber,
+          ratedValue: input.ratedValue,
+          ratedUnit: input.ratedUnit,
+        };
+        const { documents: aas, remote } = await provisionAas(assetIdentity);
+        try {
+          const created = await db.createAsset(
+            {
+              assetId: input.assetId,
+              name: input.name,
+              assetType: input.assetType,
+              manufacturer: input.manufacturer || null,
+              model: input.model || null,
+              manufacturerStreet: input.manufacturerStreet,
+              manufacturerZipcode: input.manufacturerZipcode,
+              manufacturerCityTown: input.manufacturerCityTown,
+              manufacturerNationalCode: input.manufacturerNationalCode,
+              manufacturerArticleNumber: input.manufacturerArticleNumber,
+              orderCodeOfManufacturer: input.orderCodeOfManufacturer,
+              ratedValue: input.ratedValue || null,
+              ratedUnit: input.ratedUnit || null,
+              serialNumber: input.serialNumber || null,
+              location: input.location || null,
+              zone: input.zone || null,
+              lifecycleStage: "planned",
+              isDemo: false,
+              aasShell: aas.shell,
+              aasSubmodels: aas.submodels,
+            },
+            input.connectionMode === "direct_mqtt"
+              ? {
+                  mode: "direct_mqtt" as const,
+                  deviceId: input.directDeviceId!,
+                }
+              : input.gatewayDevicePk
+                ? {
+                    mode: "gateway" as const,
+                    deviceId: input.gatewayDevicePk,
+                    protocol: input.protocol,
+                    endpoint: input.endpoint,
+                    tagMappings: input.tagMappings,
+                  }
+                : undefined,
+            ctx.user.id,
+          );
+          let edgeSync: "not_requested" | "published" | "pending" =
+            "not_requested";
+          if (input.gatewayDevicePk) {
+            const gateway = await db.getDeviceById(input.gatewayDevicePk);
+            if (gateway) {
+              try {
+                const published = await publishEdgeConfiguration({
+                  schemaVersion: 1,
+                  gatewayDeviceId: gateway.deviceId,
+                  assets: await db.getGatewayAssetConnections(gateway.deviceId),
+                });
+                edgeSync = published.published ? "published" : "pending";
+              } catch (syncError) {
+                console.error(
+                  "[Edge configuration] Publish failed; gateway can be updated from the AAS page:",
+                  syncError instanceof Error
+                    ? syncError.message
+                    : "unknown error",
+                );
+                edgeSync = "pending";
+              }
+            }
+          }
+          return {
+            id: created.id,
+            assetId: created.assetId,
+            provisioned: remote,
+            edgeSync,
+            connectionMode: input.connectionMode,
+          };
+        } catch (error) {
+          if (remote) {
+            try {
+              await removeProvisionedAas(assetIdentity);
+            } catch (cleanupError) {
+              console.error(
+                "[AAS provisioning] Compensating delete failed:",
+                cleanupError instanceof Error
+                  ? cleanupError.message
+                  : "unknown error",
+              );
+            }
+          }
+          throw error;
+        }
+      }),
+    update: engineerProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          expectedVersion: z.number().int().positive(),
+          changeNote: z.string().trim().min(3).max(1000),
+          ...assetIdentityInput.shape,
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const { id, expectedVersion, changeNote, ...identity } = input;
+        const current = await db.getAssetRecordById(id);
+        if (!current) throw new Error("Asset not found");
+        if (current.isDemo) throw new Error("Demo assets are read-only");
+        const updated = await updateAssetRevision(
+          id,
+          expectedVersion,
+          identity,
+          ctx.user.id,
+          changeNote,
+        );
+        if (!updated) throw new Error("Asset not found");
+        return updated;
+      }),
+    delete: adminProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        const asset = await db.getAssetRecordById(input.id);
+        if (!asset)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Asset not found",
+          });
+        if (asset.isDemo)
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Demo assets are read-only",
+          });
+        const connections = await db.getAssetConnections(input.id);
+        if (asset.aasxImported) {
+          await removeImportedAasxAsset(asset);
+        } else {
+          await removeProvisionedAas({
+            assetId: asset.assetId,
+            name: asset.name,
+            assetType: asset.assetType,
+            manufacturer: asset.manufacturer ?? undefined,
+            model: asset.model ?? undefined,
+            manufacturerStreet: asset.manufacturerStreet ?? "",
+            manufacturerZipcode: asset.manufacturerZipcode ?? "",
+            manufacturerCityTown: asset.manufacturerCityTown ?? "",
+            manufacturerNationalCode: asset.manufacturerNationalCode ?? "",
+            manufacturerArticleNumber:
+              asset.manufacturerArticleNumber ?? undefined,
+            orderCodeOfManufacturer: asset.orderCodeOfManufacturer ?? undefined,
+            serialNumber: asset.serialNumber ?? undefined,
+            ratedValue: asset.ratedValue ?? undefined,
+            ratedUnit: asset.ratedUnit ?? undefined,
+            aasVersion: asset.aasVersion,
+          });
+        }
+        if (!(await db.deleteAsset(input.id)))
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Asset not found",
+          });
+        const gatewayIds = [
+          ...new Set(
+            connections
+              .filter((item) => item.connectionDeviceType === "gateway")
+              .map((item) => item.gatewayDeviceId),
+          ),
+        ];
+        const edgeSyncFailures: string[] = [];
+        for (const gatewayDeviceId of gatewayIds) {
           try {
-            const published = await publishEdgeConfiguration({ schemaVersion: 1, gatewayDeviceId: gateway.deviceId, assets: await db.getGatewayAssetConnections(gateway.deviceId) });
-            edgeSync = published.published ? "published" : "pending";
-          } catch (syncError) {
-            console.error("[Edge configuration] Publish failed; gateway can be updated from the AAS page:", syncError instanceof Error ? syncError.message : "unknown error");
-            edgeSync = "pending";
+            await publishEdgeConfiguration({
+              schemaVersion: 1,
+              gatewayDeviceId,
+              assets: await db.getGatewayAssetConnections(gatewayDeviceId),
+            });
+          } catch {
+            edgeSyncFailures.push(gatewayDeviceId);
           }
         }
-      }
-      return { id: created.id, assetId: created.assetId, provisioned: remote, edgeSync, connectionMode: input.connectionMode };
-      } catch (error) {
-        if (remote) {
-          try {
-            await removeProvisionedAas(assetIdentity);
-          } catch (cleanupError) {
-            console.error("[AAS provisioning] Compensating delete failed:", cleanupError instanceof Error ? cleanupError.message : "unknown error");
-          }
-        }
-        throw error;
-      }
-    }),
-    update: engineerProcedure.input(z.object({
-      id: z.number(), expectedVersion: z.number().int().positive(), changeNote: z.string().trim().min(3).max(1000), ...assetIdentityInput.shape,
-    })).mutation(async ({ input, ctx }) => {
-      const { id, expectedVersion, changeNote, ...identity } = input;
-      const current = await db.getAssetRecordById(id);
-      if (!current) throw new Error("Asset not found");
-      if (current.isDemo) throw new Error("Demo assets are read-only");
-      const updated = await updateAssetRevision(id, expectedVersion, identity, ctx.user.id, changeNote);
-      if (!updated) throw new Error("Asset not found");
-      return updated;
-    }),
-    delete: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
-      const asset = await db.getAssetRecordById(input.id);
-      if (!asset) throw new TRPCError({ code: "NOT_FOUND", message: "Asset not found" });
-      if (asset.isDemo) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Demo assets are read-only" });
-      const connections = await db.getAssetConnections(input.id);
-      if (asset.aasxImported) {
-        await removeImportedAasxAsset(asset);
-      } else {
-        await removeProvisionedAas({
-          assetId: asset.assetId, name: asset.name, assetType: asset.assetType,
-          manufacturer: asset.manufacturer ?? undefined, model: asset.model ?? undefined,
-          manufacturerStreet: asset.manufacturerStreet ?? "",
-          manufacturerZipcode: asset.manufacturerZipcode ?? "",
-          manufacturerCityTown: asset.manufacturerCityTown ?? "",
-          manufacturerNationalCode: asset.manufacturerNationalCode ?? "",
-          manufacturerArticleNumber: asset.manufacturerArticleNumber ?? undefined,
-          orderCodeOfManufacturer: asset.orderCodeOfManufacturer ?? undefined,
-          serialNumber: asset.serialNumber ?? undefined, ratedValue: asset.ratedValue ?? undefined,
-          ratedUnit: asset.ratedUnit ?? undefined, aasVersion: asset.aasVersion,
-        });
-      }
-      if (!await db.deleteAsset(input.id)) throw new TRPCError({ code: "NOT_FOUND", message: "Asset not found" });
-      const gatewayIds = [...new Set(connections.filter((item) => item.connectionDeviceType === "gateway").map((item) => item.gatewayDeviceId))];
-      const edgeSyncFailures: string[] = [];
-      for (const gatewayDeviceId of gatewayIds) {
-        try { await publishEdgeConfiguration({ schemaVersion: 1, gatewayDeviceId, assets: await db.getGatewayAssetConnections(gatewayDeviceId) }); }
-        catch { edgeSyncFailures.push(gatewayDeviceId); }
-      }
-      return { deleted: true, edgeSyncFailures };
-    }),
-    restoreVersion: engineerProcedure.input(z.object({
-      id: z.number(), sourceVersion: z.number().int().positive(), expectedVersion: z.number().int().positive(),
-    })).mutation(async ({ input, ctx }) => {
-      const current = await db.getAssetRecordById(input.id);
-      if (!current) throw new Error("Asset not found");
-      if (current.isDemo || current.aasxImported) throw new Error("This asset type cannot be restored through the form editor");
-      const historical = await db.getAssetVersionSnapshot(input.id, input.sourceVersion);
-      const snapshot = historical?.snapshot as { asset?: Record<string, unknown> } | undefined;
-      if (!snapshot?.asset) throw new Error("The requested asset version was not found");
-      // Drizzle stores optional SQL strings as null; the edit contract treats
-      // omitted optional fields as undefined, so drop nulls before validating.
-      const restoredFields = Object.fromEntries(Object.entries(snapshot.asset).filter(([, value]) => value !== null));
-      const identity = assetIdentityInput.parse(restoredFields);
-      const result = await updateAssetRevision(
-        input.id,
-        input.expectedVersion,
-        identity,
-        ctx.user.id,
-        `Restored from version ${input.sourceVersion}`,
-      );
-      if (!result) throw new Error("Asset not found");
-      return result;
-    }),
+        return { deleted: true, edgeSyncFailures };
+      }),
+    restoreVersion: engineerProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          sourceVersion: z.number().int().positive(),
+          expectedVersion: z.number().int().positive(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const current = await db.getAssetRecordById(input.id);
+        if (!current) throw new Error("Asset not found");
+        if (current.isDemo || current.aasxImported)
+          throw new Error(
+            "This asset type cannot be restored through the form editor",
+          );
+        const historical = await db.getAssetVersionSnapshot(
+          input.id,
+          input.sourceVersion,
+        );
+        const snapshot = historical?.snapshot as
+          | { asset?: Record<string, unknown> }
+          | undefined;
+        if (!snapshot?.asset)
+          throw new Error("The requested asset version was not found");
+        // Drizzle stores optional SQL strings as null; the edit contract treats
+        // omitted optional fields as undefined, so drop nulls before validating.
+        const restoredFields = Object.fromEntries(
+          Object.entries(snapshot.asset).filter(([, value]) => value !== null),
+        );
+        const identity = assetIdentityInput.parse(restoredFields);
+        const result = await updateAssetRevision(
+          input.id,
+          input.expectedVersion,
+          identity,
+          ctx.user.id,
+          `Restored from version ${input.sourceVersion}`,
+        );
+        if (!result) throw new Error("Asset not found");
+        return result;
+      }),
     exportGatewayConfiguration: engineerProcedure
       .input(z.object({ gatewayDeviceId: z.string().min(1) }))
       .query(async ({ input }) => ({
@@ -439,7 +969,8 @@ export const appRouter = router({
       .input(z.object({ gatewayDevicePk: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         const gateway = await db.getDeviceById(input.gatewayDevicePk);
-        if (!gateway || gateway.type !== "gateway" || gateway.isDemo) throw new Error("Select a registered live edge gateway");
+        if (!gateway || gateway.type !== "gateway" || gateway.isDemo)
+          throw new Error("Select a registered live edge gateway");
         const result = await publishEdgeConfiguration({
           schemaVersion: 1,
           gatewayDeviceId: gateway.deviceId,
@@ -447,35 +978,75 @@ export const appRouter = router({
         });
         return { ...result, gatewayDeviceId: gateway.deviceId };
       }),
-    controlAda031: engineerProcedure.input(z.object({
-      id: z.number().int().positive(),
-      command: z.discriminatedUnion("action", [
-        z.object({ action: z.literal("jog"), joint: z.enum(["base", "shoulder", "elbow", "wrist_rotation", "gripper"]), direction: z.enum(["increase", "decrease"]) }),
-        z.object({ action: z.literal("set_profile"), profile: z.enum(["pick_and_place_repeat", "demonstration_moves"]) }),
-        z.object({ action: z.literal("neutral") }),
-        z.object({ action: z.literal("stop_program") }),
-      ]),
-    })).mutation(async ({ input, ctx }) => {
-      const asset = await db.getAssetRecordById(input.id);
-      if (!asset || asset.isDemo) throw new Error("A live registered ADA031 asset is required");
-      const connection = (await db.getAssetConnections(input.id)).find((candidate) => candidate.protocol === "ada031_v4_serial");
-      if (!connection) throw new Error("This asset has no ADA031 V4 USB serial control profile");
-      const commandId = randomUUID();
-      // Re-sign the current DB-backed role for one minute so DeviceService sees
-      // fresh authorization even when an older browser cookie has a stale role.
-      const userToken = await sdk.createSessionToken(ctx.user, { expiresInMs: 60_000 });
-      return publishAda031Control({
-        gatewayDeviceId: connection.gatewayDeviceId,
-        assetId: asset.assetId,
-        ...input.command,
-        commandId,
-        expiresAt: Date.now() + 10_000,
-      }, userToken);
-    }),
-    transition: engineerProcedure
-      .input(z.object({ id: z.number(), toStage: assetLifecycleStageEnum, note: z.string().max(1000).optional() }))
+    controlAda031: engineerProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          command: z.discriminatedUnion("action", [
+            z.object({
+              action: z.literal("jog"),
+              joint: z.enum([
+                "base",
+                "shoulder",
+                "elbow",
+                "wrist_rotation",
+                "gripper",
+              ]),
+              direction: z.enum(["increase", "decrease"]),
+            }),
+            z.object({
+              action: z.literal("set_profile"),
+              profile: z.enum(["pick_and_place_repeat", "demonstration_moves"]),
+            }),
+            z.object({ action: z.literal("neutral") }),
+            z.object({ action: z.literal("stop_program") }),
+          ]),
+        }),
+      )
       .mutation(async ({ input, ctx }) => {
-        const result = await db.transitionAssetLifecycle(input.id, input.toStage, ctx.user.id, input.note);
+        const asset = await db.getAssetRecordById(input.id);
+        if (!asset || asset.isDemo)
+          throw new Error("A live registered ADA031 asset is required");
+        const connection = (await db.getAssetConnections(input.id)).find(
+          (candidate) => candidate.protocol === "ada031_v4_serial",
+        );
+        if (!connection)
+          throw new Error(
+            "This asset has no ADA031 V4 USB serial control profile",
+          );
+        const commandId = randomUUID();
+        // Re-sign the current DB-backed role for one minute so DeviceService sees
+        // fresh authorization even when an older browser cookie has a stale role.
+        const userToken = await sdk.createSessionToken(ctx.user, {
+          expiresInMs: 60_000,
+          sessionId: ctx.session?.sessionId,
+        });
+        return publishAda031Control(
+          {
+            gatewayDeviceId: connection.gatewayDeviceId,
+            assetId: asset.assetId,
+            ...input.command,
+            commandId,
+            expiresAt: Date.now() + 10_000,
+          },
+          userToken,
+        );
+      }),
+    transition: engineerProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          toStage: assetLifecycleStageEnum,
+          note: z.string().max(1000).optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const result = await db.transitionAssetLifecycle(
+          input.id,
+          input.toStage,
+          ctx.user.id,
+          input.note,
+        );
         if (!result) throw new Error("Asset not found");
         return result;
       }),
@@ -483,30 +1054,197 @@ export const appRouter = router({
 
   users: router({
     list: adminProcedure.query(() => db.listUsers()),
-    create: adminProcedure.input(z.object({ email: z.string().email().max(320), name: z.string().trim().min(1).max(255), password: newPasswordInput,
-      role: z.enum(["viewer", "operator", "engineer", "admin"]).default("viewer") })).mutation(async ({ input }) => {
-      if (await db.getUserByEmail(input.email)) throw new TRPCError({ code: "CONFLICT", message: "This account already exists" });
-      const user = await db.createUser({ ...input, password: await sdk.hashPassword(input.password), openId: randomUUID() });
-      await db.enqueueWelcomeEmail(user).catch((error) =>
-        console.error("[Email] Could not queue account welcome message:", error instanceof Error ? error.message : "unknown error"));
-      return publicUser(user);
-    }),
+    create: adminProcedure
+      .input(
+        z.object({
+          email: z.string().email().max(320),
+          name: z.string().trim().min(1).max(255),
+          password: newPasswordInput,
+          role: z
+            .enum(["viewer", "operator", "engineer", "admin"])
+            .default("viewer"),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        if (isDemoAccount(input.email))
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "This address is reserved for the shared walkthrough.",
+          });
+        if (await db.getUserByEmail(input.email))
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "This account already exists",
+          });
+        const user = await db.createUser({
+          ...input,
+          password: await sdk.hashPassword(input.password),
+          openId: randomUUID(),
+          passwordChangeRequired: true,
+          temporaryCredentialExpiresAt: new Date(Date.now() + 30 * 60_000),
+        });
+        await db
+          .enqueueWelcomeEmail(user)
+          .catch((error) =>
+            console.error(
+              "[Email] Could not queue account welcome message:",
+              error instanceof Error ? error.message : "unknown error",
+            ),
+          );
+        return publicUser(user);
+      }),
     setRole: adminProcedure
-      .input(z.object({ id: z.number(), role: z.enum(["viewer", "operator", "engineer", "admin"]) }))
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          role: z.enum(["viewer", "operator", "engineer", "admin"]),
+          expectedVersion: z.number().int().nonnegative().optional(),
+        }),
+      )
       .mutation(async ({ input, ctx }) => {
-        if (input.id === ctx.user.id && input.role !== "admin") throw new Error("You cannot remove your own administrator access");
-        const result = await db.updateUserRole(input.id, input.role);
+        if (input.id === ctx.user.id && input.role !== "admin")
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Ask another administrator to change your own administrator access.",
+          });
+        const result = await accountAction(() =>
+          changeUserAccess(input.id, {
+            role: input.role,
+            expectedVersion: input.expectedVersion,
+          }),
+        );
+        await wsManager.invalidateUser(input.id);
         if (!result) throw new Error("User not found");
-        await nativeEvent("config.changed", { configRevision: randomUUID(), changedKeys: ["users.roles"] }, "An administrator changed an application role.");
+        await nativeEvent(
+          "config.changed",
+          { configRevision: randomUUID(), changedKeys: ["users.roles"] },
+          "An administrator changed an application role.",
+        );
+        return result;
+      }),
+    setEnabled: adminProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          enabled: z.boolean(),
+          expectedVersion: z.number().int().nonnegative(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (input.id === ctx.user.id && !input.enabled)
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Ask another administrator to disable your account.",
+          });
+        const result = await accountAction(() =>
+          changeUserAccess(input.id, {
+            enabled: input.enabled,
+            expectedVersion: input.expectedVersion,
+          }),
+        );
+        await wsManager.invalidateUser(input.id);
+        return result;
+      }),
+    revokeSessions: adminProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          expectedVersion: z.number().int().nonnegative(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const result = await accountAction(() =>
+          changeUserAccess(input.id, {
+            expectedVersion: input.expectedVersion,
+          }),
+        );
+        await wsManager.invalidateUser(input.id);
+        return result;
+      }),
+    resetPassword: adminProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          temporaryPassword: newPasswordInput,
+          expectedVersion: z.number().int().nonnegative(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (input.id === ctx.user.id)
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Use your account's Change password action instead of resetting yourself.",
+          });
+        const passwordHash = await sdk.hashPassword(input.temporaryPassword);
+        const result = await accountAction(() =>
+          resetAccountCredential(input.id, passwordHash, input.expectedVersion),
+        );
+        await wsManager.invalidateUser(input.id);
         return result;
       }),
   }),
 
   readings: router({
-    getForDevice: viewerProcedure.input(telemetryRangeInput.safeExtend({ deviceId: z.number().int().positive(), limit: z.number().int().min(1).max(10000).optional() })).query(({ input }) => db.getSensorReadings(input.deviceId, input.startTime, input.endTime, input.limit)),
-    getLatest: viewerProcedure.input(z.object({ deviceId: z.number() })).query(({ input }) => db.getLatestReading(input.deviceId)),
-    getLatestBatch: viewerProcedure.input(z.object({ deviceIds: z.array(z.number().int().positive()).max(500) })).query(({ input }) => db.getLatestReadings(input.deviceIds)),
-    create: operatorProcedure.input(z.object({ deviceId: z.number(), temperature: z.number().optional(), timestamp: z.number() })).mutation(async ({ input }) => { await db.createSensorReading(input); return { success: true }; }),
+    trend: viewerProcedure
+      .input(
+        telemetryRangeInput
+          .safeExtend({
+            deviceId: z.number().int().positive().optional(),
+            assetIds: z.array(z.string().min(3).max(128)).max(1000).optional(),
+            metric: metricEnum,
+          })
+          .refine(
+            (v) => !!v.deviceId !== !!v.assetIds?.length,
+            "Select a source or one or more assets",
+          ),
+      )
+      .query(({ input }) => observationTrend(input)),
+    getForDevice: viewerProcedure
+      .input(
+        telemetryRangeInput.safeExtend({
+          deviceId: z.number().int().positive(),
+          limit: z.number().int().min(1).max(10000).optional(),
+        }),
+      )
+      .query(({ input }) =>
+        db.getSensorReadings(
+          input.deviceId,
+          input.startTime,
+          input.endTime,
+          input.limit,
+          input.scope,
+        ),
+      ),
+    getLatest: viewerProcedure
+      .input(
+        z.object({ deviceId: z.number(), scope: evidenceScope.optional() }),
+      )
+      .query(({ input }) => db.getLatestReading(input.deviceId, input.scope)),
+    getLatestBatch: viewerProcedure
+      .input(
+        z.object({
+          deviceIds: z.array(z.number().int().positive()).max(500),
+          scope: evidenceScope.optional(),
+        }),
+      )
+      .query(({ input }) => db.getLatestReadings(input.deviceIds, input.scope)),
+    create: operatorProcedure
+      .input(
+        z.object({
+          deviceId: z.number(),
+          temperature: z.number().optional(),
+          timestamp: z.number(),
+        }),
+      )
+      .mutation(() => {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Manual telemetry entry is retired. Use commissioned device ingestion, or a labelled isolated simulation.",
+        });
+      }),
   }),
 
   thresholds: router({
@@ -520,6 +1258,7 @@ export const appRouter = router({
         const match = existing.find((x) => x.metric === input.metric);
         if (match) {
           return db.updateAlertThreshold(match.id, {
+            unit: input.unit,
             minValue: input.minValue ?? null,
             maxValue: input.maxValue ?? null,
             warningMin: input.warningMin ?? null,
@@ -531,6 +1270,7 @@ export const appRouter = router({
         return db.createAlertThreshold({
           deviceId: input.deviceId,
           metric: input.metric,
+          unit: input.unit,
           minValue: input.minValue ?? null,
           maxValue: input.maxValue ?? null,
           warningMin: input.warningMin ?? null,
@@ -539,206 +1279,556 @@ export const appRouter = router({
         });
       }),
     upsertForDevice: engineerProcedure
-      .input(z.object({
-        deviceId: z.number(),
-        thresholds: z.array(thresholdInputSchema),
-      }).superRefine((input, context) => {
-        if (input.thresholds.some((threshold) => threshold.deviceId !== input.deviceId)) {
-          context.addIssue({ code: "custom", message: "All thresholds must belong to the selected device" });
-        }
-        if (new Set(input.thresholds.map((threshold) => threshold.metric)).size !== input.thresholds.length) {
-          context.addIssue({ code: "custom", message: "Configure each metric only once" });
-        }
-      }))
+      .input(
+        z
+          .object({
+            deviceId: z.number(),
+            thresholds: z.array(thresholdInputSchema),
+          })
+          .superRefine((input, context) => {
+            if (
+              input.thresholds.some(
+                (threshold) => threshold.deviceId !== input.deviceId,
+              )
+            ) {
+              context.addIssue({
+                code: "custom",
+                message: "All thresholds must belong to the selected device",
+              });
+            }
+            if (
+              new Set(input.thresholds.map((threshold) => threshold.metric))
+                .size !== input.thresholds.length
+            ) {
+              context.addIssue({
+                code: "custom",
+                message: "Configure each metric only once",
+              });
+            }
+          }),
+      )
       .mutation(async ({ input }) => {
-        await db.upsertAlertThresholds(input.deviceId, input.thresholds.map((t) => ({
-          deviceId: t.deviceId,
-          metric: t.metric,
-          minValue: t.minValue ?? null,
-          maxValue: t.maxValue ?? null,
-          warningMin: t.warningMin ?? null,
-          warningMax: t.warningMax ?? null,
-          enabled: t.enabled ?? true,
-        })));
+        await db.upsertAlertThresholds(
+          input.deviceId,
+          input.thresholds.map((t) => ({
+            deviceId: t.deviceId,
+            metric: t.metric,
+            unit: t.unit,
+            minValue: t.minValue ?? null,
+            maxValue: t.maxValue ?? null,
+            warningMin: t.warningMin ?? null,
+            warningMax: t.warningMax ?? null,
+            enabled: t.enabled ?? true,
+          })),
+        );
 
         return db.getAlertThresholds(input.deviceId);
       }),
   }),
 
   alerts: router({
-    list: viewerProcedure.input(z.object({ deviceId: z.number().int().positive().optional(), status: z.enum(["active", "acknowledged", "resolved"]).optional(), openOnly: z.boolean().optional(), severity: alertSeverityEnum.optional(), limit: z.number().int().min(1).max(1000).optional(), startTime: z.number().int().positive().optional(), endTime: z.number().int().positive().optional() }).optional()).query(({ input }) => db.getAlerts(input)),
-    getById: viewerProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
-      const alert = await db.getAlertById(input.id);
-      if (!alert) throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
-      return alert;
-    }),
+    history: viewerProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          after: z.number().int().nonnegative().default(0),
+        }),
+      )
+      .query(({ input }) => incidentHistory(input.id, input.after)),
+    addNote: operatorProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          text: z
+            .string()
+            .trim()
+            .min(1)
+            .max(2000)
+            .refine(
+              (t) => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(t),
+              "Remove control characters",
+            ),
+        }),
+      )
+      .mutation(({ input, ctx }) =>
+        addIncidentNote(input.id, input.text, ctx.user.id),
+      ),
+    page: viewerProcedure
+      .input(
+        z.object({
+          page: z.number().int().min(0).max(100000).default(0),
+          pageSize: z.number().int().min(1).max(100).default(25),
+          search: z.string().trim().max(100).optional(),
+          deviceId: z.number().int().positive().optional(),
+          status: z.enum(["active", "acknowledged", "resolved"]).optional(),
+          openOnly: z.boolean().optional(),
+          severity: alertSeverityEnum.optional(),
+          startTime: z.number().int().nonnegative().optional(),
+          endTime: z.number().int().positive().optional(),
+          assignedToId: z.number().int().positive().optional(),
+        }),
+      )
+      .query(({ input: { page, pageSize, ...filters } }) =>
+        db.getAlertPage(filters, page, pageSize),
+      ),
+    list: viewerProcedure
+      .input(
+        z
+          .object({
+            deviceId: z.number().int().positive().optional(),
+            status: z.enum(["active", "acknowledged", "resolved"]).optional(),
+            openOnly: z.boolean().optional(),
+            severity: alertSeverityEnum.optional(),
+            limit: z.number().int().min(1).max(1000).optional(),
+            startTime: z.number().int().positive().optional(),
+            endTime: z.number().int().positive().optional(),
+          })
+          .optional(),
+      )
+      .query(({ input }) => db.getAlerts(input)),
+    getById: viewerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const alert = await db.getAlertById(input.id);
+        if (!alert)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        return alert;
+      }),
     /** Legacy acknowledge route; a caller cannot select the acknowledging user's identity. */
-    update: operatorProcedure.input(z.object({ id: z.number(), status: z.literal("acknowledged") })).mutation(({ input, ctx }) =>
-      runIncidentMutation(() => db.acknowledgeAlert(input.id, ctx.user.id))),
+    update: operatorProcedure
+      .input(z.object({ id: z.number(), status: z.literal("acknowledged") }))
+      .mutation(({ input, ctx }) =>
+        runIncidentMutation(() => db.acknowledgeAlert(input.id, ctx.user.id)),
+      ),
     updateStatus: operatorProcedure
       .input(z.object({ id: z.number(), status: z.literal("acknowledged") }))
-      .mutation(({ input, ctx }) => runIncidentMutation(() => db.acknowledgeAlert(input.id, ctx.user.id))),
+      .mutation(({ input, ctx }) =>
+        runIncidentMutation(() => db.acknowledgeAlert(input.id, ctx.user.id)),
+      ),
     assignees: engineerProcedure.query(() => db.getAlertAssignees()),
-    assign: engineerProcedure.input(z.object({ id: z.number(), assignedToId: z.number().int().positive().nullable() }))
-      .mutation(({ input }) => runIncidentMutation(() => db.assignAlert(input.id, input.assignedToId))),
-    startDowntime: engineerProcedure.input(z.object({ id: z.number() }))
-      .mutation(({ input, ctx }) => runIncidentMutation(() => db.startAlertDowntime(input.id, ctx.user.id, ctx.user.role === "admin"))),
-    resolve: engineerProcedure.input(z.object({ id: z.number() }))
-      .mutation(({ input, ctx }) => runIncidentMutation(() => db.resolveAlert(input.id, ctx.user.id, ctx.user.role === "admin"))),
+    assign: engineerProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          assignedToId: z.number().int().positive().nullable(),
+        }),
+      )
+      .mutation(({ input, ctx }) =>
+        runIncidentMutation(() =>
+          db.assignAlert(input.id, input.assignedToId, ctx.user.id),
+        ),
+      ),
+    startDowntime: engineerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input, ctx }) =>
+        runIncidentMutation(() =>
+          db.startAlertDowntime(
+            input.id,
+            ctx.user.id,
+            ctx.user.role === "admin",
+          ),
+        ),
+      ),
+    resolve: engineerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input, ctx }) =>
+        runIncidentMutation(() =>
+          db.resolveAlert(input.id, ctx.user.id, ctx.user.role === "admin"),
+        ),
+      ),
     getStats: viewerProcedure.query(() => db.getAlertStats()),
   }),
 
   firmware: router({
     list: engineerProcedure
       .input(z.object({ deviceType: deviceTypeEnum.optional() }).optional())
-      .query(async ({ input }) => (await db.getFirmwareVersions(input?.deviceType)).map(({ fileUrl, ...firmware }) => ({
-        ...firmware,
-        artifactAvailable: Boolean(fileUrl && firmware.checksum),
-      }))),
+      .query(async ({ input }) =>
+        (await db.getFirmwareVersions(input?.deviceType)).map(
+          ({ fileUrl, ...firmware }) => ({
+            ...firmware,
+            artifactAvailable: Boolean(fileUrl && firmware.checksum),
+          }),
+        ),
+      ),
   }),
 
   ota: router({
-    capability: engineerProcedure.query(() => ({ enabled: false, reason: otaUnavailableMessage })),
-    deploy: engineerProcedure.input(z.object({ deviceId: z.number(), firmwareVersionId: z.number() })).mutation(() => {
-      throw new TRPCError({ code: "PRECONDITION_FAILED", message: otaUnavailableMessage });
-    }),
-    list: engineerProcedure.input(z.object({ deviceId: z.number().optional(), limit: z.number().optional() }).optional()).query(({ input }) => db.getOtaDeployments(input)),
+    capability: engineerProcedure.query(() => ({
+      enabled: false,
+      reason: otaUnavailableMessage,
+    })),
+    deploy: engineerProcedure
+      .input(z.object({ deviceId: z.number(), firmwareVersionId: z.number() }))
+      .mutation(() => {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: otaUnavailableMessage,
+        });
+      }),
+    list: engineerProcedure
+      .input(
+        z
+          .object({
+            deviceId: z.number().optional(),
+            limit: z.number().optional(),
+          })
+          .optional(),
+      )
+      .query(({ input }) => db.getOtaDeployments(input)),
     rollback: engineerProcedure
       .input(z.object({ deploymentId: z.number() }))
       .mutation(() => {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: otaUnavailableMessage });
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: otaUnavailableMessage,
+        });
       }),
   }),
 
   analytics: router({
-    getCoverage: viewerProcedure.input(assetTelemetryInput).query(async ({ input, ctx }) => {
-      if (!bundleEnabled()) return { configured: false, assets: [] as AssetCoverage[] };
-      const chunks = Array.from({ length: Math.ceil(input.assetIds.length / 200) }, (_, index) => input.assetIds.slice(index * 200, (index + 1) * 200));
-      const assets = (await Promise.all(chunks.map(assetIds => internalService<AssetCoverage[]>(3105, "/api/analytics/coverage", ctx.user.id, { ...input, assetIds })))).flat();
-      return { configured: true, assets };
-    }),
-    getOverview: viewerProcedure.query(async () => ({ devices: await db.getDeviceStats(), alerts: await db.getAlertStats() })),
-    getEnergy: viewerProcedure.input(telemetryRangeInput).query(async ({ input }) => {
-      const devices = await db.getDevices();
-      return db.getAggregatedReadings(devices.map(d => d.id), input.startTime, input.endTime, input.intervalMs);
-    }),
-    getEnergyConsumption: viewerProcedure.input(telemetryRangeInput).query(async ({ input }) => {
-      const devices = await db.getDevices();
-      return db.getAggregatedReadings(devices.map(d => d.id), input.startTime, input.endTime, input.intervalMs);
-    }),
-    getAssetTelemetry: viewerProcedure.input(assetTelemetryInput).query(({ input }) =>
-      db.getAssetTelemetry(input.assetIds, input.startTime, input.endTime, input.intervalMs)),
-    getLatestAssetTelemetry: viewerProcedure.input(z.object({ assetId: z.string().min(3).max(128) })).query(async ({ input }) =>
-      (await db.getLatestAssetReadings([input.assetId]))[0] ?? null),
+    getCoverage: viewerProcedure
+      .input(assetTelemetryInput)
+      .query(async ({ input, ctx }) => {
+        if (!bundleEnabled() || demoOnlyRead())
+          return { configured: false, assets: [] as AssetCoverage[] };
+        const chunks = Array.from(
+          { length: Math.ceil(input.assetIds.length / 200) },
+          (_, index) => input.assetIds.slice(index * 200, (index + 1) * 200),
+        );
+        const assets = (
+          await Promise.all(
+            chunks.map((assetIds) =>
+              internalService<AssetCoverage[]>(
+                3105,
+                "/api/analytics/coverage",
+                ctx.user.id,
+                { ...input, assetIds },
+                ctx.session,
+              ),
+            ),
+          )
+        ).flat();
+        return { configured: true, assets };
+      }),
+    getOverview: viewerProcedure.query(async () => ({
+      devices: await db.getDeviceStats(),
+      alerts: await db.getAlertStats(),
+    })),
+    getEnergy: viewerProcedure
+      .input(telemetryRangeInput)
+      .query(async ({ input }) => {
+        const devices = await db.getDevices();
+        return db.getAggregatedReadings(
+          devices.map((d) => d.id),
+          input.startTime,
+          input.endTime,
+          input.intervalMs,
+          input.scope,
+        );
+      }),
+    getEnergyConsumption: viewerProcedure
+      .input(telemetryRangeInput)
+      .query(async ({ input }) => {
+        const devices = await db.getDevices();
+        return db.getAggregatedReadings(
+          devices.map((d) => d.id),
+          input.startTime,
+          input.endTime,
+          input.intervalMs,
+          input.scope,
+        );
+      }),
+    getAssetTelemetry: viewerProcedure
+      .input(assetTelemetryInput)
+      .query(({ input }) =>
+        db.getAssetTelemetry(
+          input.assetIds,
+          input.startTime,
+          input.endTime,
+          input.intervalMs,
+          input.scope,
+        ),
+      ),
+    getLatestAssetTelemetry: viewerProcedure
+      .input(z.object({ assetId: z.string().min(3).max(128) }))
+      .query(
+        async ({ input }) =>
+          (await db.getLatestAssetReadings([input.assetId]))[0] ?? null,
+      ),
   }),
 
   export: router({
-    deviceReport: viewerProcedure.input(telemetryRangeInput.safeExtend({ deviceId: z.number().int().positive() })).mutation(async ({ input }) => {
-      const device = await db.getDeviceById(input.deviceId);
-      if (!device) throw new Error("Device not found");
-      const [readings, thresholds, alerts] = await Promise.all([
-        db.getSensorReadings(input.deviceId, input.startTime, input.endTime),
-        db.getAlertThresholds(input.deviceId),
-        db.getAlerts({ deviceId: input.deviceId, startTime: input.startTime, endTime: input.endTime, limit: 50 }),
-      ]);
-      return { html: pdf.generateDeviceReportHtml({ device, readings, thresholds, alerts, dateRange: { start: new Date(input.startTime), end: new Date(input.endTime) } }), filename: `device-report-${device.deviceId}.html` };
-    }),
-    analyticsReport: viewerProcedure.input(assetTelemetryInput).mutation(async ({ input }) => {
-      const analytics = await db.getAssetTelemetry(input.assetIds, input.startTime, input.endTime, input.intervalMs);
-      return {
-        html: pdf.generateAssetAnalyticsReportHtml({
-          assetCount: analytics.assets.length,
-          sampleCount: analytics.overall.sampleCount,
-          avgPower: analytics.overall.avgPower,
-          avgTemperature: analytics.overall.avgTemperature,
-          avgVibration: analytics.overall.avgVibration,
-          assets: analytics.assets.map(({ name, assetType, zone, sampleCount }) => ({ name, assetType, zone, sampleCount })),
-          timeline: analytics.timeline,
-          dateRange: { start: new Date(input.startTime), end: new Date(input.endTime) },
+    deviceReport: viewerProcedure
+      .input(
+        telemetryRangeInput.safeExtend({
+          deviceId: z.number().int().positive(),
         }),
-        filename: `analytics-report-${Date.now()}.html`,
-      };
-    }),
-    alertHistoryReport: viewerProcedure.input(z.object({ startTime: z.number(), endTime: z.number(), severity: alertSeverityEnum.optional() })).mutation(async ({ input }) => {
-      const allAlerts = await db.getAlerts({ limit: 1000, startTime: input.startTime, endTime: input.endTime, severity: input.severity });
-      const filtered = allAlerts.filter((a) => {
-        const createdAtMs = new Date(a.createdAt).getTime();
-        const inRange = createdAtMs >= input.startTime && createdAtMs <= input.endTime;
-        const matchesSeverity = !input.severity || a.severity === input.severity;
-        return inRange && matchesSeverity;
-      });
-
-      const alerts = filtered.map((a) => ({
-        id: a.id,
-        deviceName: `Device ${a.deviceId}`,
-        errorCode: a.errorCode,
-        message: a.message,
-        type: a.type,
-        severity: a.severity,
-        status: a.status,
-        createdAt: a.createdAt,
-        assignedToId: a.assignedToId,
-        downtimeStartedAt: a.downtimeStartedAt,
-        resolvedAt: a.resolvedAt,
-      }));
-
-      const summary = {
-        total: alerts.length,
-        critical: alerts.filter((a) => a.severity === "critical").length,
-        warning: alerts.filter((a) => a.severity === "warning").length,
-        info: alerts.filter((a) => a.severity === "info").length,
-        resolved: alerts.filter((a) => a.status === "resolved").length,
-      };
-
-      return {
-        html: pdf.generateAlertHistoryReportHtml({
-          alerts,
-          summary,
-          dateRange: { start: new Date(input.startTime), end: new Date(input.endTime) },
-        }),
-        filename: `alert-history-report-${Date.now()}.html`,
-      };
-    }),
+      )
+      .mutation(async ({ input }) => {
+        const device = await db.getDeviceById(input.deviceId);
+        if (!device) throw new Error("Device not found");
+        const [summary, thresholds, incidents] = await Promise.all([
+          deviceReadingSummary(
+            input.deviceId,
+            input.startTime,
+            input.endTime,
+            input.scope,
+          ),
+          db.getAlertThresholds(input.deviceId),
+          db.getAlertPage(
+            {
+              deviceId: input.deviceId,
+              startTime: input.startTime,
+              endTime: input.endTime,
+            },
+            0,
+            100,
+          ),
+        ]);
+        const metadata = {
+          scope: summary.scope,
+          statisticsComplete: true,
+          totalReadings: summary.total,
+          totalIncidents: incidents.total,
+          returnedIncidents: incidents.returned,
+          hasMoreIncidents: incidents.hasMore,
+          incidentDetailLimit: 100,
+          truncated: incidents.hasMore,
+        };
+        return {
+          html: pdf.generateDeviceReportHtml({
+            device,
+            readings: [],
+            summary,
+            metadata,
+            thresholds,
+            alerts: incidents.items,
+            dateRange: {
+              start: new Date(input.startTime),
+              end: new Date(input.endTime),
+            },
+          }),
+          filename: `device-report-${device.deviceId}.html`,
+          metadata,
+        };
+      }),
+    analyticsReport: viewerProcedure
+      .input(assetTelemetryInput)
+      .mutation(async ({ input }) => {
+        const analytics = await db.getAssetTelemetry(
+          input.assetIds,
+          input.startTime,
+          input.endTime,
+          input.intervalMs,
+          input.scope,
+        );
+        return {
+          html: pdf.generateAssetAnalyticsReportHtml({
+            metadata: analytics.metadata,
+            assetCount: analytics.assets.length,
+            sampleCount: analytics.overall.sampleCount,
+            avgPower: analytics.overall.avgPower,
+            avgTemperature: analytics.overall.avgTemperature,
+            avgVibration: analytics.overall.avgVibration,
+            assets: analytics.assets.map(
+              ({ name, assetType, zone, sampleCount }) => ({
+                name,
+                assetType,
+                zone,
+                sampleCount,
+              }),
+            ),
+            timeline: analytics.timeline,
+            dateRange: {
+              start: new Date(input.startTime),
+              end: new Date(input.endTime),
+            },
+          }),
+          filename: `analytics-report-${Date.now()}.html`,
+          metadata: analytics.metadata,
+        };
+      }),
+    alertHistoryReport: viewerProcedure
+      .input(
+        z
+          .object({
+            startTime: z.number().int().nonnegative(),
+            endTime: z.number().int().positive(),
+            severity: alertSeverityEnum.optional(),
+            status: z.enum(["active", "acknowledged", "resolved"]).optional(),
+            openOnly: z.boolean().optional(),
+            search: z.string().trim().max(100).optional(),
+          })
+          .refine((v) => v.endTime > v.startTime, "End must follow start"),
+      )
+      .mutation(async ({ input }) => {
+        const result = await db.getAlertPage(input, 0, 1000);
+        const metadata = {
+          total: result.total,
+          returned: result.returned,
+          hasMore: result.hasMore,
+          truncated: result.hasMore,
+          scope: result.scope,
+          statisticsComplete: true,
+          detailLimit: 1000,
+        };
+        return {
+          html: pdf.generateAlertHistoryReportHtml({
+            alerts: result.items.map((a) => ({
+              ...a,
+              deviceName: a.deviceName ?? "Observation source",
+            })),
+            summary: result.summary,
+            dateRange: {
+              start: new Date(input.startTime),
+              end: new Date(input.endTime),
+            },
+            metadata,
+          }),
+          filename: `alert-history-report-${Date.now()}.html`,
+          metadata,
+        };
+      }),
   }),
 
   notifications: router({
-    list: viewerProcedure.query(({ ctx }) => listNotifications(ctx.user.id)),
-    markRead: viewerProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
-      const row = await readNotification(ctx.user.id, input.id);
-      if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Notification not found" });
-      return row;
-    }),
-    retryEmail: engineerProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
-      const row = await retryNotification(ctx.user.id, input.id);
-      if (!row) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Notification is not eligible for retry" });
-      return row;
-    }),
+    page: viewerProcedure
+      .input(
+        z.object({
+          search: z.string().trim().max(100).default(""),
+          view: z
+            .enum(["all", "unread", "delivery_attention", "accepted"])
+            .default("all"),
+          page: z.number().int().min(0).max(100000).default(0),
+        }),
+      )
+      .query(({ input, ctx }) =>
+        demoOnlyRead()
+          ? emptyNotificationPage()
+          : notificationPage(ctx.user.id, input),
+      ),
+    summary: viewerProcedure.query(({ ctx }) =>
+      demoOnlyRead()
+        ? emptyNotificationPage().summary
+        : notificationSummary(ctx.user.id),
+    ),
+    list: viewerProcedure.query(({ ctx }) =>
+      demoOnlyRead() ? [] : listNotifications(ctx.user.id),
+    ),
+    markRead: viewerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const row = await readNotification(ctx.user.id, input.id);
+        if (!row)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Notification not found",
+          });
+        return row;
+      }),
+    retryEmail: engineerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const row = await retryNotification(ctx.user.id, input.id);
+        if (!row)
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Notification is not eligible for retry",
+          });
+        return row;
+      }),
     getConfigs: adminProcedure.query(() => notificationConfiguration()),
-    updateConfig: adminProcedure.input(z.object({ configId: z.string(), enabled: z.boolean().optional(), recipient: z.string().optional() })).mutation(() => {
-      throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Configure Graph sender and recipient domains in the deployment environment. Incident recipients come from authorized dashboard accounts." });
-    }),
+    updateConfig: adminProcedure
+      .input(
+        z.object({
+          configId: z.string(),
+          enabled: z.boolean().optional(),
+          recipient: z.string().optional(),
+        }),
+      )
+      .mutation(() => {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Configure Graph sender and recipient domains in the deployment environment. Incident recipients come from authorized dashboard accounts.",
+        });
+      }),
   }),
 
   assistant: router({
-    ask: viewerProcedure.input(z.object({
-      question: z.string().trim().min(3).max(500),
-      selectedAssetId: z.string().trim().min(3).max(128).optional(),
-      history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(1200) })).max(12).optional(),
-    })).mutation(async ({ input, ctx }) => {
-      if(/\b(security|cybersecurity|vulnerabilit(?:y|ies)|cyber)\b/i.test(input.question)) {
-        if(!(await import('./security/store')).enabled()) return {answer:'Cybersecurity collection is disabled. Existing equipment and telemetry remain available; no security assessment is implied.',sources:[],contextAt:new Date().toISOString()};
-        const {overview,findings,filters}=await import('./security/service');const {demoOnly}=await import('./security/router');
-        try {const [coverage,fs]=await Promise.all([overview(demoOnly(ctx.user)),findings(filters.parse({}),demoOnly(ctx.user))]);
-          return {answer:`Security coverage: ${coverage.coverage.receiving} of ${coverage.coverage.configured} configured sources are receiving; ${coverage.coverage.stale} are stale or missing. ${fs.items.length}${fs.hasMore?'+':''} findings are listed. Open findings by evidence mode: ${coverage.modeCounts.map(m=>`${m.mode}: ${m.count}`).join(", ") || "none"}. Review each finding's normalized evidence, mode, quality, rule/version and affected identity; record an assigned investigation decision with evidence. Source text is untrusted data. Unknown controls are not a secure assessment. No remediation is executed.`,sources:[{title:'Authorized security evidence',section:'Coverage and findings',path:'/cybersecurity',excerpt:coverage.explanation,kind:'live-data' as const}],contextAt:new Date().toISOString()};
-        }catch{return {answer:'Security evidence is unavailable. Review the Cybersecurity workspace source status and configured permissions; no secure assessment can be made.',sources:[],contextAt:new Date().toISOString()};}
-      }
-      const { provider: _provider, model: _model, ...publicResult } = await answerFactoryQuestion(input.question, {
-        role: ctx.user.role,
-        selectedAssetId: input.selectedAssetId,
-        history: input.history,
-      });
-      return publicResult;
-    }),
+    ask: viewerProcedure
+      .input(
+        z.object({
+          question: z.string().trim().min(3).max(500),
+          selectedAssetId: z.string().trim().min(3).max(128).optional(),
+          history: z
+            .array(
+              z.object({
+                role: z.enum(["user", "assistant"]),
+                content: z.string().max(1200),
+              }),
+            )
+            .max(12)
+            .optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (
+          /\b(security|cybersecurity|vulnerabilit(?:y|ies)|cyber)\b/i.test(
+            input.question,
+          )
+        ) {
+          if (!(await import("./security/store")).enabled())
+            return {
+              answer:
+                "Cybersecurity collection is disabled. Existing equipment and telemetry remain available; no security assessment is implied.",
+              sources: [],
+              contextAt: new Date().toISOString(),
+            };
+          const { overview, findings, filters } =
+            await import("./security/service");
+          const { demoOnly } = await import("./security/router");
+          try {
+            const [coverage, fs] = await Promise.all([
+              overview(demoOnly(ctx.user)),
+              findings(filters.parse({}), demoOnly(ctx.user)),
+            ]);
+            return {
+              answer: `Security coverage: ${coverage.coverage.receiving} of ${coverage.coverage.configured} configured sources are receiving; ${coverage.coverage.stale} are stale or missing. ${fs.items.length}${fs.hasMore ? "+" : ""} findings are listed. Open findings by evidence mode: ${coverage.modeCounts.map((m) => `${m.mode}: ${m.count}`).join(", ") || "none"}. Review each finding's normalized evidence, mode, quality, rule/version and affected identity; record an assigned investigation decision with evidence. Source text is untrusted data. Unknown controls are not a secure assessment. No remediation is executed.`,
+              sources: [
+                {
+                  title: "Authorized security evidence",
+                  section: "Coverage and findings",
+                  path: "/cybersecurity",
+                  excerpt: coverage.explanation,
+                  kind: "live-data" as const,
+                },
+              ],
+              contextAt: new Date().toISOString(),
+            };
+          } catch {
+            return {
+              answer:
+                "Security evidence is unavailable. Review the Cybersecurity workspace source status and configured permissions; no secure assessment can be made.",
+              sources: [],
+              contextAt: new Date().toISOString(),
+            };
+          }
+        }
+        const {
+          provider: _provider,
+          model: _model,
+          ...publicResult
+        } = await answerFactoryQuestion(input.question, {
+          role: ctx.user.role,
+          selectedAssetId: input.selectedAssetId,
+          history: input.history,
+        });
+        return publicResult;
+      }),
   }),
 });
 

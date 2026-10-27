@@ -17,6 +17,7 @@ export type InventoryItem = {
   location: string | null;
   zone: string | null;
   configured: boolean;
+  isDemo?: boolean;
   route: string;
   status: InventoryStatus;
   lastObserved: string | null;
@@ -28,6 +29,9 @@ export type InventoryItem = {
   aas: boolean;
   equipmentId: string | null;
   firmware: string | null;
+  measurements?: import("./measurements").Measurements;
+  values?: Partial<Record<import("./measurements").Metric, number | null>>;
+  evidence?: { eligible?: boolean; reason?: string; validForMs?: number };
 };
 export function observedStatus(
   input: {
@@ -52,3 +56,19 @@ export const itemHref = (
   returnTo?: string,
 ) =>
   `/inventory/${encodeURIComponent(ref)}/${section}${returnTo ? `?return=${encodeURIComponent(returnTo)}` : ""}`;
+
+/** Every observation link follows the actual item capability; gateways have no Telemetry section. */
+export function observationHref(
+  item: { ref: string; kind: ItemKind; itemType: string },
+  returnTo?: string,
+) {
+  return itemHref(
+    item.ref,
+    item.kind === "device" && item.itemType === "gateway"
+      ? "connected"
+      : item.kind === "equipment"
+        ? "observations"
+        : "telemetry",
+    returnTo,
+  );
+}

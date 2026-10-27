@@ -11,7 +11,7 @@ export DOTENV_CONFIG_PATH=/dev/null NODE_ENV=development DATABASE_SSL_MODE=disab
 export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/smart_factory_iot_e2e REDIS_URL=redis://127.0.0.1:56379
 export JWT_SECRET=isolated-provenance-proof-session-secret-32-bytes INGESTION_API_TOKEN=isolated-onesa-dashboard-bridge PORT=3108
 export ENABLE_DEMO_ACCOUNTS=false ENABLE_DEMO_DATA=false ASSISTANT_PROVIDER=disabled BACKEND_DEPLOYMENT_MODE=standalone VITE_API_URL=/api
-DOTNET_ROLL_FORWARD=Major dotnet build ../smart-factory-iot-backend/src/Services/TelemetryService/TelemetryService.csproj -c Release -m:1 -nr:false
+"${QUALIFICATION_DOTNET:-dotnet}" build ../smart-factory-iot-backend/src/Services/TelemetryService/TelemetryService.csproj -c Release -m:1 -nr:false
 "${compose[@]}" up -d --wait database redis onesa-broker onesa-telemetry-database
 pnpm exec drizzle-kit migrate
 node --import tsx scripts/equipment/provenance-path.ts seed
@@ -23,8 +23,8 @@ for attempt in {1..90};do
  sleep 1
 done
 if [[ "$subscriber_ready" != true ]];then echo "Smart Factory MQTT subscriber did not become ready" >&2;exit 1;fi
-../smart-factory-iot-edge/raspberry-pi/.venv/bin/python scripts/onesa/scenario.py v4-simulated-path simulated
-../smart-factory-iot-edge/raspberry-pi/.venv/bin/python scripts/onesa/scenario.py v4-replay-path replay
+"${QUALIFICATION_PYTHON:-../smart-factory-iot-edge/raspberry-pi/.venv/bin/python}" scripts/onesa/scenario.py v4-simulated-path simulated
+"${QUALIFICATION_PYTHON:-../smart-factory-iot-edge/raspberry-pi/.venv/bin/python}" scripts/onesa/scenario.py v4-replay-path replay
 sleep 8
 node --import tsx scripts/equipment/provenance-path.ts outage
 "${compose[@]}" exec -T onesa-telemetry-database psql -U postgres -d telemetry_onesa_test -c 'select count(*) as persisted,count(*) filter(where "DashboardForwardedAt" is null) as pending,max("DeliveryAttempts") as attempts from "TelemetryRecords";'

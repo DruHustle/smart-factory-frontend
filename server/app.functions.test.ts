@@ -21,24 +21,27 @@ let testAdminId = 0;
 function createContext(opts?: {
   authenticated?: boolean;
   role?: "user" | "viewer" | "operator" | "engineer" | "admin";
-}): { ctx: TrpcContext; cookieCalls: CookieCall[]; clearedCookies: CookieCall[] } {
+}): {
+  ctx: TrpcContext;
+  cookieCalls: CookieCall[];
+  clearedCookies: CookieCall[];
+} {
   const cookieCalls: CookieCall[] = [];
   const clearedCookies: CookieCall[] = [];
 
-  const user =
-    opts?.authenticated
-      ? {
-          id: testAdminId,
-          openId: "test-admin",
-          email: "admin@test.local",
-          name: "Test Admin",
-          loginMethod: "password",
-          role: opts.role ?? "admin",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          lastSignedIn: new Date(),
-        }
-      : null;
+  const user = opts?.authenticated
+    ? {
+        id: testAdminId,
+        openId: "test-admin",
+        email: "admin@test.local",
+        name: "Test Admin",
+        loginMethod: "password",
+        role: opts.role ?? "admin",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastSignedIn: new Date(),
+      }
+    : null;
 
   const ctx: TrpcContext = {
     user,
@@ -47,7 +50,11 @@ function createContext(opts?: {
       headers: {},
     } as TrpcContext["req"],
     res: {
-      cookie: (name: string, value: string, options: Record<string, unknown>) => {
+      cookie: (
+        name: string,
+        value: string,
+        options: Record<string, unknown>,
+      ) => {
         cookieCalls.push({ name, value, options });
       },
       clearCookie: (name: string, options: Record<string, unknown>) => {
@@ -68,7 +75,12 @@ let testAlertId = 0;
 databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
   beforeAll(async () => {
     const unique = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-    const admin = await db.createUser({ openId: `test-admin-${unique}`, email: `admin-${unique}@test.local`, name: "Test Admin", role: "admin" });
+    const admin = await db.createUser({
+      openId: `test-admin-${unique}`,
+      email: `admin-${unique}@test.local`,
+      name: "Test Admin",
+      role: "admin",
+    });
     testAdminId = admin!.id;
     const { ctx } = createContext({ authenticated: true, role: "admin" });
     const caller = appRouter.createCaller(ctx);
@@ -78,12 +90,15 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
       deviceId: testDeviceExternalId,
       name: "E2E Device",
       status: "online",
+      route:"direct",freshnessSeconds:120,
       location: "Factory A",
       zone: "Zone A",
     });
     testDeviceId = createdDevice.id;
 
-    await caller.readings.create({
+    // Read/report coverage uses an explicit isolated fixture; the public manual
+    // mutation is retired and has its own negative boundary regression.
+    await db.createSensorReading({
       deviceId: createdDevice.id,
       temperature: 33,
       timestamp: Date.now(),
@@ -117,11 +132,7 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     const health = await caller.system.health({ timestamp: Date.now() });
     expect(health.ok).toBe(true);
 
-    const notified = await caller.system.notifyOwner({
-      title: "Test",
-      content: "System coverage check",
-    });
-    expect(notified.success).toBe(true);
+    await expect(caller.system.notifyOwner({title:"Test",content:"System coverage check"})).rejects.toMatchObject({code:"PRECONDITION_FAILED"});
   });
 
   it("covers auth register/login/me/logout", async () => {
@@ -170,7 +181,10 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     const device = await caller.devices.getById({ id: testDeviceId });
     expect(device?.id).toBe(testDeviceId);
 
-    const updated = await caller.devices.update({ id: testDeviceId, status: "maintenance" });
+    const updated = await caller.devices.update({
+      id: testDeviceId,
+      status: "maintenance",
+    });
     expect(updated?.status).toBe("maintenance");
 
     const thresholds = await caller.thresholds.upsertForDevice({
@@ -179,6 +193,7 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
         {
           deviceId: testDeviceId,
           metric: "temperature",
+          unit: "°C",
           minValue: 10,
           maxValue: 60,
           warningMin: 15,
@@ -189,7 +204,18 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     });
     expect(thresholds.length).toBeGreaterThan(0);
 
-    await db.ingestTelemetryByDeviceId({ deviceId: testDeviceExternalId, temperature: 70, timestamp: Date.now() });
+    await db.ingestTelemetryByDeviceId({
+      deviceId: testDeviceExternalId,
+      temperature: 70,
+      units: { temperature: "°C" },
+      integration: {
+        mode: "live",
+        sourceQuality: "good",
+        sourceConnection: "online",
+        gatewayReceivedAt: new Date().toISOString(),
+      },
+      timestamp: Date.now(),
+    });
 
     const readings = await caller.readings.getForDevice({
       deviceId: testDeviceId,
@@ -210,17 +236,25 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     expect(alertStatusUpdated?.severity).toBe("critical");
     expect(alertStatusUpdated?.errorCode).toBe("SF-THR-TEMP-CRIT");
 
-    const downtimeStarted = await caller.alerts.startDowntime({ id: testAlertId });
+    const downtimeStarted = await caller.alerts.startDowntime({
+      id: testAlertId,
+    });
     expect(downtimeStarted?.downtimeStartedAt).toBeInstanceOf(Date);
     const updatedAlert = await caller.alerts.resolve({ id: testAlertId });
     expect(updatedAlert?.status).toBe("resolved");
 
-    await expect(caller.ota.deploy({
-      deviceId: testDeviceId,
-      firmwareVersionId: testFirmwareId,
-    })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
-    await expect(caller.ota.rollback({ deploymentId: 999999 })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
-    expect(await db.getOtaDeployments()).toHaveLength(existingOtaDeploymentCount);
+    await expect(
+      caller.ota.deploy({
+        deviceId: testDeviceId,
+        firmwareVersionId: testFirmwareId,
+      }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    await expect(
+      caller.ota.rollback({ deploymentId: 999999 }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    expect(await db.getOtaDeployments()).toHaveLength(
+      existingOtaDeploymentCount,
+    );
   });
 
   it("covers analytics/export/firmware/notifications/groups procedures", async () => {
@@ -230,7 +264,9 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     const overview = await caller.analytics.getOverview();
     expect(overview.devices.total).toBeGreaterThanOrEqual(0);
     expect(overview.alerts.resolvedDowntimeCount).toBeGreaterThan(0);
-    expect(overview.alerts.averageDowntimeToResolutionSeconds).toBeGreaterThanOrEqual(0);
+    expect(
+      overview.alerts.averageDowntimeToResolutionSeconds,
+    ).toBeGreaterThanOrEqual(0);
 
     const startTime = Date.now() - 1000 * 60 * 60 * 24;
     const endTime = Date.now();
@@ -238,7 +274,10 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     const energy = await caller.analytics.getEnergy({ startTime, endTime });
     expect(Array.isArray(energy)).toBe(true);
 
-    const energyConsumption = await caller.analytics.getEnergyConsumption({ startTime, endTime });
+    const energyConsumption = await caller.analytics.getEnergyConsumption({
+      startTime,
+      endTime,
+    });
     expect(Array.isArray(energyConsumption)).toBe(true);
 
     const assetTelemetryInput = {
@@ -247,7 +286,8 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
       endTime,
       intervalMs: 60_000,
     };
-    const assetTelemetry = await caller.analytics.getAssetTelemetry(assetTelemetryInput);
+    const assetTelemetry =
+      await caller.analytics.getAssetTelemetry(assetTelemetryInput);
     expect(Array.isArray(assetTelemetry.assets)).toBe(true);
     expect(Array.isArray(assetTelemetry.timeline)).toBe(true);
     expect(assetTelemetry.overall).toHaveProperty("peakVibration");
@@ -263,13 +303,21 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     const firmwareList = await caller.firmware.list({ deviceType: "sensor" });
     expect(Array.isArray(firmwareList)).toBe(true);
 
-    const deploys = await caller.ota.list({ deviceId: testDeviceId, limit: 10 });
+    const deploys = await caller.ota.list({
+      deviceId: testDeviceId,
+      limit: 10,
+    });
     expect(deploys).toHaveLength(existingOtaDeploymentCount);
 
-    const deviceReport = await caller.export.deviceReport({ deviceId: testDeviceId, startTime, endTime });
+    const deviceReport = await caller.export.deviceReport({
+      deviceId: testDeviceId,
+      startTime,
+      endTime,
+    });
     expect(deviceReport.filename).toContain("device-report-");
 
-    const analyticsReport = await caller.export.analyticsReport(assetTelemetryInput);
+    const analyticsReport =
+      await caller.export.analyticsReport(assetTelemetryInput);
     expect(analyticsReport.filename).toContain("analytics-report-");
 
     const alertHistory = await caller.export.alertHistoryReport({
@@ -284,12 +332,13 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     const configs = await caller.notifications.getConfigs();
     expect(Array.isArray(configs)).toBe(true);
 
-    await expect(caller.notifications.updateConfig({
-      configId: "missing-config",
-      enabled: true,
-      recipient: "owner@test.local",
-    })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
-
+    await expect(
+      caller.notifications.updateConfig({
+        configId: "missing-config",
+        enabled: true,
+        recipient: "owner@test.local",
+      }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
   });
 
   it("covers auth helper functions", async () => {

@@ -3,7 +3,7 @@ import type express from "express";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { sdk } from "../_core/sdk";
-import { isDemoAccount } from "../../shared/demo-accounts";
+import { demonstrationOnly } from "../../shared/access-policy";
 export const ARTIFACT_FILES = [
   "equipment.json",
   "mappings.json",
@@ -24,8 +24,7 @@ export function installArtifactRoutes(app: express.Express) {
     }
     if (
       !["engineer", "admin"].includes(user.role) ||
-      isDemoAccount(user.email ?? "") ||
-      user.openId.startsWith("demo-")
+      demonstrationOnly(user)
     )
       return res
         .status(403)

@@ -2,7 +2,7 @@
 """Acceptance checks for the real six-process image with disposable dependencies."""
 from pathlib import Path
 from http.cookiejar import CookieJar
-import json, os, subprocess, time, urllib.request, urllib.error, urllib.parse
+import json, os, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ['docker', 'compose', '--env-file', '/dev/null', '-p', 'smart-factory-bundle-test', '-f', str(ROOT / 'docker-compose.bundle-test.yml')]
@@ -72,7 +72,10 @@ try:
     admin,admin_id=accounts['admin']; engineer,engineer_id=accounts['engineer']; viewer,viewer_id=accounts['viewer']
     assert trpc(viewer,'system.demoData',query=True)['enabled'] is False
     status,_=http(viewer,'/api/trpc/system.setDemoData',{'enabled':True}); assert status==403
+    sql("INSERT INTO assets(\"assetId\",name,\"assetType\",\"aasShell\",\"isDemo\") VALUES('urn:bundle:demo','Explicit bundle simulation','motor','{}'::json,true)")
+    count_before=sql('SELECT count(*) FROM assets')
     assert trpc(admin,'system.setDemoData',{'enabled':True})['enabled'] is True
+    assert sql('SELECT count(*) FROM assets')==count_before
     assert any(asset['isDemo'] for asset in trpc(viewer,'assets.list',query=True))
     assert trpc(admin,'system.setDemoData',{'enabled':False})['enabled'] is False
     assert not any(asset['isDemo'] for asset in trpc(viewer,'assets.list',query=True))
@@ -96,8 +99,11 @@ try:
     run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','restart','notification'])
     assert len(trpc(engineer,'notifications.list',query=True)) == 2
     print('PASS: incidents and account creation queue distinct durable email; inbox ownership is enforced; unconfigured delivery is explicit after restart.')
-    sql(f'''INSERT INTO sensor_readings ("deviceId","assetId",temperature,power,timestamp) VALUES ({device['id']},'urn:bundle:motor',10,NULL,1000),({device['id']},'urn:bundle:motor',NULL,80,2000),({device['id']},'urn:bundle:motor',30,100,5000)''')
-    coverage=trpc(engineer,'analytics.getCoverage',{'assetIds':['urn:bundle:motor'],'startTime':1,'endTime':6000,'intervalMs':60000},query=True)['assets'][0]
+    sql("INSERT INTO assets(\"assetId\",name,\"assetType\",\"aasShell\") VALUES('urn:bundle:motor','Synthetic bundle motor','motor','{}'::json)")
+    for stamp, temperature, power in [(1000,10,None),(2000,None,80),(5000,30,100)]:
+        measurements={metric:{'canonicalUnit':unit,'conversionVersion':'sf-units-v1','quality':'good','canonicalValue':value} for metric,unit,value in [('temperature','°C',temperature),('power','W',power)] if value is not None}
+        sql(f"INSERT INTO sensor_readings (\"deviceId\",\"assetId\",temperature,power,timestamp,integration,measurements) VALUES ({device['id']},'urn:bundle:motor',{temperature if temperature is not None else 'NULL'},{power if power is not None else 'NULL'},{stamp},'{{\"mode\":\"live\"}}'::jsonb,'{json.dumps(measurements)}'::jsonb)")
+    coverage=trpc(engineer,'analytics.getCoverage',{'assetIds':['urn:bundle:motor'],'startTime':1,'endTime':6000,'intervalMs':60000,'scope':'live'},query=True)['assets'][0]
     assert coverage['samples']==3 and coverage['longestGapMs']==3000
     assert coverage['metrics'][0]['samples']==2 and coverage['metrics'][0]['average']==20
     assert coverage['metrics'][1]['samples']==0 and coverage['metrics'][1]['average'] is None
@@ -119,7 +125,7 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     send(sock,0x10,field('MQTT')+bytes([4,0xc2])+struct.pack('!H',30)+field('bundle-qos-publisher')+field('review')+field('isolated-review-broker'))
     assert sock.recv(4)==bytes([0x20,2,0,0])
     for qos in [0,1]:
-        message=json.dumps({'deviceId':'bundle-qos'+str(qos),'timestamp':int(time.time()*1000),'temperature':42}).encode()
+        message=json.dumps({'deviceId':'bundle-qos'+str(qos),'timestamp':int(time.time()*1000),'temperature':42,'units':{'temperature':'°C'},'integration':{'mode':'live','sourceQuality':'good','sourceConnection':'online','gatewayReceivedAt':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()}}).encode()
         send(sock,0x30 | (qos << 1),field('factory/test/test/bundle-qos'+str(qos)+'/telemetry')+(struct.pack('!H',1) if qos else b'')+message)
         if qos: assert sock.recv(4)==bytes([0x40,2,0,1])
     send(sock,0xe0,b'')
@@ -143,6 +149,12 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
         assert item['route']=='Direct MQTT' and item['status']=='live' and not item['aas'] and item['sampleAt'] is not None
         assert trpc(engineer,'assets.getAllForDevice',{'devicePk':direct['id']},query=True)==[]
     print('PASS: registered standalone sensors traverse real MQTT, .NET durable forwarding and Node inventory without an AAS or gateway.')
+    wait(lambda: (http(plain,'/api/runtime/contract')[1].get('worker') or {}).get('compatible') is True)
+    runtime=http(plain,'/api/runtime/contract')[1]
+    assert runtime['schema']['ready'] is True
+    assert all(isinstance(runtime[key],str) and len(runtime[key])==40 for key in ['source','backendSource','edgeSource'])
+    assert runtime['worker']['fresh'] is True
+    print('PASS: runtime identity, applied schema and fresh compatible singleton worker match the image sources.')
     run(COMPOSE+['stop','database'])
     wait(lambda: http(plain,'/health/ready')[0]==503, timeout=30)
     assert http(plain,'/health/live')[0]==200
@@ -153,6 +165,27 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','start','analytics'])
     wait(lambda: http(plain,'/health/ready')[0]==200)
     print('PASS: database/service failures produce readiness 503 while liveness stays available, and recover.')
+    rollback_evidence=None
+    rollback_image=os.environ.get('BUNDLE_ROLLBACK_IMAGE')
+    if rollback_image:
+        current_image=os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')
+        user=next(u for u in trpc(admin,'users.list',query=True) if u['id']==engineer_id)
+        trpc(admin,'users.setEnabled',{'id':engineer_id,'enabled':False,'expectedVersion':user['accessVersion']})
+        assert http(engineer,'/api/trpc/assets.list')[0]==401
+        for image_reference in [rollback_image,current_image]:
+            os.environ['BUNDLE_IMAGE']=image_reference
+            run(COMPOSE+['up','-d','--no-deps','bundle'])
+            wait(lambda:http(plain,'/health/ready')[0]==200)
+            wait(lambda:(http(plain,'/api/runtime/contract')[1].get('worker') or {}).get('compatible') is True)
+            assert trpc(viewer,'auth.me',query=True)['id']==viewer_id
+            assert http(engineer,'/api/trpc/assets.list')[0]==401
+            assert sql('SELECT count(*) FROM sensor_readings WHERE "assetId" IS NULL')=='2'
+        runtime=http(plain,'/api/runtime/contract')[1]
+        rollback_evidence={'qualifiedPriorImage':rollback_image,'restoredCandidateImage':current_image,'revokedAccountStayedRejected':True,'activeViewerPreserved':True,'telemetryIdentitiesPreserved':True,'schemaCompatible':True}
+        print('PASS: rollback and roll-forward to a compatible hardened image preserve sessions, revocation, schema and telemetry identities.')
+    image=json.loads(run(['docker','image','inspect',os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')],True))[0]
+    output=Path(os.environ.get('QUALIFICATION_EVIDENCE_DIR',str(Path(tempfile.gettempdir())/'factory-arm64-bundle-evidence')));output.mkdir(parents=True,exist_ok=True)
+    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'compatibleRollback':rollback_evidence,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
     completed = True
 finally:
     try:

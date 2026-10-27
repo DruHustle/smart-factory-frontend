@@ -116,7 +116,7 @@ test("public demo engineering identity cannot read private integration configura
   await page.goto("/#/integrations/onesa");
   await expect(
     page.getByText(
-      /Private integration settings require an individual engineering account/,
+      /Use an individual engineering or administrator account on a private installation/,
     ),
   ).toBeVisible();
   const response = await page.request.get(

@@ -1,0 +1,24 @@
+# Disposable software qualification only, bound to loopback; no factory endpoints.
+services:
+  database:
+    image: postgres:16-alpine
+    environment: {POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: smart_factory_trusted_e2e}
+    ports: ["127.0.0.1:55452:5432"]
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, "pg_isready -U postgres -d smart_factory_trusted_e2e"], interval: 2s, timeout: 3s, retries: 20}
+  redis:
+    image: redis:8.2-alpine
+    command: [redis-server, --save, "", --appendonly, "no"]
+    ports: ["127.0.0.1:56402:6379"]
+    healthcheck: {test: [CMD, redis-cli, ping], interval: 2s, timeout: 3s, retries: 20}
+  broker:
+    image: rabbitmq:4.3.6-management
+    environment: {RABBITMQ_DEFAULT_USER: review, RABBITMQ_DEFAULT_PASS: isolated-review-broker}
+    command: [sh, -c, "rabbitmq-plugins enable --offline rabbitmq_mqtt && rabbitmq-server"]
+    ports: ["127.0.0.1:51889:1883"]
+    healthcheck: {test: [CMD, rabbitmq-diagnostics, -q, ping], interval: 3s, timeout: 5s, retries: 40}
+  local-broker:
+    image: eclipse-mosquitto:2.0.22
+    volumes: ["../../fixtures/onesa/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro"]
+    ports: ["127.0.0.1:51888:1883"]
+    healthcheck: {test: [CMD-SHELL, "mosquitto_pub -h 127.0.0.1 -t fixture/health -m ready"], interval: 2s, timeout: 3s, retries: 20}

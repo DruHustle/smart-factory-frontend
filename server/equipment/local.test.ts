@@ -243,6 +243,7 @@ it.skipIf(!process.env.TEST_DATABASE_URL)(
         deviceId: source,
         assetId,
         pressure: 200000,
+        units: { pressure: "Pa" },
         timestamp: Date.now(),
         integration: {
           mode: "simulated",

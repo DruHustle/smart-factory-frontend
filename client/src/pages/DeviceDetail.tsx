@@ -1,3 +1,5 @@
+import { ObservationValues } from "@/components/workspace/ObservationValues";
+import { useDocumentActive } from "@/hooks/useDocumentActive";
 import SecuritySummary from "@/components/SecuritySummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +123,7 @@ export default function DeviceDetail({
   const deviceId = itemId ?? parseInt(params.id ?? "0");
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const documentActive = useDocumentActive();
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined;
@@ -161,7 +164,10 @@ export default function DeviceDetail({
     {
       id: deviceId,
     },
-    { refetchInterval: 10000 },
+    {
+      refetchInterval: documentActive ? 30000 : false,
+      refetchIntervalInBackground: false,
+    },
   );
   const { data: linkedAssets = [] } = trpc.assets.getAllForDevice.useQuery(
     { devicePk: deviceId },
@@ -196,7 +202,8 @@ export default function DeviceDetail({
       enabled:
         !!device &&
         (!embedded || ["telemetry", "diagnostics"].includes(section)),
-      refetchInterval: isWrover ? 1000 : 10000,
+      refetchInterval: documentActive ? 30000 : false,
+      refetchIntervalInBackground: false,
     },
   );
   const {
@@ -209,7 +216,8 @@ export default function DeviceDetail({
     {
       enabled:
         device?.type === "gateway" && (!embedded || section === "connected"),
-      refetchInterval: 10000,
+      refetchInterval: documentActive ? 30000 : false,
+      refetchIntervalInBackground: false,
     },
   );
   const {
@@ -222,7 +230,8 @@ export default function DeviceDetail({
     {
       enabled:
         device?.type === "gateway" && (!embedded || section === "connected"),
-      refetchInterval: 10000,
+      refetchInterval: documentActive ? 30000 : false,
+      refetchIntervalInBackground: false,
     },
   );
   const pulseIndicator = trpc.devices.pulseIndicator.useMutation({
@@ -259,7 +268,13 @@ export default function DeviceDetail({
     typeof device?.metadata?.gatewayId === "string"
       ? device.metadata.gatewayId
       : null;
-  const wroverSensorReadError = device?.metadata?.sensorStatus === "read_error";
+  const wroverSensorReadError =
+    (
+      latestReading?.integration?.acquisition as
+        | { sensorStatus?: string }
+        | undefined
+    )?.sensorStatus === "read_error" ||
+    latestReading?.integration?.sourceQuality === "bad";
   const latestSampleAt = telemetrySampleDate(latestReading?.timestamp);
   const wroverSampleFresh =
     latestSampleAt !== null && Date.now() - latestSampleAt.getTime() <= 120_000;
@@ -379,7 +394,8 @@ export default function DeviceDetail({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {canViewEngineering(user?.role) &&
+              {user?.access?.canEngineer &&
+                !device?.isDemo &&
                 linkedAssets.map((a) => (
                   <Button
                     key={a.id}
@@ -393,7 +409,7 @@ export default function DeviceDetail({
                     {a.name} · AAS
                   </Button>
                 ))}
-              {canViewEngineering(user?.role) && (
+              {user?.access?.canEngineer && !device?.isDemo && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -597,7 +613,12 @@ export default function DeviceDetail({
                       ? child.metadata.sensorType.trim()
                       : null;
                   const hasReadError =
-                    child.metadata?.sensorStatus === "read_error";
+                    child.latestReading?.integration?.sourceQuality === "bad" ||
+                    (
+                      child.latestReading?.integration?.acquisition as
+                        | { sensorStatus?: string }
+                        | undefined
+                    )?.sensorStatus === "read_error";
                   return (
                     <button
                       aria-label={`Open ${child.name} details`}
@@ -627,31 +648,8 @@ export default function DeviceDetail({
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div className="rounded-md bg-muted/50 p-3">
-                          <p className="text-xs text-muted-foreground">
-                            {sensorType
-                              ? `${sensorType} temperature`
-                              : "Temperature"}
-                          </p>
-                          <p className="text-xl font-bold">
-                            {child.latestReading?.temperature != null
-                              ? `${child.latestReading.temperature.toFixed(1)}°C`
-                              : "—"}
-                          </p>
-                        </div>
-                        <div className="rounded-md bg-muted/50 p-3">
-                          <p className="text-xs text-muted-foreground">
-                            {sensorType
-                              ? `${sensorType} relative humidity`
-                              : "Relative humidity"}
-                          </p>
-                          <p className="text-xl font-bold">
-                            {child.latestReading?.humidity != null
-                              ? `${child.latestReading.humidity.toFixed(1)}%`
-                              : "—"}
-                          </p>
-                        </div>
+                      <div className="mt-3">
+                        <ObservationValues reading={child.latestReading} />
                       </div>
                       {hasReadError && (
                         <p
@@ -704,7 +702,7 @@ export default function DeviceDetail({
                       </p>
                     </div>
                   </div>
-                  {hasMinimumRole(user?.role, "operator") && (
+                  {user?.access?.canOperate && !device?.isDemo && (
                     <Button
                       size="sm"
                       disabled={
@@ -826,9 +824,10 @@ export default function DeviceDetail({
             {device.isDemo
               ? "Simulated device data"
               : `Latest evidence mode: ${String(latestReading?.integration?.mode ?? "unknown")}`}{" "}
-            · Historical charts include live and unclassified legacy samples;
-            explicit simulation and replay remain in their separate observation
-            streams. Past values do not prove current connectivity.
+            · Operational history includes explicit live and reviewed future
+            legacy samples; explicit simulation and replay remain in their
+            separate observation streams. Past values do not prove current
+            connectivity.
           </p>
           {/* Historical Data */}
           <Card>
@@ -1133,7 +1132,8 @@ export default function DeviceDetail({
                         <dd className="text-sm">
                           {t.enabled ? (
                             <span>
-                              {t.minValue ?? "—"} - {t.maxValue ?? "—"}
+                              {t.minValue ?? "—"} - {t.maxValue ?? "—"}{" "}
+                              {t.unit ?? "unit unverified · review required"}
                             </span>
                           ) : (
                             <span className="text-muted-foreground">
@@ -1149,7 +1149,7 @@ export default function DeviceDetail({
                     No thresholds configured
                   </p>
                 )}
-                {canViewEngineering(user?.role) && (
+                {user?.access?.canEngineer && !device?.isDemo && (
                   <Button
                     variant="outline"
                     className="w-full mt-4"
@@ -1181,7 +1181,7 @@ export default function DeviceDetail({
         </section>
       )}
       {/* Threshold Dialog */}
-      {canViewEngineering(user?.role) && (
+      {user?.access?.canEngineer && !device?.isDemo && (
         <ThresholdConfigDialog
           deviceId={deviceId}
           open={thresholdDialogOpen}

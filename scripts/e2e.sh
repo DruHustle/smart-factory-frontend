@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-compose=(docker compose -p "${E2E_COMPOSE_PROJECT:-smart-factory-iot-e2e}" -f docker-compose.e2e.yml)
+cd "$(dirname "$0")/.."
+export DOTENV_CONFIG_PATH=/dev/null
+unset ONESA_ENABLED ONESA_SERVICE_TOKEN ONESA_INGESTION_URL
+compose=(docker compose --env-file /dev/null -p "${E2E_COMPOSE_PROJECT:-smart-factory-iot-e2e}" -f docker-compose.e2e.yml)
 mock_aas_pid=""
 cleanup() {
   if [[ -n "$mock_aas_pid" ]]; then
@@ -24,7 +27,7 @@ export JWT_SECRET="local-e2e-only-secret-that-is-at-least-32-bytes"
 export NODE_ENV=development
 export BACKEND_DEPLOYMENT_MODE=standalone
 export PORT="${E2E_PORT:-3000}"
-export ENABLE_DEMO_ACCOUNTS="${ENABLE_DEMO_ACCOUNTS:-true}"
+export ENABLE_DEMO_ACCOUNTS=false
 export ENABLE_DEMO_DATA="${ENABLE_DEMO_DATA:-true}"
 export ASSISTANT_PROVIDER=disabled
 export ASSISTANT_GEMINI_API_KEY=
@@ -43,7 +46,11 @@ node scripts/e2e-aas-upstream.mjs &
 mock_aas_pid=$!
 
 pnpm exec drizzle-kit migrate
-pnpm test --maxWorkers="${E2E_TEST_WORKERS:-1}"
+if [[ "${E2E_SKIP_UNIT_TESTS:-false}" != "true" ]]; then pnpm test --maxWorkers="${E2E_TEST_WORKERS:-1}"; fi
+node --import tsx scripts/security/seed-test-accounts.ts
+node --import tsx scripts/e2e-seed.ts
+node --import tsx scripts/workspace/seed.ts
+SHOWCASE_SEED=true node --import tsx scripts/showcase/seed.ts
 
 if [[ "${E2E_HEADED:-0}" == "1" ]]; then
   pnpm exec playwright test --headed "$@"

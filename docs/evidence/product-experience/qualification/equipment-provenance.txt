@@ -1,0 +1,1 @@
+{"verification":"actual Smart Factory edge durable publisher / Mosquitto / .NET 10 / authenticated Node; optional peer export disabled","sourceModes":[{"mode":"replay","count":10,"assets":2,"canonical":true},{"mode":"simulated","count":10,"assets":2,"canonical":true}],"sourceSamples":20,"physicalEquipment":false}

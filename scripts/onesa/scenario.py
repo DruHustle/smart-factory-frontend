@@ -38,6 +38,7 @@ def main():
     at=base+index*1000;received=at+(120000 if scenario=='stale' else 0)
     stamp=lambda value:datetime.fromtimestamp(value/1000,timezone.utc).isoformat().replace('+00:00','Z')
     p={'deviceId':settings.device_id,'assetId':r['externalAssetId'],'timestamp':at,'temperature':temp,'pressure':pressure,'vibration':vibration,'rpm':1450. if online else None,
+     'units':{'temperature':'°C','pressure':'bar','vibration':'mm/s','rpm':'rpm'},
      'integration':{'mode':mode,'scenarioRunId':run if mode=='simulated' else 'source-simulated-run','sessionId':run,'sequence':index,'sourceQuality':'good' if online else 'unknown','sourceConnection':'online' if online else 'offline','timestampOrigin':'device','retained':scenario=='stale','gatewayReceivedAt':stamp(received)}}
     if mode=='replay':p['integration']['replayRunId']=run
     if scenario in ('threshold','recovery'):p['integration']['sourceEvents']=[{'id':run+':bearing-temperature','origin':'source','code':'simulated-bearing-temperature','state':'active' if scenario=='threshold' else 'cleared','componentId':r['components'][2]['componentId']}]
