@@ -1,0 +1,187 @@
+{
+  "revision": "smart-factory-illustrative-conveyor-1",
+  "sha256": "3127dcbe4ef8b0390303ca83aba74c60dfbac2bd630ae5e9503f093618dda564",
+  "bytes": 244956,
+  "components": 33,
+  "triangles": 7318,
+  "solids": [
+    {
+      "name": "Rear chassis rail",
+      "positiveVolumeCubicMetres": 0.01782000000000001,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Front chassis rail",
+      "positiveVolumeCubicMetres": 0.01782000000000001,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Left rear leg",
+      "positiveVolumeCubicMetres": 0.002177999999999997,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Left rear adjustable foot",
+      "positiveVolumeCubicMetres": 0.00019735772109475528,
+      "triangles": 316,
+      "manifold": true
+    },
+    {
+      "name": "Left front leg",
+      "positiveVolumeCubicMetres": 0.002177999999999997,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Left front adjustable foot",
+      "positiveVolumeCubicMetres": 0.00019735772109475525,
+      "triangles": 316,
+      "manifold": true
+    },
+    {
+      "name": "Right rear leg",
+      "positiveVolumeCubicMetres": 0.0021779999999999976,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Right rear adjustable foot",
+      "positiveVolumeCubicMetres": 0.00019735772109475528,
+      "triangles": 316,
+      "manifold": true
+    },
+    {
+      "name": "Right front leg",
+      "positiveVolumeCubicMetres": 0.002177999999999997,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Right front adjustable foot",
+      "positiveVolumeCubicMetres": 0.00019735772109475525,
+      "triangles": 316,
+      "manifold": true
+    },
+    {
+      "name": "Frame cross braces",
+      "positiveVolumeCubicMetres": 0.0028709999999999964,
+      "triangles": 24,
+      "manifold": true
+    },
+    {
+      "name": "Upper frame crossmembers",
+      "positiveVolumeCubicMetres": 0.0042349999999999905,
+      "triangles": 24,
+      "manifold": true
+    },
+    {
+      "name": "Continuous rubber belt",
+      "positiveVolumeCubicMetres": 0.024705324496252318,
+      "triangles": 336,
+      "manifold": true
+    },
+    {
+      "name": "Drive drum",
+      "positiveVolumeCubicMetres": 0.010088521224230509,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Drive bearing pair",
+      "positiveVolumeCubicMetres": 0.0003958389515742173,
+      "triangles": 768,
+      "manifold": true
+    },
+    {
+      "name": "Tension drum",
+      "positiveVolumeCubicMetres": 0.010088521224230509,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Tension bearing pair",
+      "positiveVolumeCubicMetres": 0.0003958389515742172,
+      "triangles": 768,
+      "manifold": true
+    },
+    {
+      "name": "Support roller 1",
+      "positiveVolumeCubicMetres": 0.0011183513691510156,
+      "triangles": 124,
+      "manifold": true
+    },
+    {
+      "name": "Support roller 2",
+      "positiveVolumeCubicMetres": 0.0011183513691510154,
+      "triangles": 124,
+      "manifold": true
+    },
+    {
+      "name": "Support roller 3",
+      "positiveVolumeCubicMetres": 0.0011183513691510152,
+      "triangles": 124,
+      "manifold": true
+    },
+    {
+      "name": "Support roller 4",
+      "positiveVolumeCubicMetres": 0.001118351369151015,
+      "triangles": 124,
+      "manifold": true
+    },
+    {
+      "name": "Support roller 5",
+      "positiveVolumeCubicMetres": 0.0011183513691510152,
+      "triangles": 124,
+      "manifold": true
+    },
+    {
+      "name": "Support roller 6",
+      "positiveVolumeCubicMetres": 0.0011183513691510154,
+      "triangles": 124,
+      "manifold": true
+    },
+    {
+      "name": "Support roller 7",
+      "positiveVolumeCubicMetres": 0.0011183513691510154,
+      "triangles": 124,
+      "manifold": true
+    },
+    {
+      "name": "Motor finned housing",
+      "positiveVolumeCubicMetres": 0.004561261654349481,
+      "triangles": 2460,
+      "manifold": true
+    },
+    {
+      "name": "Reducer casing",
+      "positiveVolumeCubicMetres": 0.0024999339173709108,
+      "triangles": 98,
+      "manifold": true
+    },
+    {
+      "name": "Motor shaft",
+      "positiveVolumeCubicMetres": 0.00018396693088731212,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Motor rotor",
+      "positiveVolumeCubicMetres": 0.0009010625186317296,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Drive guard",
+      "positiveVolumeCubicMetres": 0.0026249999999999906,
+      "triangles": 12,
+      "manifold": true
+    }
+  ],
+  "limitations": [
+    "Illustrative construction and proportions, not manufacturing CAD.",
+    "No live state, connectivity, motion or component readings are asserted."
+  ]
+}

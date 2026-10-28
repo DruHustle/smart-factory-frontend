@@ -7,9 +7,40 @@ import { sdk } from "../_core/sdk";
 import { modelIdentity, template, modelBytes } from "./local";
 import { importModel } from "./packages";
 import { demonstrationOnly } from "../../shared/access-policy";
+import { referenceModels } from "../../shared/factory-models";
 const root = new URL("../../fixtures/equipment/", import.meta.url);
 let uploads = 0;
 export function installEquipmentFiles(app: express.Express) {
+  app.get("/api/equipment/reference/:slug/model", async (req, res) => {
+    let user;
+    try {
+      user = await sdk.authenticateRequest(req);
+    } catch {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    if (user.passwordChangeRequired)
+      return res.status(403).json({
+        error: "Change your temporary password before opening factory files",
+      });
+    const descriptor = referenceModels.find(
+      (model) => model.slug === req.params.slug,
+    );
+    if (
+      !descriptor ||
+      (req.query.revision && req.query.revision !== descriptor.revision)
+    )
+      return res.status(404).json({ error: "Reference model unavailable" });
+    try {
+      const bytes = await modelBytes(descriptor.revision);
+      return res
+        .setHeader("Cache-Control", "private, no-store")
+        .setHeader("X-Content-Type-Options", "nosniff")
+        .type("model/gltf-binary")
+        .send(bytes);
+    } catch {
+      return res.status(404).json({ error: "Reference model unavailable" });
+    }
+  });
   app.post("/api/equipment/model-import", async (req, res) => {
     let user;
     try {

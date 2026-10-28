@@ -1,0 +1,91 @@
+{
+  "revision": "smart-factory-illustrative-valve-1",
+  "sha256": "d8af7eab9c46c06009def46d7acee6c275133b834e12add928d454b023be7780",
+  "bytes": 306036,
+  "components": 16,
+  "triangles": 10460,
+  "solids": [
+    {
+      "name": "Valve body shell",
+      "positiveVolumeCubicMetres": 0.022117012984514222,
+      "triangles": 2432,
+      "manifold": true
+    },
+    {
+      "name": "Inlet bolted flange",
+      "positiveVolumeCubicMetres": 0.003484211861101421,
+      "triangles": 1184,
+      "manifold": true
+    },
+    {
+      "name": "Inlet flange fasteners",
+      "positiveVolumeCubicMetres": 5.368226268511205e-05,
+      "triangles": 1120,
+      "manifold": true
+    },
+    {
+      "name": "Inlet elastomer seat",
+      "positiveVolumeCubicMetres": 0.0005469569558789045,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Outlet bolted flange",
+      "positiveVolumeCubicMetres": 0.003484211861101421,
+      "triangles": 1184,
+      "manifold": true
+    },
+    {
+      "name": "Outlet flange fasteners",
+      "positiveVolumeCubicMetres": 5.368226268511205e-05,
+      "triangles": 1120,
+      "manifold": true
+    },
+    {
+      "name": "Outlet elastomer seat",
+      "positiveVolumeCubicMetres": 0.0005469569558789046,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Bored stainless ball",
+      "positiveVolumeCubicMetres": 0.00542810889611878,
+      "triangles": 1248,
+      "manifold": true
+    },
+    {
+      "name": "Valve spindle",
+      "positiveVolumeCubicMetres": 0.0007174710304605148,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Packing gland",
+      "positiveVolumeCubicMetres": 0.0005964524879687483,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Actuator gearbox housing",
+      "positiveVolumeCubicMetres": 0.004712012574273815,
+      "triangles": 100,
+      "manifold": true
+    },
+    {
+      "name": "Handwheel and spokes",
+      "positiveVolumeCubicMetres": 0.0011591277657063794,
+      "triangles": 740,
+      "manifold": true
+    },
+    {
+      "name": "Mounting saddles",
+      "positiveVolumeCubicMetres": 0.006299999999999999,
+      "triangles": 24,
+      "manifold": true
+    }
+  ],
+  "limitations": [
+    "Illustrative construction and proportions, not manufacturing CAD.",
+    "No live state, connectivity, motion or component readings are asserted."
+  ]
+}

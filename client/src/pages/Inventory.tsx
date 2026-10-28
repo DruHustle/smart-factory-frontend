@@ -1,5 +1,6 @@
 import { currentSample } from "@shared/measurements";
 import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
+import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
   metrics,
@@ -44,6 +45,7 @@ import {
   Search,
   SlidersHorizontal,
   X,
+  Box,
 } from "lucide-react";
 import CreateDeviceDialog from "@/components/CreateDeviceDialog";
 import { CreateAssetDialog } from "@/components/CreateAssetDialog";
@@ -187,23 +189,37 @@ export default function Inventory() {
         title="Assets & devices"
         description="Find equipment, inspect observations and open the right workspace."
         action={
-          user?.access?.canEngineer && (
-            <>
-              <Button
-                variant="outline"
-                aria-label="Export AutomationML"
-                onClick={() =>
-                  window.location.assign("/api/assets/export/automationml")
+          <>
+            <Button asChild variant="outline">
+              <Link
+                href="/models"
+                onPointerEnter={() =>
+                  void loadEquipmentRenderer().catch(() => {})
                 }
+                onFocus={() => void loadEquipmentRenderer().catch(() => {})}
               >
-                Export AutomationML
-              </Button>
-              <Button onClick={() => setAdd(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add item
-              </Button>
-            </>
-          )
+                <Box className="mr-2 size-4" />
+                Factory models
+              </Link>
+            </Button>
+            {user?.access?.canEngineer && (
+              <>
+                <Button
+                  variant="outline"
+                  aria-label="Export AutomationML"
+                  onClick={() =>
+                    window.location.assign("/api/assets/export/automationml")
+                  }
+                >
+                  Export AutomationML
+                </Button>
+                <Button onClick={() => setAdd(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add item
+                </Button>
+              </>
+            )}
+          </>
         }
       />
       <SectionNav

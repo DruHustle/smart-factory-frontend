@@ -20,6 +20,7 @@ const Inventory = lazy(() => import("./pages/Inventory"));
 const ItemWorkspace = lazy(() => import("./pages/ItemWorkspace"));
 const Cybersecurity = lazy(() => import("./pages/Cybersecurity"));
 const EquipmentView = lazy(() => import("./pages/EquipmentView"));
+const FactoryModels = lazy(() => import("./pages/FactoryModels"));
 const OnesaIntegration = lazy(() => import("./pages/OnesaIntegration"));
 const Demonstration = lazy(() => import("./pages/Demonstration"));
 const Home = lazy(() => import("./pages/Home"));
@@ -165,6 +166,7 @@ function AppRouter() {
                   <Route path="/equipment">
                     <EquipmentView />
                   </Route>
+                  <Route path="/models" component={FactoryModels} />
                   <Route path="/assets">
                     <Redirect to="/inventory?view=assets" />
                   </Route>

@@ -1,0 +1,533 @@
+{
+  "revision": "smart-factory-illustrative-valve-1",
+  "name": "Flanged ball valve \u00b7 illustrative",
+  "assetType": "valve",
+  "assetTypeId": "urn:smart-factory:type:valve-illustrative",
+  "status": "Original illustrative reference; not manufacturer CAD or an installed-asset attestation",
+  "sha256": "d8af7eab9c46c06009def46d7acee6c275133b834e12add928d454b023be7780",
+  "units": "m",
+  "handedness": "right",
+  "upAxis": "+Y",
+  "components": [
+    {
+      "templateComponentId": "077e27da-d367-500d-a5eb-9d3ed5ba7b9b",
+      "name": "Flanged ball valve",
+      "nodeIndex": 0,
+      "nodePath": "/Flanged_ball_valve",
+      "parentTemplateComponentId": null,
+      "designation": "REF-VALVE-000",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "ca2b5e02-f378-5fa6-a14a-0a441d98c728",
+      "name": "Pressure body",
+      "nodeIndex": 1,
+      "nodePath": "/Flanged_ball_valve/Pressure_body",
+      "parentTemplateComponentId": "077e27da-d367-500d-a5eb-9d3ed5ba7b9b",
+      "designation": "REF-VALVE-001",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2f378f6e-179f-5284-b260-8e5c3cee96a7",
+      "name": "Valve body shell",
+      "nodeIndex": 2,
+      "nodePath": "/Flanged_ball_valve/Pressure_body/Valve_body_shell",
+      "parentTemplateComponentId": "ca2b5e02-f378-5fa6-a14a-0a441d98c728",
+      "designation": "REF-VALVE-002",
+      "quantity": 1,
+      "material": "Industrial blue enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.28
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c2cb9d67-4ba7-5c78-b054-86e517489871",
+      "name": "Inlet bolted flange",
+      "nodeIndex": 3,
+      "nodePath": "/Flanged_ball_valve/Pressure_body/Inlet_bolted_flange",
+      "parentTemplateComponentId": "ca2b5e02-f378-5fa6-a14a-0a441d98c728",
+      "designation": "REF-VALVE-003",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.16,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "4d90d780-3a20-5095-9403-7a7bd9bb5392",
+      "name": "Inlet flange fasteners",
+      "nodeIndex": 4,
+      "nodePath": "/Flanged_ball_valve/Pressure_body/Inlet_flange_fasteners",
+      "parentTemplateComponentId": "ca2b5e02-f378-5fa6-a14a-0a441d98c728",
+      "designation": "REF-VALVE-004",
+      "quantity": 8,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.22,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "cb36a5af-031e-5154-8329-9845e2adb514",
+      "name": "Inlet elastomer seat",
+      "nodeIndex": 5,
+      "nodePath": "/Flanged_ball_valve/Pressure_body/Inlet_elastomer_seat",
+      "parentTemplateComponentId": "ca2b5e02-f378-5fa6-a14a-0a441d98c728",
+      "designation": "REF-VALVE-005",
+      "quantity": 1,
+      "material": "Rubber",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.1,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2524abda-0c7f-57ed-a635-3b012ad1198a",
+      "name": "Outlet bolted flange",
+      "nodeIndex": 6,
+      "nodePath": "/Flanged_ball_valve/Pressure_body/Outlet_bolted_flange",
+      "parentTemplateComponentId": "ca2b5e02-f378-5fa6-a14a-0a441d98c728",
+      "designation": "REF-VALVE-006",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.16,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "73c29e26-e223-5e45-bd3a-7107cd7797a0",
+      "name": "Outlet flange fasteners",
+      "nodeIndex": 7,
+      "nodePath": "/Flanged_ball_valve/Pressure_body/Outlet_flange_fasteners",
+      "parentTemplateComponentId": "ca2b5e02-f378-5fa6-a14a-0a441d98c728",
+      "designation": "REF-VALVE-007",
+      "quantity": 8,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.22,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5d53804a-cdb9-5aaa-a578-41a9c514173b",
+      "name": "Outlet elastomer seat",
+      "nodeIndex": 8,
+      "nodePath": "/Flanged_ball_valve/Pressure_body/Outlet_elastomer_seat",
+      "parentTemplateComponentId": "ca2b5e02-f378-5fa6-a14a-0a441d98c728",
+      "designation": "REF-VALVE-008",
+      "quantity": 1,
+      "material": "Rubber",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.1,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3e580b34-f8dd-5a22-915c-818a26c1b400",
+      "name": "Bored stainless ball",
+      "nodeIndex": 9,
+      "nodePath": "/Flanged_ball_valve/Pressure_body/Bored_stainless_ball",
+      "parentTemplateComponentId": "ca2b5e02-f378-5fa6-a14a-0a441d98c728",
+      "designation": "REF-VALVE-009",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.15,
+          0.14
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "03f0f214-f6d5-51c6-bd99-c0fbc518bef6",
+      "name": "Handwheel actuator",
+      "nodeIndex": 10,
+      "nodePath": "/Flanged_ball_valve/Handwheel_actuator",
+      "parentTemplateComponentId": "077e27da-d367-500d-a5eb-9d3ed5ba7b9b",
+      "designation": "REF-VALVE-010",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.24,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5ce2593a-1909-5384-841d-f035719868cb",
+      "name": "Valve spindle",
+      "nodeIndex": 11,
+      "nodePath": "/Flanged_ball_valve/Handwheel_actuator/Valve_spindle",
+      "parentTemplateComponentId": "03f0f214-f6d5-51c6-bd99-c0fbc518bef6",
+      "designation": "REF-VALVE-011",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.14,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5438025f-bb48-5334-8e2c-805c52a71a0b",
+      "name": "Packing gland",
+      "nodeIndex": 12,
+      "nodePath": "/Flanged_ball_valve/Handwheel_actuator/Packing_gland",
+      "parentTemplateComponentId": "03f0f214-f6d5-51c6-bd99-c0fbc518bef6",
+      "designation": "REF-VALVE-012",
+      "quantity": 1,
+      "material": "Brass",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.1,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6c4818d7-17cf-5e3a-81a4-c4501f849f28",
+      "name": "Actuator gearbox housing",
+      "nodeIndex": 13,
+      "nodePath": "/Flanged_ball_valve/Handwheel_actuator/Actuator_gearbox_housing",
+      "parentTemplateComponentId": "03f0f214-f6d5-51c6-bd99-c0fbc518bef6",
+      "designation": "REF-VALVE-013",
+      "quantity": 1,
+      "material": "Industrial blue enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.16,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "1effcbfd-7038-525e-bb1c-132852e255be",
+      "name": "Handwheel and spokes",
+      "nodeIndex": 14,
+      "nodePath": "/Flanged_ball_valve/Handwheel_actuator/Handwheel_and_spokes",
+      "parentTemplateComponentId": "03f0f214-f6d5-51c6-bd99-c0fbc518bef6",
+      "designation": "REF-VALVE-014",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.19,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "648aa668-cda0-5e91-a12e-52fec4ea5a3b",
+      "name": "Mounting saddles",
+      "nodeIndex": 15,
+      "nodePath": "/Flanged_ball_valve/Mounting_saddles",
+      "parentTemplateComponentId": "077e27da-d367-500d-a5eb-9d3ed5ba7b9b",
+      "designation": "REF-VALVE-015",
+      "quantity": 2,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "bindings": [],
+  "maintenanceText": null,
+  "initialViewDirection": [
+    1.4,
+    1,
+    1.7
+  ],
+  "provenance": "Original MIT parametric factory geometry. Illustrative construction; no supplier CAD or external textures."
+}

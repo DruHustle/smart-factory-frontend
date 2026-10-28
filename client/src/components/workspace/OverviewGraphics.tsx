@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, SampleTime, StatusBadge } from "./Primitives";
 import { EquipmentSymbol, StateDistribution } from "./VisualEvidence";
 import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
+import ModelLoadingPreview from "@/components/equipment/ModelLoadingPreview";
 const Renderer = lazy(loadEquipmentRenderer);
 
 export function SourceStates({
@@ -268,6 +269,14 @@ export function LinkedModelPreview({
     [selection, setSelection] = useState<string | null>(componentId);
   useEffect(() => setSelection(componentId), [componentId]);
   const [, navigate] = useWorkspaceLocation();
+  const utils = trpc.useUtils();
+  const warmPreview = () => {
+    void loadEquipmentRenderer().catch(() => {});
+    void utils.equipment.get.prefetch(
+      { id: item.equipmentId! },
+      { staleTime: 60000 },
+    );
+  };
   const query = trpc.equipment.get.useQuery(
     { id: item.equipmentId! },
     { enabled: loaded, staleTime: 60000 },
@@ -293,7 +302,7 @@ export function LinkedModelPreview({
           </span>
         </span>
         <Button asChild variant="outline" size="sm">
-          <Link href={href}>
+          <Link href={href} onPointerEnter={warmPreview} onFocus={warmPreview}>
             Open 3D inspection <ArrowRight className="size-4" />
           </Link>
         </Button>
@@ -301,6 +310,8 @@ export function LinkedModelPreview({
       {!loaded ? (
         <button
           onClick={() => setLoaded(true)}
+          onPointerEnter={warmPreview}
+          onFocus={warmPreview}
           className="group flex min-h-56 w-full flex-col items-center justify-center gap-4 rounded-md border bg-info/5 p-5 text-center hover:border-primary focus-visible:outline-2 focus-visible:outline-ring"
           aria-label={`Load 3D preview of ${item.name}`}
         >
@@ -320,10 +331,18 @@ export function LinkedModelPreview({
           description="Open the equipment workspace for its accessible component details."
         />
       ) : (
-        <Suspense fallback={<EmptyState title="Loading 3D preview…" />}>
+        <Suspense
+          fallback={
+            <ModelLoadingPreview
+              preview
+              revision={query.data.templateRevision}
+            />
+          }
+        >
           <Renderer
             preview
             modelUrl={query.data.modelUrl}
+            modelRevision={query.data.templateRevision}
             initialViewDirection={query.data.renderer.initialViewDirection}
             components={query.data.components}
             selected={interactiveSelection ? validSelection : null}

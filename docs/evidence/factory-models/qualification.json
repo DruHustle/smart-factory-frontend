@@ -1,0 +1,442 @@
+{
+  "scope": "Isolated local renderer and gallery qualification; not hosted release acceptance",
+  "browser": "Chromium 153 with SwiftShader; hardware GPU qualification remains separate",
+  "renderCases": [
+    {
+      "case": "pump-1440-light",
+      "modelBytes": 6421020,
+      "timingsMs": {
+        "downloadStarted": 186,
+        "lightingReady": 210,
+        "downloadCompleted": 226,
+        "geometryParsed": 270,
+        "inspectionPrepared": 279,
+        "graphicsCompiled": 310,
+        "firstDrawSubmitted": 435,
+        "firstFrame": 745
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "pump-1440-dark",
+      "modelBytes": 6421020,
+      "timingsMs": {
+        "downloadStarted": 25,
+        "lightingReady": 48,
+        "downloadCompleted": 64,
+        "geometryParsed": 98,
+        "inspectionPrepared": 104,
+        "graphicsCompiled": 156,
+        "firstDrawSubmitted": 255,
+        "firstFrame": 454
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "pump-390-light",
+      "modelBytes": 6421020,
+      "timingsMs": {
+        "downloadStarted": 15,
+        "lightingReady": 43,
+        "downloadCompleted": 53,
+        "geometryParsed": 69,
+        "inspectionPrepared": 72,
+        "graphicsCompiled": 97,
+        "firstDrawSubmitted": 195,
+        "firstFrame": 352
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "pump-390-dark",
+      "modelBytes": 6421020,
+      "timingsMs": {
+        "downloadStarted": 15,
+        "lightingReady": 47,
+        "downloadCompleted": 63,
+        "geometryParsed": 80,
+        "inspectionPrepared": 84,
+        "graphicsCompiled": 106,
+        "firstDrawSubmitted": 182,
+        "firstFrame": 387
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "pi-1440-light",
+      "modelBytes": 288440,
+      "timingsMs": {
+        "downloadStarted": 24,
+        "downloadCompleted": 40,
+        "geometryParsed": 49,
+        "inspectionPrepared": 53,
+        "lightingReady": 62,
+        "graphicsCompiled": 88,
+        "firstDrawSubmitted": 167,
+        "firstFrame": 314
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "pi-1440-dark",
+      "modelBytes": 288440,
+      "timingsMs": {
+        "downloadStarted": 46,
+        "downloadCompleted": 66,
+        "geometryParsed": 77,
+        "inspectionPrepared": 88,
+        "lightingReady": 103,
+        "graphicsCompiled": 129,
+        "firstDrawSubmitted": 244,
+        "firstFrame": 381
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "pi-390-light",
+      "modelBytes": 288440,
+      "timingsMs": {
+        "downloadStarted": 14,
+        "downloadCompleted": 37,
+        "geometryParsed": 44,
+        "inspectionPrepared": 49,
+        "lightingReady": 58,
+        "graphicsCompiled": 82,
+        "firstDrawSubmitted": 153,
+        "firstFrame": 289
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "pi-390-dark",
+      "modelBytes": 288440,
+      "timingsMs": {
+        "downloadStarted": 15,
+        "downloadCompleted": 32,
+        "geometryParsed": 41,
+        "inspectionPrepared": 45,
+        "lightingReady": 54,
+        "graphicsCompiled": 76,
+        "firstDrawSubmitted": 144,
+        "firstFrame": 276
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "conveyor-1440-light",
+      "modelBytes": 244956,
+      "timingsMs": {
+        "downloadStarted": 36,
+        "downloadCompleted": 49,
+        "geometryParsed": 55,
+        "inspectionPrepared": 57,
+        "lightingReady": 71,
+        "graphicsCompiled": 93,
+        "firstDrawSubmitted": 171,
+        "firstFrame": 306
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "conveyor-1440-dark",
+      "modelBytes": 244956,
+      "timingsMs": {
+        "downloadStarted": 26,
+        "downloadCompleted": 43,
+        "geometryParsed": 48,
+        "inspectionPrepared": 50,
+        "lightingReady": 58,
+        "graphicsCompiled": 79,
+        "firstDrawSubmitted": 147,
+        "firstFrame": 283
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "conveyor-390-light",
+      "modelBytes": 244956,
+      "timingsMs": {
+        "downloadStarted": 13,
+        "downloadCompleted": 25,
+        "geometryParsed": 31,
+        "inspectionPrepared": 33,
+        "lightingReady": 42,
+        "graphicsCompiled": 63,
+        "firstDrawSubmitted": 142,
+        "firstFrame": 261
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "conveyor-390-dark",
+      "modelBytes": 244956,
+      "timingsMs": {
+        "downloadStarted": 12,
+        "downloadCompleted": 27,
+        "geometryParsed": 33,
+        "inspectionPrepared": 35,
+        "lightingReady": 43,
+        "graphicsCompiled": 64,
+        "firstDrawSubmitted": 138,
+        "firstFrame": 255
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "robot-arm-1440-light",
+      "modelBytes": 541000,
+      "timingsMs": {
+        "downloadStarted": 24,
+        "downloadCompleted": 37,
+        "geometryParsed": 44,
+        "inspectionPrepared": 47,
+        "lightingReady": 59,
+        "graphicsCompiled": 82,
+        "firstDrawSubmitted": 156,
+        "firstFrame": 284
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "robot-arm-1440-dark",
+      "modelBytes": 541000,
+      "timingsMs": {
+        "downloadStarted": 36,
+        "downloadCompleted": 51,
+        "geometryParsed": 60,
+        "inspectionPrepared": 63,
+        "lightingReady": 79,
+        "graphicsCompiled": 104,
+        "firstDrawSubmitted": 171,
+        "firstFrame": 291
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "robot-arm-390-light",
+      "modelBytes": 541000,
+      "timingsMs": {
+        "downloadStarted": 13,
+        "downloadCompleted": 29,
+        "geometryParsed": 36,
+        "inspectionPrepared": 39,
+        "lightingReady": 48,
+        "graphicsCompiled": 69,
+        "firstDrawSubmitted": 143,
+        "firstFrame": 275
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "robot-arm-390-dark",
+      "modelBytes": 541000,
+      "timingsMs": {
+        "downloadStarted": 14,
+        "downloadCompleted": 28,
+        "geometryParsed": 36,
+        "inspectionPrepared": 38,
+        "lightingReady": 47,
+        "graphicsCompiled": 68,
+        "firstDrawSubmitted": 136,
+        "firstFrame": 261
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "control-cabinet-1440-light",
+      "modelBytes": 171316,
+      "timingsMs": {
+        "downloadStarted": 25,
+        "downloadCompleted": 38,
+        "geometryParsed": 44,
+        "inspectionPrepared": 46,
+        "lightingReady": 54,
+        "graphicsCompiled": 77,
+        "firstDrawSubmitted": 185,
+        "firstFrame": 346
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "control-cabinet-1440-dark",
+      "modelBytes": 171316,
+      "timingsMs": {
+        "downloadStarted": 31,
+        "downloadCompleted": 43,
+        "geometryParsed": 49,
+        "inspectionPrepared": 51,
+        "lightingReady": 61,
+        "graphicsCompiled": 83,
+        "firstDrawSubmitted": 187,
+        "firstFrame": 358
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "control-cabinet-390-light",
+      "modelBytes": 171316,
+      "timingsMs": {
+        "downloadStarted": 11,
+        "downloadCompleted": 23,
+        "geometryParsed": 29,
+        "inspectionPrepared": 31,
+        "lightingReady": 40,
+        "graphicsCompiled": 69,
+        "firstDrawSubmitted": 148,
+        "firstFrame": 300
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "control-cabinet-390-dark",
+      "modelBytes": 171316,
+      "timingsMs": {
+        "downloadStarted": 13,
+        "downloadCompleted": 27,
+        "geometryParsed": 33,
+        "inspectionPrepared": 36,
+        "lightingReady": 45,
+        "graphicsCompiled": 70,
+        "firstDrawSubmitted": 154,
+        "firstFrame": 367
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "valve-1440-light",
+      "modelBytes": 306036,
+      "timingsMs": {
+        "downloadStarted": 29,
+        "downloadCompleted": 43,
+        "geometryParsed": 48,
+        "inspectionPrepared": 50,
+        "lightingReady": 60,
+        "graphicsCompiled": 81,
+        "firstDrawSubmitted": 161,
+        "firstFrame": 287
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "valve-1440-dark",
+      "modelBytes": 306036,
+      "timingsMs": {
+        "downloadStarted": 28,
+        "downloadCompleted": 45,
+        "geometryParsed": 52,
+        "inspectionPrepared": 54,
+        "lightingReady": 64,
+        "graphicsCompiled": 89,
+        "firstDrawSubmitted": 158,
+        "firstFrame": 296
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "valve-390-light",
+      "modelBytes": 306036,
+      "timingsMs": {
+        "downloadStarted": 14,
+        "downloadCompleted": 37,
+        "geometryParsed": 43,
+        "inspectionPrepared": 45,
+        "lightingReady": 56,
+        "graphicsCompiled": 78,
+        "firstDrawSubmitted": 158,
+        "firstFrame": 282
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "valve-390-dark",
+      "modelBytes": 306036,
+      "timingsMs": {
+        "downloadStarted": 13,
+        "downloadCompleted": 28,
+        "geometryParsed": 33,
+        "inspectionPrepared": 35,
+        "lightingReady": 43,
+        "graphicsCompiled": 63,
+        "firstDrawSubmitted": 144,
+        "firstFrame": 263
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "storage-tank-1440-light",
+      "modelBytes": 269588,
+      "timingsMs": {
+        "downloadStarted": 23,
+        "downloadCompleted": 43,
+        "geometryParsed": 50,
+        "inspectionPrepared": 53,
+        "lightingReady": 67,
+        "graphicsCompiled": 91,
+        "firstDrawSubmitted": 163,
+        "firstFrame": 306
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "storage-tank-1440-dark",
+      "modelBytes": 269588,
+      "timingsMs": {
+        "downloadStarted": 26,
+        "downloadCompleted": 39,
+        "geometryParsed": 45,
+        "inspectionPrepared": 47,
+        "lightingReady": 57,
+        "graphicsCompiled": 78,
+        "firstDrawSubmitted": 146,
+        "firstFrame": 266
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "storage-tank-390-light",
+      "modelBytes": 269588,
+      "timingsMs": {
+        "downloadStarted": 14,
+        "downloadCompleted": 31,
+        "geometryParsed": 36,
+        "inspectionPrepared": 38,
+        "lightingReady": 46,
+        "graphicsCompiled": 69,
+        "firstDrawSubmitted": 141,
+        "firstFrame": 257
+      },
+      "pageErrors": []
+    },
+    {
+      "case": "storage-tank-390-dark",
+      "modelBytes": 269588,
+      "timingsMs": {
+        "downloadStarted": 14,
+        "downloadCompleted": 29,
+        "geometryParsed": 34,
+        "inspectionPrepared": 36,
+        "lightingReady": 43,
+        "graphicsCompiled": 63,
+        "firstDrawSubmitted": 131,
+        "firstFrame": 257
+      },
+      "pageErrors": []
+    }
+  ],
+  "additionalChecks": [
+    "Gallery switching and component selection with one active canvas at desktop/light and mobile/dark",
+    "Preview remains visible while GLB delivery is deliberately held",
+    "Unavailable HDR asset retains working direct-light inspection"
+  ],
+  "checks": {
+    "equipmentAndRuntimeTestsPassed": 141,
+    "databaseCasesSkipped": 8,
+    "typeCheck": "passed",
+    "productionBuild": "passed"
+  },
+  "limitations": [
+    "Application navigation and remote API/network latency are excluded from renderer timings.",
+    "Gallery UI uses local fixture responses. Reference-file authentication has a separate HTTP test.",
+    "The matching API/worker and frontend have not been promoted to production."
+  ]
+}

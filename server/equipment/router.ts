@@ -9,6 +9,7 @@ import {
 } from "../../shared/access-policy";
 import { modelCatalog, localBindingSchema } from "./packages";
 import * as local from "./local";
+import { referenceModels } from "../../shared/factory-models";
 const writer = engineerProcedure.use(({ ctx, next }) => {
   if (demonstrationOnly(ctx.user) || demoOnlyRead())
     throw new TRPCError({
@@ -18,6 +19,29 @@ const writer = engineerProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 export const equipmentRouter = router({
+  references: viewerProcedure.query(() => referenceModels),
+  reference: viewerProcedure
+    .input(z.object({ slug: z.string().min(1).max(60) }))
+    .query(async ({ input }) => {
+      const descriptor = referenceModels.find(
+        (model) => model.slug === input.slug,
+      );
+      if (!descriptor)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Reference model unavailable",
+        });
+      const t = await operatorAction(() => local.template(descriptor.revision));
+      return {
+        ...descriptor,
+        components: t.components.map((component) => ({
+          ...component,
+          installedComponentId: component.templateComponentId,
+        })),
+        initialViewDirection: t.initialViewDirection,
+        modelUrl: `/api/equipment/reference/${descriptor.slug}/model?revision=${encodeURIComponent(t.revision)}`,
+      };
+    }),
   access: viewerProcedure.query(({ ctx }) => ({
     canWrite:
       operationalWritesAllowed(ctx.user) &&

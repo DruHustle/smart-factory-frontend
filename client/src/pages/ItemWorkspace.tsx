@@ -207,6 +207,15 @@ export default function ItemWorkspace() {
         label="Item sections"
         value={section}
         sections={sections.map(([id, label]) => ({ id, label }))}
+        onIntent={(v) => {
+          if (v !== "3d" || !i.equipmentId) return;
+          void loadEquipment().catch(() => {});
+          void loadEquipmentRenderer().catch(() => {});
+          void utils.equipment.get.prefetch(
+            { id: i.equipmentId, mode: undefined },
+            { staleTime: 15000 },
+          );
+        }}
         onChange={(v) => navigate(itemHref(ref, v, safeReturn))}
       >
         {!sections.some((s) => s[0] === section) ? (
