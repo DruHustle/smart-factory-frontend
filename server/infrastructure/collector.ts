@@ -10,6 +10,7 @@ import { healthPolicy } from "./policy";
 import { monitoringInterval } from "./configuration";
 import {
   healthSnapshot,
+  ageSnapshot,
   recoveryReceipt,
   type HealthSnapshot,
   type ServiceEvidence,
@@ -544,7 +545,9 @@ export async function collectInfrastructure(): Promise<HealthSnapshot> {
     explanation = "",
   ): QueueEvidence => {
     const age = oldest
-      ? Math.max(0, (Date.parse(at) - Date.parse(oldest)) / 1000)
+      ? Date.parse(at) >= Date.parse(oldest)
+        ? (Date.parse(at) - Date.parse(oldest)) / 1000
+        : null
       : null;
     return {
       id,
@@ -594,6 +597,12 @@ export async function collectInfrastructure(): Promise<HealthSnapshot> {
       "Age uses outbox acceptance, not event occurrence. Legacy acceptance times remain unknown.",
     ],
     [
+      "ingress",
+      "Node ingestion rejections",
+      sql`select 0::int as pending,count(*)::int as quarantined,0::int as failed,null::timestamptz as oldest,0::int as unclassified from telemetry_rejections`,
+      "Retained rejected-message evidence, not a retry queue. Rejection occurrence is not forwarding acceptance; no pending age is inferred.",
+    ],
+    [
       "email",
       "Notification delivery",
       sql`select count(*) filter(where "emailStatus" in('pending','processing','retrying'))::int as pending,0::int as quarantined,count(*) filter(where "emailStatus" in('failed','no_recipient','unconfigured'))::int as failed,min("createdAt") filter(where "emailStatus" in('pending','processing','retrying')) as oldest,0::int as unclassified from notification_inbox`,
@@ -632,6 +641,31 @@ export async function collectInfrastructure(): Promise<HealthSnapshot> {
       );
     }
   }
+  const backlog = queues.filter((q) => q.id !== "telemetry" || hasWorker);
+  services.push({
+    ...evidence(
+      "delivery-backlog",
+      "Delivery & rejection backlog",
+      "delivery",
+      true,
+      at,
+    ),
+    state: backlog.some((q) => q.state === "degraded")
+      ? "degraded"
+      : backlog.some((q) => q.state === "stale")
+        ? "stale"
+        : backlog.some((q) => q.state === "unknown")
+          ? "unknown"
+          : "healthy",
+    observedAt: at,
+    source: "Recorded queue and rejection evidence",
+    scope: "Configured application delivery paths",
+    reason: backlog.some((q) => q.state === "degraded")
+      ? "BACKLOG_POLICY_EXCEEDED"
+      : "QUEUE_EVIDENCE_OBSERVED",
+    explanation:
+      "Backlog policy is independent of worker liveness. Last-known stale counts and retained rejections remain inspectable in Queues; empty queues do not establish successful physical delivery.",
+  });
   const notification = notificationConfiguration()[0],
     n = evidence(
       "notifications",
@@ -870,7 +904,7 @@ export async function collectInfrastructure(): Promise<HealthSnapshot> {
   try {
     if (!databaseAvailable) throw Error("DATABASE_UNAVAILABLE");
     const rows = await boundedRead(
-      sql`select distinct on(kind) receipt from infrastructure_recovery_receipts order by kind,observed_at desc limit 2`,
+      sql`select distinct on(kind,receipt->>'outcome') receipt from infrastructure_recovery_receipts order by kind,receipt->>'outcome',observed_at desc limit 4`,
     );
     recovery = rows.map((r) => recoveryReceipt.parse(r.receipt));
   } catch {}
@@ -901,38 +935,40 @@ export async function collectInfrastructure(): Promise<HealthSnapshot> {
     explanation:
       "Compatibility is verified from available contract and migration evidence. Qualified edge source is not an installed hardware binary attestation.",
   });
-  return healthSnapshot.parse({
-    version: 1,
-    collectedAt: at,
-    synthetic: false,
-    stale: false,
-    services,
-    dependencies: dependencies.filter(
-      (d) =>
-        services.some((s) => s.id === d.from && s.configured) &&
-        services.some((s) => s.id === d.to && s.configured),
-    ),
-    resources,
-    queues,
-    collectors,
-    release: {
-      frontend: frontendSource,
-      api: runtime?.source ?? null,
-      backend: runtime?.backendSource ?? null,
-      edgeSource: runtime?.edgeSource ?? null,
-      schema: runtime?.schema.ready ? runtime.schema.revision : null,
-      compatible,
-    },
-    recovery,
-    coverage: {
-      mode: monitoringInterval(env) === null ? "demand" : "scheduled",
-      intervalSeconds: monitoringInterval(env) ?? 60,
-      historyDays: 1,
-      independentMonitor: env.INFRASTRUCTURE_EXTERNAL_STATUS_URL
-        ? "configured"
-        : "unknown",
-      explanation:
-        "Checks are cached and collected on demand unless a monitoring schedule is explicitly configured. This monitor cannot independently establish availability during its own complete outage. External-monitor and host collector evidence are unknown unless connected.",
-    },
-  });
+  return ageSnapshot(
+    healthSnapshot.parse({
+      version: 1,
+      collectedAt: at,
+      synthetic: false,
+      stale: false,
+      services,
+      dependencies: dependencies.filter(
+        (d) =>
+          services.some((s) => s.id === d.from && s.configured) &&
+          services.some((s) => s.id === d.to && s.configured),
+      ),
+      resources,
+      queues,
+      collectors,
+      release: {
+        frontend: frontendSource,
+        api: runtime?.source ?? null,
+        backend: runtime?.backendSource ?? null,
+        edgeSource: runtime?.edgeSource ?? null,
+        schema: runtime?.schema.ready ? runtime.schema.revision : null,
+        compatible,
+      },
+      recovery,
+      coverage: {
+        mode: monitoringInterval(env) === null ? "demand" : "scheduled",
+        intervalSeconds: monitoringInterval(env) ?? 60,
+        historyDays: 1,
+        independentMonitor: env.INFRASTRUCTURE_EXTERNAL_STATUS_URL
+          ? "configured"
+          : "unknown",
+        explanation:
+          "Checks are cached and collected on demand unless a monitoring schedule is explicitly configured. This monitor cannot independently establish availability during its own complete outage. External-monitor and host collector evidence are unknown unless connected.",
+      },
+    }),
+  );
 }

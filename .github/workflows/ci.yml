@@ -179,6 +179,34 @@ jobs:
           path: test-results/
           if-no-files-found: warn
 
+  evidence-led-workspaces:
+    name: Assistant, design system and infrastructure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { persist-credentials: false }
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with: { version: 10.34.5 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify isolated Assistant, shared styles and synthetic infrastructure
+        run: pnpm e2e:visual-workspaces
+        env:
+          VISUAL_WORKSPACE_EVIDENCE_DIR: test-results/evidence-led
+      - name: Verify individual infrastructure authorization and registration
+        run: pnpm e2e:workspace --grep 'private .*cannot inspect installation infrastructure|individual administrator|registration and role-filtered'
+        env:
+          VISUAL_WORKSPACE_EVIDENCE_DIR: test-results/evidence-led-private
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: evidence-led-workspaces
+          path: test-results/
+          if-no-files-found: warn
+
   sidebar-navigation:
     name: Sidebar roles and responsive layout
     runs-on: ubuntu-24.04
@@ -210,7 +238,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with: {persist-credentials: false, path: smart-factory-iot-frontend}
+        with: { persist-credentials: false, path: smart-factory-iot-frontend }
       - name: Read immutable companion identities
         id: refs
         working-directory: smart-factory-iot-frontend
@@ -229,13 +257,18 @@ jobs:
           path: smart-factory-iot-edge
           persist-credentials: false
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
-        with: {version: 10.34.5}
+        with: { version: 10.34.5 }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with: {node-version: 22, cache: pnpm, cache-dependency-path: smart-factory-iot-frontend/pnpm-lock.yaml}
+        with:
+          {
+            node-version: 22,
+            cache: pnpm,
+            cache-dependency-path: smart-factory-iot-frontend/pnpm-lock.yaml,
+          }
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
-        with: {dotnet-version: 10.0.403}
+        with: { dotnet-version: 10.0.403 }
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with: {python-version: "3.11"}
+        with: { python-version: "3.11" }
       - name: Prepare pinned runtime dependencies
         run: |
           pnpm --dir smart-factory-iot-frontend install --frozen-lockfile
@@ -266,7 +299,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with: {persist-credentials: false, path: smart-factory-iot-frontend}
+        with: { persist-credentials: false, path: smart-factory-iot-frontend }
       - name: Read immutable companion identities
         id: refs
         working-directory: smart-factory-iot-frontend
@@ -285,13 +318,18 @@ jobs:
           path: smart-factory-iot-edge
           persist-credentials: false
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
-        with: {version: 10.34.5}
+        with: { version: 10.34.5 }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with: {node-version: 22, cache: pnpm, cache-dependency-path: smart-factory-iot-frontend/pnpm-lock.yaml}
+        with:
+          {
+            node-version: 22,
+            cache: pnpm,
+            cache-dependency-path: smart-factory-iot-frontend/pnpm-lock.yaml,
+          }
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
-        with: {dotnet-version: 10.0.403}
+        with: { dotnet-version: 10.0.403 }
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with: {python-version: "3.11"}
+        with: { python-version: "3.11" }
       - name: Prepare pinned runtime dependencies
         run: |
           pnpm --dir smart-factory-iot-frontend install --frozen-lockfile

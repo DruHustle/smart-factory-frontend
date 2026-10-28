@@ -21,11 +21,14 @@ export const workerReceipt = z
     failedAttempts: count,
     oldestPendingAt: z.string().datetime().nullable(),
     notificationReady: z.boolean().nullable().optional(),
-    resources: z.object({
-      residentBytes: z.number().int().nonnegative(),
-      cpuMsPerSecond: z.number().finite().nonnegative().nullable(),
-      databaseQueryMs: z.number().finite().nonnegative(),
-    }).strict().optional(),
+    resources: z
+      .object({
+        residentBytes: z.number().int().nonnegative(),
+        cpuMsPerSecond: z.number().finite().nonnegative().nullable(),
+        databaseQueryMs: z.number().finite().nonnegative(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export async function storeWorkerReceipt(value: unknown) {
@@ -51,7 +54,9 @@ export async function telemetryWorkerReceipt() {
     ...report,
     receivedAt: receivedAt.toISOString(),
     fresh:
+      Date.now() - receivedAt.getTime() >= 0 &&
       Date.now() - receivedAt.getTime() < 90000 &&
+      Date.now() - Date.parse(report.observedAt) >= 0 &&
       Date.now() - Date.parse(report.observedAt) < 90000,
   };
 }

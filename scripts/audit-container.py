@@ -12,6 +12,7 @@ import urllib.request
 
 VERSION = '0.75.0'
 RELEASES = {
+    ('Linux', 'aarch64'): ('Linux-ARM64', 'a1ee9f6ffb7d112b64ff726a2a0717c21175c1114361391f4a132956751a13b3'),
     ('Linux', 'x86_64'): ('Linux-64bit', 'c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f'),
     ('Darwin', 'arm64'): ('macOS-ARM64', '4a77108cccf8e55c8d6823e1e759939a622277e66cd0daa3c1fc621ed69e4568'),
 }
@@ -23,7 +24,7 @@ def main():
     args = parser.parse_args()
     release = RELEASES.get((platform.system(), platform.machine()))
     if not release:
-        parser.error('The pinned scanner supports Linux x86_64 and macOS arm64')
+        parser.error('The pinned scanner supports Linux x86_64/arm64 and macOS arm64')
     with tempfile.TemporaryDirectory(prefix='factory-trivy-') as temporary:
         root = Path(temporary)
         archive = root / 'trivy.tar.gz'

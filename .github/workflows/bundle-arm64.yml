@@ -1,0 +1,113 @@
+name: ARM64 service bundle qualification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      [
+        "server/**",
+        "shared/**",
+        "drizzle/**",
+        "deploy/**",
+        "scripts/bundle-smoke.py",
+        "docker-compose.bundle-test.yml",
+        "package.json",
+        "pnpm-lock.yaml",
+        ".github/workflows/bundle-arm64.yml",
+      ]
+  push:
+    branches: [main]
+    paths:
+      [
+        "server/**",
+        "shared/**",
+        "drizzle/**",
+        "deploy/**",
+        "scripts/bundle-smoke.py",
+        "docker-compose.bundle-test.yml",
+        "package.json",
+        "pnpm-lock.yaml",
+        ".github/workflows/bundle-arm64.yml",
+      ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arm64-bundle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          path: candidate
+      - name: Read immutable companion identities
+        id: sources
+        working-directory: candidate
+        run: |
+          python3 - <<'PY'
+          import json,os,re
+          v=json.load(open('deploy/qualification-sources.json'))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+            for k in ('backend','edge'):
+              assert re.fullmatch('[a-f0-9]{40}',v[k])
+              f.write(k+'='+v[k]+'\n')
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: DruHustle/smart-factory-iot-backend
+          ref: ${{ steps.sources.outputs.backend }}
+          persist-credentials: false
+          path: backend
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: a83a1908b14131b36248a3e7895566f03ce1fe0d
+          persist-credentials: false
+          path: rollback
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: DruHustle/smart-factory-iot-backend
+          ref: 19a70a71ce3b40cc775f03d2ebe8efc2ce987e3c
+          persist-credentials: false
+          path: rollback-backend
+      - name: Build native ARM64 candidate and currently deployed rollback
+        working-directory: candidate
+        env:
+          SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+          BACKEND_SOURCE: ${{ steps.sources.outputs.backend }}
+          EDGE_SOURCE: ${{ steps.sources.outputs.edge }}
+        run: |
+          [[ "$(uname -m)" == aarch64 ]]
+          docker buildx build --platform linux/arm64 --load --build-context backend=../backend --build-arg SOURCE_REVISION="$SOURCE_REVISION" --build-arg BACKEND_SOURCE_REVISION="$BACKEND_SOURCE" --build-arg EDGE_SOURCE_REVISION="$EDGE_SOURCE" -f deploy/render/Dockerfile -t factory-qualified:candidate .
+          docker buildx build --platform linux/arm64 --load --build-context backend=../rollback-backend --build-arg SOURCE_REVISION=a83a1908b14131b36248a3e7895566f03ce1fe0d --build-arg BACKEND_SOURCE_REVISION=19a70a71ce3b40cc775f03d2ebe8efc2ce987e3c --build-arg EDGE_SOURCE_REVISION=be917a4082ff70ded322bd2ac4cf982014b2346e -f ../rollback/deploy/render/Dockerfile -t factory-qualified:rollback ../rollback
+      - name: Qualify six real processes, broker recovery and compatible rollback
+        working-directory: candidate
+        env:
+          BUNDLE_IMAGE: factory-qualified:candidate
+          BUNDLE_ROLLBACK_IMAGE: factory-qualified:rollback
+          QUALIFICATION_EVIDENCE_DIR: test-results/arm64
+        run: python3 scripts/bundle-smoke.py
+      - name: Scan the exact local candidate without uploading application data
+        working-directory: candidate
+        run: python3 scripts/audit-container.py factory-qualified:candidate --output test-results/arm64/container-audit.json
+      - name: Package the tested immutable image
+        working-directory: candidate
+        run: |
+          docker image inspect factory-qualified:candidate > test-results/arm64/image.json
+          docker save factory-qualified:candidate | gzip -3 > test-results/arm64/candidate.tar.gz
+          sha256sum test-results/arm64/candidate.tar.gz > test-results/arm64/archive.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: qualified-arm64-bundle
+          path: candidate/test-results/arm64
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

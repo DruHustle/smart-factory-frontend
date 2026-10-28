@@ -559,6 +559,9 @@ function ReleaseRecovery({ snapshot }: { snapshot: HealthSnapshot }) {
         </p>
         <div className="grid gap-3 border-t pt-3 sm:grid-cols-2">
           {(["backup", "restore"] as const).map((kind) => {
+            const failed = snapshot.recovery.find(
+              (r) => r.kind === kind && r.outcome === "failed",
+            );
             const receipt = snapshot.recovery.find(
               (r) => r.kind === kind && r.outcome === "verified",
             );
@@ -592,6 +595,12 @@ function ReleaseRecovery({ snapshot }: { snapshot: HealthSnapshot }) {
                     No verified receipt
                   </p>
                 )}
+                {failed && (
+                  <p className="mt-2 text-xs text-warning">
+                    Last failed attempt: {when(failed.observedAt)}. This does
+                    not replace an earlier verified receipt.
+                  </p>
+                )}
               </div>
             );
           })}
@@ -623,7 +632,11 @@ export default function ServiceHealth() {
   const permitted =
       !!user && (user.access?.demoOnly || user.access?.canAdminister),
     query = trpc.system.infrastructure.useQuery(
-      { range, scenario },
+      {
+        range,
+        scenario,
+        ...(params.get("event") ? { eventId: params.get("event")! } : {}),
+      },
       {
         enabled: permitted,
         staleTime: 30000,
@@ -661,7 +674,12 @@ export default function ServiceHealth() {
         }
       : null,
     snapshot = data?.snapshot,
-    service = snapshot?.services.find((s) => s.id === selected),
+    service = snapshot?.services.find(
+      (s) =>
+        s.id ===
+        (selected ??
+          data?.events.find((e) => e.id === params.get("event"))?.serviceId),
+    ),
     attention =
       snapshot?.services.filter((s) =>
         ["degraded", "unavailable", "stale"].includes(s.state),
@@ -918,7 +936,9 @@ export default function ServiceHealth() {
                               </dd>
                               <dd className="mt-1 text-muted-foreground">
                                 {r.value == null
-                                  ? "Not connected / unknown"
+                                  ? r.observedAt
+                                    ? `Last observation ${when(r.observedAt)} · no current value`
+                                    : "Not connected / unknown"
                                   : when(r.observedAt)}
                               </dd>
                             </div>
@@ -982,6 +1002,40 @@ export default function ServiceHealth() {
                         </ul>
                       </CardContent>
                     </Card>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Collector freshness</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {snapshot.collectors.length ? (
+                          <ul className="max-h-96 divide-y overflow-y-auto">
+                            {snapshot.collectors.map((c) => (
+                              <li
+                                key={c.id}
+                                className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"
+                              >
+                                <div>
+                                  <strong className="font-medium">
+                                    {c.name}
+                                  </strong>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Observed {when(c.observedAt)} · Freshness
+                                    window {c.freshForSeconds}s ·{" "}
+                                    {c.active ? "Enabled" : "Disabled"}
+                                  </p>
+                                </div>
+                                <State state={c.state} />
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No collector receipts are available in this scope.
+                            Missing coverage remains unknown.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
                     {snapshot.queues.map((q) => (
                       <Card key={q.id}>
                         <CardContent>
@@ -1023,7 +1077,9 @@ export default function ServiceHealth() {
                             ))}
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {data.historyWindow.returned} collected /{" "}
+                            {data.historyWindow.returned} snapshots ·{" "}
+                            {data.historyWindow.points} chart points ·{" "}
+                            {data.historyWindow.coveredSlots} covered /{" "}
                             {data.historyWindow.expected} expected slots ·{" "}
                             {data.historyWindow.gaps} gaps.{" "}
                             {snapshot.coverage.mode === "demand"

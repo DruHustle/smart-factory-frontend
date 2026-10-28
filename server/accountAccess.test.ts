@@ -6,6 +6,7 @@ import {
   beforeAll,
   beforeEach,
   afterAll,
+  afterEach,
   describe,
   expect,
   it,
@@ -75,6 +76,7 @@ describe.skipIf(!sourceUrl)("persistent account and session boundaries", () => {
     const db = (await getDb())!;
     await db.execute(sql`truncate table users cascade`);
   });
+  afterEach(() => vi.useRealTimers());
   afterAll(async () => {
     await closeDatabase();
     if (databaseName) {
@@ -111,6 +113,9 @@ describe.skipIf(!sourceUrl)("persistent account and session boundaries", () => {
     return { api: appRouter.createCaller(ctx), cookies, ctx };
   };
   it("isolates shared reads, selected IDs and exports from private records for every shared role", async () => {
+    // Keep private-value assertions independent of real timestamp milliseconds.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-28T08:00:00.123Z"));
     const db = (await getDb())!;
     const [privateDevice, demoDevice] = await db
       .insert(devices)

@@ -5,6 +5,7 @@ import { getDb } from "../db";
 import { individualSecurityUser } from "../security/users";
 import {
   ageSnapshot,
+  freshEvidence,
   healthSnapshot,
   recoveryReceipt,
   type HealthSnapshot,
@@ -26,6 +27,12 @@ let cached: HealthSnapshot | undefined,
   inFlight: Promise<HealthSnapshot> | undefined;
 const date = (v: unknown) => new Date(String(v)).toISOString();
 async function persist(snapshot: HealthSnapshot) {
+  if (
+    snapshot.services.some(
+      (s) => s.id === "database" && s.state === "unavailable",
+    )
+  )
+    return;
   const db = await getDb();
   if (!db) return;
   const policy = healthPolicy();
@@ -94,27 +101,58 @@ async function collectOrReuse(): Promise<HealthSnapshot> {
     cached = undefined;
     inFlight = undefined;
   }
-  if (cached && Date.now() - Date.parse(cached.collectedAt) < cacheMs)
+  if (cached && freshEvidence(cached.collectedAt, cacheMs / 1000))
     return ageSnapshot(cached);
   if (inFlight) return inFlight;
   inFlight = (async () => {
     let retained: HealthSnapshot | undefined;
     try {
       const [row] = await boundedRead(
-        sql`select snapshot from infrastructure_snapshots order by collected_at desc limit 1`,
+        sql`select snapshot from infrastructure_snapshots where collected_at<=${new Date().toISOString()}::timestamptz order by collected_at desc limit 1`,
       );
       const parsed = healthSnapshot.safeParse(row?.snapshot);
       if (parsed.success) retained = parsed.data;
-      if (retained && Date.now() - Date.parse(retained.collectedAt) < cacheMs) {
+      if (retained && freshEvidence(retained.collectedAt, cacheMs / 1000)) {
         cached = retained;
         return ageSnapshot(retained);
       }
       const lease = await boundedRead(
         sql`insert into infrastructure_collection_lease(slot) values(${Math.floor(Date.now() / cacheMs)}) on conflict(slot) do nothing returning slot`,
       );
-      if (!lease.length && retained) {
-        cached = retained;
-        return ageSnapshot(retained);
+      if (!lease.length) {
+        if (retained) {
+          cached = retained;
+          return ageSnapshot(retained);
+        }
+        // Another replica owns this minute. Do not duplicate its cold probes.
+        return healthSnapshot.parse({
+          version: 1,
+          collectedAt: new Date().toISOString(),
+          synthetic: false,
+          stale: true,
+          services: [],
+          dependencies: [],
+          resources: [],
+          queues: [],
+          collectors: [],
+          recovery: [],
+          release: {
+            frontend: null,
+            api: null,
+            backend: null,
+            edgeSource: null,
+            schema: null,
+            compatible: null,
+          },
+          coverage: {
+            mode: monitoringInterval() === null ? "demand" : "scheduled",
+            intervalSeconds: monitoringInterval() ?? 60,
+            historyDays: 1,
+            independentMonitor: "unknown",
+            explanation:
+              "Collection is in progress on another API instance. Refresh after the collection completes; no duplicate probes were started.",
+          },
+        });
       }
     } catch {
       /* A database failure still permits independent process/network evidence. */
@@ -134,6 +172,7 @@ async function collectOrReuse(): Promise<HealthSnapshot> {
 }
 export async function infrastructureView(
   range: "2h" | "24h" = "2h",
+  eventId?: string,
 ): Promise<InfrastructureView> {
   const snapshot = await collectOrReuse(),
     now = Date.now(),
@@ -143,29 +182,42 @@ export async function infrastructureView(
     bucketSeconds = hours === 24 ? 720 : 60;
   let history: HealthHistoryPoint[] = [],
     events: HealthEvent[] = [],
-    count = 0;
+    count = 0,
+    coveredSlots = 0;
+  const databaseUnavailable = snapshot.services.some(
+    (s) => s.id === "database" && s.state === "unavailable",
+  );
   try {
+    if (databaseUnavailable) throw Error("DATABASE_UNAVAILABLE");
     const rows = await boundedRead(
-      sql`select (array_agg(snapshot order by collected_at desc))[1] as snapshot,count(*)::int as samples from infrastructure_snapshots where collected_at>=${from}::timestamptz group by date_bin(${bucketSeconds + " seconds"}::interval,collected_at,'2000-01-01'::timestamptz) order by min(collected_at) limit 120`,
+      sql`with scoped as(select snapshot,collected_at,floor(extract(epoch from (collected_at-${from}::timestamptz))/${snapshot.coverage.intervalSeconds}) as slot,date_bin(${bucketSeconds + " seconds"}::interval,collected_at,${from}::timestamptz) as bucket from infrastructure_snapshots where collected_at>=${from}::timestamptz and collected_at<${to}::timestamptz) select (array_agg(snapshot order by collected_at desc))[1] as snapshot,count(*)::int as samples,(select count(distinct slot)::int from scoped) as covered_slots from scoped group by bucket order by bucket limit 120`,
     );
     history = rows.flatMap((r) => {
       count += Number(r.samples);
+      coveredSlots = Number(r.covered_slots);
       const p = healthSnapshot.safeParse(r.snapshot);
-      return p.success
+      const historical = p.success
+        ? ageSnapshot(p.data, Date.parse(p.data.collectedAt))
+        : null;
+      return historical
         ? [
             {
-              at: p.data.collectedAt,
-              services: p.data.services.map((s) => ({
+              at: historical.collectedAt,
+              services: historical.services.map((s) => ({
                 id: s.id,
                 state: s.state,
               })),
-              resources: p.data.resources.map((s) => ({
+              resources: historical.resources.map((s) => ({
                 id: s.id,
                 value: s.value,
               })),
-              queues: p.data.queues.map((s) => ({
+              queues: historical.queues.map((s) => ({
                 id: s.id,
-                pending: s.pending,
+                pending: ["stale", "unknown", "not_configured"].includes(
+                  s.state,
+                )
+                  ? null
+                  : s.pending,
                 state: s.state,
               })),
             },
@@ -174,9 +226,23 @@ export async function infrastructureView(
     });
   } catch {}
   try {
+    if (databaseUnavailable) throw Error("DATABASE_UNAVAILABLE");
     const rows = await boundedRead(
-      sql`select id,service_id,name,previous_state,state,occurred_at,kind,reason from infrastructure_events where occurred_at>=${from}::timestamptz order by occurred_at desc limit 100`,
+      sql`select id,service_id,name,previous_state,state,occurred_at,kind,reason from infrastructure_events where occurred_at>=${from}::timestamptz and occurred_at<=${to}::timestamptz order by occurred_at desc limit 100`,
     );
+    if (
+      eventId &&
+      /^[a-f0-9-]{36}$/i.test(eventId) &&
+      !rows.some((r) => r.id === eventId)
+    ) {
+      const linked = await boundedRead(
+        sql`select id,service_id,name,previous_state,state,occurred_at,kind,reason from infrastructure_events where id::text=${eventId} and occurred_at<=${to}::timestamptz limit 1`,
+      );
+      if (linked.length) {
+        if (rows.length === 100) rows.pop();
+        rows.unshift(linked[0]);
+      }
+    }
     events = rows.map((r) => ({
       id: String(r.id),
       serviceId: String(r.service_id),
@@ -188,7 +254,9 @@ export async function infrastructureView(
       reason: String(r.reason),
     }));
   } catch {}
-  const expected = hours * 60;
+  const expected = Math.ceil(
+    (hours * 3600) / snapshot.coverage.intervalSeconds,
+  );
   return {
     snapshot,
     history,
@@ -197,8 +265,10 @@ export async function infrastructureView(
       from,
       to,
       returned: count,
+      points: history.length,
+      coveredSlots,
       expected,
-      gaps: Math.max(0, expected - count),
+      gaps: Math.max(0, expected - coveredSlots),
       availabilityPercent: null,
     },
     policy: healthPolicy(),
@@ -250,9 +320,20 @@ export async function storeRecoveryEvidence(value: unknown) {
       throw Error("Retained receipt conflict");
     return;
   }
-  await db.execute(
-    sql`insert into infrastructure_recovery_receipts(receipt_id,kind,observed_at,receipt) values(${receipt.receiptId},${receipt.kind},${receipt.observedAt}::timestamptz,${JSON.stringify(receipt)}::jsonb) on conflict(receipt_id) do nothing`,
+  const inserted = await db.execute(
+    sql`insert into infrastructure_recovery_receipts(receipt_id,kind,observed_at,receipt) values(${receipt.receiptId},${receipt.kind},${receipt.observedAt}::timestamptz,${JSON.stringify(receipt)}::jsonb) on conflict(receipt_id) do nothing returning receipt_id`,
   );
+  if (!inserted.length) {
+    const [winner] = await db.execute(
+      sql`select receipt from infrastructure_recovery_receipts where receipt_id=${receipt.receiptId}`,
+    );
+    if (
+      !winner ||
+      JSON.stringify(recoveryReceipt.parse(winner.receipt)) !==
+        JSON.stringify(receipt)
+    )
+      throw Error("Retained receipt conflict");
+  }
 }
 let scheduled: ReturnType<typeof setTimeout> | undefined;
 export function startInfrastructureMonitoring() {

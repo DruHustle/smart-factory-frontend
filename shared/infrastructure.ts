@@ -134,7 +134,7 @@ export const healthSnapshot = z
         compatible: z.boolean().nullable(),
       })
       .strict(),
-    recovery: z.array(recoveryReceipt).max(2),
+    recovery: z.array(recoveryReceipt).max(4),
     coverage: z
       .object({
         mode: z.enum(["demand", "scheduled", "simulation"]),
@@ -171,6 +171,8 @@ export type InfrastructureView = {
     from: string;
     to: string;
     returned: number;
+    points: number;
+    coveredSlots: number;
     expected: number;
     gaps: number;
     availabilityPercent: null;
@@ -185,7 +187,17 @@ export type InfrastructureView = {
   };
 };
 
-/** Refreshing the UI never makes a stale receipt current. */
+/** A future timestamp cannot establish a current observation. */
+export function freshEvidence(
+  at: string | null,
+  seconds: number,
+  now = Date.now(),
+) {
+  const age = at === null ? NaN : now - Date.parse(at);
+  return Number.isFinite(age) && age >= 0 && age <= seconds * 1000;
+}
+
+/** Refreshing the UI never makes last-known evidence current. Counts remain inspectable. */
 export function ageSnapshot(
   snapshot: HealthSnapshot,
   now = Date.now(),
@@ -193,26 +205,56 @@ export function ageSnapshot(
   return {
     ...snapshot,
     stale:
-      now - Date.parse(snapshot.collectedAt) >
-      snapshot.coverage.intervalSeconds * 2000,
+      snapshot.stale ||
+      !freshEvidence(
+        snapshot.collectedAt,
+        snapshot.coverage.intervalSeconds * 2,
+        now,
+      ),
     services: snapshot.services.map((s) =>
-      s.observedAt &&
       s.configured &&
-      ["healthy", "degraded"].includes(s.state) &&
-      now - Date.parse(s.observedAt) > s.freshForSeconds * 1000
+      (!freshEvidence(s.collectedAt, s.freshForSeconds, now) ||
+        (s.observedAt !== null &&
+          !freshEvidence(s.observedAt, s.freshForSeconds, now)) ||
+        (s.observedAt === null &&
+          ["healthy", "degraded", "unavailable"].includes(s.state)))
         ? {
             ...s,
             state: "stale",
             reason: "EVIDENCE_EXPIRED",
+            latencyMs: null,
             explanation:
-              "Last-known evidence is older than its freshness policy.",
+              "Last-known evidence is outside its freshness policy; it does not establish the current service state.",
           }
         : s,
     ),
+    resources: snapshot.resources.map((r) =>
+      r.value !== null && !freshEvidence(r.observedAt, 90, now)
+        ? {
+            ...r,
+            value: null,
+            explanation:
+              "Last-known measurement expired. Its observation timestamp is retained; no current value is established.",
+          }
+        : r,
+    ),
     queues: snapshot.queues.map((q) =>
-      q.observedAt && now - Date.parse(q.observedAt) > 90000
-        ? { ...q, state: "stale" }
+      !freshEvidence(q.collectedAt, 90, now) ||
+      (q.observedAt !== null && !freshEvidence(q.observedAt, 90, now))
+        ? {
+            ...q,
+            state: "stale",
+            explanation: q.explanation,
+          }
         : q,
+    ),
+    collectors: snapshot.collectors.map((c) =>
+      c.active &&
+      (!freshEvidence(c.collectedAt, c.freshForSeconds, now) ||
+        (c.observedAt !== null &&
+          !freshEvidence(c.observedAt, c.freshForSeconds, now)))
+        ? { ...c, state: "stale" }
+        : c,
     ),
   };
 }

@@ -155,6 +155,26 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     assert all(isinstance(runtime[key],str) and len(runtime[key])==40 for key in ['source','backendSource','edgeSource'])
     assert runtime['worker']['fresh'] is True
     print('PASS: runtime identity, applied schema and fresh compatible singleton worker match the image sources.')
+    if 'infrastructure-monitor-v1' in runtime['capabilities']:
+        def operating_snapshot():
+            return trpc(admin,'system.infrastructure',{'range':'2h','scenario':'normal'},query=True)['snapshot']
+        def worker_resources_ready():
+            report=json.loads(sql("SELECT report FROM runtime_worker_status WHERE worker='telemetry'"))
+            resource=report.get('resources') or {}
+            return resource.get('residentBytes',0)>0 and resource.get('cpuMsPerSecond') is not None and resource.get('databaseQueryMs') is not None and report.get('notificationReady') is True
+        wait(worker_resources_ready,timeout=100)
+        snapshot=operating_snapshot()
+        assert snapshot['synthetic'] is False
+        assert next(r for r in snapshot['resources'] if r['id']=='worker-memory')['value']>0
+        assert next(r for r in snapshot['resources'] if r['id']=='host-memory')['value'] is None
+        assert next(s for s in snapshot['services'] if s['id']=='api')['state']=='healthy'
+        # Exercise real disconnect/reconnect, allowing the documented 60-second cache.
+        run(COMPOSE+['stop','broker'])
+        wait(lambda:next(s for s in operating_snapshot()['services'] if s['id']=='mqtt')['state']=='unavailable',timeout=110)
+        assert next(s for s in operating_snapshot()['services'] if s['id']=='api')['state']=='healthy'
+        run(COMPOSE+['start','broker'])
+        wait(lambda:next(s for s in operating_snapshot()['services'] if s['id']=='mqtt')['state']=='healthy',timeout=110)
+        print('PASS: actual worker process resources and notification readiness are scoped; broker outage and reconnect remain independent of API liveness.')
     run(COMPOSE+['stop','database'])
     wait(lambda: http(plain,'/health/ready')[0]==503, timeout=30)
     assert http(plain,'/health/live')[0]==200
