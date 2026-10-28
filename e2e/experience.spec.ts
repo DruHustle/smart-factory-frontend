@@ -155,7 +155,7 @@ test.describe("product experience rendered evidence", () => {
         const previousFrom = await fromDate.inputValue();
         await fromDate.fill("");
         await expect(fromDate).toBeVisible();
-        await expect(page.getByRole("heading", { name: "Review the selected dates" })).toBeVisible();
+        await expect(page.getByText("Review the selected dates", { exact: true })).toBeVisible();
         await expect(page.getByRole("img", { name: /temperature in °C/ })).toHaveCount(0);
         await fromDate.fill(previousFrom);
         await expect(page.getByRole("img", { name: /temperature in °C/ })).toBeVisible();
