@@ -10,6 +10,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { measureOrbit } from "./benchmark";
 import { pollGpuFrame } from "./gpuFrame";
+import { scheduleDrawingFrame } from "./drawingFrame";
 import { frameBounds, visibleBounds } from "./framing";
 import { moveCamera } from "./cameraMotion";
 import { hitVisible } from "./visibility";
@@ -190,7 +191,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       const container = host.current;
       if (!container) return;
       let disposed = false,
-        frame = 0,
+        cancelFrame: (() => void) | undefined,
         scenePrepared = false;
       let renderer: THREE.WebGLRenderer | undefined,
         controls: OrbitControls | undefined,
@@ -299,7 +300,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       let gpuFence: WebGLSync | null = null;
       let submittedFrames = 0,
         submittedAt = 0,
-        synchronizedFrames = 0;
+        synchronizedFrames = 0,
+        maxSynchronizedMs = 0;
       const renderStatus = (phase: string, detail?: number) => {
         container.dataset.renderStatus = JSON.stringify({
           phase,
@@ -307,6 +309,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           detail,
           software,
           synchronizedFrames,
+          maxSynchronizedMs,
           contextLost: gl.isContextLost(),
         });
       };
@@ -315,27 +318,39 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           container.dataset.inspectionApplied = JSON.stringify(
             runtime.current.inspector.diagnostics(),
           );
-        if (disposed || frame || !scenePrepared) return;
+        if (disposed || cancelFrame || !scenePrepared) return;
         renderStatus("queued");
+        const queueDraw = () => {
+          cancelFrame = scheduleDrawingFrame(() => {
+            cancelFrame = undefined;
+            if (!disposed && !document.hidden) draw();
+          });
+        };
         const draw = () => {
           if (gpuFence && !gl.isContextLost()) {
+            const waitStarted = performance.now();
             const { status, synchronized } = pollGpuFrame(
               gl,
               gpuFence,
               submittedAt,
               software,
             );
-            if (synchronized) synchronizedFrames++;
+            if (synchronized) {
+              synchronizedFrames++;
+              maxSynchronizedMs = Math.max(
+                maxSynchronizedMs,
+                performance.now() - waitStarted,
+              );
+            }
             if (status === gl.TIMEOUT_EXPIRED) {
               if (!container.dataset.renderStatus?.includes("waiting"))
                 renderStatus("waiting", status);
-              frame = requestAnimationFrame(draw);
+              queueDraw();
               return;
             }
             gl.deleteSync(gpuFence);
             gpuFence = null;
             if (status === gl.WAIT_FAILED) {
-              frame = 0;
               renderStatus("failed", status);
               setState(gl.isContextLost() ? "lost" : "error");
               setMessage(
@@ -344,7 +359,6 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
               return;
             }
           }
-          frame = 0;
           if (!disposed) {
             const r = runtime.current;
             if (r) {
@@ -400,8 +414,15 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             }
           }
         };
-        frame = requestAnimationFrame(draw);
+        queueDraw();
       };
+      const resumeDrawing = () => {
+        if (!document.hidden) render();
+      };
+      document.addEventListener("visibilitychange", resumeDrawing);
+      cleanupCallbacks.push(() =>
+        document.removeEventListener("visibilitychange", resumeDrawing),
+      );
       cleanupCallbacks.push(() => {
         if (gpuFence && !gl.isContextLost()) gl.deleteSync(gpuFence);
       });
@@ -752,7 +773,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         cameraMotion.current?.();
         abort.abort();
         clearTimeout(timeout);
-        cancelAnimationFrame(frame);
+        cancelFrame?.();
         runtime.current = null;
         observer?.disconnect();
         cleanupCallbacks.forEach((f) => f());

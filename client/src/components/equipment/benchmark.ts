@@ -1,6 +1,7 @@
 import * as T from "three";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { pollGpuFrame } from "./gpuFrame";
+import { scheduleDrawingFrame } from "./drawingFrame";
 export type MeasuredRuntime = {
   camera: T.PerspectiveCamera;
   controls: OrbitControls;
@@ -35,13 +36,15 @@ export async function measureOrbit(
   const intervals: number[] = [];
   while (
     active() &&
+    !document.hidden &&
     !synchronizationFailed &&
     !gl.isContextLost() &&
     performance.now() - started < warmupMs + durationMs
   ) {
     await new Promise<void>((resolve) =>
-      requestAnimationFrame((now) => {
-        if (active() && !gl.isContextLost()) {
+      scheduleDrawingFrame(() => {
+        const now = performance.now();
+        if (active() && !document.hidden && !gl.isContextLost()) {
           if (fence) {
             const { status, synchronized } = pollGpuFrame(
               gl,
@@ -110,6 +113,7 @@ export async function measureOrbit(
     measurementStartedAt: performance.timeOrigin + started,
     completed:
       !synchronizationFailed &&
+      !document.hidden &&
       !gl.isContextLost() &&
       elapsedMs >= warmupMs + durationMs,
     synchronization:

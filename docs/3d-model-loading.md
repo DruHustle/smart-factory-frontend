@@ -22,6 +22,8 @@ A [hosted baseline](evidence/raspberry-pi/loading-baseline.json) measured the ex
 
 Linux headless Chromium also exposed an overdue software-renderer fence query after drawing. Normal waits remain nonblocking and explicitly flush status-query commands. For a detected software driver whose query is still pending after 500 ms, the viewer drains its single outstanding GPU frame before drawing again. This exceptional recovery may block until actual completion; it does not discard geometry or pretend that the frame completed. Hardware and unidentified drivers retain nonblocking polling. Context loss and failed synchronization produce an error rather than a successful frame.
 
-Renderer diagnostics and the active-orbit benchmark report the number of exceptional drains. Benchmark elapsed time includes every wait and drain; existing completed-frame, duration and interaction acceptance checks remain unchanged.
+On-demand drawing normally uses animation-frame callbacks and has a 100 ms watchdog for a visible viewer when the compositor delays a callback. Both paths coalesce into one actual draw. Hidden pages submit no GPU work, visibility restoration requests a redraw, and pending callbacks are cancelled on disposal. There is no idle drawing timer. Active-orbit measurements stop if the page becomes hidden and count actual rendered frames, including scheduling and synchronization time.
+
+Renderer diagnostics include software synchronization duration. Renderer diagnostics and the active-orbit benchmark report the number of exceptional drains. Benchmark elapsed time includes every wait and drain; existing completed-frame, duration and interaction acceptance checks remain unchanged.
 
 See the [actual application screenshots and recordings](evidence/raspberry-pi/README.md).
