@@ -62,7 +62,7 @@ grant private account or operational access.
 | --- | --- |
 | TypeScript | Passed |
 | Production Vite build | Passed; the existing lazy-loaded renderer remains the largest chunk |
-| Frontend/application API tests | 393 passed; 102 database-dependent tests skipped without disposable PostgreSQL |
+| Frontend/application API tests | 394 passed; 102 database-dependent tests skipped without disposable PostgreSQL |
 | .NET companion unit tests | 241 passed with `Category!=Postgres` |
 | Raspberry Pi gateway tests | 78 passed |
 | Oracle/Vercel deployment configuration check | Passed |
@@ -73,6 +73,13 @@ grant private account or operational access.
 The build and TypeScript checks use the installed dependency set matching the
 repository lock. Physical hardware was not commanded, flashed or commissioned;
 the review did not send email or change live operational records.
+
+The visual suite reuses one public demo identity across independent cases. With
+account throttling repaired, its twenty-first sign-in correctly reached the limit.
+Those cases now reset only that fixture identity's email counter before sign-in.
+The helper requires the explicit development browser runner and a loopback
+PostgreSQL `_e2e` database; guard regressions reject other environments. Application
+rate limits and the dedicated throttling regressions remain active.
 
 ## Promotion and remaining operating acceptance
 
