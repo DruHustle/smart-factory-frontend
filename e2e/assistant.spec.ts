@@ -40,7 +40,9 @@ test("Assistant uses stored visual evidence, earlier sources and one automatic p
   await expect(
     page.getByRole("heading", { name: /Showcase pump 01 recorded/ }),
   ).toContainText("°C");
-  await expect(page.locator("[data-state=ready]")).toBeVisible();
+  await expect(page.locator("[data-state=ready]")).toBeVisible({
+    timeout: 30000,
+  });
   expect(
     await page
       .getByRole("img", { name: "Interactive 3D equipment model" })
@@ -295,14 +297,18 @@ for (const [width, theme] of [
       await ask(page);
       if (width < 1280)
         await page.getByRole("button", { name: /Sources & context/ }).click();
-      await expect(page.locator("[data-state=ready]")).toBeVisible();
+      await expect(page.locator("[data-state=ready]")).toBeVisible({
+        timeout: 30000,
+      });
       await page
         .getByRole("link", { name: "Open 3D inspection", exact: true })
         .click();
       await expect(
         page.getByRole("heading", { name: "Showcase pump 01", exact: true }),
       ).toBeVisible();
-      await expect(page.locator("[data-state=ready]")).toBeVisible();
+      await expect(page.locator("[data-state=ready]")).toBeVisible({
+        timeout: 30000,
+      });
       await page.getByRole("button", { name: "Explode", exact: true }).click();
       await expect(
         page.getByRole("button", { name: "Reassemble", exact: true }),

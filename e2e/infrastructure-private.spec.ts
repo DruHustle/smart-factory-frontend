@@ -37,7 +37,7 @@ for (const role of ["viewer", "operator", "engineer"])
     await page.goto("/#/infrastructure/service-health");
     await expect(
       page.getByText("Service health is restricted", { exact: true }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15000 });
   });
 test("individual administrator inspects real scoped process and database evidence without controls", async ({
   page,

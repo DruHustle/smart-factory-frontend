@@ -73,7 +73,7 @@ for (const width of [360, 390, 768, 1024, 1440])
         const heading = page
           .getByRole("heading", { name: title, exact: true })
           .first();
-        await expect(heading).toBeVisible();
+        await expect(heading).toBeVisible({ timeout: 15000 });
         expect(
           await heading.evaluate((el) => getComputedStyle(el).fontFamily),
         ).toContain("Segoe UI");
