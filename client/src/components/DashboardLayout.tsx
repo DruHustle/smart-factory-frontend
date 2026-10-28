@@ -8,6 +8,11 @@ import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -28,7 +33,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LogOut, PanelLeft, Factory, Bell } from "lucide-react";
+import { LogOut, PanelLeft, Factory, Bell, ChevronDown } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -40,6 +45,7 @@ const menuItems = primaryDestinations;
 const groups = navigationGroups;
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
+const SIDEBAR_COLLAPSED_GROUPS_KEY = "sidebar-collapsed-groups";
 const DEFAULT_WIDTH = 240;
 const MIN_WIDTH = 224;
 const MAX_WIDTH = 248;
@@ -153,6 +159,43 @@ function DashboardLayoutContent({
     ...visibleMenuItems,
     ...groups.flatMap((g) => g.items),
   ].find((item) => isMenuItemActive(item.path));
+  const activeGroup = groups.find((group) =>
+    group.items.some((item) => isMenuItemActive(item.path)),
+  )?.label;
+  const [collapsedGroups, setCollapsedGroups] = useState<string[]>(() => {
+    try {
+      const saved: unknown = JSON.parse(
+        safeLocalStorage.getItem(SIDEBAR_COLLAPSED_GROUPS_KEY) ?? "[]",
+      );
+      return Array.isArray(saved)
+        ? saved.filter(
+            (label): label is string =>
+              typeof label === "string" &&
+              groups.some((group) => group.label === label),
+          )
+        : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    safeLocalStorage.setItem(
+      SIDEBAR_COLLAPSED_GROUPS_KEY,
+      JSON.stringify(collapsedGroups),
+    );
+  }, [collapsedGroups]);
+
+  // Reveal the current destination on direct entry and route changes. A user can
+  // still close its group until the next navigation.
+  useEffect(() => {
+    if (!activeGroup) return;
+    setCollapsedGroups((current) =>
+      current.includes(activeGroup)
+        ? current.filter((label) => label !== activeGroup)
+        : current,
+    );
+  }, [activeGroup, location]);
 
   function selectDestination() {
     if (!isMobile) return;
@@ -220,46 +263,72 @@ function DashboardLayoutContent({
           hasMinimumRole(user?.role, i.minRole)),
     );
     if (!items.length) return null;
+    const isOpen = !collapsedGroups.includes(group.label);
     return (
       <li className="list-none pt-3" key={group.label}>
-        <h2
-          title={isCollapsed ? group.label : undefined}
-          className="mb-1 flex h-10 items-center px-2 text-muted-foreground"
+        <Collapsible
+          open={isOpen}
+          onOpenChange={(open) =>
+            setCollapsedGroups((current) =>
+              open
+                ? current.filter((label) => label !== group.label)
+                : [...current, group.label],
+            )
+          }
         >
-          <NavigationLabel
-            icon={group.icon}
-            label={group.label}
-            heading
-            collapsed={isCollapsed}
-          />
-        </h2>
-        <ul className="space-y-1 pl-3 group-data-[collapsible=icon]:pl-0">
-          {items.map((item) => (
-            <SidebarMenuItem key={item.path}>
-              <SidebarMenuButton
-                asChild
-                tooltip={item.label}
-                className="h-10"
-                isActive={isMenuItemActive(item.path)}
+          <h2 className="mb-1">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                title={isCollapsed ? group.label : undefined}
+                aria-label={group.label}
+                className="flex h-10 w-full items-center gap-2 rounded-md px-2 text-left text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
               >
-                <Link
-                  href={item.path}
-                  aria-label={item.label}
-                  aria-current={
-                    isMenuItemActive(item.path) ? "page" : undefined
-                  }
-                  onClick={selectDestination}
-                >
-                  <NavigationLabel
-                    icon={item.icon}
-                    label={item.label}
-                    collapsed={isCollapsed}
+                <NavigationLabel
+                  icon={group.icon}
+                  label={group.label}
+                  heading
+                  collapsed={isCollapsed}
+                />
+                {!isCollapsed && (
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={`size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none ${isOpen ? "" : "-rotate-90"}`}
                   />
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </ul>
+                )}
+              </button>
+            </CollapsibleTrigger>
+          </h2>
+          <CollapsibleContent asChild>
+            <ul className="space-y-1 pl-3 group-data-[collapsible=icon]:pl-0">
+              {items.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={item.label}
+                    className="h-10"
+                    isActive={isMenuItemActive(item.path)}
+                  >
+                    <Link
+                      href={item.path}
+                      aria-label={item.label}
+                      aria-current={
+                        isMenuItemActive(item.path) ? "page" : undefined
+                      }
+                      onClick={selectDestination}
+                    >
+                      <NavigationLabel
+                        icon={item.icon}
+                        label={item.label}
+                        collapsed={isCollapsed}
+                      />
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
       </li>
     );
   }
