@@ -1,0 +1,853 @@
+{
+  "revision": "smart-factory-illustrative-storage-tank-1",
+  "name": "Stainless process tank \u00b7 illustrative",
+  "assetType": "tank",
+  "assetTypeId": "urn:smart-factory:type:storage-tank-illustrative",
+  "status": "Original illustrative reference; not manufacturer CAD or an installed-asset attestation",
+  "sha256": "bdc99d2d642abcd194ce7286249cc1cf188361617819a76927eea08798b59e2b",
+  "units": "m",
+  "handedness": "right",
+  "upAxis": "+Y",
+  "components": [
+    {
+      "templateComponentId": "c8b1ba34-5193-5de9-925d-926a0be2e599",
+      "name": "Stainless process tank",
+      "nodeIndex": 0,
+      "nodePath": "/Stainless_process_tank",
+      "parentTemplateComponentId": null,
+      "designation": "REF-STORAGE-TANK-000",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "8b8ed91c-4e0e-5eeb-ab0b-fec36abd7079",
+      "name": "Dished stainless vessel shell",
+      "nodeIndex": 1,
+      "nodePath": "/Stainless_process_tank/Dished_stainless_vessel_shell",
+      "parentTemplateComponentId": "c8b1ba34-5193-5de9-925d-926a0be2e599",
+      "designation": "REF-STORAGE-TANK-001",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.1,
+          -0.65
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "15ef6e3e-2737-5ee4-8602-25b993c3126e",
+      "name": "Legs and skid",
+      "nodeIndex": 2,
+      "nodePath": "/Stainless_process_tank/Legs_and_skid",
+      "parentTemplateComponentId": "c8b1ba34-5193-5de9-925d-926a0be2e599",
+      "designation": "REF-STORAGE-TANK-002",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3ab9f361-c0aa-5e81-8a0b-80068c6bd23a",
+      "name": "Support leg 1",
+      "nodeIndex": 3,
+      "nodePath": "/Stainless_process_tank/Legs_and_skid/Support_leg_1",
+      "parentTemplateComponentId": "15ef6e3e-2737-5ee4-8602-25b993c3126e",
+      "designation": "REF-STORAGE-TANK-003",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.07071067811865477,
+          -0.05,
+          0.07071067811865475
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "9f282e74-1782-5bf5-b212-5d62e5d496cf",
+      "name": "Anchor foot 1",
+      "nodeIndex": 4,
+      "nodePath": "/Stainless_process_tank/Legs_and_skid/Anchor_foot_1",
+      "parentTemplateComponentId": "15ef6e3e-2737-5ee4-8602-25b993c3126e",
+      "designation": "REF-STORAGE-TANK-004",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.02,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "95a5718e-c13f-576c-946f-ed7ec27f9e77",
+      "name": "Support leg 2",
+      "nodeIndex": 5,
+      "nodePath": "/Stainless_process_tank/Legs_and_skid/Support_leg_2",
+      "parentTemplateComponentId": "15ef6e3e-2737-5ee4-8602-25b993c3126e",
+      "designation": "REF-STORAGE-TANK-005",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.07071067811865475,
+          -0.05,
+          0.07071067811865477
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2f9fd75f-4ce1-53a5-8b9d-28844ae82a43",
+      "name": "Anchor foot 2",
+      "nodeIndex": 6,
+      "nodePath": "/Stainless_process_tank/Legs_and_skid/Anchor_foot_2",
+      "parentTemplateComponentId": "15ef6e3e-2737-5ee4-8602-25b993c3126e",
+      "designation": "REF-STORAGE-TANK-006",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.02,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "700e9bbf-cc68-5565-95ad-7cbb1dd9f46f",
+      "name": "Support leg 3",
+      "nodeIndex": 7,
+      "nodePath": "/Stainless_process_tank/Legs_and_skid/Support_leg_3",
+      "parentTemplateComponentId": "15ef6e3e-2737-5ee4-8602-25b993c3126e",
+      "designation": "REF-STORAGE-TANK-007",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.07071067811865477,
+          -0.05,
+          -0.07071067811865475
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "0b6466e4-8e42-53dd-a157-2f8fdf87d206",
+      "name": "Anchor foot 3",
+      "nodeIndex": 8,
+      "nodePath": "/Stainless_process_tank/Legs_and_skid/Anchor_foot_3",
+      "parentTemplateComponentId": "15ef6e3e-2737-5ee4-8602-25b993c3126e",
+      "designation": "REF-STORAGE-TANK-008",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.02,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "289cd84e-a155-5da2-9d13-10e71ed47f3b",
+      "name": "Support leg 4",
+      "nodeIndex": 9,
+      "nodePath": "/Stainless_process_tank/Legs_and_skid/Support_leg_4",
+      "parentTemplateComponentId": "15ef6e3e-2737-5ee4-8602-25b993c3126e",
+      "designation": "REF-STORAGE-TANK-009",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.07071067811865474,
+          -0.05,
+          -0.07071067811865477
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "cd70779f-69fd-584c-baab-d44d15fc4ad3",
+      "name": "Anchor foot 4",
+      "nodeIndex": 10,
+      "nodePath": "/Stainless_process_tank/Legs_and_skid/Anchor_foot_4",
+      "parentTemplateComponentId": "15ef6e3e-2737-5ee4-8602-25b993c3126e",
+      "designation": "REF-STORAGE-TANK-010",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.02,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "42c967f9-6dfa-53b9-8587-d5cba53e6bd9",
+      "name": "Agitator and access assembly",
+      "nodeIndex": 11,
+      "nodePath": "/Stainless_process_tank/Agitator_and_access_assembly",
+      "parentTemplateComponentId": "c8b1ba34-5193-5de9-925d-926a0be2e599",
+      "designation": "REF-STORAGE-TANK-011",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.35,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "8cad54fb-c705-553f-a5f6-260a7f312af7",
+      "name": "Top access flange",
+      "nodeIndex": 12,
+      "nodePath": "/Stainless_process_tank/Agitator_and_access_assembly/Top_access_flange",
+      "parentTemplateComponentId": "42c967f9-6dfa-53b9-8587-d5cba53e6bd9",
+      "designation": "REF-STORAGE-TANK-012",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.09,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "1c111134-940f-5a3d-bfe7-0d84b2fc53ec",
+      "name": "Access cover",
+      "nodeIndex": 13,
+      "nodePath": "/Stainless_process_tank/Agitator_and_access_assembly/Access_cover",
+      "parentTemplateComponentId": "42c967f9-6dfa-53b9-8587-d5cba53e6bd9",
+      "designation": "REF-STORAGE-TANK-013",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.19,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "0f1be91c-3998-59c3-a56d-f73d76009200",
+      "name": "Access flange bolts",
+      "nodeIndex": 14,
+      "nodePath": "/Stainless_process_tank/Agitator_and_access_assembly/Access_flange_bolts",
+      "parentTemplateComponentId": "42c967f9-6dfa-53b9-8587-d5cba53e6bd9",
+      "designation": "REF-STORAGE-TANK-014",
+      "quantity": 8,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.25,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "cbba0a2c-e0ff-59dd-8f10-ddf4cc3e8a5e",
+      "name": "Agitator motor housing",
+      "nodeIndex": 15,
+      "nodePath": "/Stainless_process_tank/Agitator_and_access_assembly/Agitator_motor_housing",
+      "parentTemplateComponentId": "42c967f9-6dfa-53b9-8587-d5cba53e6bd9",
+      "designation": "REF-STORAGE-TANK-015",
+      "quantity": 1,
+      "material": "Industrial blue enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.28,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "715a0a24-def8-5149-8b51-bd15fc531e5f",
+      "name": "Motor mounting flange",
+      "nodeIndex": 16,
+      "nodePath": "/Stainless_process_tank/Agitator_and_access_assembly/Motor_mounting_flange",
+      "parentTemplateComponentId": "42c967f9-6dfa-53b9-8587-d5cba53e6bd9",
+      "designation": "REF-STORAGE-TANK-016",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.22,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "0ffa9b0c-a8aa-50cc-8e13-4666433874dd",
+      "name": "Agitator shaft",
+      "nodeIndex": 17,
+      "nodePath": "/Stainless_process_tank/Agitator_and_access_assembly/Agitator_shaft",
+      "parentTemplateComponentId": "42c967f9-6dfa-53b9-8587-d5cba53e6bd9",
+      "designation": "REF-STORAGE-TANK-017",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.16,
+          0.05,
+          0.1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6363bb5c-a6b9-5c9e-9c73-ac95998d2b32",
+      "name": "Mixing paddle set",
+      "nodeIndex": 18,
+      "nodePath": "/Stainless_process_tank/Agitator_and_access_assembly/Mixing_paddle_set",
+      "parentTemplateComponentId": "42c967f9-6dfa-53b9-8587-d5cba53e6bd9",
+      "designation": "REF-STORAGE-TANK-018",
+      "quantity": 2,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.16,
+          0.05,
+          0.1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "b7f94d70-1104-55d0-bed6-6707acd3afa6",
+      "name": "Side process nozzle",
+      "nodeIndex": 19,
+      "nodePath": "/Stainless_process_tank/Side_process_nozzle",
+      "parentTemplateComponentId": "c8b1ba34-5193-5de9-925d-926a0be2e599",
+      "designation": "REF-STORAGE-TANK-019",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.22,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "954bef8a-c4d6-52e5-a843-3cfbe2a7116e",
+      "name": "Nozzle flange",
+      "nodeIndex": 20,
+      "nodePath": "/Stainless_process_tank/Nozzle_flange",
+      "parentTemplateComponentId": "c8b1ba34-5193-5de9-925d-926a0be2e599",
+      "designation": "REF-STORAGE-TANK-020",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.28,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6aca6f8e-eea3-564a-a5ca-19cc0b97a39c",
+      "name": "Bottom drain tube",
+      "nodeIndex": 21,
+      "nodePath": "/Stainless_process_tank/Bottom_drain_tube",
+      "parentTemplateComponentId": "c8b1ba34-5193-5de9-925d-926a0be2e599",
+      "designation": "REF-STORAGE-TANK-021",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.1,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "e1a846f6-9dff-5a7e-b4dc-8099b7e00c8d",
+      "name": "Access ladder",
+      "nodeIndex": 22,
+      "nodePath": "/Stainless_process_tank/Access_ladder",
+      "parentTemplateComponentId": "c8b1ba34-5193-5de9-925d-926a0be2e599",
+      "designation": "REF-STORAGE-TANK-022",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "662ad09d-9043-59ec-ad0e-20c8bcf65cf6",
+      "name": "Ladder rails",
+      "nodeIndex": 23,
+      "nodePath": "/Stainless_process_tank/Access_ladder/Ladder_rails",
+      "parentTemplateComponentId": "e1a846f6-9dff-5a7e-b4dc-8099b7e00c8d",
+      "designation": "REF-STORAGE-TANK-023",
+      "quantity": 2,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.12
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "459a94b8-9935-50df-b0af-bd6bc48c7ff4",
+      "name": "Ladder rungs",
+      "nodeIndex": 24,
+      "nodePath": "/Stainless_process_tank/Access_ladder/Ladder_rungs",
+      "parentTemplateComponentId": "e1a846f6-9dff-5a7e-b4dc-8099b7e00c8d",
+      "designation": "REF-STORAGE-TANK-024",
+      "quantity": 8,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.16
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "771f8d96-0fab-51d9-8254-8e6caf25e72c",
+      "name": "Ladder standoff brackets",
+      "nodeIndex": 25,
+      "nodePath": "/Stainless_process_tank/Access_ladder/Ladder_standoff_brackets",
+      "parentTemplateComponentId": "e1a846f6-9dff-5a7e-b4dc-8099b7e00c8d",
+      "designation": "REF-STORAGE-TANK-025",
+      "quantity": 2,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "bindings": [],
+  "maintenanceText": null,
+  "initialViewDirection": [
+    1.4,
+    0.8,
+    1.8
+  ],
+  "provenance": "Original MIT parametric factory geometry. Illustrative construction; no supplier CAD or external textures."
+}

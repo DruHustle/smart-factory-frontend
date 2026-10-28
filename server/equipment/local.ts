@@ -15,6 +15,7 @@ import { readFile } from "node:fs/promises";
 import { getDb, ingestTelemetryByDeviceId } from "../db";
 import { assets, devices, assetDevices } from "../../drizzle/schema";
 import { visibleRecordSql } from "../demoData";
+import { factoryModels, referenceModels } from "../../shared/factory-models";
 const root = new URL("../../fixtures/equipment/", import.meta.url);
 const componentSchema = component.extend({ installedComponentId: z.uuid() });
 const viewerStateSchema = z
@@ -76,6 +77,8 @@ async function query<T = Record<string, unknown>>(q: ReturnType<typeof sql>) {
 }
 export type LocalTemplate = {
   name?: string;
+  assetType?: string;
+  assetTypeId?: string;
   initialViewDirection?: [number, number, number];
   revision: string;
   status: string;
@@ -88,13 +91,25 @@ export type LocalTemplate = {
 export const raspberryPiRevision =
   "smart-factory-illustrative-raspberry-pi-4b-1";
 export async function bundledModelCatalog() {
-  const models = await Promise.all([template(), template(raspberryPiRevision)]);
+  const models = await Promise.all(
+    referenceModels.map((model) => template(model.revision)),
+  );
   return models.map((m) => ({
     revision: m.revision,
     name: m.name ?? "Illustrative pump and motor",
   }));
 }
 export async function template(revision?: string) {
+  const factory = factoryModels.find(
+    (model) => revision === `smart-factory-illustrative-${model.slug}-1`,
+  );
+  if (factory)
+    return JSON.parse(
+      await readFile(
+        new URL(`factory/${factory.slug}/template.json`, root),
+        "utf8",
+      ),
+    ) as LocalTemplate;
   if (revision === raspberryPiRevision)
     return JSON.parse(
       await readFile(new URL("raspberry-pi-4b/template.json", root), "utf8"),
@@ -189,18 +204,20 @@ export async function createEquipment(
             assetId: externalAssetId,
             name: input.name,
             assetType:
-              t.revision === raspberryPiRevision
+              t.assetType ??
+              (t.revision === raspberryPiRevision
                 ? "gateway"
                 : t.revision.startsWith("local-import:")
                   ? "other"
-                  : "pump",
+                  : "pump"),
             serialNumber: input.serialNumber,
             model:
-              t.revision === raspberryPiRevision
+              t.name ??
+              (t.revision === raspberryPiRevision
                 ? "Raspberry Pi 4 Model B · illustrative"
                 : t.revision.startsWith("local-import:")
                   ? "Locally imported model"
-                  : "Illustrative pump/motor",
+                  : "Illustrative pump/motor"),
             isDemo: fixed?.isDemo ?? false,
             aasShell: {
               modelType: "AssetAdministrationShell",
@@ -209,11 +226,12 @@ export async function createEquipment(
                 assetKind: "Instance",
                 globalAssetId: externalAssetId,
                 assetType:
-                  t.revision === raspberryPiRevision
+                  t.assetTypeId ??
+                  (t.revision === raspberryPiRevision
                     ? "urn:smart-factory:type:raspberry-pi-4b-illustrative"
                     : t.revision.startsWith("local-import:")
                       ? "urn:smart-factory:type:unspecified"
-                      : "urn:smart-factory:type:pump-motor-v1",
+                      : "urn:smart-factory:type:pump-motor-v1"),
               },
             },
           })
@@ -607,19 +625,24 @@ export async function initializeLocalEquipmentDemos() {
 
 export async function modelBytes(revision: string) {
   const t = await template(revision);
+  const factory = factoryModels.find(
+    (model) => revision === `smart-factory-illustrative-${model.slug}-1`,
+  );
   const bytes = revision.startsWith("local-import:")
     ? await importedBytes(revision)
     : await readFile(
         new URL(
-          revision === raspberryPiRevision
-            ? "raspberry-pi-4b/model.glb"
-            : [
-                  "smart-factory-illustrative-pump-motor-1",
-                  "smart-factory-illustrative-pump-motor-2",
-                  "smart-factory-illustrative-pump-motor-3",
-                ].includes(revision)
-              ? `revisions/${revision.split("-").at(-1)}/model.glb`
-              : "pump-motor.glb",
+          factory
+            ? `factory/${factory.slug}/model.glb`
+            : revision === raspberryPiRevision
+              ? "raspberry-pi-4b/model.glb"
+              : [
+                    "smart-factory-illustrative-pump-motor-1",
+                    "smart-factory-illustrative-pump-motor-2",
+                    "smart-factory-illustrative-pump-motor-3",
+                  ].includes(revision)
+                ? `revisions/${revision.split("-").at(-1)}/model.glb`
+                : "pump-motor.glb",
           root,
         ),
       );

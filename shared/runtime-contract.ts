@@ -14,6 +14,7 @@ export const requiredCapabilities = [
   "inventory-v1",
   "native-equipment-v1",
   "raspberry-pi-model-v1",
+  "factory-reference-models-v1",
   "native-security-v1",
 ] as const;
 export type RuntimeContract = {

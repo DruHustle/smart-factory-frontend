@@ -1,0 +1,917 @@
+{
+  "revision": "smart-factory-illustrative-control-cabinet-1",
+  "name": "Industrial control cabinet \u00b7 illustrative",
+  "assetType": "other",
+  "assetTypeId": "urn:smart-factory:type:control-cabinet-illustrative",
+  "status": "Original illustrative reference; not manufacturer CAD or an installed-asset attestation",
+  "sha256": "12eb0599c34a6e6843246342d2bb873cc5e92b429768e7919de739d96fb6ec33",
+  "units": "m",
+  "handedness": "right",
+  "upAxis": "+Y",
+  "components": [
+    {
+      "templateComponentId": "45f41148-1455-5cf5-87c9-500120df9683",
+      "name": "Industrial control cabinet",
+      "nodeIndex": 0,
+      "nodePath": "/Industrial_control_cabinet",
+      "parentTemplateComponentId": null,
+      "designation": "REF-CONTROL-CABINET-000",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "b6ae6e37-b1a1-5374-b793-0f4b1457abfd",
+      "name": "Sheet steel enclosure",
+      "nodeIndex": 1,
+      "nodePath": "/Industrial_control_cabinet/Sheet_steel_enclosure",
+      "parentTemplateComponentId": "45f41148-1455-5cf5-87c9-500120df9683",
+      "designation": "REF-CONTROL-CABINET-001",
+      "quantity": 1,
+      "material": "Cabinet powder coat",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "f9fd766e-842f-5c8f-865d-3a3d5f7449c2",
+      "name": "Raised base plinth",
+      "nodeIndex": 2,
+      "nodePath": "/Industrial_control_cabinet/Raised_base_plinth",
+      "parentTemplateComponentId": "45f41148-1455-5cf5-87c9-500120df9683",
+      "designation": "REF-CONTROL-CABINET-002",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2b4bbc71-03ba-5e84-956d-c627cbc11109",
+      "name": "Hinged front door",
+      "nodeIndex": 3,
+      "nodePath": "/Industrial_control_cabinet/Hinged_front_door",
+      "parentTemplateComponentId": "45f41148-1455-5cf5-87c9-500120df9683",
+      "designation": "REF-CONTROL-CABINET-003",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.4,
+          0,
+          0.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "36730fcc-c312-59d7-83a0-f79e50a95699",
+      "name": "Front door panel",
+      "nodeIndex": 4,
+      "nodePath": "/Industrial_control_cabinet/Hinged_front_door/Front_door_panel",
+      "parentTemplateComponentId": "2b4bbc71-03ba-5e84-956d-c627cbc11109",
+      "designation": "REF-CONTROL-CABINET-004",
+      "quantity": 1,
+      "material": "Industrial blue enamel",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.12
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6143ab5d-452c-5f96-9844-d57f9ea148a7",
+      "name": "Inspection window glazing",
+      "nodeIndex": 5,
+      "nodePath": "/Industrial_control_cabinet/Hinged_front_door/Inspection_window_glazing",
+      "parentTemplateComponentId": "2b4bbc71-03ba-5e84-956d-c627cbc11109",
+      "designation": "REF-CONTROL-CABINET-005",
+      "quantity": 1,
+      "material": "Inspection glass",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.16
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "87812585-c62e-5e24-8344-c27da52fab37",
+      "name": "Window bezel",
+      "nodeIndex": 6,
+      "nodePath": "/Industrial_control_cabinet/Hinged_front_door/Window_bezel",
+      "parentTemplateComponentId": "2b4bbc71-03ba-5e84-956d-c627cbc11109",
+      "designation": "REF-CONTROL-CABINET-006",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.19
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "eb464aaf-9004-5b20-bfea-288f9302cc34",
+      "name": "Door latch handle",
+      "nodeIndex": 7,
+      "nodePath": "/Industrial_control_cabinet/Hinged_front_door/Door_latch_handle",
+      "parentTemplateComponentId": "2b4bbc71-03ba-5e84-956d-c627cbc11109",
+      "designation": "REF-CONTROL-CABINET-007",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.06,
+          0,
+          0.14
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "710b0572-09eb-5d46-bb8a-070e35d87b4b",
+      "name": "Door hinge set",
+      "nodeIndex": 8,
+      "nodePath": "/Industrial_control_cabinet/Hinged_front_door/Door_hinge_set",
+      "parentTemplateComponentId": "2b4bbc71-03ba-5e84-956d-c627cbc11109",
+      "designation": "REF-CONTROL-CABINET-008",
+      "quantity": 3,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.05,
+          0,
+          0.1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "name": "Mounting plate and wiring",
+      "nodeIndex": 9,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring",
+      "parentTemplateComponentId": "45f41148-1455-5cf5-87c9-500120df9683",
+      "designation": "REF-CONTROL-CABINET-009",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.12
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "47c0a74f-b7c6-5f42-995d-be99d2dfe81f",
+      "name": "Internal mounting plate",
+      "nodeIndex": 10,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Internal_mounting_plate",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-010",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.08
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "ebf8acef-4660-5f40-8e78-b620e74dd806",
+      "name": "DIN rail 1",
+      "nodeIndex": 11,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/DIN_rail_1",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-011",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.025,
+          0.06
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "f07f81be-7b87-53b6-93e9-3749a0e05871",
+      "name": "DIN rail 2",
+      "nodeIndex": 12,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/DIN_rail_2",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-012",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.025,
+          0.06
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "1a687e57-0196-5018-9e38-b7df3d5b76a9",
+      "name": "DIN rail 3",
+      "nodeIndex": 13,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/DIN_rail_3",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-013",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.025,
+          0.06
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "25653c9d-e572-5872-b1d3-339532bc8a63",
+      "name": "DIN rail 4",
+      "nodeIndex": 14,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/DIN_rail_4",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-014",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.025,
+          0.06
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "f12aec15-dc11-5d73-ac33-ef8c7ab72706",
+      "name": "Controller and power supply",
+      "nodeIndex": 15,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Controller_and_power_supply",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-015",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.14
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "11d64c65-84d8-59ae-8cc0-d6d50efa029f",
+      "name": "PLC controller modules",
+      "nodeIndex": 16,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Controller_and_power_supply/PLC_controller_modules",
+      "parentTemplateComponentId": "f12aec15-dc11-5d73-ac33-ef8c7ab72706",
+      "designation": "REF-CONTROL-CABINET-016",
+      "quantity": 5,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.05,
+          0.1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "df6d59ec-bba1-58f8-9f4c-493b361ddcfa",
+      "name": "Controller terminal connectors",
+      "nodeIndex": 17,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Controller_and_power_supply/Controller_terminal_connectors",
+      "parentTemplateComponentId": "f12aec15-dc11-5d73-ac33-ef8c7ab72706",
+      "designation": "REF-CONTROL-CABINET-017",
+      "quantity": 5,
+      "material": "Green polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.08,
+          0.11
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "384552ee-53ff-5a0f-8526-6fea88fa5d44",
+      "name": "Power supply module",
+      "nodeIndex": 18,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Controller_and_power_supply/Power_supply_module",
+      "parentTemplateComponentId": "f12aec15-dc11-5d73-ac33-ef8c7ab72706",
+      "designation": "REF-CONTROL-CABINET-018",
+      "quantity": 1,
+      "material": "Light polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.05,
+          0.07,
+          0.1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "b77214b4-8e22-5ae3-8f68-c7be33376a42",
+      "name": "Circuit breaker bank",
+      "nodeIndex": 19,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Circuit_breaker_bank",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-019",
+      "quantity": 10,
+      "material": "Light polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0.16
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3d1363a4-96fc-541e-b080-7ab2148c0c52",
+      "name": "Breaker toggle levers",
+      "nodeIndex": 20,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Breaker_toggle_levers",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-020",
+      "quantity": 10,
+      "material": "Industrial blue enamel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0.19
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "ed21c02c-f3da-515a-bd49-f4186c7346b5",
+      "name": "Terminal block bank",
+      "nodeIndex": 21,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Terminal_block_bank",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-021",
+      "quantity": 13,
+      "material": "Cabinet powder coat",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0.1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "b2912718-c535-5023-8a7e-90a1f2d17836",
+      "name": "Cable duct set",
+      "nodeIndex": 22,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Cable_duct_set",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-022",
+      "quantity": 7,
+      "material": "Light polymer",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.16
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "bb61ff95-a867-5e1a-b1f4-f0d4088e22ac",
+      "name": "Wiring loom 1",
+      "nodeIndex": 23,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Wiring_loom_1",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-023",
+      "quantity": 1,
+      "material": "Industrial blue enamel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "0a1e8e6a-b1ab-571a-8ee4-e111d41e9de0",
+      "name": "Wiring loom 2",
+      "nodeIndex": 24,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Wiring_loom_2",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-024",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "27b9a3bb-3a37-5cab-af6f-61daf94cdae3",
+      "name": "Wiring loom 3",
+      "nodeIndex": 25,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Wiring_loom_3",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-025",
+      "quantity": 1,
+      "material": "Safety yellow",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3bc95141-6f42-5bcf-a2c0-81dff0a8a7e2",
+      "name": "Wiring loom 4",
+      "nodeIndex": 26,
+      "nodePath": "/Industrial_control_cabinet/Mounting_plate_and_wiring/Wiring_loom_4",
+      "parentTemplateComponentId": "3640c334-3ce3-585b-97ee-dbeb01a1f180",
+      "designation": "REF-CONTROL-CABINET-026",
+      "quantity": 1,
+      "material": "Green polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "4e352f48-4634-54b3-94f8-86fb7228f935",
+      "name": "Cable entry gland row",
+      "nodeIndex": 27,
+      "nodePath": "/Industrial_control_cabinet/Cable_entry_gland_row",
+      "parentTemplateComponentId": "45f41148-1455-5cf5-87c9-500120df9683",
+      "designation": "REF-CONTROL-CABINET-027",
+      "quantity": 7,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.07,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "bindings": [],
+  "maintenanceText": null,
+  "initialViewDirection": [
+    1.2,
+    0.7,
+    1.8
+  ],
+  "provenance": "Original MIT parametric factory geometry. Illustrative construction; no supplier CAD or external textures."
+}

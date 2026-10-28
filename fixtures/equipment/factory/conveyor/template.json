@@ -1,0 +1,1077 @@
+{
+  "revision": "smart-factory-illustrative-conveyor-1",
+  "name": "Belt conveyor \u00b7 illustrative",
+  "assetType": "conveyor",
+  "assetTypeId": "urn:smart-factory:type:conveyor-illustrative",
+  "status": "Original illustrative reference; not manufacturer CAD or an installed-asset attestation",
+  "sha256": "3127dcbe4ef8b0390303ca83aba74c60dfbac2bd630ae5e9503f093618dda564",
+  "units": "m",
+  "handedness": "right",
+  "upAxis": "+Y",
+  "components": [
+    {
+      "templateComponentId": "014b8e95-7d99-51f6-be05-b9b252573e42",
+      "name": "Belt conveyor",
+      "nodeIndex": 0,
+      "nodePath": "/Belt_conveyor",
+      "parentTemplateComponentId": null,
+      "designation": "REF-CONVEYOR-000",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "name": "Support frame",
+      "nodeIndex": 1,
+      "nodePath": "/Belt_conveyor/Support_frame",
+      "parentTemplateComponentId": "014b8e95-7d99-51f6-be05-b9b252573e42",
+      "designation": "REF-CONVEYOR-001",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "7d344193-a048-5d06-982d-ece2a96f1bc1",
+      "name": "Rear chassis rail",
+      "nodeIndex": 2,
+      "nodePath": "/Belt_conveyor/Support_frame/Rear_chassis_rail",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-002",
+      "quantity": 1,
+      "material": "Industrial blue enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "69168b2a-a46c-569c-a47e-3bfc34f1c70f",
+      "name": "Front chassis rail",
+      "nodeIndex": 3,
+      "nodePath": "/Belt_conveyor/Support_frame/Front_chassis_rail",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-003",
+      "quantity": 1,
+      "material": "Industrial blue enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "f971bb4f-41cd-52a9-b656-da8b3b90afe1",
+      "name": "Left rear leg",
+      "nodeIndex": 4,
+      "nodePath": "/Belt_conveyor/Support_frame/Left_rear_leg",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-004",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.12299999999999998,
+          0,
+          -0.10800000000000001
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "59417dc9-b74d-5ac5-8a5a-59004f97b3bc",
+      "name": "Left rear adjustable foot",
+      "nodeIndex": 5,
+      "nodePath": "/Belt_conveyor/Support_frame/Left_rear_adjustable_foot",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-005",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.03,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "af08505e-546f-5b07-90c7-a2a13c6976ce",
+      "name": "Left front leg",
+      "nodeIndex": 6,
+      "nodePath": "/Belt_conveyor/Support_frame/Left_front_leg",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-006",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.12299999999999998,
+          0,
+          0.10800000000000001
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c5402507-d6c7-5a9e-acaa-31ba06d771e2",
+      "name": "Left front adjustable foot",
+      "nodeIndex": 7,
+      "nodePath": "/Belt_conveyor/Support_frame/Left_front_adjustable_foot",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-007",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.03,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "4226adee-ac8e-57e7-83c9-15768851aba7",
+      "name": "Right rear leg",
+      "nodeIndex": 8,
+      "nodePath": "/Belt_conveyor/Support_frame/Right_rear_leg",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-008",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.12299999999999998,
+          0,
+          -0.10800000000000001
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6b76d085-b79b-57db-88bd-910b46ced33e",
+      "name": "Right rear adjustable foot",
+      "nodeIndex": 9,
+      "nodePath": "/Belt_conveyor/Support_frame/Right_rear_adjustable_foot",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-009",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.03,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "d8ac493e-65bf-5beb-b9ea-e05457fdc9ba",
+      "name": "Right front leg",
+      "nodeIndex": 10,
+      "nodePath": "/Belt_conveyor/Support_frame/Right_front_leg",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-010",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.12299999999999998,
+          0,
+          0.10800000000000001
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "97cfff56-461b-51d9-87ba-6b98443f9261",
+      "name": "Right front adjustable foot",
+      "nodeIndex": 11,
+      "nodePath": "/Belt_conveyor/Support_frame/Right_front_adjustable_foot",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-011",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.03,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "a7fbd0bf-0f85-57fc-9905-0b91b6dfba37",
+      "name": "Frame cross braces",
+      "nodeIndex": 12,
+      "nodePath": "/Belt_conveyor/Support_frame/Frame_cross_braces",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-012",
+      "quantity": 2,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.08,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "d5cf949d-ec53-5e7b-b7c3-4ea6f77fec8f",
+      "name": "Upper frame crossmembers",
+      "nodeIndex": 13,
+      "nodePath": "/Belt_conveyor/Support_frame/Upper_frame_crossmembers",
+      "parentTemplateComponentId": "ca862b34-f9e1-5e99-b950-cad42cbb7dac",
+      "designation": "REF-CONVEYOR-013",
+      "quantity": 2,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.08,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "name": "Belt and rollers",
+      "nodeIndex": 14,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers",
+      "parentTemplateComponentId": "014b8e95-7d99-51f6-be05-b9b252573e42",
+      "designation": "REF-CONVEYOR-014",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.25,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2eb23e30-b137-5c45-af84-2b42bc843eec",
+      "name": "Continuous rubber belt",
+      "nodeIndex": 15,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Continuous_rubber_belt",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-015",
+      "quantity": 1,
+      "material": "Rubber",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.2,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "16d92c9b-baca-548b-b83e-47fa8f3e708e",
+      "name": "Drive drum",
+      "nodeIndex": 16,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Drive_drum",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-016",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.1,
+          -0.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c19ec7ea-dae0-5c16-89f7-d779c4529427",
+      "name": "Drive bearing pair",
+      "nodeIndex": 17,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Drive_bearing_pair",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-017",
+      "quantity": 2,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "4d335803-a267-504b-84fc-2e2f96ef532c",
+      "name": "Tension drum",
+      "nodeIndex": 18,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Tension_drum",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-018",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.1,
+          0.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "60510e0d-54fa-5e55-a02f-6e4e32407499",
+      "name": "Tension bearing pair",
+      "nodeIndex": 19,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Tension_bearing_pair",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-019",
+      "quantity": 2,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "d67eeaa4-430a-53b8-b8af-d8c5d4c1658c",
+      "name": "Support roller 1",
+      "nodeIndex": 20,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Support_roller_1",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-020",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "b3f7f56c-09b8-59de-84b2-8cfd756587cf",
+      "name": "Support roller 2",
+      "nodeIndex": 21,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Support_roller_2",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-021",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "f8829ead-1dd5-5568-8e40-19006938cf46",
+      "name": "Support roller 3",
+      "nodeIndex": 22,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Support_roller_3",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-022",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.06,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "a1e9c8d6-20a7-52e4-8811-158cd7b970a6",
+      "name": "Support roller 4",
+      "nodeIndex": 23,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Support_roller_4",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-023",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.07,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "8788e553-b634-59a5-8a63-237886499377",
+      "name": "Support roller 5",
+      "nodeIndex": 24,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Support_roller_5",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-024",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.08,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "1f0840c0-4cde-597d-b45d-01c8fece2398",
+      "name": "Support roller 6",
+      "nodeIndex": 25,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Support_roller_6",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-025",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.09,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "01e3de73-8766-57a7-9b9a-ec77a398b7d2",
+      "name": "Support roller 7",
+      "nodeIndex": 26,
+      "nodePath": "/Belt_conveyor/Belt_and_rollers/Support_roller_7",
+      "parentTemplateComponentId": "0e01367b-75d3-508c-9060-61ffc6884a0d",
+      "designation": "REF-CONVEYOR-026",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.1,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5639df1e-8796-53b1-9367-a042a19d0612",
+      "name": "Drive motor and reducer",
+      "nodeIndex": 27,
+      "nodePath": "/Belt_conveyor/Drive_motor_and_reducer",
+      "parentTemplateComponentId": "014b8e95-7d99-51f6-be05-b9b252573e42",
+      "designation": "REF-CONVEYOR-027",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.2,
+          0.05,
+          -0.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "88a37ed5-ee91-5542-a96b-528ad763fea1",
+      "name": "Motor finned housing",
+      "nodeIndex": 28,
+      "nodePath": "/Belt_conveyor/Drive_motor_and_reducer/Motor_finned_housing",
+      "parentTemplateComponentId": "5639df1e-8796-53b1-9367-a042a19d0612",
+      "designation": "REF-CONVEYOR-028",
+      "quantity": 1,
+      "material": "Industrial blue enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.15
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "1d381086-27a0-539e-9d13-f0108d35a78d",
+      "name": "Reducer casing",
+      "nodeIndex": 29,
+      "nodePath": "/Belt_conveyor/Drive_motor_and_reducer/Reducer_casing",
+      "parentTemplateComponentId": "5639df1e-8796-53b1-9367-a042a19d0612",
+      "designation": "REF-CONVEYOR-029",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.08
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "d6aa331c-187e-5f43-b88f-235229a9940d",
+      "name": "Motor shaft",
+      "nodeIndex": 30,
+      "nodePath": "/Belt_conveyor/Drive_motor_and_reducer/Motor_shaft",
+      "parentTemplateComponentId": "5639df1e-8796-53b1-9367-a042a19d0612",
+      "designation": "REF-CONVEYOR-030",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.13
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "27af7fe3-785a-56fc-ad34-408a23ce3b48",
+      "name": "Motor rotor",
+      "nodeIndex": 31,
+      "nodePath": "/Belt_conveyor/Drive_motor_and_reducer/Motor_rotor",
+      "parentTemplateComponentId": "5639df1e-8796-53b1-9367-a042a19d0612",
+      "designation": "REF-CONVEYOR-031",
+      "quantity": 1,
+      "material": "Copper",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.1,
+          -0.05
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "db00a47d-e385-5747-a1e8-a21f542c2323",
+      "name": "Drive guard",
+      "nodeIndex": 32,
+      "nodePath": "/Belt_conveyor/Drive_motor_and_reducer/Drive_guard",
+      "parentTemplateComponentId": "5639df1e-8796-53b1-9367-a042a19d0612",
+      "designation": "REF-CONVEYOR-032",
+      "quantity": 1,
+      "material": "Safety yellow",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.18,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "bindings": [],
+  "maintenanceText": null,
+  "initialViewDirection": [
+    1.5,
+    1,
+    2
+  ],
+  "provenance": "Original MIT parametric factory geometry. Illustrative construction; no supplier CAD or external textures."
+}

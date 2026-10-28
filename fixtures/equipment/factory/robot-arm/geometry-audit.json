@@ -1,0 +1,247 @@
+{
+  "revision": "smart-factory-illustrative-robot-arm-1",
+  "sha256": "77b2a6a949aadecfdeed729788bf0c5c9c76c2552d06760748f8e5faa5b56dbe",
+  "bytes": 541000,
+  "components": 46,
+  "triangles": 16394,
+  "solids": [
+    {
+      "name": "Anchored base flange",
+      "positiveVolumeCubicMetres": 0.022596433344750894,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Base anchor bolts",
+      "positiveVolumeCubicMetres": 0.00010484816930685949,
+      "triangles": 1120,
+      "manifold": true
+    },
+    {
+      "name": "Axis 1 base rotation housing",
+      "positiveVolumeCubicMetres": 0.01779740644917874,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 1 base rotation bearing",
+      "positiveVolumeCubicMetres": 0.0030875438222788946,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 1 base rotation geared rotor",
+      "positiveVolumeCubicMetres": 0.0013411189261685007,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 1 base rotation service cover",
+      "positiveVolumeCubicMetres": 0.002978123355830182,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 1 base rotation cover bolts",
+      "positiveVolumeCubicMetres": 2.260757196228364e-05,
+      "triangles": 840,
+      "manifold": true
+    },
+    {
+      "name": "Axis 2 shoulder housing",
+      "positiveVolumeCubicMetres": 0.012499687382687957,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 2 shoulder bearing",
+      "positiveVolumeCubicMetres": 0.0021684807091999925,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 2 shoulder geared rotor",
+      "positiveVolumeCubicMetres": 0.0009419106861430344,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 2 shoulder service cover",
+      "positiveVolumeCubicMetres": 0.0020916312183608386,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 2 shoulder cover bolts",
+      "positiveVolumeCubicMetres": 1.5878020363085363e-05,
+      "triangles": 840,
+      "manifold": true
+    },
+    {
+      "name": "Axis 3 elbow housing",
+      "positiveVolumeCubicMetres": 0.0075082808457472925,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 3 elbow bearing",
+      "positiveVolumeCubicMetres": 0.0013025575500239088,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 3 elbow geared rotor",
+      "positiveVolumeCubicMetres": 0.0005657845469773361,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 3 elbow service cover",
+      "positiveVolumeCubicMetres": 0.0012563957907408554,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 3 elbow cover bolts",
+      "positiveVolumeCubicMetres": 9.537569421588381e-06,
+      "triangles": 840,
+      "manifold": true
+    },
+    {
+      "name": "Axis 4 forearm roll housing",
+      "positiveVolumeCubicMetres": 0.003532702784761751,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 4 forearm roll bearing",
+      "positiveVolumeCubicMetres": 0.0006128631545379979,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 4 forearm roll geared rotor",
+      "positiveVolumeCubicMetres": 0.0002662058979605297,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 4 forearm roll service cover",
+      "positiveVolumeCubicMetres": 0.0005911436985241604,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 4 forearm roll cover bolts",
+      "positiveVolumeCubicMetres": 4.487498369828307e-06,
+      "triangles": 840,
+      "manifold": true
+    },
+    {
+      "name": "Axis 5 wrist pitch housing",
+      "positiveVolumeCubicMetres": 0.0018741138949934656,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 5 wrist pitch bearing",
+      "positiveVolumeCubicMetres": 0.0003251265174651967,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 5 wrist pitch geared rotor",
+      "positiveVolumeCubicMetres": 0.0001412233642889628,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 5 wrist pitch service cover",
+      "positiveVolumeCubicMetres": 0.00031360425341207267,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 5 wrist pitch cover bolts",
+      "positiveVolumeCubicMetres": 2.3806370252635823e-06,
+      "triangles": 840,
+      "manifold": true
+    },
+    {
+      "name": "Axis 6 tool rotation housing",
+      "positiveVolumeCubicMetres": 0.0008380680291676477,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 6 tool rotation bearing",
+      "positiveVolumeCubicMetres": 0.00014539038446387845,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Axis 6 tool rotation geared rotor",
+      "positiveVolumeCubicMetres": 6.315239799365986e-05,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 6 tool rotation service cover",
+      "positiveVolumeCubicMetres": 0.0001402378474956895,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Axis 6 tool rotation cover bolts",
+      "positiveVolumeCubicMetres": 1.0645755230010295e-06,
+      "triangles": 840,
+      "manifold": true
+    },
+    {
+      "name": "Upper arm casting",
+      "positiveVolumeCubicMetres": 0.03368631647200052,
+      "triangles": 336,
+      "manifold": true
+    },
+    {
+      "name": "Forearm casting",
+      "positiveVolumeCubicMetres": 0.02233368714747692,
+      "triangles": 344,
+      "manifold": true
+    },
+    {
+      "name": "Tool mounting flange",
+      "positiveVolumeCubicMetres": 0.0007180454675932571,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Tool wrist link",
+      "positiveVolumeCubicMetres": 0.0018928570269867943,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Tool flange bolts",
+      "positiveVolumeCubicMetres": 7.991760460500544e-06,
+      "triangles": 840,
+      "manifold": true
+    },
+    {
+      "name": "Pedestal drive cover",
+      "positiveVolumeCubicMetres": 0.029397164670360184,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Service cable loom",
+      "positiveVolumeCubicMetres": 0.0017880146408443137,
+      "triangles": 1154,
+      "manifold": true
+    }
+  ],
+  "limitations": [
+    "Illustrative construction and proportions, not manufacturing CAD.",
+    "No live state, connectivity, motion or component readings are asserted."
+  ]
+}

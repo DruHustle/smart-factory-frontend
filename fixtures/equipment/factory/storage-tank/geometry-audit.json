@@ -1,0 +1,145 @@
+{
+  "revision": "smart-factory-illustrative-storage-tank-1",
+  "sha256": "bdc99d2d642abcd194ce7286249cc1cf188361617819a76927eea08798b59e2b",
+  "bytes": 269588,
+  "components": 26,
+  "triangles": 9372,
+  "solids": [
+    {
+      "name": "Dished stainless vessel shell",
+      "positiveVolumeCubicMetres": 0.04126687736945067,
+      "triangles": 4096,
+      "manifold": true
+    },
+    {
+      "name": "Support leg 1",
+      "positiveVolumeCubicMetres": 0.0031677979170646746,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Anchor foot 1",
+      "positiveVolumeCubicMetres": 0.0011519999999999998,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Support leg 2",
+      "positiveVolumeCubicMetres": 0.0031677979170646746,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Anchor foot 2",
+      "positiveVolumeCubicMetres": 0.0011519999999999998,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Support leg 3",
+      "positiveVolumeCubicMetres": 0.003167797917064675,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Anchor foot 3",
+      "positiveVolumeCubicMetres": 0.0011519999999999998,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Support leg 4",
+      "positiveVolumeCubicMetres": 0.003167797917064674,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Anchor foot 4",
+      "positiveVolumeCubicMetres": 0.0011520000000000005,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Top access flange",
+      "positiveVolumeCubicMetres": 0.0013705250183105467,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Access cover",
+      "positiveVolumeCubicMetres": 0.0017598877317026229,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Access flange bolts",
+      "positiveVolumeCubicMetres": 2.2647204570281313e-05,
+      "triangles": 1120,
+      "manifold": true
+    },
+    {
+      "name": "Agitator motor housing",
+      "positiveVolumeCubicMetres": 0.008447461112172455,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Motor mounting flange",
+      "positiveVolumeCubicMetres": 0.0010433532859394532,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Agitator shaft",
+      "positiveVolumeCubicMetres": 0.001672597300210148,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Mixing paddle set",
+      "positiveVolumeCubicMetres": 0.003717000000000006,
+      "triangles": 24,
+      "manifold": true
+    },
+    {
+      "name": "Side process nozzle",
+      "positiveVolumeCubicMetres": 0.001115998943481441,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Nozzle flange",
+      "positiveVolumeCubicMetres": 0.0005814941863403276,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Bottom drain tube",
+      "positiveVolumeCubicMetres": 0.0007017088093749973,
+      "triangles": 384,
+      "manifold": true
+    },
+    {
+      "name": "Ladder rails",
+      "positiveVolumeCubicMetres": 0.0030435889518227255,
+      "triangles": 312,
+      "manifold": true
+    },
+    {
+      "name": "Ladder rungs",
+      "positiveVolumeCubicMetres": 0.001288049212619014,
+      "triangles": 736,
+      "manifold": true
+    },
+    {
+      "name": "Ladder standoff brackets",
+      "positiveVolumeCubicMetres": 0.0037800000000000064,
+      "triangles": 24,
+      "manifold": true
+    }
+  ],
+  "limitations": [
+    "Illustrative construction and proportions, not manufacturing CAD.",
+    "No live state, connectivity, motion or component readings are asserted."
+  ]
+}

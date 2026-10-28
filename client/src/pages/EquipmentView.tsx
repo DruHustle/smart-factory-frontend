@@ -12,6 +12,7 @@ import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import type { LocalRendererHandle } from "@/components/equipment/LocalEquipmentRenderer";
 import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
+import ModelLoadingPreview from "@/components/equipment/ModelLoadingPreview";
 const LocalEquipmentRenderer = lazy(loadEquipmentRenderer);
 const ModelImport = lazy(() => import("@/components/equipment/ModelImport"));
 const ModelReplacement = lazy(
@@ -640,11 +641,12 @@ function LocalWorkspace({
           )}
           <CardContent className="space-y-3 px-3 sm:px-4">
             <Suspense
-              fallback={<p role="status">Loading app-owned renderer…</p>}
+              fallback={<ModelLoadingPreview revision={w.templateRevision} />}
             >
               <LocalEquipmentRenderer
                 ref={renderer}
                 modelUrl={w.modelUrl}
+                modelRevision={w.templateRevision}
                 initialViewDirection={w.renderer.initialViewDirection}
                 components={w.components}
                 selected={selected}

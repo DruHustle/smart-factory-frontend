@@ -15,7 +15,12 @@ import { frameBounds, visibleBounds } from "./framing";
 import { moveCamera } from "./cameraMotion";
 import { hitVisible } from "./visibility";
 import { Button } from "@/components/ui/button";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { referencePreview } from "./ModelLoadingPreview";
+import {
+  createStudioEnvironment,
+  preloadStudioEnvironment,
+} from "./studioEnvironment";
+export { preloadStudioEnvironment };
 import {
   descends,
   InspectionScene,
@@ -47,6 +52,7 @@ type Observation = {
 };
 type Props = {
   preview?: boolean;
+  modelRevision?: string;
   initialViewDirection?: [number, number, number];
   modelUrl: string;
   components: Component[];
@@ -127,6 +133,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       [hidden, setHidden] = useState<string[]>([]),
       [isolated, setIsolated] = useState<string | null>(null);
     const transparent = (inspection.opacity ?? 1) < 1;
+    const poster = referencePreview(props.modelRevision);
     const hiddenRef = useRef(hidden);
     hiddenRef.current = hidden;
     const isolatedRef = useRef(isolated);
@@ -440,18 +447,28 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         attributeFilter: ["class"],
       });
       cleanupCallbacks.push(() => themeObserver.disconnect());
-      const pmrem = new THREE.PMREMGenerator(renderer);
-      const room = new RoomEnvironment();
-      const environment = pmrem.fromScene(room, 0.04, 0.1, 100, {
-        size: software ? 64 : 256,
-      });
-      scene.environment = environment.texture;
-      scene.environmentIntensity = 0.65;
-      room.dispose();
-      pmrem.dispose();
-      cleanupCallbacks.push(() => environment.dispose());
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x63748b, 1.4));
-      const key = new THREE.DirectionalLight(0xffffff, 2.3);
+      const environmentPromise = createStudioEnvironment()
+        .then((texture) => {
+          if (disposed) {
+            texture.dispose();
+            return;
+          }
+          currentScene.environment = texture;
+          cleanupCallbacks.push(() => texture.dispose());
+          container.dataset.environment = "baked-hdr-studio";
+          mark("lightingReady");
+        })
+        .catch(() => {
+          // Direct lights preserve inspection if the public atlas/decoder fails.
+          // Rebuilding PMREM here can stall a driver during startup.
+          if (disposed) return;
+          container.dataset.environment = "direct-light-fallback";
+          mark("lightingReady");
+        });
+      void environmentPromise.catch(() => {});
+      scene.environmentIntensity = 0.8;
+      scene.add(new THREE.HemisphereLight(0xe8f1ff, 0x495260, 0.65));
+      const key = new THREE.DirectionalLight(0xfff2e2, 2.8);
       key.position.set(3, 5, 4);
       key.castShadow = true;
       key.shadow.mapSize.set(1024, 1024);
@@ -460,15 +477,45 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       key.shadow.camera.top = 2;
       key.shadow.camera.bottom = -2;
       key.shadow.bias = -0.0001;
-      scene.add(key);
+      const fill = new THREE.DirectionalLight(0xc7dfff, 0.7);
+      fill.position.set(-3, 2, -4);
+      scene.add(key, key.target, fill, fill.target);
       const ground = new THREE.Mesh(
         new THREE.PlaneGeometry(20, 20),
-        new THREE.ShadowMaterial({ opacity: 0.18 }),
+        new THREE.ShadowMaterial({ opacity: 0.18, depthWrite: false }),
       );
       ground.rotation.x = -Math.PI / 2;
       ground.position.y = 0.003;
       ground.receiveShadow = true;
       scene.add(ground);
+      // A small ambient contact patch grounds the object on mobile/software too.
+      const shadowCanvas = document.createElement("canvas");
+      shadowCanvas.width = shadowCanvas.height = 64;
+      const shadowContext = shadowCanvas.getContext("2d")!;
+      const gradient = shadowContext.createRadialGradient(
+        32,
+        32,
+        3,
+        32,
+        32,
+        32,
+      );
+      gradient.addColorStop(0, "rgba(0,0,0,0.26)");
+      gradient.addColorStop(0.45, "rgba(0,0,0,0.17)");
+      gradient.addColorStop(1, "rgba(0,0,0,0)");
+      shadowContext.fillStyle = gradient;
+      shadowContext.fillRect(0, 0, 64, 64);
+      const contact = new THREE.Mesh(
+        new THREE.PlaneGeometry(1, 1),
+        new THREE.MeshBasicMaterial({
+          map: new THREE.CanvasTexture(shadowCanvas),
+          transparent: true,
+          depthWrite: false,
+          toneMapped: false,
+        }),
+      );
+      contact.rotation.x = -Math.PI / 2;
+      scene.add(contact);
 
       const markers = new THREE.Group();
       scene.add(markers);
@@ -633,6 +680,25 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             if (mesh.isMesh) {
               mesh.castShadow = true;
               mesh.receiveShadow = true;
+              // The original reference's painted casing is a dielectric coating.
+              // Uploaded models retain their authored material properties.
+              if (
+                gltf.asset.generator?.startsWith(
+                  "Smart Factory original constructive reference",
+                )
+              )
+                for (const material of Array.isArray(mesh.material)
+                  ? mesh.material
+                  : [mesh.material]) {
+                  if (
+                    material.name === "Ceramic blue" &&
+                    material instanceof THREE.MeshStandardMaterial
+                  ) {
+                    material.metalness = 0.08;
+                    material.roughness = 0.34;
+                    material.color.setRGB(0.018, 0.1, 0.18);
+                  }
+                }
             }
           });
           currentScene.add(loaded);
@@ -640,6 +706,35 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             modelExtent = modelBounds.getSize(new THREE.Vector3()).length(),
             indicatorScale = modelExtent < 0.5 ? modelExtent / 2 : 1;
           ground.position.y = modelBounds.min.y - modelExtent * 0.002;
+          const centre = modelBounds.getCenter(new THREE.Vector3());
+          const dimensions = modelBounds.getSize(new THREE.Vector3());
+          contact.position.set(
+            centre.x,
+            ground.position.y + modelExtent * 0.0001,
+            centre.z,
+          );
+          contact.scale.set(dimensions.x * 1.2, dimensions.z * 1.5, 1);
+          key.position
+            .copy(centre)
+            .addScaledVector(
+              new THREE.Vector3(3, 5, 4).normalize(),
+              modelExtent * 3,
+            );
+          key.target.position.copy(centre);
+          fill.position
+            .copy(centre)
+            .addScaledVector(
+              new THREE.Vector3(-3, 2, -4).normalize(),
+              modelExtent * 3,
+            );
+          fill.target.position.copy(centre);
+          const shadowExtent = modelExtent * 0.8;
+          key.shadow.camera.left = key.shadow.camera.bottom = -shadowExtent;
+          key.shadow.camera.right = key.shadow.camera.top = shadowExtent;
+          key.shadow.camera.near = modelExtent * 0.01;
+          key.shadow.camera.far = modelExtent * 8;
+          key.shadow.normalBias = modelExtent * 0.0003;
+          key.shadow.camera.updateProjectionMatrix();
           const fitBox = (box: THREE.Box3, direction?: THREE.Vector3) => {
             cameraMotion.current?.();
             const previousEye = camera.position.clone(),
@@ -737,6 +832,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           // initialized shadow map before its first visible frame.
           mark("inspectionPrepared");
           setLoadPhase("Preparing 3D graphics");
+          await environmentPromise;
+          if (disposed) return;
           await currentRenderer.compileAsync(currentScene, camera);
           mark("graphicsCompiled");
           if (disposed) return;
@@ -750,6 +847,51 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           fit();
           await initialFrame;
           if (disposed) return;
+          mark("firstDrawSubmitted");
+          // Keep the preview until GPU completion and the following presentation
+          // frame. Submitting draw commands alone can briefly expose a blank view.
+          const presented = await new Promise<boolean>((resolve) => {
+            const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+            if (!fence) {
+              resolve(false);
+              return;
+            }
+            const firstSubmittedAt = performance.now();
+            let waiting = 0,
+              finished = false;
+            const finish = (ok: boolean) => {
+              if (finished) return;
+              finished = true;
+              cancelAnimationFrame(waiting);
+              if (!gl.isContextLost()) gl.deleteSync(fence);
+              resolve(ok);
+            };
+            cleanupCallbacks.push(() => finish(false));
+            const poll = () => {
+              if (disposed || gl.isContextLost()) {
+                finish(false);
+                return;
+              }
+              const { status, synchronized } = pollGpuFrame(
+                gl,
+                fence,
+                firstSubmittedAt,
+                software,
+              );
+              if (synchronized) synchronizedFrames++;
+              if (status === gl.TIMEOUT_EXPIRED) {
+                waiting = requestAnimationFrame(poll);
+              } else if (status === gl.WAIT_FAILED) finish(false);
+              else waiting = requestAnimationFrame(() => finish(true));
+            };
+            gl.flush();
+            waiting = requestAnimationFrame(poll);
+          });
+          if (disposed || gl.isContextLost()) return;
+          if (!presented)
+            throw new Error(
+              "The first 3D frame could not be presented. Retry the view.",
+            );
           initialFrameComplete = true;
           mark("firstFrame");
           container.dataset.loadInteractiveMs = String(
@@ -917,40 +1059,66 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           aria-hidden="true"
         />
         {state !== "ready" && (
-          <div
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/95 p-5 text-center text-sm"
-            role={state === "loading" ? "status" : "alert"}
-          >
-            {state === "loading" ? (
-              <>
-                <span>
-                  {loadPhase}
-                  {loadPhase === "Downloading 3D model" && progress > 0
-                    ? ` · ${progress}%`
-                    : ""}
-                </span>
-                <progress
-                  aria-label="Model loading progress"
-                  max={100}
-                  value={
-                    loadPhase === "Downloading 3D model" && progress > 0
-                      ? progress
-                      : undefined
-                  }
-                />
-              </>
-            ) : (
-              <>
-                <span>{message}</span>
-                <Button
-                  variant="outline"
-                  onClick={() => setAttempt((a) => a + 1)}
-                >
-                  Retry graphics
-                </Button>
-              </>
+          <>
+            {state === "loading" && poster && (
+              <img
+                src={poster}
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 z-[2] h-full w-full bg-[#edf2f7] object-contain dark:hidden"
+                decoding="async"
+              />
             )}
-          </div>
+            {state === "loading" && poster && (
+              <img
+                src={referencePreview(props.modelRevision, true)}
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 z-[2] hidden h-full w-full bg-[#101a2a] object-contain dark:block"
+                decoding="async"
+              />
+            )}
+            <div
+              className={
+                state === "loading" && poster
+                  ? "absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-3 bg-background/90 px-3 py-2 text-center text-xs"
+                  : "absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/95 p-5 text-center text-sm"
+              }
+              role={state === "loading" ? "status" : "alert"}
+            >
+              {state === "loading" ? (
+                <>
+                  <span>
+                    {poster ? "Model preview · " : ""}
+                    {loadPhase}
+                    {loadPhase === "Downloading 3D model" && progress > 0
+                      ? ` · ${progress}%`
+                      : ""}
+                  </span>
+                  <progress
+                    className={poster ? "w-16 shrink-0" : undefined}
+                    aria-label="Model loading progress"
+                    max={100}
+                    value={
+                      loadPhase === "Downloading 3D model" && progress > 0
+                        ? progress
+                        : undefined
+                    }
+                  />
+                </>
+              ) : (
+                <>
+                  <span>{message}</span>
+                  <Button
+                    variant="outline"
+                    onClick={() => setAttempt((a) => a + 1)}
+                  >
+                    Retry graphics
+                  </Button>
+                </>
+              )}
+            </div>
+          </>
         )}
       </div>
     );
