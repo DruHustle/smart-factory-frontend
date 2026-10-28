@@ -16,6 +16,7 @@ export INGESTION_API_TOKEN=isolated-workspace-ingestion-token
 pnpm exec drizzle-kit migrate
 node --import tsx scripts/security/seed-test-accounts.ts
 node --import tsx scripts/workspace/seed.ts
+if [[ "${E2E_ONESA_PRIVATE:-false}" == "true" ]]; then node --import tsx scripts/onesa/seed-fixture.ts; fi
 node --import tsx server/_core/index.ts > "${TMPDIR:-/tmp}/workspace-e2e-server.log" 2>&1 &
 server_pid=$!
 node --input-type=module -e 'const end=Date.now()+60000;while(true){try{if((await fetch(process.env.WORKSPACE_E2E_BASE_URL+"/health/ready")).ok)break;}catch{}if(Date.now()>end)throw new Error("Workspace fixture app not ready");await new Promise(r=>setTimeout(r,250));}'

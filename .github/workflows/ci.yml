@@ -169,6 +169,10 @@ jobs:
             script: e2e:experience
           - suite: resource-budget
             script: e2e:resources
+          - suite: private-integration
+            script: e2e:onesa
+          - suite: rendering
+            script: e2e:rendering
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with: { persist-credentials: false }

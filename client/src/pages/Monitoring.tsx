@@ -38,7 +38,6 @@ import {
   metrics,
   type Metric,
 } from "@shared/measurements";
-import type { EvidenceScope } from "../../../server/evidenceScope";
 import { useWorkspaceLocation } from "@/lib/hashLocation";
 const scopes = [
   "operational",

@@ -13,6 +13,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import * as db from "./db";
 import { generateAssistantCompletion } from "./assistantProvider";
+import type { AssistantSelection } from "../shared/assistant-providers";
 
 type KnowledgeSource = { file: string; title: string; route: string };
 type KnowledgeSection = {
@@ -755,6 +756,7 @@ export async function answerFactoryQuestion(
     role?: AssistantRole;
     selectedAssetId?: string;
     history?: AssistantHistoryMessage[];
+    selection?: AssistantSelection;
   } = {},
 ) {
   const metaAnswer = assistantMetaAnswer(question);
@@ -844,7 +846,7 @@ export async function answerFactoryQuestion(
   ];
   const result = demoOnlyRead()
     ? { configured: false, completion: null }
-    : await generateAssistantCompletion(messages);
+    : await generateAssistantCompletion(messages, fetch, options.selection);
   if (result.completion) {
     return {
       answer: guardAssistantAnswer(result.completion.answer),

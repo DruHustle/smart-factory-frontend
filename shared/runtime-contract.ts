@@ -4,6 +4,7 @@ export const requiredCapabilities = [
   "isolated-demo-v1",
   "complete-showcase-v2",
   "assistant-visuals-v1",
+  "assistant-provider-selection-v1",
   "infrastructure-monitor-v1",
   "persisted-session-v1",
   "scoped-evidence-v1",

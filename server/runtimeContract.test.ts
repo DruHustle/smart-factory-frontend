@@ -30,6 +30,10 @@ it("rejects ready-but-incompatible, unversioned and incomplete services", () => 
   ).toBeTruthy();
   expect(runtimeCompatibility(compatible, true)).toBeNull();
 });
+it("requires an API that honors provider selection before enabling the newer picker", () => {
+  expect(runtimeCompatibility({ ...compatible, capabilities: requiredCapabilities.filter((c) => c !== "assistant-provider-selection-v1") }, true))
+    .toContain("required workspace capabilities");
+});
 describe.skipIf(!process.env.TEST_DATABASE_URL)(
   "applied migration identity",
   () => {
