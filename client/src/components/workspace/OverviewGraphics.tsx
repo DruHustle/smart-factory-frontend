@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, useEffect } from "react";
 import { Link } from "wouter";
-import { ArrowRight, Box, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useWorkspaceLocation } from "@/lib/hashLocation";
 import { itemHref, type InventoryItem } from "@shared/inventory";
@@ -265,21 +265,15 @@ export function LinkedModelPreview({
   interactiveSelection?: boolean;
   componentId?: string | null;
 }) {
-  const [loaded, setLoaded] = useState(false),
-    [selection, setSelection] = useState<string | null>(componentId);
+  const [selection, setSelection] = useState<string | null>(componentId);
   useEffect(() => setSelection(componentId), [componentId]);
-  const [, navigate] = useWorkspaceLocation();
-  const utils = trpc.useUtils();
-  const warmPreview = () => {
+  useEffect(() => {
     void loadEquipmentRenderer().catch(() => {});
-    void utils.equipment.get.prefetch(
-      { id: item.equipmentId! },
-      { staleTime: 60000 },
-    );
-  };
+  }, []);
+  const [, navigate] = useWorkspaceLocation();
   const query = trpc.equipment.get.useQuery(
     { id: item.equipmentId! },
-    { enabled: loaded, staleTime: 60000 },
+    { enabled: !!item.equipmentId, staleTime: 60000 },
   );
   const baseHref = itemHref(item.ref, "3d", returnTo);
   const href =
@@ -302,28 +296,13 @@ export function LinkedModelPreview({
           </span>
         </span>
         <Button asChild variant="outline" size="sm">
-          <Link href={href} onPointerEnter={warmPreview} onFocus={warmPreview}>
+          <Link href={href}>
             Open 3D inspection <ArrowRight className="size-4" />
           </Link>
         </Button>
       </div>
-      {!loaded ? (
-        <button
-          onClick={() => setLoaded(true)}
-          onPointerEnter={warmPreview}
-          onFocus={warmPreview}
-          className="group flex min-h-56 w-full flex-col items-center justify-center gap-4 rounded-md border bg-info/5 p-5 text-center hover:border-primary focus-visible:outline-2 focus-visible:outline-ring"
-          aria-label={`Load 3D preview of ${item.name}`}
-        >
-          <Box className="size-20 text-info" strokeWidth={1} />
-          <span className="font-medium">Load linked 3D model</span>
-          <span className="max-w-sm text-xs text-muted-foreground">
-            Orbit the actual linked model or open inspection for components,
-            sections, ghost housings and saved views. Graphics load on demand.
-          </span>
-        </button>
-      ) : query.isLoading ? (
-        <EmptyState title="Loading linked equipment…" />
+      {query.isLoading ? (
+        <ModelLoadingPreview preview />
       ) : query.error || !query.data ? (
         <EmptyState
           error

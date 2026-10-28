@@ -1,4 +1,4 @@
-/** Load code only after 3D intent. Concurrent callers share the same request. */
+/** Load code when a 3D view opens or is anticipated. Concurrent callers share the same request. */
 let pending: ReturnType<typeof importRenderer> | undefined;
 function importRenderer() {
   return import("./LocalEquipmentRenderer").then((module) => {

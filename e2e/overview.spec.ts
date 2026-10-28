@@ -195,15 +195,6 @@ for (const width of [390, 1440])
               (bucket: { value: number | null }) => bucket.value === null,
             ),
           ).toBe(true);
-          await expect(
-            page.getByRole("img", {
-              name: "Interactive 3D equipment model",
-              exact: true,
-            }),
-          ).toHaveCount(0);
-          await page
-            .getByRole("button", { name: /^Load 3D preview of / })
-            .click();
           const canvas = page.getByRole("img", {
             name: "Interactive 3D equipment model",
             exact: true,
@@ -211,6 +202,7 @@ for (const width of [390, 1440])
           await expect(page.locator("[data-state=ready]")).toBeVisible({
             timeout: 30000,
           });
+          await expect(canvas).toHaveCount(1);
           const box = (await canvas.boundingBox())!;
           if (width < 768) {
             const touch = await context.newCDPSession(page);

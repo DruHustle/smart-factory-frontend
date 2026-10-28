@@ -2,8 +2,8 @@
 # Native viewer qualification uses ONLY this repository, PostgreSQL and Redis.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-export E2E_DATABASE_PORT="${E2E_DATABASE_PORT:-55436}"
-export E2E_REDIS_PORT="${E2E_REDIS_PORT:-56383}"
+export E2E_DATABASE_PORT="${E2E_DATABASE_PORT:-0}"
+export E2E_REDIS_PORT="${E2E_REDIS_PORT:-0}"
 export PORT="${NATIVE_E2E_PORT:-3113}"
 compose=(docker compose --env-file /dev/null -p smart-factory-native-e2e -f docker-compose.e2e.yml)
 server_pid=""
@@ -14,13 +14,16 @@ cleanup() {
 trap cleanup EXIT
 unset ONESA_ENABLED ONESA_INSTALLATION_ID ONESA_WORKSPACE_ID ONESA_CONTRACT_ID ONESA_INGESTION_URL ONESA_APPROVED_ORIGIN ONESA_SERVICE_TOKEN ONESA_ALLOW_LOCAL_HTTP ONESA_RECEIVER_DATABASE_URL
 export DOTENV_CONFIG_PATH=/dev/null NODE_ENV=development DATABASE_SSL_MODE=disable
-export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:$E2E_DATABASE_PORT/smart_factory_e2e"
-export REDIS_URL="redis://127.0.0.1:$E2E_REDIS_PORT"
 export JWT_SECRET=isolated-native-equipment-session-secret-32-bytes
 export ENABLE_DEMO_ACCOUNTS=false ENABLE_DEMO_DATA=true ASSISTANT_PROVIDER=disabled BACKEND_DEPLOYMENT_MODE=standalone
 export VITE_API_URL=/api
 export NATIVE_E2E_BASE_URL="http://127.0.0.1:$PORT"
 "${compose[@]}" up -d --wait database redis
+# Docker reserves free loopback ports so other runner connections cannot collide.
+database_endpoint="$("${compose[@]}" port database 5432)"
+redis_endpoint="$("${compose[@]}" port redis 6379)"
+export DATABASE_URL="postgres://postgres:postgres@$database_endpoint/smart_factory_e2e"
+export REDIS_URL="redis://$redis_endpoint"
 pnpm exec drizzle-kit migrate
 node --import tsx scripts/equipment/seed-test-account.ts
 node --import tsx server/_core/index.ts &

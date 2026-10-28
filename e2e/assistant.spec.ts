@@ -24,7 +24,7 @@ function response(route: Route, data: unknown) {
     ),
   });
 }
-test("Assistant uses stored visual evidence, earlier sources and one lazy preview", async ({
+test("Assistant uses stored visual evidence, earlier sources and one automatic preview", async ({
   page,
 }) => {
   const s = await enterSimulation(page);
@@ -40,12 +40,6 @@ test("Assistant uses stored visual evidence, earlier sources and one lazy previe
   await expect(
     page.getByRole("heading", { name: /Showcase pump 01 recorded/ }),
   ).toContainText("°C");
-  await expect(
-    page.getByRole("img", { name: "Interactive 3D equipment model" }),
-  ).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Load 3D preview of Showcase pump 01" })
-    .click();
   await expect(page.locator("[data-state=ready]")).toBeVisible();
   expect(
     await page
@@ -261,9 +255,6 @@ test("Assistant handles unavailable WebGL and clears sensitive state on logout",
   await enterSimulation(page);
   await page.goto("/#/assistant");
   await ask(page);
-  await page
-    .getByRole("button", { name: "Load 3D preview of Showcase pump 01" })
-    .click();
   await expect(page.locator("[data-state=unsupported]")).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Components / accessible detail" }),
@@ -304,9 +295,6 @@ for (const [width, theme] of [
       await ask(page);
       if (width < 1280)
         await page.getByRole("button", { name: /Sources & context/ }).click();
-      await page
-        .getByRole("button", { name: "Load 3D preview of Showcase pump 01" })
-        .click();
       await expect(page.locator("[data-state=ready]")).toBeVisible();
       await page
         .getByRole("link", { name: "Open 3D inspection", exact: true })
