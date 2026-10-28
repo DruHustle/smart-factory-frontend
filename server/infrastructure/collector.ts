@@ -7,6 +7,7 @@ import { telemetryWorkerReceipt } from "../operatingEvidence";
 import { notificationConfiguration } from "../notifications";
 import { apiProcessResources } from "./metrics";
 import { healthPolicy } from "./policy";
+import { monitoringInterval } from "./configuration";
 import {
   healthSnapshot,
   recoveryReceipt,
@@ -291,11 +292,34 @@ export async function collectInfrastructure(): Promise<HealthSnapshot> {
       "Elapsed time for this bounded readiness query, including pool acquisition.",
     ),
   );
-  const socket=wsManager.operatingEvidence();
-  services.push({...evidence('websocket','WebSocket server','liveness',true,at),state:socket.localReady?'healthy':'unknown',observedAt:socket.localReady?at:null,scope:'Application WebSocket server',reason:socket.localReady?'SOCKET_SERVER_INITIALIZED':'NO_SOCKET_SERVER_EVIDENCE',explanation:'Socket server initialization is distinct from Redis readiness and delivery of equipment observations.'});
-  resources.push(resource('websocket-connections','WebSocket connections','connections',socket.localReady?socket.connections:null,'Application API WebSocket server','Observed authorized socket count; not a subscription quota or equipment-online count.'));
-  dependencies.push({from:'api',to:'websocket',label:'Application-owned event channels'});
-  const redisReady=socket.publisherReady&&socket.subscriberReady;
+  const socket = wsManager.operatingEvidence();
+  services.push({
+    ...evidence("websocket", "WebSocket server", "liveness", true, at),
+    state: socket.localReady ? "healthy" : "unknown",
+    observedAt: socket.localReady ? at : null,
+    scope: "Application WebSocket server",
+    reason: socket.localReady
+      ? "SOCKET_SERVER_INITIALIZED"
+      : "NO_SOCKET_SERVER_EVIDENCE",
+    explanation:
+      "Socket server initialization is distinct from Redis readiness and delivery of equipment observations.",
+  });
+  resources.push(
+    resource(
+      "websocket-connections",
+      "WebSocket connections",
+      "connections",
+      socket.localReady ? socket.connections : null,
+      "Application API WebSocket server",
+      "Observed authorized socket count; not a subscription quota or equipment-online count.",
+    ),
+  );
+  dependencies.push({
+    from: "api",
+    to: "websocket",
+    label: "Application-owned event channels",
+  });
+  const redisReady = socket.publisherReady && socket.subscriberReady;
   const redis = evidence(
     "redis",
     "Redis fan-out",
@@ -705,11 +729,35 @@ export async function collectInfrastructure(): Promise<HealthSnapshot> {
     const rows = await boundedRead(
       sql`select id,name,active,last_received_at,policy->>'staleAfterSeconds' as seconds,last_error is not null as failed from security_sources where is_demo=false order by last_received_at desc nulls last limit 101`,
     );
-    collectors.push(...rows.slice(0,100).map(r=>{
-      const observedAt=iso(r.last_received_at),freshForSeconds=Math.min(86400,Math.max(30,Number(r.seconds)||300)),active=Boolean(r.active);
-      return {id:String(r.id),name:String(r.name),active,observedAt,collectedAt:at,freshForSeconds,state:!active||!observedAt?'unknown' as const:Date.parse(at)-Date.parse(observedAt)>freshForSeconds*1000?'stale' as const:r.failed?'degraded' as const:'healthy' as const};
-    }));
-    const stale=collectors.some(c=>c.state==='stale'),unobserved=collectors.some(c=>c.state==='unknown')||rows.length>100;
+    collectors.push(
+      ...rows.slice(0, 100).map((r) => {
+        const observedAt = iso(r.last_received_at),
+          freshForSeconds = Math.min(
+            86400,
+            Math.max(30, Number(r.seconds) || 300),
+          ),
+          active = Boolean(r.active);
+        return {
+          id: String(r.id),
+          name: String(r.name),
+          active,
+          observedAt,
+          collectedAt: at,
+          freshForSeconds,
+          state:
+            !active || !observedAt
+              ? ("unknown" as const)
+              : Date.parse(at) - Date.parse(observedAt) > freshForSeconds * 1000
+                ? ("stale" as const)
+                : r.failed
+                  ? ("degraded" as const)
+                  : ("healthy" as const),
+        };
+      }),
+    );
+    const stale = collectors.some((c) => c.state === "stale"),
+      unobserved =
+        collectors.some((c) => c.state === "unknown") || rows.length > 100;
     const base = evidence(
       "collectors",
       "Security collectors",
@@ -725,7 +773,9 @@ export async function collectInfrastructure(): Promise<HealthSnapshot> {
           ? "stale"
           : rows.some((r) => r.failed)
             ? "degraded"
-            : unobserved ? "unknown" : "healthy",
+            : unobserved
+              ? "unknown"
+              : "healthy",
       observedAt: rows.length ? at : null,
       scope: "Up to 100 configured non-demo sources",
       source: "Recorded collector receipts",
@@ -875,8 +925,8 @@ export async function collectInfrastructure(): Promise<HealthSnapshot> {
     },
     recovery,
     coverage: {
-      mode: Number.isInteger(Number(env.INFRASTRUCTURE_MONITOR_INTERVAL_SECONDS)) && Number(env.INFRASTRUCTURE_MONITOR_INTERVAL_SECONDS)>=60 && Number(env.INFRASTRUCTURE_MONITOR_INTERVAL_SECONDS)<=900 ? "scheduled" : "demand",
-      intervalSeconds: 60,
+      mode: monitoringInterval(env) === null ? "demand" : "scheduled",
+      intervalSeconds: monitoringInterval(env) ?? 60,
       historyDays: 1,
       independentMonitor: env.INFRASTRUCTURE_EXTERNAL_STATUS_URL
         ? "configured"

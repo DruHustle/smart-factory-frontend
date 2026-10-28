@@ -1,5 +1,7 @@
 import type { HealthState } from "../../shared/infrastructure";
+import { monitoringInterval } from "./configuration";
 export type HealthPolicy = {
+  observationIntervalSeconds: number;
   alertAfterSeconds: number;
   recoveryAfterSeconds: number;
   backlogWarning: number;
@@ -18,6 +20,7 @@ const setting = (
 };
 export function healthPolicy(env = process.env): HealthPolicy {
   return {
+    observationIntervalSeconds: monitoringInterval(env) ?? 60,
     alertAfterSeconds: setting(
       env,
       "INFRASTRUCTURE_ALERT_AFTER_SECONDS",
@@ -69,10 +72,17 @@ export function nextHealthState(
   at: string,
   policy: HealthPolicy,
 ) {
+  const interval = previous
+    ? Date.parse(at) - Date.parse(previous.lastObservedAt)
+    : NaN;
+  // A slow older collection must not undo a newer state or revoke its incident.
+  if (previous && interval < 0)
+    return { next: previous, changed: false, notification: null };
   const changed = previous?.state !== state;
   const gap =
     !previous?.lastObservedAt ||
-    Date.parse(at) - Date.parse(previous.lastObservedAt) > 180000;
+    !Number.isFinite(interval) ||
+    interval > (policy.observationIntervalSeconds * 1.5 + 15) * 1000;
   const next: PersistedHealthState = {
     state,
     since: changed || gap ? at : previous!.since,

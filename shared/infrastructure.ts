@@ -108,10 +108,22 @@ export const healthSnapshot = z
       .max(32),
     resources: z.array(resourceEvidence).max(24),
     queues: z.array(queueEvidence).max(8),
-    collectors: z.array(z.object({
-      id:z.string().max(64),name:z.string().max(255),active:z.boolean(),state:healthState,
-      observedAt:at.nullable(),collectedAt:at,freshForSeconds:z.number().int().min(30).max(86400),
-    }).strict()).max(100).default([]),
+    collectors: z
+      .array(
+        z
+          .object({
+            id: z.string().max(64),
+            name: z.string().max(255),
+            active: z.boolean(),
+            state: healthState,
+            observedAt: at.nullable(),
+            collectedAt: at,
+            freshForSeconds: z.number().int().min(30).max(86400),
+          })
+          .strict(),
+      )
+      .max(100)
+      .default([]),
     release: z
       .object({
         frontend: z.string().nullable(),
@@ -164,6 +176,7 @@ export type InfrastructureView = {
     availabilityPercent: null;
   };
   policy: {
+    observationIntervalSeconds: number;
     alertAfterSeconds: number;
     recoveryAfterSeconds: number;
     backlogWarning: number;

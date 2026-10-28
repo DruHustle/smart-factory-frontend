@@ -13,6 +13,7 @@ import {
   type HealthHistoryPoint,
 } from "../../shared/infrastructure";
 import { boundedRead, collectInfrastructure } from "./collector";
+import { monitoringInterval } from "./configuration";
 import {
   healthPolicy,
   nextHealthState,
@@ -205,7 +206,9 @@ export async function infrastructureView(
 }
 export function installRecoveryEvidence(app: Express) {
   app.post("/api/internal/recovery-status", async (req, res) => {
-    const expected = Buffer.from(process.env.INFRASTRUCTURE_RECOVERY_TOKEN ?? ""),
+    const expected = Buffer.from(
+        process.env.INFRASTRUCTURE_RECOVERY_TOKEN ?? "",
+      ),
       given = Buffer.from(
         (req.header("authorization") ?? "").replace(/^Bearer /, ""),
       );
@@ -253,15 +256,8 @@ export async function storeRecoveryEvidence(value: unknown) {
 }
 let scheduled: ReturnType<typeof setTimeout> | undefined;
 export function startInfrastructureMonitoring() {
-  const seconds = Number(process.env.INFRASTRUCTURE_MONITOR_INTERVAL_SECONDS);
-  if (
-    !Number.isInteger(seconds) ||
-    seconds < 60 ||
-    seconds > 900 ||
-    process.env.PUBLIC_DEMO_DEPLOYMENT === "true" ||
-    process.env.ENABLE_DEMO_ACCOUNTS === "true"
-  )
-    return;
+  const seconds = monitoringInterval();
+  if (seconds === null) return;
   const run = async () => {
     try {
       await collectOrReuse();
