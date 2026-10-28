@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { enterSimulation, noOverflow } from "./visual-workspace-helpers";
 const out =
   process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ??
-  "/private/tmp/factory-ui-evidence/after";
+  "test-results/visual-workspaces";
 const question = "Why does Showcase pump 01 need attention?";
 const input = (page: import("@playwright/test").Page) =>
   page.getByRole("textbox", { name: "Ask the Smart Factory Assistant" });

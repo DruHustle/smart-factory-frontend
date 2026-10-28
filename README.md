@@ -6,6 +6,8 @@ Production topology is **Vercel UI → Oracle ARM64 API**, with a separate **sin
 
 [Product redesign, F01–F20 disposition and acceptance](docs/product-experience-qualification.md) · [Before/after screenshots](docs/evidence/product-experience/README.md)
 
+[28 October review and gap remediation](docs/review-2026-10-28.md) · [Service health operating guide](docs/service-health.md)
+
 ## Local development
 
 Use Node 22.12+, pnpm 10, PostgreSQL 16 and Redis. Companion services use the pinned .NET 10 LTS SDK in the backend repository; edge dependencies are pinned in the edge repository.
@@ -33,6 +35,7 @@ Open `http://localhost:3000`. Create the first individual administrator using th
 - **Analytics** aggregates the complete selected evidence range in SQL; bounded chart buckets retain missing-data gaps. Exports describe scope and completeness.
 - **3D inspection** runs independently with the existing detailed reference geometry, component tree, inspector, explode/reassemble, section caps, ghost housings, saved views and accessible BOM fallback. A reference model is illustrative; parent observations are not component measurements.
 - **Assistant** is read-only and uses the same authorized evidence scope. Local fallback works without a provider. **Administration** contains users, integrations, recorded audits, settings and operating evidence. Notifications remain owner-scoped in the header.
+- **Service health** gives individual administrators scoped dependency, resource, queue, collector, history and recovery evidence. Shared demonstrations use fixed synthetic scenarios.
 
 Registration saves identity, explicit links and a reviewed software route. It does not install credentials, publish a gateway profile or establish physical commissioning. Protocol secrets stay outside browser records and published mappings. Native OTA remains unavailable until a verified updater is installed.
 

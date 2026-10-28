@@ -1498,8 +1498,8 @@ export const appRouter = router({
       .input(
         z
           .object({
-            deviceId: z.number().optional(),
-            limit: z.number().optional(),
+            deviceId: z.number().int().positive().optional(),
+            limit: z.number().int().min(1).max(1000).optional(),
           })
           .optional(),
       )

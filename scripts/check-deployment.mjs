@@ -10,14 +10,16 @@ const requireText=(content,pattern,message)=>{if(!pattern.test(content))failures
 requireText(workflow,/workflow_run:[\s\S]*Dashboard quality checks[\s\S]*branches: \[main\]/,'UI release must wait for main quality checks');
 requireText(workflow,/successful push CI|No successful push CI/,'Manual promotion must still require successful CI for the exact revision');
 requireText(legacy,/RENDER_ROLLBACK_ENABLED/,'Legacy Render release must remain explicitly gated');
-const build=workflow.indexOf('vercel@62.2.0 build --prod'),lastContract=workflow.lastIndexOf('node --import tsx scripts/verify-runtime.mts'),lastHead=workflow.lastIndexOf('current=$(gh api'),promotion=workflow.indexOf('vercel@62.2.0 deploy --prebuilt');
+const promotion=workflow.indexOf('vercel@62.2.0 deploy --prebuilt'),beforePromotion=workflow.slice(0,promotion),build=beforePromotion.indexOf('vercel@62.2.0 build --prod'),lastContract=beforePromotion.lastIndexOf('node --import tsx scripts/verify-runtime.mts'),lastHead=beforePromotion.lastIndexOf('current=$(gh api');
 if(!(build>=0&&lastContract>build&&lastHead>lastContract&&promotion>lastHead))failures.push('Compatibility and current-main checks must immediately precede artifact promotion after build');
 requireText(workflow,/RELEASE_SHA.*==.*current/,'Final head check must refuse an obsolete main artifact');
-requireText(verifier,/runtimeCompatibility\(contract, true\)/,'Promotion must verify API capability and source identity');
-requireText(verifier,/schema\.digest !== expected\.digest/,'Promotion must compare applied migration identity');
-requireText(verifier,/worker\?\.fresh[\s\S]*worker\?\.compatible/,'Promotion must require current compatible singleton-worker evidence');
+requireText(verifier,/promotionCompatibility\(contract,[\s\S]*schemaDigest: expected\.digest/,'Promotion must verify the exact qualified API, worker, migrations and companion sources');
+requireText(verifier,/deploy\/qualification-sources\.json/,'Promotion must load the qualified immutable companion sources');
+requireText(workflow,/deploy --prebuilt[\s\S]*scripts\/verify-release\.mts/,'The deployed frontend must attest the approved revision after promotion');
+requireText(workflow,/API_ORIGIN=https:\/\/smart-factory-iot-app\.vercel\.app.*scripts\/verify-runtime\.mts/,'The promoted UI origin must proxy the qualified API');
 const vercel=JSON.parse(vercelText),origin='https://api.152-70-22-84.sslip.io';
 if(vercel.git?.deploymentEnabled?.main!==false)failures.push('Independent Vercel main deploys must stay disabled');
+if(vercel.headers?.find(x=>x.source==='/release.json')?.headers?.find(x=>x.key==='Cache-Control')?.value!=='no-store')failures.push('Release identity must not be cached');
 if(vercel.outputDirectory!=='dist/public')failures.push('Vercel must deploy dist/public');
 for(const [source,destination]of [['/api/:path*','/api/:path*'],['/health/live','/health/live'],['/health/ready','/health/ready'],['/api/health/live','/health/live'],['/api/health/ready','/health/ready']]){
  if(vercel.rewrites?.find(x=>x.source===source)?.destination!==origin+destination)failures.push(`Incorrect Oracle proxy: ${source}`);

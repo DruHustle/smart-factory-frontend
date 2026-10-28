@@ -26,7 +26,14 @@ async function typography(page: Page, width: number) {
   const labels = page
     .locator("[data-navigation-heading]")
     .filter({ visible: true });
-  await expect(labels).toHaveCount(5);
+  await expect(labels).toHaveText([
+    "Overview",
+    "Assets & devices",
+    "Operations",
+    "Insights",
+    "Infrastructure",
+    "Workspace",
+  ]);
   const actual = await labels.evaluateAll((nodes) =>
     nodes.map((node) => {
       const s = getComputedStyle(node);

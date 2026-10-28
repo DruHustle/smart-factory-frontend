@@ -48,3 +48,60 @@ export function runtimeCompatibility(
     return "The application service has no verified source identity.";
   return null;
 }
+
+/** Promotion must attest the exact reviewed companion sources, not just readiness. */
+export function promotionCompatibility(
+  value: unknown,
+  expected: { schemaDigest: string; backend: string; edge: string },
+): string | null {
+  const error = runtimeCompatibility(value, true);
+  if (error) return error;
+  const contract = value as RuntimeContract;
+  if (!contract.source || !/^[a-f0-9]{40}$/.test(contract.source))
+    return "The API has no valid immutable source revision.";
+  if (
+    contract.deployment !== "bundle" ||
+    contract.worker?.fresh !== true ||
+    contract.worker?.compatible !== true
+  )
+    return "A compatible current singleton telemetry-worker receipt is required for promotion.";
+  if (contract.schema.digest !== expected.schemaDigest)
+    return "The API migration manifest differs from the reviewed UI source.";
+  if (
+    contract.backendSource !== expected.backend ||
+    contract.edgeSource !== expected.edge
+  )
+    return "The API companion sources differ from the qualified release sources.";
+  return null;
+}
+
+/** A healthy origin can still be serving an older frontend artifact. */
+export function releaseIdentityCompatibility(
+  value: unknown,
+  expectedSource: string,
+): string | null {
+  const release = value as {
+    application?: unknown;
+    source?: unknown;
+    contractVersion?: unknown;
+    requiredCapabilities?: unknown;
+    builtAt?: unknown;
+  } | null;
+  if (
+    !/^[a-f0-9]{40}$/.test(expectedSource) ||
+    !release ||
+    release.application !== "Smart Factory IoT" ||
+    release.source !== expectedSource
+  )
+    return "The deployed frontend does not match the approved release revision.";
+  const capabilities = release.requiredCapabilities;
+  if (
+    release.contractVersion !== runtimeContractVersion ||
+    !Array.isArray(capabilities) ||
+    requiredCapabilities.some((c) => !capabilities.includes(c)) ||
+    typeof release.builtAt !== "string" ||
+    !Number.isFinite(Date.parse(release.builtAt))
+  )
+    return "The deployed frontend release manifest is incomplete or incompatible.";
+  return null;
+}

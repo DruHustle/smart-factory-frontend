@@ -21,7 +21,7 @@ CREATE TABLE infrastructure_recovery_receipts (
  observed_at timestamptz NOT NULL, received_at timestamptz NOT NULL DEFAULT now(),
  receipt jsonb NOT NULL
 );
-ALTER TABLE notification_inbox ADD COLUMN "infrastructureEventId" uuid REFERENCES infrastructure_events(id) ON DELETE CASCADE;
+ALTER TABLE notification_inbox ADD COLUMN "infrastructureEventId" uuid REFERENCES infrastructure_events(id) ON DELETE SET NULL;
 --> statement-breakpoint
 -- Occurrence and outbox acceptance have different meanings. Existing entries
 -- predate this ledger and remain explicitly unclassified for queue age.

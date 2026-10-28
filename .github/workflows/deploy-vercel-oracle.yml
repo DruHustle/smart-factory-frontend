@@ -89,10 +89,14 @@ jobs:
           echo "Source revision: $RELEASE_SHA" >> "$GITHUB_STEP_SUMMARY"
           curl --fail --silent --show-error --retry 3 --retry-delay 5 https://smart-factory-iot-app.vercel.app/health/ready
           curl --fail --silent --show-error --output /dev/null https://smart-factory-iot-app.vercel.app/
+          RELEASE_ORIGIN=https://smart-factory-iot-app.vercel.app node --import tsx scripts/verify-release.mts
+          API_ORIGIN=https://smart-factory-iot-app.vercel.app RUNTIME_EVIDENCE_FILE="$RUNNER_TEMP/deployed-api-runtime.json" node --import tsx scripts/verify-runtime.mts
       - name: Retain the API contract used for promotion
         if: steps.source.outputs.deploy == 'true' && always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: qualified-api-runtime
-          path: ${{ runner.temp }}/qualified-api-runtime.json
+          path: |
+            ${{ runner.temp }}/qualified-api-runtime.json
+            ${{ runner.temp }}/deployed-api-runtime.json
           if-no-files-found: ignore

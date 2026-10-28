@@ -12,6 +12,7 @@ import express from "express";
 import { sql } from "drizzle-orm";
 import { disposableDatabase } from "../test/disposableDatabase";
 import { getDb } from "../db";
+import { notificationPage, readNotification } from "../notifications";
 import { demoInfrastructure } from "./demo";
 import * as collector from "./collector";
 import {
@@ -51,6 +52,38 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       scope: "application-databases" as const,
       artifactSha256: "a".repeat(64),
       sourceRevision: null,
+    });
+    it("retains owner-scoped notification history when bounded infrastructure events expire", async () => {
+      const db = (await getDb())!;
+      const event = randomUUID();
+      const [owner] = await db.execute(
+        sql`insert into users("openId",email,role) values(${randomUUID()},'retention-admin@example.test','admin') returning id`,
+      );
+      await db.execute(
+        sql`insert into infrastructure_events values(${event},'api','Application API','healthy','unavailable',now(),'incident','FIXTURE_FAILURE',${randomUUID()})`,
+      );
+      const [notice] = await db.execute(
+        sql`insert into notification_inbox("userId",kind,title,body,"emailStatus","infrastructureEventId") values(${owner.id},'infrastructure','Recorded incident','Retained investigation history','inbox_only',${event}) returning id`,
+      );
+      await db.execute(
+        sql`delete from infrastructure_events where id=${event}`,
+      );
+      const retained = (await notificationPage(Number(owner.id))).items.find(
+        (n) => n.id === Number(notice.id),
+      );
+      expect(retained).toMatchObject({
+        title: "Recorded incident",
+        infrastructureEventId: null,
+        readAt: null,
+      });
+      expect(
+        await readNotification(Number(owner.id), Number(notice.id)),
+      ).toBeTruthy();
+      // Retention must not expose administrator evidence after demotion.
+      await db.execute(
+        sql`update users set role='engineer' where id=${owner.id}`,
+      );
+      expect((await notificationPage(Number(owner.id))).items).toEqual([]);
     });
     it("keeps a simultaneous receipt identifier immutable", async () => {
       const r = receipt(),

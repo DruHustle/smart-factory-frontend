@@ -1,5 +1,5 @@
-import { writeFile } from "node:fs/promises";
-import { runtimeCompatibility } from "../shared/runtime-contract";
+import { readFile, writeFile } from "node:fs/promises";
+import { promotionCompatibility } from "../shared/runtime-contract";
 import { migrationManifest } from "../server/runtimeContract";
 const origin = new URL(process.env.API_ORIGIN ?? "");
 if (
@@ -17,24 +17,22 @@ const response = await fetch(new URL("/api/runtime/contract", origin), {
   cache: "no-store",
 });
 if (!response.ok) throw Error("API runtime contract is unavailable");
-const contract = await response.json(),
-  error = runtimeCompatibility(contract, true);
-if (error) throw Error(error);
-if (
-  contract.deployment !== "bundle" ||
-  !contract.worker?.fresh ||
-  !contract.worker?.compatible
-)
-  throw Error(
-    "A compatible current singleton telemetry-worker receipt is required for promotion",
-  );
+const contract = await response.json();
 const expected = await migrationManifest();
-if (contract.schema.digest !== expected.digest)
-  throw Error(
-    "API migration manifest differs from the reviewed UI source; qualify compatibility before release",
-  );
-if (!contract.backendSource || !contract.edgeSource)
-  throw Error("Coordinated backend and edge source identities are required");
+const sources = JSON.parse(
+  await readFile("deploy/qualification-sources.json", "utf8"),
+);
+if (
+  ![sources.backend, sources.edge].every(
+    (sha) => typeof sha === "string" && /^[a-f0-9]{40}$/.test(sha),
+  )
+)
+  throw Error("Qualified immutable companion source revisions are required");
+const error = promotionCompatibility(contract, {
+  schemaDigest: expected.digest,
+  ...sources,
+});
+if (error) throw Error(error);
 if (process.env.RUNTIME_EVIDENCE_FILE)
   await writeFile(
     process.env.RUNTIME_EVIDENCE_FILE,

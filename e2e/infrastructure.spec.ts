@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { enterSimulation, noOverflow, rpc } from "./visual-workspace-helpers";
 const dir =
   process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ??
-  "/private/tmp/factory-ui-evidence/after";
+  "test-results/visual-workspaces";
 for (const width of [390, 1440])
   for (const theme of ["light", "dark"])
     test(`isolated infrastructure failure, recovery and evidence ${width} ${theme}`, async ({

@@ -39,6 +39,11 @@ export type AssistantHistoryMessage = {
 // code, uploaded AASX packages, and arbitrary paths are intentionally excluded.
 const SOURCES: KnowledgeSource[] = [
   {
+    file: "docs/service-health.md",
+    title: "Service health, infrastructure and recovery evidence",
+    route: "docs/service-health.md",
+  },
+  {
     file: "docs/telemetry-contract.md",
     title: "Telemetry identity, topic and evidence contract",
     route: "docs/telemetry-contract.md",

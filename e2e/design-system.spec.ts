@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { enterSimulation, noOverflow } from "./visual-workspace-helpers";
 const dir =
   process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ??
-  "/private/tmp/factory-ui-evidence/after";
+  "test-results/visual-workspaces";
 for (const width of [360, 390, 768, 1024, 1440])
   for (const theme of ["light", "dark"])
     test(`shared typography and graphical workspaces ${width} ${theme}`, async ({

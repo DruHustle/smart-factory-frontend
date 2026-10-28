@@ -30,6 +30,10 @@
   ],
   "headers": [
     {
+      "source": "/release.json",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    },
+    {
       "source": "/api/:path*",
       "headers": [
         {

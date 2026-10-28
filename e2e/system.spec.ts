@@ -116,14 +116,16 @@ test("Overview, Monitoring, Analytics, alerts and Assistant expose focused evide
     page.getByTestId("assistant-answer-content").first(),
   ).toBeVisible();
   await page
-    .locator('section[aria-label="Conversation"] details summary')
+    .getByRole("button", { name: /^Sources & context/ })
     .first()
     .click();
   await expect(
     page.getByText("AASX and edge configuration", { exact: true }).first(),
   ).toBeVisible();
   await expect(
-    page.getByText("Current system data", { exact: true }).first(),
+    page
+      .getByText("Authorized factory evidence snapshot", { exact: true })
+      .first(),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -146,14 +148,16 @@ test("Assistant answers from approved guides and the current API snapshot", asyn
     page.getByTestId("assistant-answer-content").first(),
   ).toBeVisible();
   await page
-    .locator('section[aria-label="Conversation"] details summary')
+    .getByRole("button", { name: /^Sources & context/ })
     .first()
     .click();
   await expect(
     page.getByText("AASX and edge configuration", { exact: true }).first(),
   ).toBeVisible();
   await expect(
-    page.getByText("Current system data", { exact: true }).first(),
+    page
+      .getByText("Authorized factory evidence snapshot", { exact: true })
+      .first(),
   ).toBeVisible();
 
   await page
@@ -162,15 +166,12 @@ test("Assistant answers from approved guides and the current API snapshot", asyn
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(page.getByTestId("assistant-answer-content")).toHaveCount(2);
   await page
-    .locator('section[aria-label="Conversation"] details summary')
+    .getByRole("button", { name: /^Sources & context/ })
     .last()
     .click();
   await expect(
-    page
-      .locator('section[aria-label="Conversation"]')
-      .getByText(/visible assets/i)
-      .last(),
-  ).toBeVisible();
+    page.getByTestId("assistant-answer-content").last(),
+  ).toContainText(/visible assets/i);
   await expect(
     page.locator('section[aria-label="Conversation"] time[datetime]').last(),
   ).toBeVisible();
