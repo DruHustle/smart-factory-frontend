@@ -21,7 +21,7 @@ const releaseIdentity: Plugin = {
       type: "asset" as const,
       fileName: "release.json",
       source: JSON.stringify({
-        application: "Smart Factory IoT",
+        application: "Smart Factory",
         source: /^[a-f0-9]{40}$/.test(sourceRevision)
           ? sourceRevision
           : "unknown",

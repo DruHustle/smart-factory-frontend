@@ -13,7 +13,7 @@ if (
   throw Error("Disposable local _e2e storage required");
 const connection = postgres(url.toString(), { max: 1 }),
   name = "worker_migration_" + randomUUID().replaceAll("-", "") + "_e2e";
-const root = resolve("../smart-factory-iot-backend"),
+const root = resolve("../smart-factory-backend"),
   directory = resolve(root, "deploy/migrations"),
   dotnet = process.env.QUALIFICATION_DOTNET ?? "dotnet";
 let target: ReturnType<typeof postgres> | undefined;

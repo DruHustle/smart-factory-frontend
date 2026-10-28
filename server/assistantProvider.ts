@@ -109,7 +109,7 @@ async function requestModel(config: ProviderConfig, model: string, messages: Arr
     Authorization: `Bearer ${config.apiKey}`,
     "Content-Type": "application/json",
   };
-  if (config.name === "gemini") headers["x-goog-api-client"] = "smart-factory-iot/1.0.0";
+  if (config.name === "gemini") headers["x-goog-api-client"] = "smart-factory/1.0.0";
 
   let response: Response;
   try {

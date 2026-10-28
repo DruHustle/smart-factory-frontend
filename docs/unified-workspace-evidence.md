@@ -1,6 +1,6 @@
 # Unified workspace qualification — 26 October 2026
 
-This release builds on the merged independent equipment and cybersecurity implementation, without dropping their commits or requiring Onesa. The [workspace guide](unified-workspace.md) describes the final navigation, typed inventory, contextual sections, registration, observation policy, permissions and compatible routes. The release is reviewed in [frontend PR 5](https://github.com/DruHustle/smart-factory-iot-frontend/pull/5).
+This release builds on the merged independent equipment and cybersecurity implementation, without dropping their commits or requiring Onesa. The [workspace guide](unified-workspace.md) describes the final navigation, typed inventory, contextual sections, registration, observation policy, permissions and compatible routes. The release is reviewed in [frontend PR 5](https://github.com/DruHustle/smart-factory-frontend/pull/5).
 
 ## Qualified sources
 

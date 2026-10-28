@@ -77,7 +77,7 @@ export default function ComingSoon({ error, resetError, isDevelopment = false }:
 
           {/* Footer */}
           <div className="text-xs text-slate-500 pt-4">
-            <p>Smart Factory IoT v1.0.0</p>
+            <p>Smart Factory v1.0.0</p>
           </div>
         </div>
       </div>

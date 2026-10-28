@@ -2,7 +2,7 @@
 
 ## Supported export
 
-Engineers and administrators can download a plant hierarchy as CAEX 3.0 from **Assets → Export AutomationML**. The authenticated route is `GET /api/assets/export/automationml`; it returns `application/xml` as `smart-factory-iot.aml`. The export includes each asset's stable AAS id, type, AAS revision, lifecycle stage, manufacturer, model, and serial number. Assets are grouped by their recorded zone and location. Missing locations are represented as `Unassigned` groups.
+Engineers and administrators can download a plant hierarchy as CAEX 3.0 from **Assets → Export AutomationML**. The authenticated route is `GET /api/assets/export/automationml`; it returns `application/xml` as `smart-factory.aml`. The export includes each asset's stable AAS id, type, AAS revision, lifecycle stage, manufacturer, model, and serial number. Assets are grouped by their recorded zone and location. Missing locations are represented as `Unassigned` groups.
 
 Asset and group IDs are deterministic hashes of their source identity, so changing a display name does not change identity. The exporter escapes XML text and attributes. It does not export telemetry, protocol credentials, gateway addresses, or tag mappings.
 

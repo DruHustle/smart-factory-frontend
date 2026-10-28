@@ -1,4 +1,4 @@
-# Smart Factory IoT
+# Smart Factory
 
 One industrial workspace for AAS-backed assets, independent devices, gateways, native 3D equipment and OT security evidence. React, Vite and the existing orange/white/cyan themes share an Express/tRPC API and PostgreSQL inventory.
 
@@ -9,6 +9,10 @@ Production topology is **Vercel UI → Oracle ARM64 API**, with a separate **sin
 [28 October review and gap remediation](docs/review-2026-10-28.md) · [Service health operating guide](docs/service-health.md)
 
 ## Local development
+
+All three repositories belong under the plain `smart-factory` workspace parent.
+See [workspace naming and the Mac migration command](docs/project-naming.md) to
+consolidate existing checkouts while preserving local work.
 
 Use Node 22.12+, pnpm 10, PostgreSQL 16 and Redis. Companion services use the pinned .NET 10 LTS SDK in the backend repository; edge dependencies are pinned in the edge repository.
 

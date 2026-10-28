@@ -81,7 +81,7 @@ export default function DashboardLayout({
               <Factory className="h-12 w-12 text-primary" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-center text-foreground">
-              Smart Factory IoT Dashboard
+              Smart Factory Dashboard
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
               Monitor and manage your industrial IoT devices with real-time
@@ -205,7 +205,7 @@ function DashboardLayoutContent({
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = `${activeMenuItem?.label ?? "Factory workspace"} | Smart Factory IoT`;
+    document.title = `${activeMenuItem?.label ?? "Factory workspace"} | Smart Factory`;
     return () => {
       document.title = previousTitle;
     };

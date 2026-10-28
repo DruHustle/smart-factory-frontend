@@ -54,7 +54,7 @@ describe("coordinated production promotion", () => {
 });
 
 const release = () => ({
-  application: "Smart Factory IoT",
+  application: "Smart Factory",
   source,
   builtAt: "2026-10-28T10:00:00Z",
   contractVersion: runtimeContractVersion,

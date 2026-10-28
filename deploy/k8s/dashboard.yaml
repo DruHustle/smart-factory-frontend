@@ -36,7 +36,7 @@ spec:
               app.kubernetes.io/name: smart-factory-dashboard
       containers:
         - name: dashboard
-          image: ghcr.io/druhustle/smart-factory-iot:release-placeholder
+          image: ghcr.io/druhustle/smart-factory:release-placeholder
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

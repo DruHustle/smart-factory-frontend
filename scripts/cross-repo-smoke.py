@@ -23,7 +23,7 @@ import urllib.parse
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-EDGE_ROOT = ROOT.parent / 'smart-factory-iot-edge' / 'raspberry-pi'
+EDGE_ROOT = ROOT.parent / 'smart-factory-edge' / 'raspberry-pi'
 EDGE = EDGE_ROOT / 'src'
 
 # Use the edge repository's pinned virtual environment when the caller did not
@@ -128,7 +128,7 @@ def main():
             for port, path in [(60401,'shells'),(60402,'shell-descriptors'),(60403,'submodels'),(60404,'submodel-descriptors'),(60405,'concept-descriptions'),(60406,'packages')]:
                 eventually(lambda p=port, route=path: http(plain, f'http://127.0.0.1:{p}/{route}')[0] == 200, 'disposable BaSyx readiness')
             aas_env = {**env, 'AAS_LIVE_TESTS':'true', 'AAS_REPOSITORY_URL':'http://127.0.0.1:60401', 'AAS_REGISTRY_URL':'http://127.0.0.1:60402', 'AAS_SUBMODEL_REPOSITORY_URL':'http://127.0.0.1:60403', 'AAS_SUBMODEL_REGISTRY_URL':'http://127.0.0.1:60404', 'AAS_CONCEPT_DESCRIPTION_REPOSITORY_URL':'http://127.0.0.1:60405', 'AASX_FILE_SERVER_URL':'http://127.0.0.1:60406'}
-            run([os.environ.get('QUALIFICATION_DOTNET','dotnet'), 'test', str(ROOT.parent/'smart-factory-iot-backend/src/SmartFactory.Tests/SmartFactory.Tests.csproj'), '-c', 'Release', '--filter', 'FullyQualifiedName~AasxLiveIntegrationTests'], env=aas_env, stdout=log, stderr=subprocess.STDOUT)
+            run([os.environ.get('QUALIFICATION_DOTNET','dotnet'), 'test', str(ROOT.parent/'smart-factory-backend/src/SmartFactory.Tests/SmartFactory.Tests.csproj'), '-c', 'Release', '--filter', 'FullyQualifiedName~AasxLiveIntegrationTests'], env=aas_env, stdout=log, stderr=subprocess.STDOUT)
             print('PASS: .NET 10 AASX import, 3.2 administrative metadata, semantic submodel and embedded attachment against disposable BaSyx', flush=True)
             run(['node', '--import', 'tsx', 'scripts/migrate-dashboard.ts'], env=env, stdout=log, stderr=subprocess.STDOUT)
             run(['node', '--import', 'tsx', 'scripts/security/seed-test-accounts.ts'], env=env, stdout=log, stderr=subprocess.STDOUT)

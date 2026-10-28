@@ -21,8 +21,8 @@ function source(path: string) {
 }
 const sources = {
   frontend: source(resolve(".")),
-  backend: source(resolve("../smart-factory-iot-backend")),
-  edge: source(resolve("../smart-factory-iot-edge")),
+  backend: source(resolve("../smart-factory-backend")),
+  edge: source(resolve("../smart-factory-edge")),
 };
 const [inspection] = JSON.parse(
   execFileSync("docker", ["image", "inspect", image], { encoding: "utf8" }),

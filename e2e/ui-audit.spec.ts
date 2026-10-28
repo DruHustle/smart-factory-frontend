@@ -89,7 +89,7 @@ test("signed-out and authenticated routes expose named controls and sound landma
 }) => {
   await page.goto("/#/login");
   await expect(
-    page.getByRole("heading", { name: "Smart Factory IoT" }),
+    page.getByRole("heading", { name: "Smart Factory" }),
   ).toBeVisible();
   await expectSoundDocumentStructure(page);
   const password = page.locator("#password");

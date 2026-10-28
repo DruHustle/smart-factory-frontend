@@ -11,7 +11,7 @@ import { createUser, getUserByEmail, closeDatabase } from "../../server/db";
 import { sdk } from "../../server/_core/sdk";
 if (
   process.env.NODE_ENV === "production" ||
-  !process.env.DATABASE_URL?.includes("127.0.0.1:55432/smart_factory_iot_e2e")
+  !process.env.DATABASE_URL?.includes("127.0.0.1:55432/smart_factory_e2e")
 )
   throw new Error(
     "Fixture seeding is restricted to the documented isolated local database",

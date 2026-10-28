@@ -10,6 +10,6 @@ resources:
   - ingress.yaml
   - network-policy.yaml
 images:
-  - name: ghcr.io/druhustle/smart-factory-iot
-    newName: ghcr.io/druhustle/smart-factory-iot
+  - name: ghcr.io/druhustle/smart-factory
+    newName: ghcr.io/druhustle/smart-factory
     digest: sha256:REPLACE_WITH_64_HEX_DIGEST

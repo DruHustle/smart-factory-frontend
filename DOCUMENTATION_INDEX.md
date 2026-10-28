@@ -24,9 +24,9 @@
 - [AASX import and edge synchronization](docs/AASX-and-Edge-Configuration.md)
 - [Smart Factory Assistant API and data boundaries](API.md#api-overview)
 - [AutomationML integration boundary](docs/automationml-integration.md)
-- [.NET API and MQTT contract](https://github.com/DruHustle/smart-factory-iot-backend/blob/main/API-SPEC.md)
-- [Raspberry Pi gateway](https://github.com/DruHustle/smart-factory-iot-edge/blob/master/raspberry-pi/README.md)
-- [ESP32 WROVER](https://github.com/DruHustle/smart-factory-iot-edge/blob/master/esp32-wrover/README.md)
+- [.NET API and MQTT contract](https://github.com/DruHustle/smart-factory-backend/blob/main/API-SPEC.md)
+- [Raspberry Pi gateway](https://github.com/DruHustle/smart-factory-edge/blob/master/raspberry-pi/README.md)
+- [ESP32 WROVER](https://github.com/DruHustle/smart-factory-edge/blob/master/esp32-wrover/README.md)
 
 ## PDF guides
 

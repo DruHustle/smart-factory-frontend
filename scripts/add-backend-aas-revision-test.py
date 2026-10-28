@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-backend = Path("/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend")
+backend = Path(__file__).resolve().parents[2] / "smart-factory-backend"
 test_file = backend / "src/SmartFactory.Tests/AasProvisioningTests.cs"
 source = test_file.read_text()
 anchor = '''    [Fact]

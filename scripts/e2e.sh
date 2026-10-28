@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export DOTENV_CONFIG_PATH=/dev/null
 unset ONESA_ENABLED ONESA_SERVICE_TOKEN ONESA_INGESTION_URL
-compose=(docker compose --env-file /dev/null -p "${E2E_COMPOSE_PROJECT:-smart-factory-iot-e2e}" -f docker-compose.e2e.yml)
+compose=(docker compose --env-file /dev/null -p "${E2E_COMPOSE_PROJECT:-smart-factory-e2e}" -f docker-compose.e2e.yml)
 mock_aas_pid=""
 cleanup() {
   if [[ -n "$mock_aas_pid" ]]; then
@@ -17,7 +17,7 @@ trap cleanup EXIT
 
 "${compose[@]}" up -d --wait database redis
 
-export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:${E2E_DATABASE_PORT:-55432}/smart_factory_iot_e2e"
+export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:${E2E_DATABASE_PORT:-55432}/smart_factory_e2e"
 export TEST_DATABASE_URL="$DATABASE_URL"
 export DATABASE_SSL_MODE=disable
 export REDIS_URL=redis://127.0.0.1:${E2E_REDIS_PORT:-56379}

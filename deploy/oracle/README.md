@@ -11,7 +11,7 @@ The [16 October manifest](release-manifest.json) is historical evidence. It does
 Use clean pinned revisions of all three repositories. Never package environment files or keys. Set full source SHAs as build arguments; never use branch names as runtime identity.
 
 ```bash
-python3 scripts/prepare-backend-context.py ../smart-factory-iot-backend /tmp/factory-backend-context
+python3 scripts/prepare-backend-context.py ../smart-factory-backend /tmp/factory-backend-context
 docker buildx build --load --platform linux/arm64 \
   --build-context backend=/tmp/factory-backend-context \
   --build-arg SOURCE_REVISION="$FRONTEND_SHA" \

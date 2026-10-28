@@ -1,6 +1,6 @@
 # Authorization, Assets, and AAS
 
-This guide describes the dashboard's account roles, industrial asset records, AAS JSON models, API gateway, and deployment requirements. The application API and database live in `smart-factory-iot-frontend`; the optional standardized AAS runtime is a separate service.
+This guide describes the dashboard's account roles, industrial asset records, AAS JSON models, API gateway, and deployment requirements. The application API and database live in `smart-factory-frontend`; the optional standardized AAS runtime is a separate service.
 
 ## Roles and permissions
 

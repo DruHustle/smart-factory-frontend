@@ -455,7 +455,7 @@ export function generateDeviceReportHtml(data: DeviceReportData): string {
 
   <div class="footer">
     ${data.metadata ? `Incident detail limit: ${data.metadata.incidentDetailLimit}. ${data.metadata.hasMoreIncidents ? "Additional matching incidents are available through the paginated incident queue." : "All matching incident details are included."}` : ""}<br>
-    Smart Factory IoT Dashboard | Device Report
+    Smart Factory Dashboard | Device Report
   </div>
 </body>
 </html>
@@ -563,7 +563,7 @@ export function generateAssetAnalyticsReportHtml(
   }
 
   <div class="footer">
-    Smart Factory IoT Dashboard | Asset telemetry report · vibration average ${display(avgVibration, 2)}
+    Smart Factory Dashboard | Asset telemetry report · vibration average ${display(avgVibration, 2)}
   </div>
 </body>
 </html>
@@ -771,7 +771,7 @@ export function generateAlertHistoryReportHtml(
   </div>
 
   <div class="footer">
-    ${data.metadata ? `Full-range statistics; detail limit ${data.metadata.detailLimit}; returned ${data.metadata.returned} of ${data.metadata.total}; ${data.metadata.truncated ? "details truncated; use the paginated queue for the remainder" : "all matching details included"}.` : "Completeness is not attested for supplied rows."}<br>Smart Factory IoT Dashboard | Alert History Report
+    ${data.metadata ? `Full-range statistics; detail limit ${data.metadata.detailLimit}; returned ${data.metadata.returned} of ${data.metadata.total}; ${data.metadata.truncated ? "details truncated; use the paginated queue for the remainder" : "all matching details included"}.` : "Completeness is not attested for supplied rows."}<br>Smart Factory Dashboard | Alert History Report
   </div>
 </body>
 </html>

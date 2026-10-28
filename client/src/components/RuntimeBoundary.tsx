@@ -32,7 +32,7 @@ export function RuntimeBoundary({ children }: { children: ReactNode }) {
   if (state === null) return children;
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-4 p-6">
-      <h1 className="text-2xl font-semibold">Smart Factory IoT</h1>
+      <h1 className="text-2xl font-semibold">Smart Factory</h1>
       {state === undefined ? (
         <p role="status">Connecting to the workspace…</p>
       ) : (

@@ -4,7 +4,7 @@ import { rows, database, status } from "../../server/onesa/store";
 import { closeDatabase } from "../../server/db";
 if (
   process.env.NODE_ENV === "production" ||
-  !process.env.DATABASE_URL?.includes("127.0.0.1:55432/smart_factory_iot_e2e")
+  !process.env.DATABASE_URL?.includes("127.0.0.1:55432/smart_factory_e2e")
 )
   throw new Error("Only the isolated walkthrough database is allowed");
 const db = await database();
