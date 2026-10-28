@@ -22,7 +22,7 @@ The repository test project accepts a local corpus through `AASX_TEST_CORPUS_DIR
 
 ```bash
 unzip -q ~/Downloads/aas-specs-aasx-3.2.0.zip -d /tmp/aas-specs-aasx-3.2.0
-cd /path/to/smart-factory-iot-backend
+cd /path/to/smart-factory-backend
 AASX_TEST_CORPUS_DIR=/tmp/aas-specs-aasx-3.2.0/aas-specs-aasx-3.2.0/examples \
   dotnet test src/SmartFactory.Tests/SmartFactory.Tests.csproj \
   --filter FullyQualifiedName~AasxPackageParserTests
@@ -38,4 +38,4 @@ After an engineer provisions or changes a gateway mapping, DeviceService publish
 
 The gateway relays sensor telemetry to the platform. The WROVER connects only to the Raspberry Pi's local broker; it does not connect directly to CloudAMQP or the dashboard. Keep per-gateway topic ACLs, TLS, protocol credentials, and machine safety controls configured at the site. This platform is not a safety-rated control system.
 
-See the [Raspberry Pi gateway guide](https://github.com/DruHustle/smart-factory-iot-edge/blob/master/raspberry-pi/README.md), [ESP32 WROVER guide](https://github.com/DruHustle/smart-factory-iot-edge/blob/master/esp32-wrover/README.md), and the [AAS permissions and deployment guide](authorization-and-aas.md).
+See the [Raspberry Pi gateway guide](https://github.com/DruHustle/smart-factory-edge/blob/master/raspberry-pi/README.md), [ESP32 WROVER guide](https://github.com/DruHustle/smart-factory-edge/blob/master/esp32-wrover/README.md), and the [AAS permissions and deployment guide](authorization-and-aas.md).

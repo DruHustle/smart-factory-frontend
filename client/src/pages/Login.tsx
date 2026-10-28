@@ -127,7 +127,7 @@ export default function Login() {
 
           {/* Title */}
           <h1 className="text-2xl font-bold tracking-wide">
-            Smart Factory IoT
+            Smart Factory
           </h1>
 
           {/* Subtitle */}

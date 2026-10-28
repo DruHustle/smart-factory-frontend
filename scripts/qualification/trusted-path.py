@@ -20,8 +20,8 @@ import urllib.request
 import urllib.error
 
 ROOT=Path(__file__).resolve().parents[2]
-BACKEND=ROOT.parent/'smart-factory-iot-backend'
-EDGE=ROOT.parent/'smart-factory-iot-edge'/'raspberry-pi'/'src'
+BACKEND=ROOT.parent/'smart-factory-backend'
+EDGE=ROOT.parent/'smart-factory-edge'/'raspberry-pi'/'src'
 sys.path.insert(0,str(EDGE))
 import paho.mqtt.client as mqtt
 from durable_state import DurableState,DurablePublisher

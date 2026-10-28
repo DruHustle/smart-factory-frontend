@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const roots = [root, path.join(root, '../smart-factory-iot-backend'), path.join(root, '../smart-factory-iot-edge')];
+const roots = [root, path.join(root, '../smart-factory-backend'), path.join(root, '../smart-factory-edge')];
 const files = [];
 for (const repository of roots) {
   try {

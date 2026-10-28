@@ -319,8 +319,8 @@ export async function enqueueWelcomeEmail(
       alertId: null,
       userId: user.id,
       kind: "account_welcome",
-      title: "Welcome to Smart Factory IoT",
-      body: `${greeting}\n\nYour Smart Factory IoT account has been created.\n\nOpen the application: https://smart-factory-iot-app.vercel.app\n\nFor security, this email does not contain your password. If you did not expect this account, contact your system administrator.\n\nSmart Factory IoT`,
+      title: "Welcome to Smart Factory",
+      body: `${greeting}\n\nYour Smart Factory account has been created.\n\nOpen the application: https://smart-factory-iot-app.vercel.app\n\nFor security, this email does not contain your password. If you did not expect this account, contact your system administrator.\n\nSmart Factory`,
     }),
   );
 }

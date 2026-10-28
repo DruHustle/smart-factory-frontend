@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-backend = Path("/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-backend")
-edge = Path("/Users/andrewgotora/Software Development/GitHub/smart-factory-iot/smart-factory-iot-edge")
+backend = Path(__file__).resolve().parents[2] / "smart-factory-backend"
+edge = Path(__file__).resolve().parents[2] / "smart-factory-edge"
 
 
 def write(repo: Path, relative: str, content: str) -> None:
@@ -860,7 +860,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: device-service
-          image: ghcr.io/REPLACE_ME/smart-factory-iot-backend-device-service:REPLACE_WITH_IMMUTABLE_DIGEST
+          image: ghcr.io/REPLACE_ME/smart-factory-backend-device-service:REPLACE_WITH_IMMUTABLE_DIGEST
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -1032,7 +1032,7 @@ if "AASX_FILE_SERVER_URL" not in deployment_text:
 edge_pi_readme = edge / "raspberry-pi/README.md"
 edge_pi_text = edge_pi_readme.read_text()
 if "## Live AAS edge profile updates" not in edge_pi_text:
-    edge_pi_text += "\n\n## Live AAS edge profile updates\n\nThe gateway subscribes to `factory/{SITE_ID}/{LINE_ID}/{DEVICE_ID}/commands`. DeviceService publishes a retained QoS 1 `replace_asset_configuration` desired-state command; the gateway accepts that action only, validates `schemaVersion` and `gatewayDeviceId`, atomically persists `/etc/smart-factory-iot/assets.json` (mode 0600), and reloads the active polling loop. A status acknowledgement is published to the command topic with `/ack` appended. The broker must enforce a per-device topic ACL and TLS; the service response means the broker accepted the publish, not that the edge host applied it.\n\nThe profile supports validated OPC UA, Modbus TCP/RTU, serial JSON, and MQTT mapping records. Do not put passwords, private keys, or user information in endpoints or mappings. Configure protocol secrets locally on the gateway. Offline desired-state is retained, so make sure broker ACLs restrict retained command publication and gateway subscription to the exact device topic.\n"
+    edge_pi_text += "\n\n## Live AAS edge profile updates\n\nThe gateway subscribes to `factory/{SITE_ID}/{LINE_ID}/{DEVICE_ID}/commands`. DeviceService publishes a retained QoS 1 `replace_asset_configuration` desired-state command; the gateway accepts that action only, validates `schemaVersion` and `gatewayDeviceId`, atomically persists `/etc/smart-factory/assets.json` (mode 0600), and reloads the active polling loop. A status acknowledgement is published to the command topic with `/ack` appended. The broker must enforce a per-device topic ACL and TLS; the service response means the broker accepted the publish, not that the edge host applied it.\n\nThe profile supports validated OPC UA, Modbus TCP/RTU, serial JSON, and MQTT mapping records. Do not put passwords, private keys, or user information in endpoints or mappings. Configure protocol secrets locally on the gateway. Offline desired-state is retained, so make sure broker ACLs restrict retained command publication and gateway subscription to the exact device topic.\n"
     edge_pi_readme.write_text(edge_pi_text)
 
 print("Prepared hybrid AASX import and live edge desired-state changes for the backend and edge repositories.")

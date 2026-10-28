@@ -348,7 +348,7 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
 
     const sessionToken = await sdk.signSession({
       openId: "manual-open-id",
-      appId: "smart-factory-iot",
+      appId: "smart-factory",
       name: "Manual User",
       email: "manual@test.local",
       role: "user",

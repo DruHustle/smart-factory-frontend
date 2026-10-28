@@ -16,7 +16,7 @@ describe("notification configuration", () => {
   it("does not require the SMTP password in the API process", () => {
     process.env.EMAIL_PROVIDER = "smtp";
     process.env.SMTP_USERNAME = "smartfactory.notifications@gmail.com";
-    process.env.SMTP_FROM = "Smart Factory IoT <smartfactory.notifications@gmail.com>";
+    process.env.SMTP_FROM = "Smart Factory <smartfactory.notifications@gmail.com>";
     delete process.env.EMAIL_DELIVERY_CONFIGURED;
     expect(notificationConfiguration()[0]).toMatchObject({ provider: "Gmail SMTP", emailConfigured: true });
   });
@@ -24,7 +24,7 @@ describe("notification configuration", () => {
   it("honors an explicit worker-delivery status override", () => {
     process.env.EMAIL_PROVIDER = "smtp";
     process.env.SMTP_USERNAME = "smartfactory.notifications@gmail.com";
-    process.env.SMTP_FROM = "Smart Factory IoT <smartfactory.notifications@gmail.com>";
+    process.env.SMTP_FROM = "Smart Factory <smartfactory.notifications@gmail.com>";
     process.env.EMAIL_DELIVERY_CONFIGURED = "false";
     expect(notificationConfiguration()[0].emailConfigured).toBe(false);
   });

@@ -14,7 +14,7 @@ cleanup() {
 trap cleanup EXIT
 unset ONESA_ENABLED ONESA_INSTALLATION_ID ONESA_WORKSPACE_ID ONESA_CONTRACT_ID ONESA_INGESTION_URL ONESA_APPROVED_ORIGIN ONESA_SERVICE_TOKEN ONESA_ALLOW_LOCAL_HTTP ONESA_RECEIVER_DATABASE_URL
 export DOTENV_CONFIG_PATH=/dev/null NODE_ENV=development DATABASE_SSL_MODE=disable
-export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:$E2E_DATABASE_PORT/smart_factory_iot_e2e"
+export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:$E2E_DATABASE_PORT/smart_factory_e2e"
 export REDIS_URL="redis://127.0.0.1:$E2E_REDIS_PORT"
 export JWT_SECRET=isolated-native-equipment-session-secret-32-bytes
 export ENABLE_DEMO_ACCOUNTS=false ENABLE_DEMO_DATA=true ASSISTANT_PROVIDER=disabled BACKEND_DEPLOYMENT_MODE=standalone

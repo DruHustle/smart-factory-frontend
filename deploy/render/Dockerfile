@@ -1,5 +1,5 @@
 # Build with the dashboard as the default context and a pinned backend named context:
-# docker buildx build --build-context backend=../smart-factory-iot-backend -f deploy/render/Dockerfile .
+# docker buildx build --build-context backend=../smart-factory-backend -f deploy/render/Dockerfile .
 FROM node:22-bookworm-slim AS node-build
 ARG SOURCE_REVISION
 ARG BACKEND_SOURCE_REVISION

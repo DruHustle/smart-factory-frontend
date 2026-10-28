@@ -2,7 +2,7 @@
 
 Historical evidence for 7 October 2026 only. Current instructions: [operating guide](operations.md) and [Oracle runbook](../deploy/oracle/README.md). This document does not attest to the present runtime.
 
-Reviewed 2026-10-07 across `smart-factory-iot`, `smart-factory-iot-backend` and `smart-factory-iot-edge`. The selected target is **Vercel frontend plus one immutable image deployed to separate Render web and worker services**. Existing dashboard accounts/roles remain authoritative; notifications use the in-app inbox and configured transactional email provider. Live DHT11 ingestion and a commissioned 200 ms WROVER indicator pulse were verified; no production deployment, physical arm movement or firmware flashing was performed.
+Reviewed 2026-10-07 across `smart-factory-iot`, `smart-factory-backend` and `smart-factory-edge`. The selected target is **Vercel frontend plus one immutable image deployed to separate Render web and worker services**. Existing dashboard accounts/roles remain authoritative; notifications use the in-app inbox and configured transactional email provider. Live DHT11 ingestion and a commissioned 200 ms WROVER indicator pulse were verified; no production deployment, physical arm movement or firmware flashing was performed.
 
 ## Assessment
 
@@ -37,7 +37,7 @@ pnpm build
 E2E_PORT=3100 pnpm e2e
 pnpm docs:check
 pnpm audit --audit-level=moderate
-python3 scripts/prepare-backend-context.py ../smart-factory-iot-backend /tmp/factory-backend-context
+python3 scripts/prepare-backend-context.py ../smart-factory-backend /tmp/factory-backend-context
 docker buildx build --load --build-context backend=/tmp/factory-backend-context -f deploy/render/Dockerfile -t smart-factory-render-review:local .
 python3 scripts/bundle-smoke.py
 python3 scripts/audit-container.py --output /tmp/factory-container-audit.json

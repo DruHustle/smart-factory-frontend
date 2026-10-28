@@ -70,5 +70,5 @@ export function buildAutomationMlPlantLayout(assets: readonly AutomationMlAsset[
   }).join("");
 
   const writtenAt = new Date().toISOString();
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<CAEXFile xmlns="${CAEX_NAMESPACE}" xmlns:xs="${XML_SCHEMA_NAMESPACE}" SchemaVersion="3.0" FileName="smart-factory-iot.aml"><SourceDocumentInformation OriginName="Smart Factory IoT" OriginID="smart-factory-iot" OriginVersion="1.0" LastWritingDateTime="${writtenAt}" OriginVendor="Smart Factory IoT"/><InstanceHierarchy Name="Smart Factory">${groups}</InstanceHierarchy></CAEXFile>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<CAEXFile xmlns="${CAEX_NAMESPACE}" xmlns:xs="${XML_SCHEMA_NAMESPACE}" SchemaVersion="3.0" FileName="smart-factory.aml"><SourceDocumentInformation OriginName="Smart Factory" OriginID="smart-factory-iot" OriginVersion="1.0" LastWritingDateTime="${writtenAt}" OriginVendor="Smart Factory"/><InstanceHierarchy Name="Smart Factory">${groups}</InstanceHierarchy></CAEXFile>`;
 }

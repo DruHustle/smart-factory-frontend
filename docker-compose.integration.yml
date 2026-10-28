@@ -9,7 +9,7 @@ services:
   backend-database:
     image: postgres:16-alpine
     environment: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: telemetry }
-    volumes: ["../smart-factory-iot-backend/deploy/local-dev/init.sql:/docker-entrypoint-initdb.d/init.sql:ro", "backend_test_data:/var/lib/postgresql/data"]
+    volumes: ["../smart-factory-backend/deploy/local-dev/init.sql:/docker-entrypoint-initdb.d/init.sql:ro", "backend_test_data:/var/lib/postgresql/data"]
     healthcheck: { test: [CMD-SHELL, "pg_isready -U postgres -d telemetry"], interval: 2s, timeout: 3s, retries: 30 }
   redis:
     image: redis:8.2-alpine
@@ -22,7 +22,7 @@ services:
     ports: ["127.0.0.1:51883:1883"]
     healthcheck: { test: [CMD, rabbitmq-diagnostics, -q, ping], interval: 3s, timeout: 5s, retries: 40 }
   device-service:
-    build: { context: ../smart-factory-iot-backend, dockerfile: src/Services/DeviceService/Dockerfile }
+    build: { context: ../smart-factory-backend, dockerfile: src/Services/DeviceService/Dockerfile }
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       JWT_SECRET: isolated-review-jwt-secret-at-least-32-bytes
@@ -45,7 +45,7 @@ services:
     ports: ["127.0.0.1:55101:8080"]
     depends_on: { broker: { condition: service_healthy }, redis: { condition: service_healthy } }
   telemetry-service:
-    build: { context: ../smart-factory-iot-backend, dockerfile: src/Services/TelemetryService/Dockerfile }
+    build: { context: ../smart-factory-backend, dockerfile: src/Services/TelemetryService/Dockerfile }
     entrypoint: [sh, -c]
     command: ["dotnet TelemetryService.dll --migrate && exec dotnet TelemetryService.dll"]
     environment:

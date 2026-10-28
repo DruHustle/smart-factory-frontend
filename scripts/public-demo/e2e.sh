@@ -16,7 +16,7 @@ export INGESTION_API_TOKEN=isolated-workspace-ingestion-token
 # another disposable runner or a host's ephemeral connections.
 database_endpoint="$("${compose[@]}" port database 5432)"
 redis_endpoint="$("${compose[@]}" port redis 6379)"
-export DATABASE_URL="postgres://postgres:postgres@$database_endpoint/smart_factory_iot_e2e" REDIS_URL="redis://$redis_endpoint"
+export DATABASE_URL="postgres://postgres:postgres@$database_endpoint/smart_factory_e2e" REDIS_URL="redis://$redis_endpoint"
 pnpm exec drizzle-kit migrate
 node --import tsx scripts/security/seed-test-accounts.ts
 node --import tsx scripts/workspace/seed.ts

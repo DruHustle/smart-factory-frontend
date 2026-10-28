@@ -5,7 +5,7 @@ import { getDb, closeDatabase } from "../../server/db";
 import { devices, assets, assetDevices } from "../../drizzle/schema";
 if (
   process.env.NODE_ENV === "production" ||
-  !process.env.DATABASE_URL?.includes("127.0.0.1:55432/smart_factory_iot_e2e")
+  !process.env.DATABASE_URL?.includes("127.0.0.1:55432/smart_factory_e2e")
 )
   throw Error("Only disposable provenance-path database allowed");
 const db = (await getDb())!;

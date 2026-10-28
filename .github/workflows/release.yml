@@ -54,53 +54,53 @@ jobs:
             echo "edge_ref=master" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with: { path: smart-factory-iot, persist-credentials: false }
+        with: { path: smart-factory, persist-credentials: false }
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          repository: ${{ github.repository_owner }}/smart-factory-iot-backend
+          repository: ${{ github.repository_owner }}/smart-factory-backend
           ref: ${{ steps.source-refs.outputs.backend_ref }}
-          path: smart-factory-iot-backend
+          path: smart-factory-backend
           token: ${{ secrets.REPOSITORY_READ_TOKEN || github.token }}
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          repository: ${{ github.repository_owner }}/smart-factory-iot-edge
+          repository: ${{ github.repository_owner }}/smart-factory-edge
           ref: ${{ steps.source-refs.outputs.edge_ref }}
-          path: smart-factory-iot-edge
+          path: smart-factory-edge
           token: ${{ secrets.REPOSITORY_READ_TOKEN || github.token }}
           persist-credentials: false
       - name: Record immutable companion source revisions
         id: resolved-sources
         run: |
-          BACKEND_SHA=$(git -C smart-factory-iot-backend rev-parse HEAD)
-          EDGE_SHA=$(git -C smart-factory-iot-edge rev-parse HEAD)
+          BACKEND_SHA=$(git -C smart-factory-backend rev-parse HEAD)
+          EDGE_SHA=$(git -C smart-factory-edge rev-parse HEAD)
           [[ "$BACKEND_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$EDGE_SHA" =~ ^[a-f0-9]{40}$ ]]
           echo "backend_sha=$BACKEND_SHA" >> "$GITHUB_OUTPUT"
           echo "edge_sha=$EDGE_SHA" >> "$GITHUB_OUTPUT"
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with: { package_json_file: smart-factory-iot/package.json }
+        with: { package_json_file: smart-factory/package.json }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with: { node-version: 22, cache: pnpm, cache-dependency-path: smart-factory-iot/pnpm-lock.yaml }
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: smart-factory/pnpm-lock.yaml }
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with: { dotnet-version: 10.0.403 }
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with: { python-version: '3.11' }
       - name: Audit all NuGet dependencies
-        run: dotnet restore smart-factory-iot-backend/src/SmartFactory.sln -p:NuGetAudit=true -p:NuGetAuditMode=all -p:NuGetAuditLevel=high -warnaserror:NU1900,NU1903,NU1904 --force-evaluate
+        run: dotnet restore smart-factory-backend/src/SmartFactory.sln -p:NuGetAudit=true -p:NuGetAuditMode=all -p:NuGetAuditLevel=high -warnaserror:NU1900,NU1903,NU1904 --force-evaluate
       - name: Backend build and tests
-        run: dotnet test smart-factory-iot-backend/src/SmartFactory.sln -c Release --no-restore
+        run: dotnet test smart-factory-backend/src/SmartFactory.sln -c Release --no-restore
       - name: Gateway tests and firmware compile
         run: |
-          python -m pip install -r smart-factory-iot-edge/raspberry-pi/requirements.txt platformio==6.2.0
-          python -m unittest discover -s smart-factory-iot-edge/raspberry-pi/tests -v
-          pio run --project-dir smart-factory-iot-edge/esp32-wrover --environment compile-check
+          python -m pip install -r smart-factory-edge/raspberry-pi/requirements.txt platformio==6.2.0
+          python -m unittest discover -s smart-factory-edge/raspberry-pi/tests -v
+          pio run --project-dir smart-factory-edge/esp32-wrover --environment compile-check
       - name: Audit gateway dependency tree
         run: |
           python -m pip install pip-audit==2.10.1
-          python -m pip_audit -r smart-factory-iot-edge/raspberry-pi/requirements.txt --strict --progress-spinner off
+          python -m pip_audit -r smart-factory-edge/raspberry-pi/requirements.txt --strict --progress-spinner off
       - name: Dashboard checks and Chromium workflows
-        working-directory: smart-factory-iot
+        working-directory: smart-factory
         env:
           E2E_PORT: '3100'
           REQUIRE_COMPANION_REPOS: '1'
@@ -115,13 +115,13 @@ jobs:
           pnpm audit --audit-level=moderate
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Build and test the six-service image
-        working-directory: smart-factory-iot
+        working-directory: smart-factory
         run: |
-          python scripts/prepare-backend-context.py ../smart-factory-iot-backend "$RUNNER_TEMP/backend-context"
-          docker buildx build --load --platform linux/amd64 --build-arg SOURCE_REVISION="$GITHUB_SHA" --build-arg BACKEND_SOURCE_REVISION="$(git -C ../smart-factory-iot-backend rev-parse HEAD)" --build-arg EDGE_SOURCE_REVISION="$(git -C ../smart-factory-iot-edge rev-parse HEAD)" --build-context backend="$RUNNER_TEMP/backend-context" -f deploy/render/Dockerfile -t smart-factory-render-review:local .
+          python scripts/prepare-backend-context.py ../smart-factory-backend "$RUNNER_TEMP/backend-context"
+          docker buildx build --load --platform linux/amd64 --build-arg SOURCE_REVISION="$GITHUB_SHA" --build-arg BACKEND_SOURCE_REVISION="$(git -C ../smart-factory-backend rev-parse HEAD)" --build-arg EDGE_SOURCE_REVISION="$(git -C ../smart-factory-edge rev-parse HEAD)" --build-context backend="$RUNNER_TEMP/backend-context" -f deploy/render/Dockerfile -t smart-factory-render-review:local .
           python scripts/bundle-smoke.py
       - name: Audit the exact runtime image locally
-        working-directory: smart-factory-iot
+        working-directory: smart-factory
         run: python scripts/audit-container.py --output "$RUNNER_TEMP/container-audit.json"
       - name: Retain vulnerability evidence
         if: always()
@@ -132,7 +132,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: Test real AAS MQTT and gateway command paths
-        working-directory: smart-factory-iot
+        working-directory: smart-factory
         env:
           DATABASE_PASSWORD: isolated-ci-dashboard-password
           REDIS_PASSWORD: isolated-ci-redis-password
@@ -177,17 +177,17 @@ jobs:
             [[ -n "${!key}" ]] || { echo "Missing release configuration: $key"; exit 1; }
           done
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with: { path: smart-factory-iot, persist-credentials: false }
+        with: { path: smart-factory, persist-credentials: false }
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with: { package_json_file: smart-factory-iot/package.json }
+        with: { package_json_file: smart-factory/package.json }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with: { node-version: 22, cache: pnpm, cache-dependency-path: smart-factory-iot/pnpm-lock.yaml }
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: smart-factory/pnpm-lock.yaml }
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with: { name: tested-render-image, path: '${{ runner.temp }}' }
       - name: Publish immutable bundle and source manifest
-        working-directory: smart-factory-iot
+        working-directory: smart-factory
         env:
           REPO_OWNER: ${{ github.repository_owner }}
           BACKEND_SHA: ${{ needs.verify.outputs.backend_sha }}
@@ -201,12 +201,12 @@ jobs:
           echo "RELEASE_IMAGE=$IMAGE@$DIGEST" >> "$GITHUB_ENV"
           python -c 'import os,json,sys; json.dump({"dashboard":os.environ["GITHUB_SHA"],"backend":os.environ["BACKEND_SHA"],"edge":os.environ["EDGE_SHA"],"image":sys.argv[1]},open("release-manifest.json","w"),indent=2)' "$IMAGE@$DIGEST"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with: { name: production-release-manifest, path: smart-factory-iot/release-manifest.json }
+        with: { name: production-release-manifest, path: smart-factory/release-manifest.json }
       - name: Deploy reviewed backend and await readiness
-        working-directory: smart-factory-iot
+        working-directory: smart-factory
         run: python scripts/deploy-render.py
       - name: Configure and deploy Vercel UI
-        working-directory: smart-factory-iot
+        working-directory: smart-factory
         run: |
           pnpm install --frozen-lockfile
           pnpm vercel:configure

@@ -17,7 +17,7 @@ test.describe("private Onesa integration", () => {
       page.on("pageerror", (e) => errors.push(e.message));
       await page.goto("/#/integrations/onesa");
       await expect(
-        page.getByRole("heading", { name: "Smart Factory IoT", exact: true }),
+        page.getByRole("heading", { name: "Smart Factory", exact: true }),
       ).toBeVisible();
       await page.getByLabel("Email").fill("onesa-fixture@example.test");
       await page

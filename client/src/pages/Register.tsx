@@ -93,7 +93,7 @@ export default function Register() {
 
           {/* Subtitle */}
           <CardDescription className="text-muted-foreground">
-            Join the Smart Factory IoT Platform
+            Join the Smart Factory Platform
           </CardDescription>
         </CardHeader>
 

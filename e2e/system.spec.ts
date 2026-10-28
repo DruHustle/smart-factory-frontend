@@ -27,7 +27,7 @@ async function loginAs(
 test("account routes and the signed-out flow render", async ({ page }) => {
   await page.goto("/#/login");
   await expect(
-    page.getByRole("heading", { name: /smart factory iot/i }),
+    page.getByRole("heading", { name: /smart factory/i }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /forgot password\?/i }),
@@ -670,7 +670,7 @@ test("admin can inspect demo AAS data and manage user access", async ({
   const amlDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /export automationml/i }).click();
   const amlDownload = await amlDownloadPromise;
-  expect(amlDownload.suggestedFilename()).toBe("smart-factory-iot.aml");
+  expect(amlDownload.suggestedFilename()).toBe("smart-factory.aml");
   const amlXml = await readFile(await amlDownload.path(), "utf8");
   expect(amlXml).toContain("urn:demo:asset:compressor-01");
 

@@ -26,4 +26,4 @@ Enabled per-device telemetry thresholds create one active incident per device/me
 
 The Assistant indexes only the explicitly listed Markdown guides in `server/assistantKnowledge.ts`. It can add a minimal current snapshot of visible asset metadata, connected device status, latest telemetry, and incidents. When provider keys are configured, the current question, recent conversation, matching guide excerpts, and this snapshot are sent to the selected external AI provider. API keys stay on the server. It does not read `.env.local`, arbitrary paths, full AAS packages, or machine-control interfaces. See [Assistant configuration and data boundaries](docs/assistant.md).
 
-See [API flows](docs/api-flows.md), [authorization and AAS](docs/authorization-and-aas.md), and [.NET API contract](https://github.com/DruHustle/smart-factory-iot-backend/blob/main/API-SPEC.md).
+See [API flows](docs/api-flows.md), [authorization and AAS](docs/authorization-and-aas.md), and [.NET API contract](https://github.com/DruHustle/smart-factory-backend/blob/main/API-SPEC.md).

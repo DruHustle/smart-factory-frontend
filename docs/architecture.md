@@ -1,4 +1,4 @@
-# Smart Factory IoT Architecture
+# Smart Factory Architecture
 
 Maintained 27 October 2026 for the product-experience candidate. Exact runtime and qualification identities are separate from this architecture description.
 
@@ -6,9 +6,9 @@ Maintained 27 October 2026 for the product-experience candidate. Exact runtime a
 
 | Repository | Responsibility |
 |---|---|
-| smart-factory-iot-frontend | React UI, Express/tRPC accounts and session authority, shared PostgreSQL inventory, AAS workflows, evidence policy, native 3D, native OT security, incidents, inbox and optional Onesa export |
-| smart-factory-iot-backend | .NET 10 LTS Device, Telemetry, Identity, Analytics and Notification services; durable telemetry outbox; private AAS provisioning and scoped command interfaces |
-| smart-factory-iot-edge | Raspberry Pi protocol adapters, validated routes/units, persistent MQTT spool, commissioned controls and ESP32 firmware |
+| smart-factory-frontend | React UI, Express/tRPC accounts and session authority, shared PostgreSQL inventory, AAS workflows, evidence policy, native 3D, native OT security, incidents, inbox and optional Onesa export |
+| smart-factory-backend | .NET 10 LTS Device, Telemetry, Identity, Analytics and Notification services; durable telemetry outbox; private AAS provisioning and scoped command interfaces |
+| smart-factory-edge | Raspberry Pi protocol adapters, validated routes/units, persistent MQTT spool, commissioned controls and ESP32 firmware |
 
 Native 3D and cybersecurity work without Onesa, external feeds or an LLM. The existing detailed model is an illustrative reference, not validated plant CAD. Component evidence requires an explicit component/source link; a parent value is not copied to every part.
 

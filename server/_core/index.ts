@@ -283,7 +283,7 @@ async function startServer() {
         .setHeader("Content-Type", "application/xml; charset=utf-8")
         .setHeader(
           "Content-Disposition",
-          'attachment; filename="smart-factory-iot.aml"',
+          'attachment; filename="smart-factory.aml"',
         )
         .send(xml);
     } catch (error) {

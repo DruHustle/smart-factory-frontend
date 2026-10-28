@@ -100,7 +100,7 @@ try {
       preferCSSPageSize: true,
       displayHeaderFooter: true,
       margin: { top: "21mm", right: "18mm", bottom: "21mm", left: "18mm" },
-      headerTemplate: `<div style="width:100%;margin:0 18mm;color:#607784;font:8px Arial,sans-serif;border-bottom:1px solid #d6e0e5;padding-bottom:4px">SMART FACTORY IOT&nbsp;&nbsp; / &nbsp;&nbsp;SYSTEMS ENGINEERING</div>`,
+      headerTemplate: `<div style="width:100%;margin:0 18mm;color:#607784;font:8px Arial,sans-serif;border-bottom:1px solid #d6e0e5;padding-bottom:4px">SMART FACTORY&nbsp;&nbsp; / &nbsp;&nbsp;SYSTEMS ENGINEERING</div>`,
       footerTemplate: `<div style="width:100%;margin:0 18mm;color:#607784;font:8px Arial,sans-serif;border-top:1px solid #d6e0e5;padding-top:4px;display:flex;justify-content:space-between"><span>Engineering documentation • ${documentName}</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
     });
     const sourceContent = await readFile(source);

@@ -90,7 +90,7 @@ export function releaseIdentityCompatibility(
   if (
     !/^[a-f0-9]{40}$/.test(expectedSource) ||
     !release ||
-    release.application !== "Smart Factory IoT" ||
+    release.application !== "Smart Factory" ||
     release.source !== expectedSource
   )
     return "The deployed frontend does not match the approved release revision.";

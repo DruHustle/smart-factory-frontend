@@ -11,7 +11,7 @@ import time
 import types
 from datetime import datetime, timezone
 ROOT=Path(__file__).resolve().parents[2]
-EDGE=ROOT.parent/'smart-factory-iot-edge'/'raspberry-pi'/'src'
+EDGE=ROOT.parent/'smart-factory-edge'/'raspberry-pi'/'src'
 sys.path.insert(0,str(EDGE))
 import paho.mqtt.client as mqtt
 from sensor_gateway import forward_local_message

@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: smart-factory
   labels:
-    app.kubernetes.io/part-of: smart-factory-iot
+    app.kubernetes.io/part-of: smart-factory
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
