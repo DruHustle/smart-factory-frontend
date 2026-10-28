@@ -238,8 +238,12 @@ test("Assistant keeps Markdown safe, citations stable, IME and mobile compositio
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 430 });
   await input(page).focus();
-  const rect = await input(page).boundingBox();
-  expect(rect!.y + rect!.height).toBeLessThanOrEqual(430);
+  await expect
+    .poll(async () => {
+      const rect = await input(page).boundingBox();
+      return rect ? rect.y + rect.height : Number.POSITIVE_INFINITY;
+    })
+    .toBeLessThanOrEqual(430);
   await noOverflow(page);
 });
 test("Assistant handles unavailable WebGL and clears sensitive state on logout", async ({
