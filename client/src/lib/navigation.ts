@@ -68,7 +68,7 @@ export const navigationGroups: NavigationGroup[] = [
   },
   {
     icon: PanelsTopLeft,
-    label: "Workspace",
+    label: "Tools & settings",
     items: [
       { icon: Bot, label: "Assistant", path: "/assistant" },
       { icon: Factory, label: "Demo guide", path: "/demo" },
