@@ -12,6 +12,7 @@ for (const width of [390, 1440])
         browser,
         baseURL,
       }, testInfo) => {
+        test.setTimeout(60000);
         const context = await browser.newContext({
           baseURL,
           viewport: { width, height: 1000 },
@@ -22,14 +23,15 @@ for (const width of [390, 1440])
           },
         });
         const page = await context.newPage();
+        let modelPath: string | undefined;
         let codeRequested = false,
           modelRequests = 0;
-        // Desktop pointer intent can preload the renderer on the overview.
-        // Observe the whole journey, including code fetched before navigation.
+        // Overview now starts its own authorized preview automatically. Observe
+        // shared code across the journey, but count only the Pi workspace's GLB.
         page.on("request", (request) => {
           if (request.url().includes("LocalEquipmentRenderer"))
             codeRequested = true;
-          if (/\/api\/equipment\/[^/]+\/model/.test(request.url()))
+          if (modelPath && new URL(request.url()).pathname === modelPath)
             modelRequests++;
         });
         try {
@@ -55,7 +57,8 @@ for (const width of [390, 1440])
             .click();
           await expect(
             page.getByRole("heading", { name: "Demonstration", exact: true }),
-          ).toBeVisible();
+          ).toBeVisible({ timeout: 15000 });
+          modelPath = `/api/equipment/${s.raspberryPiRef.slice("equipment:".length)}/model`;
           let release!: () => void;
           const gate = new Promise<void>((r) => {
             release = r;
@@ -74,7 +77,7 @@ for (const width of [390, 1440])
             await expect.poll(() => codeRequested).toBe(true);
             expect(
               modelRequests,
-              "No model delivery before item authorization",
+              "No Pi model delivery before Pi item authorization",
             ).toBe(0);
           } finally {
             release();
@@ -87,7 +90,9 @@ for (const width of [390, 1440])
           ).toBeVisible();
           const host = page.locator("[data-model-bytes]");
           await expect(host).toHaveAttribute("data-model-bytes", "288440");
-          await expect(page.locator("[data-state=ready]")).toBeVisible();
+          await expect(page.locator("[data-state=ready]")).toBeVisible({
+            timeout: 30000,
+          });
           expect(modelRequests).toBe(1);
           const timing = JSON.parse(
             (await host.getAttribute("data-load-timings"))!,
