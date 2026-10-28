@@ -5,6 +5,7 @@ export default defineConfig({
   outputDir: "test-results/resources",
   timeout: 60000,
   workers: 1,
+  expect: { timeout: 15000 },
   reporter: "list",
   use: {
     ...devices["Desktop Chrome"],

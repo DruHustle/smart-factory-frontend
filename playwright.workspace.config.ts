@@ -1,10 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "e2e",
-  testMatch: ["workspace.spec.ts", "infrastructure-private.spec.ts"],
+  testMatch: ["workspace.spec.ts", "infrastructure-private.spec.ts", "list-filters.spec.ts"],
   fullyParallel: false,
   workers: 1,
   retries: 0,
+  // Cold Vite preparation and automatic software-GPU previews share the runner.
+  expect: { timeout: 15000 },
   reporter: "list",
   use: {
     ...devices["Desktop Chrome"],

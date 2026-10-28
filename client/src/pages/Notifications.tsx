@@ -1,4 +1,5 @@
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { listPage } from "@/lib/list-filters";
 import { useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -40,7 +41,7 @@ export default function Notifications() {
         ? params.get("view")
         : "all"
     ) as "all" | "unread" | "delivery_attention" | "accepted",
-    page = Math.max(0, Number(params.get("page") ?? 0) || 0);
+    page = listPage(params.get("page"));
   const settledSearch = useDebouncedValue(search);
   const query = trpc.notifications.page.useQuery(
     { search: settledSearch, view, page },
@@ -110,6 +111,7 @@ export default function Notifications() {
         <div className="space-y-4">
           <Input
             aria-label="Search notifications"
+            maxLength={100}
             value={search}
             placeholder="Find an update across your recorded inbox"
             onChange={(e) => update("search", e.target.value)}
