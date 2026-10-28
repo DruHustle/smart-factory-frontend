@@ -171,11 +171,16 @@ function DashboardLayoutContent({
         safeLocalStorage.getItem(SIDEBAR_COLLAPSED_GROUPS_KEY) ?? "[]",
       );
       return Array.isArray(saved)
-        ? saved.filter(
-            (label): label is string =>
-              typeof label === "string" &&
-              groups.some((group) => group.label === label),
-          )
+        ? saved
+            .map((label: unknown) =>
+              // Preserve the renamed group's saved collapsed state.
+              label === "Workspace" ? "Tools & settings" : label,
+            )
+            .filter(
+              (label): label is string =>
+                typeof label === "string" &&
+                groups.some((group) => group.label === label),
+            )
         : [];
     } catch {
       return [];
@@ -279,7 +284,7 @@ function DashboardLayoutContent({
             )
           }
         >
-          <h2 className="mb-1">
+          <h2 className="mb-1 text-xs font-medium leading-4 tracking-normal">
             <CollapsibleTrigger asChild>
               <button
                 type="button"
@@ -392,7 +397,7 @@ function DashboardLayoutContent({
                     asChild
                     isActive={isMenuItemActive(item.path)}
                     tooltip={item.label}
-                    className="h-10"
+                    className="h-10 text-xs font-medium leading-4 tracking-normal"
                   >
                     <Link
                       href={item.path}

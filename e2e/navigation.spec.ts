@@ -105,9 +105,12 @@ async function checkLayout(
     expect(row.paddingLeft).toBe("8px");
     expect(row.rowHeight).toBe(
       collapsed &&
-        !["Operations", "Insights", "Infrastructure", "Workspace"].includes(
-          row.text!,
-        )
+        ![
+          "Operations",
+          "Insights",
+          "Infrastructure",
+          "Tools & settings",
+        ].includes(row.text!)
         ? 32
         : 40,
     );
