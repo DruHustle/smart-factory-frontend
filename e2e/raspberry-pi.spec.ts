@@ -22,6 +22,16 @@ for (const width of [390, 1440])
           },
         });
         const page = await context.newPage();
+        let codeRequested = false,
+          modelRequests = 0;
+        // Desktop pointer intent can preload the renderer on the overview.
+        // Observe the whole journey, including code fetched before navigation.
+        page.on("request", (request) => {
+          if (request.url().includes("LocalEquipmentRenderer"))
+            codeRequested = true;
+          if (/\/api\/equipment\/[^/]+\/model/.test(request.url()))
+            modelRequests++;
+        });
         try {
           await page.setViewportSize({ width, height: 1000 });
           await page.goto("/#/login");
@@ -49,14 +59,6 @@ for (const width of [390, 1440])
           let release!: () => void;
           const gate = new Promise<void>((r) => {
             release = r;
-          });
-          let codeRequested = false,
-            modelRequests = 0;
-          page.on("request", (request) => {
-            if (request.url().includes("LocalEquipmentRenderer"))
-              codeRequested = true;
-            if (/\/api\/equipment\/[^/]+\/model/.test(request.url()))
-              modelRequests++;
           });
           await page.route(
             (url) => url.pathname.includes("/api/trpc/inventory.item"),
