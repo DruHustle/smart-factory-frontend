@@ -4,6 +4,7 @@ import { generateAssistantCompletion } from "./assistantProvider";
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Smart Factory assistant provider routing", () => {
@@ -94,5 +95,23 @@ describe("Smart Factory assistant provider routing", () => {
     expect(result.configured).toBe(true);
     expect(result.completion).toBeUndefined();
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("ends all provider work at a shared deadline so the local answer remains available", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("ASSISTANT_PROVIDER", "gemini");
+    vi.stubEnv("ASSISTANT_GEMINI_API_KEY", "gemini-test-key");
+    vi.stubEnv("ASSISTANT_GROQ_API_KEY", "groq-test-key");
+    const fetcher = vi.fn((_input: string | URL | Request, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init!.signal!.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      }));
+    const result = generateAssistantCompletion([{ role: "user", content: "Review the latest evidence" }], fetcher);
+    await vi.advanceTimersByTimeAsync(24_001);
+    expect(await result).toEqual({ configured: true });
+    const requestCount = fetcher.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(fetcher).toHaveBeenCalledTimes(requestCount);
+    expect(fetcher.mock.calls.every(([, init]) => init!.signal!.aborted)).toBe(true);
   });
 });

@@ -97,7 +97,7 @@ function assistantText(body: unknown) {
   return "";
 }
 
-async function requestModel(config: ProviderConfig, model: string, messages: Array<{ role: "system" | "user" | "assistant"; content: string }>, fetcher: typeof fetch) {
+async function requestModel(config: ProviderConfig, model: string, messages: Array<{ role: "system" | "user" | "assistant"; content: string }>, fetcher: typeof fetch, deadline: AbortSignal) {
   let url: string;
   try {
     url = completionsUrl(config);
@@ -117,7 +117,7 @@ async function requestModel(config: ProviderConfig, model: string, messages: Arr
       method: "POST",
       headers,
       body: JSON.stringify({ model, messages, temperature: 0.2, max_tokens: 900, stream: false }),
-      signal: AbortSignal.timeout(12_000),
+      signal: AbortSignal.any([deadline, AbortSignal.timeout(12_000)]),
       redirect: "error",
     });
   } catch {
@@ -148,30 +148,40 @@ export async function generateAssistantCompletion(
   if (order.length === 0) return { configured: false };
 
   let configured = false;
-  for (const provider of order) {
-    const config = providerConfig(provider);
-    if (!config.apiKey) continue;
-    configured = true;
+  // All provider/model fallbacks share one budget. A series of slow errors must
+  // reach the grounded local answer before the API proxy abandons the request.
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), 24_000);
+  try {
+    for (const provider of order) {
+      if (deadline.signal.aborted) break;
+      const config = providerConfig(provider);
+      if (!config.apiKey) continue;
+      configured = true;
 
-    let transientModelFallbackUsed = false;
-    for (const model of config.models) {
-      try {
-        const answer = await requestModel(config, model, messages, fetcher);
-        return { completion: { provider, model, answer }, configured };
-      } catch (error) {
-        const status = error instanceof ProviderRequestError ? error.status : undefined;
-        // Invalid or unavailable model IDs use the configured model fallback.
-        // A single retry on another model can also recover model-specific 5xx
-        // capacity failures; auth, quota, throttling, and network errors move
-        // directly to the other provider to avoid a long series of futile calls.
-        if (status === 400 || status === 404) continue;
-        if (status !== undefined && status >= 500 && !transientModelFallbackUsed) {
-          transientModelFallbackUsed = true;
-          continue;
+      let transientModelFallbackUsed = false;
+      for (const model of config.models) {
+        if (deadline.signal.aborted) break;
+        try {
+          const answer = await requestModel(config, model, messages, fetcher, deadline.signal);
+          return { completion: { provider, model, answer }, configured };
+        } catch (error) {
+          const status = error instanceof ProviderRequestError ? error.status : undefined;
+          // Invalid or unavailable model IDs use the configured model fallback.
+          // A single retry on another model can also recover model-specific 5xx
+          // capacity failures; auth, quota, throttling, and network errors move
+          // directly to the other provider to avoid a long series of futile calls.
+          if (status === 400 || status === 404) continue;
+          if (status !== undefined && status >= 500 && !transientModelFallbackUsed) {
+            transientModelFallbackUsed = true;
+            continue;
+          }
+          break;
         }
-        break;
       }
     }
+    return { configured };
+  } finally {
+    clearTimeout(timer);
   }
-  return { configured };
 }

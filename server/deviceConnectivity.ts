@@ -1,5 +1,6 @@
 import type { Device } from "../drizzle/schema";
 import { observedStatus, type InventoryStatus } from "../shared/inventory";
+import { deviceFreshness } from "./deviceFreshness";
 export const DEVICE_OFFLINE_AFTER_MS = 120_000;
 export type ObservedDevice = Device & {
   observedStatus: InventoryStatus;
@@ -10,12 +11,7 @@ export function deviceWithCurrentStatus(
   device: Device,
   now = Date.now(),
 ): ObservedDevice {
-  const policy = device.metadata?.commissioning as { freshnessSeconds?: number } | undefined;
-  const configured = policy?.freshnessSeconds ? policy.freshnessSeconds * 1000 : Number(device.metadata?.freshnessMs ?? NaN);
-  const freshnessMs =
-    Number.isFinite(configured) && configured >= 5000 && configured <= 86400000
-      ? configured
-      : null;
+  const freshnessMs = deviceFreshness(device.metadata);
   const result: ObservedDevice = {
     ...device,
     freshnessMs,

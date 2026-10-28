@@ -6,6 +6,7 @@ import { visibleRecordSql } from "./demoData";
 import { observedStatus, type InventoryItem } from "../shared/inventory";
 import { router, viewerProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
+import { deviceFreshnessSql } from "./deviceFreshness";
 export const inventoryFilter = z.object({
   search: z.string().trim().max(100).default(""),
   view: z
@@ -46,7 +47,7 @@ const projection = (mode: Filter["mode"] = "all") => sql`with inventory as (
  select 'device:'||d.id,'device',d.id::text,d.name,d."deviceId",d.type::text,d.location,d.zone,
  coalesce(d.metadata->>'connectionMode','') in ('direct_mqtt','gateway'),
  case when d.metadata->>'gatewayId' is not null then 'Via gateway: '||(d.metadata->>'gatewayId') when d.metadata->>'connectionMode'='direct_mqtt' then 'Direct MQTT' when d.type='gateway' and d.metadata->>'connectionMode'='gateway' then 'Gateway uplink' else 'Not configured' end,
- d.status::text,case when d.metadata->'commissioning'->>'freshnessSeconds' ~ '^[0-9]{1,5}$' then (d.metadata->'commissioning'->>'freshnessSeconds')::bigint*1000 when d.metadata->>'freshnessMs' ~ '^[0-9]{4,8}$' then (d.metadata->>'freshnessMs')::bigint else null end,
+ d.status::text,${deviceFreshnessSql(sql`d.metadata`)},
  d."lastSeen",r.timestamp,coalesce(r.integration->>'mode','unknown'),
  coalesce(r.integration->>'sourceQuality','unknown'),null,false,null,d."firmwareVersion",r.measurements,r.values,r.integration->'evidence',d."isDemo"
  from devices d left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where ("assetId" is null or exists(select 1 from assets observed_asset where observed_asset."assetId"=sensor_readings."assetId" and ${visibleRecordSql(sql`observed_asset."isDemo"`)})) and "deviceId"=d.id and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true where ${visibleRecordSql(sql`d."isDemo"`)}
@@ -55,7 +56,7 @@ const projection = (mode: Filter["mode"] = "all") => sql`with inventory as (
  exists(select 1 from asset_devices c where c."assetId"=a.id),'Local observations',null,null,null,r.timestamp,coalesce(r.integration->>'mode','unknown'),'unknown',a."lifecycleStage"::text,false,w.id::text,null,r.measurements,r.values,r.integration->'evidence',w.is_demo
  from equipment_workspaces w join assets a on a.id=w.asset_id left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where exists(select 1 from devices observed_source where observed_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`observed_source."isDemo"`)}) and "assetId"=a."assetId" and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true
  where w.is_standalone=true and ${visibleRecordSql(sql`w.is_demo`)} and ${visibleRecordSql(sql`a."isDemo"`)}
-), observed as materialized(select *,case when reported in ('maintenance','error') then reported when "lastObserved" is null then 'unknown' when reported='offline' then 'offline' when "freshnessMs" is null or "lastObserved">now() then 'unknown' when "lastObserved">=now()-"freshnessMs"*interval '1 millisecond' then 'live' else 'stale' end as status from inventory)`;
+), observed as materialized(select *,case when reported in ('maintenance','error') then reported when "lastObserved" is null or "lastObserved">now() then 'unknown' when reported='offline' then 'offline' when "freshnessMs" is null then 'unknown' when "lastObserved">=now()-"freshnessMs"*interval '1 millisecond' then 'live' else 'stale' end as status from inventory)`;
 const viewCondition = (view: Filter["view"]) =>
   view === "all"
     ? sql`true`

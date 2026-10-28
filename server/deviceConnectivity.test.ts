@@ -4,6 +4,7 @@ import {
   DEVICE_OFFLINE_AFTER_MS,
   deviceWithCurrentStatus,
 } from "./deviceConnectivity";
+import { deviceFreshness } from "./deviceFreshness";
 
 const now = Date.UTC(2026, 9, 5, 10);
 const gateway = (
@@ -73,4 +74,14 @@ it("honors a direct device's commissioned age instead of applying the gateway ti
   expect(deviceWithCurrentStatus(d, now + 3600000).observedStatus).toBe(
     "stale",
   );
+});
+
+it("rejects invalid commissioned metadata without silently reverting to a legacy policy", () => {
+  for (const freshnessSeconds of [0, 4, 86401, 99999, -1, 5.5, "bad", "1e2"])
+    expect(deviceFreshness({ commissioning: { freshnessSeconds }, freshnessMs: 30000 })).toBeNull();
+  for (const freshnessMs of [1000, 99999999, -1, "bad", [30000]])
+    expect(deviceFreshness({ freshnessMs })).toBeNull();
+  expect(deviceFreshness({ commissioning: { freshnessSeconds: 5 } })).toBe(5000);
+  expect(deviceFreshness({ commissioning: { freshnessSeconds: 86400 } })).toBe(86400000);
+  expect(deviceFreshness({ freshnessMs: 30000 })).toBe(30000);
 });

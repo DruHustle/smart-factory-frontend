@@ -189,6 +189,17 @@ describe("Smart Factory documentation assistant", () => {
     ).toBe(true);
   });
 
+  it.each(["stale", "unknown", "offline", "live"])(
+    "uses observed %s connectivity instead of the legacy online field", async (observedStatus) => {
+      const device = (await database.getDevices())[0];
+      database.getDevices.mockResolvedValue([{ ...device, status: "online", observedStatus }]);
+      const result = await answerFactoryQuestion("What is the status of Compressor 01?");
+      expect(result.answer).toContain(`observed connection ${observedStatus}`);
+      expect(result.answer).not.toContain("gateway-01 online");
+      expect(JSON.stringify(result.sources)).not.toContain("gateway-01 online");
+    },
+  );
+
   it("reports an attributed child observation without pretending the child is a configured asset connection", async () => {
     const gateway = (await database.getDevices())[0];
     database.getDevices.mockResolvedValue([

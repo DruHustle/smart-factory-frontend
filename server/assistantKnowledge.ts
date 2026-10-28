@@ -501,7 +501,9 @@ async function buildLiveContext(
             deviceId: device.deviceId,
             name: device.name,
             type: device.type,
-            status: device.status,
+            // The stored status is legacy/configuration evidence. It must not
+            // become a current connectivity claim in either prose or provider context.
+            status: device.observedStatus ?? "unknown",
             lastSeen: iso(device.lastSeen),
             protocol: connection.protocol,
             gatewayId: connection.gatewayDeviceId,
@@ -677,7 +679,7 @@ function localGroundedAnswer(
             `${incident.code} (${incident.severity}, ${incident.status}): ${incident.message}`,
         )
         .join("; ");
-      return `- **${asset.name}${asset.demoData ? " (simulated)" : ""}**: ${asset.lifecycleStage}, AAS revision ${asset.aasRevision}${device ? `; gateway/device ${device.gatewayId ?? "direct"}/${device.deviceId} ${device.status}; observation source ${asset.latestObservation?.sourceDeviceId ?? "unobserved"}; ${measurementText}${telemetry ? `; sample recorded ${telemetry.timestamp} (${telemetry.mode} evidence; quality ${telemetry.sourceQuality}; stored observation)` : ""}${incidents ? `\n  Open incidents: ${incidents}` : ""}` : "; no linked device"}`;
+      return `- **${asset.name}${asset.demoData ? " (simulated)" : ""}**: ${asset.lifecycleStage}, AAS revision ${asset.aasRevision}${device ? `; gateway/device ${device.gatewayId ?? "direct"}/${device.deviceId}; observed connection ${device.status}; observation source ${asset.latestObservation?.sourceDeviceId ?? "unobserved"}; ${measurementText}${telemetry ? `; sample recorded ${telemetry.timestamp} (${telemetry.mode} evidence; quality ${telemetry.sourceQuality}; stored observation)` : ""}${incidents ? `\n  Open incidents: ${incidents}` : ""}` : "; no linked device"}`;
     });
     if (latest.length) paragraphs.push(latest.join("\n"));
   } else if (runtime.status === "unavailable") {

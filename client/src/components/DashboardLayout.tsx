@@ -159,6 +159,9 @@ function DashboardLayoutContent({
     ...visibleMenuItems,
     ...groups.flatMap((g) => g.items),
   ].find((item) => isMenuItemActive(item.path));
+  const pageTitle = location === "/notifications" ? "Notifications"
+    : location === "/account/password" ? "Change password"
+    : activeMenuItem?.label ?? "Factory workspace";
   const activeGroup = groups.find((group) =>
     group.items.some((item) => isMenuItemActive(item.path)),
   )?.label;
@@ -205,11 +208,11 @@ function DashboardLayoutContent({
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = `${activeMenuItem?.label ?? "Factory workspace"} | Smart Factory`;
+    document.title = `${pageTitle} | Smart Factory`;
     return () => {
       document.title = previousTitle;
     };
-  }, [activeMenuItem?.label]);
+  }, [pageTitle]);
 
   useEffect(() => {
     if (previousLocationRef.current.split("?")[0] !== location.split("?")[0]) {
@@ -499,7 +502,7 @@ function DashboardLayoutContent({
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger aria-label="Toggle navigation" />
             <span className="truncate text-sm font-medium">
-              {activeMenuItem?.label ?? "Factory workspace"}
+              {pageTitle}
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-1">

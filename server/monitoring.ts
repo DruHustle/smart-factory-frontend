@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb, type Device } from "./db";
 import { visibleRecordSql } from "./demoData";
 import { deviceWithCurrentStatus } from "./deviceConnectivity";
+import { deviceFreshnessSql } from "./deviceFreshness";
 export const monitoringInput = z.object({
   search: z.string().trim().max(100).default(""),
   type: z
@@ -23,7 +24,7 @@ export const monitoringInput = z.object({
   pageSize: z.number().int().min(1).max(50).default(25),
 });
 export const deviceProjection = () =>
-  sql`with source as(select d.*,case when d.metadata->'commissioning'->>'freshnessSeconds' ~ '^[0-9]{1,5}$' then (d.metadata->'commissioning'->>'freshnessSeconds')::bigint*1000 when d.metadata->>'freshnessMs' ~ '^[0-9]{4,8}$' then (d.metadata->>'freshnessMs')::bigint else null end as freshness from devices d where ${visibleRecordSql(sql`d."isDemo"`)}), observed as(select *,case when status in ('maintenance','error') then status::text when "lastSeen" is null then 'unknown' when status='offline' then 'offline' when freshness is null or "lastSeen">now() then 'unknown' when "lastSeen">=now()-freshness*interval '1 millisecond' then 'live' else 'stale' end as observed from source)`;
+  sql`with source as(select d.*,${deviceFreshnessSql(sql`d.metadata`)} as freshness from devices d where ${visibleRecordSql(sql`d."isDemo"`)}), observed as(select *,case when status in ('maintenance','error') then status::text when "lastSeen" is null or "lastSeen">now() then 'unknown' when status='offline' then 'offline' when freshness is null then 'unknown' when "lastSeen">=now()-freshness*interval '1 millisecond' then 'live' else 'stale' end as observed from source)`;
 export async function monitoringPage(input: z.infer<typeof monitoringInput>) {
   const db = await getDb();
   if (!db) throw Error("Database unavailable");

@@ -150,6 +150,15 @@ test.describe("product experience rendered evidence", () => {
           page.getByRole("img", { name: /temperature in °C/ }),
         ).toBeVisible();
         await capture("analytics-observed");
+        await page.getByRole("combobox", { name: "Time range", exact: true }).selectOption("custom");
+        const fromDate = page.getByLabel("Analysis from UTC");
+        const previousFrom = await fromDate.inputValue();
+        await fromDate.fill("");
+        await expect(fromDate).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Review the selected dates" })).toBeVisible();
+        await expect(page.getByRole("img", { name: /temperature in °C/ })).toHaveCount(0);
+        await fromDate.fill(previousFrom);
+        await expect(page.getByRole("img", { name: /temperature in °C/ })).toBeVisible();
         await page.goto("/#/monitoring?search=Workspace");
         await expect(page.getByRole("article").first()).toBeVisible();
         await capture("monitoring");
