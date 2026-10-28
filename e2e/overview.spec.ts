@@ -7,6 +7,45 @@ import { setTheme, selectSection } from "./experience-helpers";
 
 const directory =
   process.env.OVERVIEW_EVIDENCE_DIR ?? join(tmpdir(), "visual-first-evidence");
+
+test("Overview graphics to Analytics: custom date recovery at 390px", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.goto("/#/analytics?from=not-a-date&to=2026-10-28T12%3A00&interval=60000.5");
+  const invalid = page.getByRole("heading", { name: "Review the selected dates" });
+  await expect(invalid).toBeVisible();
+  await expect(page.getByLabel("Analysis from UTC")).toBeVisible();
+  const period = page.getByRole("combobox", { name: "Time range", exact: true });
+  await period.selectOption("24h");
+  await period.selectOption("custom");
+  const from = page.getByLabel("Analysis from UTC");
+  await from.fill("");
+  await expect(invalid).toBeVisible();
+  await expect(from).toBeVisible();
+  await expect(page.getByLabel("Analysis to UTC")).toBeVisible();
+  await expect(page.getByRole("img", { name: /temperature in °C/ })).toHaveCount(0);
+  await capture(page, "analytics-cleared-date-390", { state: "incomplete custom UTC dates remain editable" });
+  await from.fill("2026-10-27T12:00");
+  await page.getByLabel("Analysis to UTC").fill("2026-10-28T12:00");
+  await expect(invalid).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Analytics unavailable" })).toHaveCount(0);
+  await expect(page.getByLabel("Aggregation", { exact: true })).toHaveValue("60000");
+  await capture(page, "analytics-restored-date-390", { state: "custom UTC dates restored; malformed aggregation normalized" });
+});
+
+test("Overview graphics recovery after a lazy page cannot load", async ({ page }) => {
+  await login(page);
+  await page.route("**/client/src/pages/AnalyticsPage.tsx*", (route) => route.abort("failed"));
+  await page.goto("/#/analytics");
+  await expect(page.getByRole("heading", { name: "This page couldn’t load" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reload page", exact: true })).toBeVisible();
+  await page.unroute("**/client/src/pages/AnalyticsPage.tsx*");
+  await page.getByRole("button", { name: "Open overview", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
+  await page.goto("/#/analytics");
+  await expect(page.getByRole("heading", { name: "Analytics", exact: true })).toBeVisible();
+});
+
 async function login(page: Page) {
   await page.goto("/#/login");
   await page.getByLabel("Email").fill("security-admin@example.test");
