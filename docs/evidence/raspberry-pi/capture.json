@@ -1,0 +1,39 @@
+{
+  "scope": "isolated read-only synthetic showcase; no physical equipment",
+  "baseRevision": "0c2a0ce3faaddd456d39cab93a4d83202c999820",
+  "sourceSha256": {
+    "client/src/components/equipment/LocalEquipmentRenderer.tsx": "2a890884beadfaa9281cee359733abe51aea81c4a63f6ee2af4efa280547497e",
+    "client/src/components/equipment/loadRenderer.ts": "5e908b0d31e06d87c450f827506342d129639e9c47e34789f3df3b0e1550cac3",
+    "client/src/components/workspace/OverviewGraphics.tsx": "ada5bf67d316851198714a70d1943ce942f30f8118e44ca88313302db02300d8",
+    "client/src/pages/EquipmentView.tsx": "ecdfee38896affd17210a0f35d7d3455d09b7bfcf081973002f579c2237cc8de",
+    "client/src/pages/ItemWorkspace.tsx": "ef77ad6107e70f8689ee333ceab0ce9808ab3ba6449f10038210f71d3c9819e8",
+    "server/equipment/local.ts": "3f3ccb5aa5ff1f9f04c327ab1e522e418b6f7ad2a17aa7a5451ed7c0de84717c",
+    "server/equipment/files.ts": "cb062e23eca99755358b70b9c1b9ff2c5b6126904f987a3e8cbaad636c98a996",
+    "fixtures/equipment/raspberry-pi-4b/template.json": "ae2e65d51ab40dda0b598610580dad48dcb34307f285160cda36d52373d1b8e0",
+    "fixtures/equipment/raspberry-pi-4b/model.glb": "423f210f487c1e933dd593aa5c8b0fd61cda33c6fd000d92c5cbdcdb0be3e6de"
+  },
+  "model": "Raspberry Pi 4 Model B illustrative reference",
+  "componentEntries": 61,
+  "triangles": 5406,
+  "bytes": 288440,
+  "desktopViewport": [
+    1440,
+    1000
+  ],
+  "mobileViewport": [
+    390,
+    1000
+  ],
+  "mobileTouchEmulation": true,
+  "renderer": "Chromium ANGLE SwiftShader; no physical mobile GPU claim",
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "actions": [
+    "keyboard explosion/reassembly",
+    "ghost housings",
+    "solid sections",
+    "real first frame after authorization"
+  ]
+}

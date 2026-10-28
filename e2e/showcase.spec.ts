@@ -26,8 +26,8 @@ async function enterDemo(page: import("@playwright/test").Page, width: number) {
   ).toBeVisible();
   const s = (await (await page.request.get("/api/trpc/system.showcase")).json())
     .result.data.json;
-  expect(s.version).toBe(2);
-  expect(s.chapters).toHaveLength(12);
+  expect(s.version).toBe(3);
+  expect(s.chapters).toHaveLength(13);
   const dir =
     process.env.SHOWCASE_EVIDENCE_DIR ?? `${tmpdir()}/showcase-evidence`;
   mkdirSync(dir, { recursive: true });

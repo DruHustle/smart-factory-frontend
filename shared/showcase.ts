@@ -12,6 +12,7 @@ export type Showcase = {
   securitySourceId: string;
   label: string;
   standaloneRef?: string;
+  raspberryPiRef?: string;
   securityFindingId?: string;
   passportId?: string;
   chapters?: Array<{

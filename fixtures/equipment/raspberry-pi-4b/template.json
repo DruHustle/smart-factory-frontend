@@ -1,0 +1,1973 @@
+{
+  "revision": "smart-factory-illustrative-raspberry-pi-4b-1",
+  "name": "Raspberry Pi 4 Model B \u00b7 illustrative",
+  "assetType": "gateway",
+  "assetTypeId": "urn:smart-factory:type:raspberry-pi-4b-illustrative",
+  "status": "Original illustrative reference; not manufacturer CAD or an installed-board attestation",
+  "sha256": "423f210f487c1e933dd593aa5c8b0fd61cda33c6fd000d92c5cbdcdb0be3e6de",
+  "units": "m",
+  "handedness": "right",
+  "upAxis": "+Y",
+  "components": [
+    {
+      "templateComponentId": "8321a076-1bdb-51ae-9076-d1de4ce1f936",
+      "name": "Raspberry Pi 4 Model B",
+      "nodeIndex": 0,
+      "nodePath": "/Raspberry_Pi_4_Model_B",
+      "parentTemplateComponentId": null,
+      "designation": "RPI4B-ILL",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Original illustrative reference. No live board or hardware revision is inferred.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "a53ee050-51a1-5b90-9764-4f2aaaf26e46",
+      "name": "Printed circuit board",
+      "nodeIndex": 1,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Printed_circuit_board",
+      "parentTemplateComponentId": "8321a076-1bdb-51ae-9076-d1de4ce1f936",
+      "designation": "RPI4B-001",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "96d051db-60a2-525f-bb49-89aa0c7bdbe1",
+      "name": "PCB substrate and mounting holes",
+      "nodeIndex": 2,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Printed_circuit_board/PCB_substrate_and_mounting_holes",
+      "parentTemplateComponentId": "a53ee050-51a1-5b90-9764-4f2aaaf26e46",
+      "designation": "RPI4B-002",
+      "quantity": 1,
+      "material": "Green solder mask",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "85 x 56 mm illustrative board with four 2.7 mm holes on a 58 x 49 mm pattern; not manufacturing CAD.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5a4054f6-be15-5563-926d-7539cfbf8963",
+      "name": "Mounting hole annular pads",
+      "nodeIndex": 3,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Printed_circuit_board/Mounting_hole_annular_pads",
+      "parentTemplateComponentId": "a53ee050-51a1-5b90-9764-4f2aaaf26e46",
+      "designation": "RPI4B-003",
+      "quantity": 4,
+      "material": "Gold contact plating",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "7d39597d-6d1f-58f7-aa0c-2bbc734214e6",
+      "name": "Compute and wireless",
+      "nodeIndex": 4,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless",
+      "parentTemplateComponentId": "8321a076-1bdb-51ae-9076-d1de4ce1f936",
+      "designation": "RPI4B-004",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.007,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "886fc796-8e4a-5a0c-acb2-87088a3ed104",
+      "name": "BCM2711 processor package",
+      "nodeIndex": 5,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless/BCM2711_processor_package",
+      "parentTemplateComponentId": "7d39597d-6d1f-58f7-aa0c-2bbc734214e6",
+      "designation": "RPI4B-005",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Illustrative package exterior; silicon internals are not represented.",
+      "explode": {
+        "translation": [
+          -0.003,
+          0.008,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "4c10db26-0f18-56ad-ac69-f130fbc8c800",
+      "name": "Processor package substrate",
+      "nodeIndex": 6,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless/BCM2711_processor_package/Processor_package_substrate",
+      "parentTemplateComponentId": "886fc796-8e4a-5a0c-acb2-87088a3ed104",
+      "designation": "RPI4B-006",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "906a8968-b245-5b19-9b03-8c4c7c1bd93d",
+      "name": "Processor heat spreader",
+      "nodeIndex": 7,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless/BCM2711_processor_package/Processor_heat_spreader",
+      "parentTemplateComponentId": "886fc796-8e4a-5a0c-acb2-87088a3ed104",
+      "designation": "RPI4B-007",
+      "quantity": 1,
+      "material": "Chip heat spreader",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.004,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "a2268d8e-cfe2-5430-acaf-64f2d0559006",
+      "name": "LPDDR4 memory package",
+      "nodeIndex": 8,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless/LPDDR4_memory_package",
+      "parentTemplateComponentId": "7d39597d-6d1f-58f7-aa0c-2bbc734214e6",
+      "designation": "RPI4B-008",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.003,
+          0.01,
+          -0.003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "efc392c2-b11c-5666-bd22-e199b063bf8e",
+      "name": "Wireless module shield",
+      "nodeIndex": 9,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless/Wireless_module_shield",
+      "parentTemplateComponentId": "7d39597d-6d1f-58f7-aa0c-2bbc734214e6",
+      "designation": "RPI4B-009",
+      "quantity": 1,
+      "material": "Connector shield",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          -0.006,
+          0.007,
+          -0.004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6569d68f-5a5d-5cc4-8577-0ba5a3f576b8",
+      "name": "USB controller package",
+      "nodeIndex": 10,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless/USB_controller_package",
+      "parentTemplateComponentId": "7d39597d-6d1f-58f7-aa0c-2bbc734214e6",
+      "designation": "RPI4B-010",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.005,
+          0.008,
+          0.003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "df916bad-e4df-570f-8c13-99b395413f14",
+      "name": "Ethernet PHY package",
+      "nodeIndex": 11,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless/Ethernet_PHY_package",
+      "parentTemplateComponentId": "7d39597d-6d1f-58f7-aa0c-2bbc734214e6",
+      "designation": "RPI4B-011",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.006,
+          0.008,
+          -0.003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "a2087465-7697-5cd7-96f4-464cc5b12387",
+      "name": "Power management package",
+      "nodeIndex": 12,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless/Power_management_package",
+      "parentTemplateComponentId": "7d39597d-6d1f-58f7-aa0c-2bbc734214e6",
+      "designation": "RPI4B-012",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          -0.006,
+          0.008,
+          0.003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2fac66e0-ed62-5a83-b6c2-f7ef6b8c1626",
+      "name": "Power inductors",
+      "nodeIndex": 13,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Compute_and_wireless/Power_inductors",
+      "parentTemplateComponentId": "7d39597d-6d1f-58f7-aa0c-2bbc734214e6",
+      "designation": "RPI4B-013",
+      "quantity": 3,
+      "material": "Chip heat spreader",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          -0.006,
+          0.006,
+          0.005
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "20fab075-f6b7-5d6d-bc9b-7ef161e2ac87",
+      "name": "Passive component banks",
+      "nodeIndex": 14,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Printed_circuit_board/Passive_component_banks",
+      "parentTemplateComponentId": "a53ee050-51a1-5b90-9764-4f2aaaf26e46",
+      "designation": "RPI4B-014",
+      "quantity": 16,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Representative passives, not a complete population or circuit schematic.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.003,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "61b41ae3-92ce-5d44-9a88-a3e5cdf15deb",
+      "name": "40-pin GPIO header",
+      "nodeIndex": 15,
+      "nodePath": "/Raspberry_Pi_4_Model_B/40-pin_GPIO_header",
+      "parentTemplateComponentId": "8321a076-1bdb-51ae-9076-d1de4ce1f936",
+      "designation": "RPI4B-015",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.014,
+          -0.007
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c59eb1eb-62e4-5caf-b5e7-957535ed6ab1",
+      "name": "GPIO insulating body",
+      "nodeIndex": 16,
+      "nodePath": "/Raspberry_Pi_4_Model_B/40-pin_GPIO_header/GPIO_insulating_body",
+      "parentTemplateComponentId": "61b41ae3-92ce-5d44-9a88-a3e5cdf15deb",
+      "designation": "RPI4B-016",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "edff927f-4ff8-59c8-80c0-06ba8bee2f84",
+      "name": "GPIO contact pins",
+      "nodeIndex": 17,
+      "nodePath": "/Raspberry_Pi_4_Model_B/40-pin_GPIO_header/GPIO_contact_pins",
+      "parentTemplateComponentId": "61b41ae3-92ce-5d44-9a88-a3e5cdf15deb",
+      "designation": "RPI4B-017",
+      "quantity": 40,
+      "material": "Gold contact plating",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Two rows of 20 contacts at illustrative 2.54 mm pitch. No pin state or electrical control is implied.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.003,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "52b85a69-6c3b-5ba7-9dcf-41fa10d1cc86",
+      "name": "PoE HAT header",
+      "nodeIndex": 18,
+      "nodePath": "/Raspberry_Pi_4_Model_B/PoE_HAT_header",
+      "parentTemplateComponentId": "8321a076-1bdb-51ae-9076-d1de4ce1f936",
+      "designation": "RPI4B-018",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.005,
+          0.01,
+          -0.005
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6e6347f4-9c89-5a8e-b87e-b043761ccf54",
+      "name": "PoE header body",
+      "nodeIndex": 19,
+      "nodePath": "/Raspberry_Pi_4_Model_B/PoE_HAT_header/PoE_header_body",
+      "parentTemplateComponentId": "52b85a69-6c3b-5ba7-9dcf-41fa10d1cc86",
+      "designation": "RPI4B-019",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "354abee3-b815-52fe-bb74-faebbcbe957b",
+      "name": "PoE header contacts",
+      "nodeIndex": 20,
+      "nodePath": "/Raspberry_Pi_4_Model_B/PoE_HAT_header/PoE_header_contacts",
+      "parentTemplateComponentId": "52b85a69-6c3b-5ba7-9dcf-41fa10d1cc86",
+      "designation": "RPI4B-020",
+      "quantity": 4,
+      "material": "Gold contact plating",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.002,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "429d46f6-c588-5743-ae3e-7e044a5f49f4",
+      "name": "Network and USB connectors",
+      "nodeIndex": 21,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors",
+      "parentTemplateComponentId": "8321a076-1bdb-51ae-9076-d1de4ce1f936",
+      "designation": "RPI4B-021",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.011,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c015979a-9af3-5830-b451-e4640167fcd1",
+      "name": "Gigabit Ethernet connector",
+      "nodeIndex": 22,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/Gigabit_Ethernet_connector",
+      "parentTemplateComponentId": "429d46f6-c588-5743-ae3e-7e044a5f49f4",
+      "designation": "RPI4B-022",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.007,
+          0.0,
+          -0.005
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2513f71a-5bd0-5af5-9494-e25b3f4ac6d3",
+      "name": "Ethernet shield",
+      "nodeIndex": 23,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/Gigabit_Ethernet_connector/Ethernet_shield",
+      "parentTemplateComponentId": "c015979a-9af3-5830-b451-e4640167fcd1",
+      "designation": "RPI4B-023",
+      "quantity": 1,
+      "material": "Connector shield",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "bfdea42d-6b31-5d9f-aec9-d226cb049cac",
+      "name": "Ethernet socket insert",
+      "nodeIndex": 24,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/Gigabit_Ethernet_connector/Ethernet_socket_insert",
+      "parentTemplateComponentId": "c015979a-9af3-5830-b451-e4640167fcd1",
+      "designation": "RPI4B-024",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "eddb3adc-ccc5-5773-87ed-c5136482fb06",
+      "name": "Ethernet contacts",
+      "nodeIndex": 25,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/Gigabit_Ethernet_connector/Ethernet_contacts",
+      "parentTemplateComponentId": "c015979a-9af3-5830-b451-e4640167fcd1",
+      "designation": "RPI4B-025",
+      "quantity": 8,
+      "material": "Gold contact plating",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.002,
+          -0.001,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "cae742ff-a1ae-574b-8a0e-44542c46c31f",
+      "name": "Ethernet indicator lenses",
+      "nodeIndex": 26,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/Gigabit_Ethernet_connector/Ethernet_indicator_lenses",
+      "parentTemplateComponentId": "c015979a-9af3-5830-b451-e4640167fcd1",
+      "designation": "RPI4B-026",
+      "quantity": 2,
+      "material": "Unlit indicator lens",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Unlit illustrative lenses; no network activity is claimed.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2a7a35d0-d2e1-5c9f-a951-958423059e93",
+      "name": "USB 2 dual socket",
+      "nodeIndex": 27,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/USB_2_dual_socket",
+      "parentTemplateComponentId": "429d46f6-c588-5743-ae3e-7e044a5f49f4",
+      "designation": "RPI4B-027",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.009,
+          0.002,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6f9cf6bf-b72e-59bf-bd64-da3ea005bb3e",
+      "name": "USB 2 dual socket shield",
+      "nodeIndex": 28,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/USB_2_dual_socket/USB_2_dual_socket_shield",
+      "parentTemplateComponentId": "2a7a35d0-d2e1-5c9f-a951-958423059e93",
+      "designation": "RPI4B-028",
+      "quantity": 1,
+      "material": "Connector shield",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "bf2e1671-8910-51f0-906e-c90dd97cf0fd",
+      "name": "USB 2 dual socket tongues",
+      "nodeIndex": 29,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/USB_2_dual_socket/USB_2_dual_socket_tongues",
+      "parentTemplateComponentId": "2a7a35d0-d2e1-5c9f-a951-958423059e93",
+      "designation": "RPI4B-029",
+      "quantity": 2,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.002,
+          0.001,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "72a84d12-02b8-5392-9f30-0be33423c80d",
+      "name": "USB 2 dual socket contacts",
+      "nodeIndex": 30,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/USB_2_dual_socket/USB_2_dual_socket_contacts",
+      "parentTemplateComponentId": "2a7a35d0-d2e1-5c9f-a951-958423059e93",
+      "designation": "RPI4B-030",
+      "quantity": 8,
+      "material": "Gold contact plating",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Representative contact strips; USB 3 superspeed contacts are simplified.",
+      "explode": {
+        "translation": [
+          0.004,
+          0.001,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "52c5e728-ad93-5197-bf8f-9088a9a25eee",
+      "name": "USB 3 dual socket",
+      "nodeIndex": 31,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/USB_3_dual_socket",
+      "parentTemplateComponentId": "429d46f6-c588-5743-ae3e-7e044a5f49f4",
+      "designation": "RPI4B-031",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.009,
+          0.002,
+          0.005
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "0e1f3905-55f2-540a-bfae-c2c9952875d0",
+      "name": "USB 3 dual socket shield",
+      "nodeIndex": 32,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/USB_3_dual_socket/USB_3_dual_socket_shield",
+      "parentTemplateComponentId": "52c5e728-ad93-5197-bf8f-9088a9a25eee",
+      "designation": "RPI4B-032",
+      "quantity": 1,
+      "material": "Connector shield",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "0693a32e-5480-5763-9ced-5e6d09d1177e",
+      "name": "USB 3 dual socket tongues",
+      "nodeIndex": 33,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/USB_3_dual_socket/USB_3_dual_socket_tongues",
+      "parentTemplateComponentId": "52c5e728-ad93-5197-bf8f-9088a9a25eee",
+      "designation": "RPI4B-033",
+      "quantity": 2,
+      "material": "USB 3 blue insert",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.002,
+          0.001,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c0de8a1d-725e-5079-aacd-c658c2485076",
+      "name": "USB 3 dual socket contacts",
+      "nodeIndex": 34,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Network_and_USB_connectors/USB_3_dual_socket/USB_3_dual_socket_contacts",
+      "parentTemplateComponentId": "52c5e728-ad93-5197-bf8f-9088a9a25eee",
+      "designation": "RPI4B-034",
+      "quantity": 8,
+      "material": "Gold contact plating",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Representative contact strips; USB 3 superspeed contacts are simplified.",
+      "explode": {
+        "translation": [
+          0.004,
+          0.001,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "7dde18cf-c7eb-548f-bdbe-f754ca70ab06",
+      "name": "Power display and camera connectors",
+      "nodeIndex": 35,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors",
+      "parentTemplateComponentId": "8321a076-1bdb-51ae-9076-d1de4ce1f936",
+      "designation": "RPI4B-035",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.003,
+          0.007
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "b2c5cb79-4e67-5ba2-8183-415d34980e77",
+      "name": "USB-C power",
+      "nodeIndex": 36,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/USB-C_power",
+      "parentTemplateComponentId": "7dde18cf-c7eb-548f-bdbe-f754ca70ab06",
+      "designation": "RPI4B-036",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.002,
+          0.004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "df3d3bed-b92a-56a5-9354-d2a7619551e4",
+      "name": "USB-C power shield",
+      "nodeIndex": 37,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/USB-C_power/USB-C_power_shield",
+      "parentTemplateComponentId": "b2c5cb79-4e67-5ba2-8183-415d34980e77",
+      "designation": "RPI4B-037",
+      "quantity": 1,
+      "material": "Connector shield",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "be956550-ba73-5dc3-84ad-2bee3cebb9a6",
+      "name": "USB-C power insert",
+      "nodeIndex": 38,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/USB-C_power/USB-C_power_insert",
+      "parentTemplateComponentId": "b2c5cb79-4e67-5ba2-8183-415d34980e77",
+      "designation": "RPI4B-038",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "735fea36-d96f-56e7-823d-4ee63c8b1f15",
+      "name": "Micro HDMI 0",
+      "nodeIndex": 39,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Micro_HDMI_0",
+      "parentTemplateComponentId": "7dde18cf-c7eb-548f-bdbe-f754ca70ab06",
+      "designation": "RPI4B-039",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.002,
+          0.004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "ebe7072f-c2a7-5554-bb56-bef479860623",
+      "name": "Micro HDMI 0 shield",
+      "nodeIndex": 40,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Micro_HDMI_0/Micro_HDMI_0_shield",
+      "parentTemplateComponentId": "735fea36-d96f-56e7-823d-4ee63c8b1f15",
+      "designation": "RPI4B-040",
+      "quantity": 1,
+      "material": "Connector shield",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2466e158-d55b-5773-84fe-e5969ec4590c",
+      "name": "Micro HDMI 0 insert",
+      "nodeIndex": 41,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Micro_HDMI_0/Micro_HDMI_0_insert",
+      "parentTemplateComponentId": "735fea36-d96f-56e7-823d-4ee63c8b1f15",
+      "designation": "RPI4B-041",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c12d29e8-6499-5022-8827-5a7754748ee8",
+      "name": "Micro HDMI 1",
+      "nodeIndex": 42,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Micro_HDMI_1",
+      "parentTemplateComponentId": "7dde18cf-c7eb-548f-bdbe-f754ca70ab06",
+      "designation": "RPI4B-042",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.002,
+          0.004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "af2b5396-ea02-54ef-92e9-db8c15820ccf",
+      "name": "Micro HDMI 1 shield",
+      "nodeIndex": 43,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Micro_HDMI_1/Micro_HDMI_1_shield",
+      "parentTemplateComponentId": "c12d29e8-6499-5022-8827-5a7754748ee8",
+      "designation": "RPI4B-043",
+      "quantity": 1,
+      "material": "Connector shield",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "105ff49f-8e6f-5a39-b8f1-a531c33cc006",
+      "name": "Micro HDMI 1 insert",
+      "nodeIndex": 44,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Micro_HDMI_1/Micro_HDMI_1_insert",
+      "parentTemplateComponentId": "c12d29e8-6499-5022-8827-5a7754748ee8",
+      "designation": "RPI4B-044",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "ab41b590-36de-5112-9662-eed906692bc1",
+      "name": "Audio composite jack",
+      "nodeIndex": 45,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Audio_composite_jack",
+      "parentTemplateComponentId": "7dde18cf-c7eb-548f-bdbe-f754ca70ab06",
+      "designation": "RPI4B-045",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.001,
+          0.002,
+          0.007
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5737ef73-059b-53ed-87bb-bb29c4943362",
+      "name": "Audio jack body",
+      "nodeIndex": 46,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Audio_composite_jack/Audio_jack_body",
+      "parentTemplateComponentId": "ab41b590-36de-5112-9662-eed906692bc1",
+      "designation": "RPI4B-046",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c7746560-69bd-5841-8c9b-dd655c465e82",
+      "name": "Audio jack aperture",
+      "nodeIndex": 47,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Audio_composite_jack/Audio_jack_aperture",
+      "parentTemplateComponentId": "ab41b590-36de-5112-9662-eed906692bc1",
+      "designation": "RPI4B-047",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.002
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "cf5395e9-d672-5493-8450-0e33cddf624c",
+      "name": "Camera CSI ribbon connector",
+      "nodeIndex": 48,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Camera_CSI_ribbon_connector",
+      "parentTemplateComponentId": "7dde18cf-c7eb-548f-bdbe-f754ca70ab06",
+      "designation": "RPI4B-048",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.006,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2b267859-f7e4-5b70-9e33-ddd9effe5fd7",
+      "name": "Camera CSI ribbon connector body",
+      "nodeIndex": 49,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Camera_CSI_ribbon_connector/Camera_CSI_ribbon_connector_body",
+      "parentTemplateComponentId": "cf5395e9-d672-5493-8450-0e33cddf624c",
+      "designation": "RPI4B-049",
+      "quantity": 1,
+      "material": "White silkscreen",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "f5217735-8a3e-545e-9e09-b45c330107cd",
+      "name": "Camera CSI ribbon connector latch",
+      "nodeIndex": 50,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Camera_CSI_ribbon_connector/Camera_CSI_ribbon_connector_latch",
+      "parentTemplateComponentId": "cf5395e9-d672-5493-8450-0e33cddf624c",
+      "designation": "RPI4B-050",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.001,
+          0.003,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c9976069-8a95-59f6-81fa-18a896d4f6f7",
+      "name": "Camera CSI ribbon connector contact bank",
+      "nodeIndex": 51,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Camera_CSI_ribbon_connector/Camera_CSI_ribbon_connector_contact_bank",
+      "parentTemplateComponentId": "cf5395e9-d672-5493-8450-0e33cddf624c",
+      "designation": "RPI4B-051",
+      "quantity": 15,
+      "material": "Gold contact plating",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "c7068dcc-96de-52b8-bd6f-0fc63041d551",
+      "name": "Display DSI ribbon connector",
+      "nodeIndex": 52,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Display_DSI_ribbon_connector",
+      "parentTemplateComponentId": "7dde18cf-c7eb-548f-bdbe-f754ca70ab06",
+      "designation": "RPI4B-052",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.006,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5c7f82fe-9fdc-54ee-b786-ec1e56e1e3fc",
+      "name": "Display DSI ribbon connector body",
+      "nodeIndex": 53,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Display_DSI_ribbon_connector/Display_DSI_ribbon_connector_body",
+      "parentTemplateComponentId": "c7068dcc-96de-52b8-bd6f-0fc63041d551",
+      "designation": "RPI4B-053",
+      "quantity": 1,
+      "material": "White silkscreen",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "0128cef7-4204-57e3-99ef-aabc18f6706b",
+      "name": "Display DSI ribbon connector latch",
+      "nodeIndex": 54,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Display_DSI_ribbon_connector/Display_DSI_ribbon_connector_latch",
+      "parentTemplateComponentId": "c7068dcc-96de-52b8-bd6f-0fc63041d551",
+      "designation": "RPI4B-054",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.001,
+          0.003,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6c3f5354-b6f2-5c4c-8abc-56cf8c5a9d01",
+      "name": "Display DSI ribbon connector contact bank",
+      "nodeIndex": 55,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Power_display_and_camera_connectors/Display_DSI_ribbon_connector/Display_DSI_ribbon_connector_contact_bank",
+      "parentTemplateComponentId": "c7068dcc-96de-52b8-bd6f-0fc63041d551",
+      "designation": "RPI4B-055",
+      "quantity": 15,
+      "material": "Gold contact plating",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6a0ad312-91de-5573-ab5b-629ca78979ec",
+      "name": "MicroSD storage socket",
+      "nodeIndex": 56,
+      "nodePath": "/Raspberry_Pi_4_Model_B/MicroSD_storage_socket",
+      "parentTemplateComponentId": "8321a076-1bdb-51ae-9076-d1de4ce1f936",
+      "designation": "RPI4B-056",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          -0.008,
+          -0.008,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "74ed5532-d7ea-504d-a8fb-f555a0f8cb31",
+      "name": "MicroSD metal holder",
+      "nodeIndex": 57,
+      "nodePath": "/Raspberry_Pi_4_Model_B/MicroSD_storage_socket/MicroSD_metal_holder",
+      "parentTemplateComponentId": "6a0ad312-91de-5573-ab5b-629ca78979ec",
+      "designation": "RPI4B-057",
+      "quantity": 1,
+      "material": "Connector shield",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Simplified illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5c51802f-fdc1-54c4-8c2d-71d0ff0b885d",
+      "name": "MicroSD socket contacts",
+      "nodeIndex": 58,
+      "nodePath": "/Raspberry_Pi_4_Model_B/MicroSD_storage_socket/MicroSD_socket_contacts",
+      "parentTemplateComponentId": "6a0ad312-91de-5573-ab5b-629ca78979ec",
+      "designation": "RPI4B-058",
+      "quantity": 8,
+      "material": "Gold contact plating",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Empty socket; no installed card, storage capacity or data is inferred.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "46d6ae83-5d84-565c-a333-e4b42d71eb78",
+      "name": "Illustrative PCB routing",
+      "nodeIndex": 59,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Printed_circuit_board/Illustrative_PCB_routing",
+      "parentTemplateComponentId": "a53ee050-51a1-5b90-9764-4f2aaaf26e46",
+      "designation": "RPI4B-059",
+      "quantity": 1,
+      "material": "Dark copper routing",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Decorative illustrative routing, not a circuit schematic or verified PCB layout.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "8a2c1a3d-c41b-5164-a75e-a542533544b5",
+      "name": "Board reference silkscreen",
+      "nodeIndex": 60,
+      "nodePath": "/Raspberry_Pi_4_Model_B/Printed_circuit_board/Board_reference_silkscreen",
+      "parentTemplateComponentId": "a53ee050-51a1-5b90-9764-4f2aaaf26e46",
+      "designation": "RPI4B-060",
+      "quantity": 1,
+      "material": "White silkscreen",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/raspberry_pi_geometry.py",
+      "description": "Original text-only reference marking; no supplier artwork is reproduced.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0.015,
+          0
+        ]
+      }
+    }
+  ],
+  "bindings": [],
+  "maintenanceText": null,
+  "initialViewDirection": [
+    1.4,
+    1.2,
+    1
+  ],
+  "provenance": "Original MIT parametric geometry; official Raspberry Pi 4 Model B reference outline. No supplier CAD, logo or textures."
+}

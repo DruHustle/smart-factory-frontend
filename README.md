@@ -75,3 +75,5 @@ The backend is one non-root image with six supervised processes split into four 
 Software acknowledgement and broker acceptance do not prove physical movement or recipient delivery. Commanded servo angles are not measured feedback. Software control is not an emergency stop. OEE/RUL, calibrated energy/emissions, financial metrics and predictive maintenance require validated inputs. Security findings are not compliance certificates. Physical commissioning, external Onesa consumer acceptance and production promotion are separate acceptance outcomes.
 
 [API workflows](docs/api-flows.md) · [AAS and authorization](docs/authorization-and-aas.md) · [Equipment](docs/equipment-view.md) · [Onesa contract](docs/onesa/CONSUMER_HANDOFF.md)
+
+The bundled native equipment catalogue also includes an [illustrative Raspberry Pi 4 Model B](fixtures/equipment/raspberry-pi-4b/README.md). See [3D delivery and loading](docs/3d-model-loading.md) for the loading pipeline and verification.

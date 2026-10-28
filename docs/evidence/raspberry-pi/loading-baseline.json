@@ -1,0 +1,31 @@
+{
+  "scope": "Public read-only synthetic showcase pump; production before loading changes",
+  "frontendSource": "0c2a0ce3faaddd456d39cab93a4d83202c999820",
+  "apiSource": "d6cb16113648c19fe7ecf548fe370487fa185969",
+  "navigation": "In-application inventory to 3D route; no full document reload",
+  "measurements": [
+    {
+      "mode": "swiftshader",
+      "visit": "cold",
+      "routeWaitMs": 6012,
+      "state": "ready",
+      "bytes": "6421020",
+      "totalMs": 1803.2999999523163,
+      "downloadMs": 984.5999999642372,
+      "transferBytes": 1892826,
+      "graphics": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+    },
+    {
+      "mode": "swiftshader",
+      "visit": "repeat",
+      "routeWaitMs": 2513,
+      "state": "ready",
+      "bytes": "6421020",
+      "totalMs": 1974.699999988079,
+      "downloadMs": 851.9000000357628,
+      "transferBytes": 1892826,
+      "graphics": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+    }
+  ],
+  "limitation": "Two observations, not a service-level guarantee or physical mobile GPU qualification"
+}

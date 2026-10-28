@@ -75,6 +75,8 @@ async function query<T = Record<string, unknown>>(q: ReturnType<typeof sql>) {
   return (await (await database()).execute(q)) as unknown as T[];
 }
 export type LocalTemplate = {
+  name?: string;
+  initialViewDirection?: [number, number, number];
   revision: string;
   status: string;
   sha256: string;
@@ -83,7 +85,20 @@ export type LocalTemplate = {
   >;
   bindings: z.infer<typeof localBindingSchema>[];
 } & { maintenanceText?: string | null };
+export const raspberryPiRevision =
+  "smart-factory-illustrative-raspberry-pi-4b-1";
+export async function bundledModelCatalog() {
+  const models = await Promise.all([template(), template(raspberryPiRevision)]);
+  return models.map((m) => ({
+    revision: m.revision,
+    name: m.name ?? "Illustrative pump and motor",
+  }));
+}
 export async function template(revision?: string) {
+  if (revision === raspberryPiRevision)
+    return JSON.parse(
+      await readFile(new URL("raspberry-pi-4b/template.json", root), "utf8"),
+    ) as LocalTemplate;
   if (
     [
       "smart-factory-illustrative-pump-motor-1",
@@ -173,13 +188,19 @@ export async function createEquipment(
           .values({
             assetId: externalAssetId,
             name: input.name,
-            assetType: t.revision.startsWith("local-import:")
-              ? "other"
-              : "pump",
+            assetType:
+              t.revision === raspberryPiRevision
+                ? "gateway"
+                : t.revision.startsWith("local-import:")
+                  ? "other"
+                  : "pump",
             serialNumber: input.serialNumber,
-            model: t.revision.startsWith("local-import:")
-              ? "Locally imported model"
-              : "Illustrative pump/motor",
+            model:
+              t.revision === raspberryPiRevision
+                ? "Raspberry Pi 4 Model B · illustrative"
+                : t.revision.startsWith("local-import:")
+                  ? "Locally imported model"
+                  : "Illustrative pump/motor",
             isDemo: fixed?.isDemo ?? false,
             aasShell: {
               modelType: "AssetAdministrationShell",
@@ -187,9 +208,12 @@ export async function createEquipment(
               assetInformation: {
                 assetKind: "Instance",
                 globalAssetId: externalAssetId,
-                assetType: t.revision.startsWith("local-import:")
-                  ? "urn:smart-factory:type:unspecified"
-                  : "urn:smart-factory:type:pump-motor-v1",
+                assetType:
+                  t.revision === raspberryPiRevision
+                    ? "urn:smart-factory:type:raspberry-pi-4b-illustrative"
+                    : t.revision.startsWith("local-import:")
+                      ? "urn:smart-factory:type:unspecified"
+                      : "urn:smart-factory:type:pump-motor-v1",
               },
             },
           })
@@ -202,12 +226,13 @@ export async function createEquipment(
       sql`insert into equipment_workspaces (id,asset_id,template_revision,components,kind,is_demo,updated_by,source_device_id,bindings,is_standalone) values (${id},${asset.id},${t.revision},${JSON.stringify(components)}::jsonb,${input.kind},${fixed?.isDemo ?? false},${actor},${input.kind === "simulated" ? (fixed?.isDemo ? "smart-factory-public-simulator" : "local-sim-" + id) : null},${JSON.stringify(bindings)}::jsonb,${!input.existingAssetId})`,
     );
     if (input.kind === "simulated") {
-      const [device] = await tx
+      const sourceDeviceId = fixed?.isDemo
+        ? "smart-factory-public-simulator"
+        : "local-sim-" + id;
+      const [createdDevice] = await tx
         .insert(devices)
         .values({
-          deviceId: fixed?.isDemo
-            ? "smart-factory-public-simulator"
-            : "local-sim-" + id,
+          deviceId: sourceDeviceId,
           name: "Local equipment simulator",
           type: "gateway",
           isDemo: fixed?.isDemo ?? false,
@@ -226,11 +251,20 @@ export async function createEquipment(
             },
           },
         })
-        .onConflictDoUpdate({
+        .onConflictDoNothing({
           target: devices.deviceId,
-          set: { name: "Local equipment simulator" },
         })
         .returning();
+      const [device] = createdDevice
+        ? [createdDevice]
+        : await tx
+            .select()
+            .from(devices)
+            .where(eq(devices.deviceId, sourceDeviceId));
+      if (!device || device.isDemo !== (fixed?.isDemo ?? false))
+        throw new Error(
+          "Simulation source identity is already in use outside this scope",
+        );
       await tx.insert(assetDevices).values({
         assetId: asset.id,
         deviceId: device.id,
@@ -411,9 +445,19 @@ export async function workspace(id: string, mode?: "live" | "simulated") {
       t.maintenanceText === null ? null : "/api/equipment/" + id + "/document",
     renderer: {
       available: modelMetadataAvailable,
+      initialViewDirection: t.initialViewDirection,
       version: "smart-factory-local-three-1",
     },
   };
+}
+/** File delivery authorizes identity without computing telemetry/history again. */
+export async function modelIdentity(id: string) {
+  z.uuid().parse(id);
+  const [row] = await query<{ template_revision: string }>(
+    sql`select w.template_revision from equipment_workspaces w join assets a on a.id=w.asset_id where w.id=${id} and ${visibleRecordSql(sql`w.is_demo`)} and ${visibleRecordSql(sql`a."isDemo"`)}`,
+  );
+  if (!row) throw new Error("Equipment not found");
+  return { templateRevision: row.template_revision };
 }
 export async function saveWork(
   input: z.infer<typeof workSchema>,
@@ -458,6 +502,10 @@ export async function simulate(
       "Only an individually managed simulated instance can run scenarios",
     );
   const currentTemplate = await template(w.templateRevision);
+  if (!currentTemplate.bindings.length)
+    throw new Error(
+      "This illustrative model has no configured simulation measurements.",
+    );
   const alarmTemplateId = currentTemplate.bindings.find(
     (b) => b.sourceKey === "temperature",
   )?.templateComponentId;
@@ -563,13 +611,15 @@ export async function modelBytes(revision: string) {
     ? await importedBytes(revision)
     : await readFile(
         new URL(
-          [
-            "smart-factory-illustrative-pump-motor-1",
-            "smart-factory-illustrative-pump-motor-2",
-            "smart-factory-illustrative-pump-motor-3",
-          ].includes(revision)
-            ? `revisions/${revision.split("-").at(-1)}/model.glb`
-            : "pump-motor.glb",
+          revision === raspberryPiRevision
+            ? "raspberry-pi-4b/model.glb"
+            : [
+                  "smart-factory-illustrative-pump-motor-1",
+                  "smart-factory-illustrative-pump-motor-2",
+                  "smart-factory-illustrative-pump-motor-3",
+                ].includes(revision)
+              ? `revisions/${revision.split("-").at(-1)}/model.glb`
+              : "pump-motor.glb",
           root,
         ),
       );

@@ -1,5 +1,7 @@
 import * as T from "three";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { pollGpuFrame } from "./gpuFrame";
+import { scheduleDrawingFrame } from "./drawingFrame";
 export type MeasuredRuntime = {
   camera: T.PerspectiveCamera;
   controls: OrbitControls;
@@ -19,27 +21,49 @@ export async function measureOrbit(
     offset = eye.clone().sub(target),
     started = performance.now();
   const gl = r.renderer.getContext() as WebGL2RenderingContext;
+  const debug = gl.getExtension("WEBGL_debug_renderer_info"),
+    graphics = String(
+      gl.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
+    ),
+    software = /swiftshader|llvmpipe|software/i.test(graphics);
   let fence: WebGLSync | null = null;
   let previous = started,
     drawCalls = 0,
-    triangles = 0;
+    triangles = 0,
+    submittedAt = 0,
+    synchronizedFrames = 0,
+    synchronizationFailed = false;
   const intervals: number[] = [];
   while (
     active() &&
+    !document.hidden &&
+    !synchronizationFailed &&
     !gl.isContextLost() &&
     performance.now() - started < warmupMs + durationMs
   ) {
     await new Promise<void>((resolve) =>
-      requestAnimationFrame((now) => {
-        if (active() && !gl.isContextLost()) {
+      scheduleDrawingFrame(() => {
+        const now = performance.now();
+        if (active() && !document.hidden && !gl.isContextLost()) {
           if (fence) {
-            const status = gl.clientWaitSync(fence, 0, 0);
+            const { status, synchronized } = pollGpuFrame(
+              gl,
+              fence,
+              submittedAt,
+              software,
+            );
+            if (synchronized) synchronizedFrames++;
             if (status === gl.TIMEOUT_EXPIRED) {
               resolve();
               return;
             }
             gl.deleteSync(fence);
             fence = null;
+            if (status === gl.WAIT_FAILED) {
+              synchronizationFailed = true;
+              resolve();
+              return;
+            }
           }
           const elapsed = now - started;
           step?.(elapsed);
@@ -53,6 +77,7 @@ export async function measureOrbit(
           r.camera.lookAt(target);
           r.renderer.render(r.scene, r.camera);
           fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+          submittedAt = performance.now();
           gl.flush();
           if (elapsed >= warmupMs) {
             intervals.push(now - previous);
@@ -72,10 +97,6 @@ export async function measureOrbit(
     r.controls.target.copy(target);
     r.controls.update();
   }
-  const debug = gl.getExtension("WEBGL_debug_renderer_info"),
-    graphics = String(
-      gl.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
-    );
   const sorted = [...intervals].sort((a, b) => a - b),
     percentile = (p: number) =>
       Math.round(
@@ -90,9 +111,15 @@ export async function measureOrbit(
   return {
     protocol: "smart-factory-active-orbit-v2",
     measurementStartedAt: performance.timeOrigin + started,
-    completed: !gl.isContextLost() && elapsedMs >= warmupMs + durationMs,
+    completed:
+      !synchronizationFailed &&
+      !document.hidden &&
+      !gl.isContextLost() &&
+      elapsedMs >= warmupMs + durationMs,
     synchronization:
-      "one completed GPU frame in flight; nonblocking WebGL fence",
+      "one completed GPU frame in flight; nonblocking WebGL fence with overdue-query drain",
+    synchronizedFrames,
+    synchronizationFailed,
     warmupMs,
     durationMs,
     elapsedMs,

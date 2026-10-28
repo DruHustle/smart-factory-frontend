@@ -42,6 +42,7 @@ export const equipmentRouter = router({
   template: viewerProcedure.query(() => operatorAction(() => local.template())),
   models: viewerProcedure.query(async ({ ctx }) => ({
     bundled: await operatorAction(() => local.template()),
+    bundledModels: await operatorAction(() => local.bundledModelCatalog()),
     imported:
       demonstrationOnly(ctx.user) || demoOnlyRead() ? [] : await modelCatalog(),
   })),
