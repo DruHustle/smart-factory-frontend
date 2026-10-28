@@ -283,7 +283,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       renderer.toneMappingExposure = 1.05;
       renderer.shadowMap.enabled = container.clientWidth >= 600 && !software;
       renderer.shadowMap.autoUpdate = false;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
       const canvas = renderer.domElement;
       canvas.setAttribute("aria-label", "Interactive 3D equipment model");
       canvas.setAttribute("role", "img");

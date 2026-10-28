@@ -1,5 +1,5 @@
 import { Component, ReactNode } from "react";
-import ComingSoon from "@/pages/ComingSoon";
+import ErrorRecovery from "./ErrorRecovery";
 
 interface Props {
   children: ReactNode;
@@ -13,8 +13,7 @@ interface State {
 /**
  * Error Boundary Component
  * 
- * Catches errors in child components and displays a Coming Soon page
- * instead of crashing the entire application.
+ * Presents recovery actions for render failures, including stale lazy chunks.
  * 
  * Usage:
  * <ErrorBoundary>
@@ -37,20 +36,12 @@ class ErrorBoundary extends Component<Props, State> {
     console.error("Error info:", errorInfo);
   }
 
-  resetError = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-    });
-  };
-
   render() {
     if (this.state.hasError) {
       return (
-        <ComingSoon
-          error={this.state.error || undefined}
-          resetError={this.resetError}
-          isDevelopment={process.env.NODE_ENV === "development"}
+        <ErrorRecovery
+          error={this.state.error}
+          development={import.meta.env.DEV}
         />
       );
     }

@@ -17,6 +17,7 @@ import { ExportButton } from "@/components/ExportButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { canonicalUnits, metrics, type Metric } from "@shared/measurements";
+import { analysisRange } from "@/lib/analysis-range";
 const fields = [
   "assetType",
   "zone",
@@ -56,27 +57,10 @@ export default function AnalyticsPage() {
           ? "simulated"
           : "operational"
     ) as TrendScope;
-  const range = params.get("range") ?? (user?.access?.demoOnly ? "1h" : "7d"),
-    durations: Record<string, number> = {
-      "1h": 3600000,
-      "24h": 86400000,
-      "7d": 604800000,
-      "30d": 2592000000,
-    },
-    endTime = params.get("to")
-      ? Date.parse(params.get("to")! + "Z")
-      : user?.access?.demoOnly && showcase.data
-        ? Date.parse(showcase.data.anchor)
-        : anchor,
-    startTime = params.get("from")
-      ? Date.parse(params.get("from")! + "Z")
-      : endTime - (durations[range] ?? durations["7d"]),
-    valid =
-      Number.isFinite(startTime) &&
-      Number.isFinite(endTime) &&
-      endTime > startTime &&
-      endTime - startTime <= 93 * 86400000,
-    intervalMs = Number(params.get("interval") ?? 60000);
+  const rangeAnchor = user?.access?.demoOnly && showcase.data ? Date.parse(showcase.data.anchor) : anchor;
+  const { custom, range, endTime, startTime, valid, intervalMs } = analysisRange(
+    params, rangeAnchor, user?.access?.demoOnly ? "1h" : "7d",
+  );
   const update = (values: Record<string, string>) => {
     const next = new URLSearchParams(params);
     for (const [k, v] of Object.entries(values))
@@ -102,7 +86,7 @@ export default function AnalyticsPage() {
       startTime,
       endTime,
       scope,
-      intervalMs: Math.max(60000, Math.min(86400000, intervalMs || 60000)),
+      intervalMs,
     },
     analytics = trpc.analytics.getAssetTelemetry.useQuery(input, {
       enabled: valid && !!assetIds.length,
@@ -141,7 +125,7 @@ export default function AnalyticsPage() {
           ) : undefined
         }
       />
-      {user?.access?.demoOnly && showcase.data && (
+      {user?.access?.demoOnly && showcase.data && valid && (
         <p
           data-demo-anchor={showcase.data.anchor}
           className="rounded-md border border-info/40 bg-info/5 p-3 text-sm"
@@ -173,13 +157,14 @@ export default function AnalyticsPage() {
           <select
             aria-label="Time range"
             className={control}
-            value={params.get("from") ? "custom" : range}
+            value={custom ? "custom" : range}
             onChange={(e) =>
               update(
                 e.target.value === "custom"
                   ? {
-                      from: new Date(startTime).toISOString().slice(0, 16),
-                      to: new Date(endTime).toISOString().slice(0, 16),
+                      range: "custom",
+                      from: new Date(valid ? startTime : rangeAnchor - 3600000).toISOString().slice(0, 16),
+                      to: new Date(valid ? endTime : rangeAnchor).toISOString().slice(0, 16),
                     }
                   : { range: e.target.value, from: "", to: "" },
               )
@@ -274,7 +259,7 @@ export default function AnalyticsPage() {
             )}
           </div>
         </details>
-        {!!params.get("from") && (
+        {custom && (
           <>
             <label className="space-y-1 text-xs">
               <span>From (UTC)</span>

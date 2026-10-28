@@ -26,9 +26,9 @@ import {
   DEMONSTRATION_READ_ONLY,
 } from "../../shared/access-policy";
 
-// Import the cors package
-import cors from "cors";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { installBrowserOriginPolicy } from "./browserOriginPolicy";
+import { timingSafeEqual } from "node:crypto";
+import { createLoginRateLimit } from "./loginRateLimit";
 import { z } from "zod";
 import { aasRepositoryProxy } from "../aasRepositoryProxy";
 import { edgeTagMappingsSchema } from "../../shared/edge-configuration";
@@ -53,7 +53,6 @@ const edgeHeartbeatSchema = z
   })
   .strict();
 
-let lastLoginWindowPrune = 0;
 let activeAasxUploads = 0;
 
 function configureTrustedProxies(app: express.Express) {
@@ -95,72 +94,16 @@ function isPostgresUniqueViolation(error: unknown) {
   return false;
 }
 
-async function loginRateLimit(
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction,
-) {
-  const now = Date.now();
-  if (now - lastLoginWindowPrune > 60_000) {
-    lastLoginWindowPrune = now;
-    try {
-      await db.pruneExpiredLoginAttempts(new Date(now));
-    } catch (error) {
-      console.error(
-        "[Authentication] Could not prune shared login limits:",
-        error instanceof Error ? error.message : "unknown error",
-      );
-    }
-  }
-
-  const email =
-    typeof req.body?.json?.email === "string"
-      ? req.body.json.email.trim().toLowerCase()
-      : "";
-  const identifiers = [
-    `ip:${req.ip || "unknown"}`,
-    ...(email ? [`email:${email}`] : []),
-  ];
-  try {
-    const windows = await Promise.all(
-      identifiers.map(async (identifier) => {
-        const key = createHash("sha256").update(identifier).digest("hex");
-        return {
-          ...(await db.recordLoginAttempt(key, 15 * 60_000)),
-          limit: identifier.startsWith("ip:") ? 100 : 20,
-        };
-      }),
-    );
-
-    const blocked = windows.find((window) => window.attempts > window.limit);
-    if (blocked) {
-      res.setHeader(
-        "Retry-After",
-        String(
-          Math.max(1, Math.ceil((blocked.resetAt.getTime() - now) / 1000)),
-        ),
-      );
-      return res
-        .status(429)
-        .json({ error: "Too many login attempts. Try again later." });
-    }
-    return next();
-  } catch (error) {
-    console.error(
-      "[Authentication] Shared login limit is unavailable:",
-      error instanceof Error ? error.message : "unknown error",
-    );
-    return res
-      .status(503)
-      .json({ error: "Authentication is temporarily unavailable" });
-  }
-}
-
 async function startServer() {
   const app = express();
   installRequestMetrics(app);
   app.disable("x-powered-by");
   configureTrustedProxies(app);
+  const allowedOrigins = new Set(
+    (process.env.ALLOWED_ORIGIN || "http://localhost:5173")
+      .split(",").map((origin) => origin.trim()).filter(Boolean),
+  );
+  installBrowserOriginPolicy(app, allowedOrigins);
   const server = createServer(app);
   let bootstrapReady = false;
   const stopSecurity = startSecurity();
@@ -295,57 +238,11 @@ async function startServer() {
     }
   });
 
-  const allowedOrigins = new Set(
-    (process.env.ALLOWED_ORIGIN || "http://localhost:5173")
-      .split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-  );
-  app.use(
-    cors({
-      origin(origin, callback) {
-        callback(null, !origin || allowedOrigins.has(origin));
-      },
-      credentials: true,
-    }),
-  );
-
-  // Cookie-authenticated mutations require an allowed browser origin. Requests
-  // without Origin remain available to non-browser clients which use bearer auth.
-  app.use("/api", (req, res, next) => {
-    if (req.method === "GET" || req.method === "HEAD") return next();
-    const origin = req.get("origin");
-    if (!origin) return next();
-    const sameOrigin = origin === `${req.protocol}://${req.get("host")}`;
-    if (sameOrigin || allowedOrigins.has(origin)) return next();
-    void nativeEvent(
-      "auth.authorization_denied",
-      {
-        service: "browser-origin-policy",
-        outcome: "denied",
-        reasonCode: "ORIGIN_DENIED",
-      },
-      "A mutation was rejected by the browser origin policy.",
-    );
-    return res.status(403).json({ error: "Request origin is not allowed" });
-  });
-
   installSecurityRoutes(app);
   installEquipmentFiles(app);
 
   // Shared PostgreSQL counters enforce the same login limits across replicas.
-  app.use("/api/trpc", (req, res, next) => {
-    const procedures = req.path.replace(/^\/+/, "").split(",");
-    if (
-      req.method === "POST" &&
-      procedures.some((path) =>
-        ["auth.login", "auth.changePassword"].includes(path),
-      )
-    ) {
-      return loginRateLimit(req, res, next);
-    }
-    return next();
-  });
+  app.use("/api/trpc", createLoginRateLimit());
 
   // Private .NET-to-Node bridge. Credentials are service-only and never returned to the browser.
   app.post("/api/internal/telemetry", async (req, res) => {

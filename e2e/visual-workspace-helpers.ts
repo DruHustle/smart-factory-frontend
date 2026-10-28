@@ -1,5 +1,7 @@
 import {expect,type Page} from '@playwright/test';
+import {resetDemoViewerFixtureLoginLimit} from './fixture-auth';
 export async function enterSimulation(page:Page,width=1440,theme='light'){
+ await resetDemoViewerFixtureLoginLimit();
  await page.setViewportSize({width,height:960});
  await page.addInitScript(t=>localStorage.setItem('theme',t),theme);
  await page.goto('/#/login');await page.getByRole('button',{name:'Demo Viewer',exact:true}).click();await page.getByRole('button',{name:/^sign in$/i}).click();
