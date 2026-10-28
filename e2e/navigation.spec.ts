@@ -36,14 +36,18 @@ async function login(page: Page, persona: Persona) {
   ).toBeVisible();
 }
 
-async function checkLayout(nav: Locator, collapsed = false) {
+async function checkLayout(
+  nav: Locator,
+  collapsed = false,
+  infrastructure = false,
+) {
   await expect(nav.locator("[data-sidebar=menu-button]").first()).toHaveCSS(
     "height",
     collapsed ? "32px" : "40px",
   );
   if (collapsed) await expect(nav).toHaveCSS("width", "48px");
   const headings = nav.locator("[data-navigation-heading]");
-  await expect(headings).toHaveCount(5);
+  await expect(headings).toHaveCount(infrastructure ? 6 : 5);
   const rows = await nav
     .locator("[data-navigation-layout]")
     .evaluateAll((nodes) =>
@@ -100,7 +104,10 @@ async function checkLayout(nav: Locator, collapsed = false) {
     );
     expect(row.paddingLeft).toBe("8px");
     expect(row.rowHeight).toBe(
-      collapsed && !["Operations", "Insights", "Workspace"].includes(row.text!)
+      collapsed &&
+        !["Operations", "Insights", "Infrastructure", "Workspace"].includes(
+          row.text!,
+        )
         ? 32
         : 40,
     );
@@ -143,6 +150,7 @@ for (const persona of personas)
       const nav = page.getByRole("navigation", { name: "Primary navigation" });
       const engineering =
         persona.demo || ["engineer", "admin"].includes(persona.role);
+      const infrastructure = persona.demo || persona.role === "admin";
       const expected = [
         "Overview",
         "Assets & devices",
@@ -151,6 +159,7 @@ for (const persona of personas)
         ...(engineering ? ["Firmware & updates"] : []),
         "Cybersecurity",
         "Analytics",
+        ...(infrastructure ? ["Service health"] : []),
         "Assistant",
         ...(persona.demo ? ["Demo guide"] : []),
         ...(engineering ? ["Administration"] : []),
@@ -170,7 +179,11 @@ for (const persona of personas)
           nav.getByRole("link", { name: "Firmware & updates", exact: true }),
         ).toHaveCount(0);
       }
-      await checkLayout(nav);
+      if (!infrastructure)
+        await expect(
+          nav.getByRole("link", { name: "Service health", exact: true }),
+        ).toHaveCount(0);
+      await checkLayout(nav, false, infrastructure);
 
       // Visit every configured destination in the widest role state. Active styling
       // is checked after real route transitions, including a nested item workspace.
@@ -180,7 +193,7 @@ for (const persona of personas)
         const link = nav.getByRole("link", { name, exact: true });
         await link.click();
         await expect(link).toHaveAttribute("aria-current", "page");
-        await checkLayout(nav);
+        await checkLayout(nav, false, infrastructure);
       }
       await nav
         .getByRole("link", { name: "Assets & devices", exact: true })
@@ -195,7 +208,7 @@ for (const persona of personas)
         "data-state",
         "collapsed",
       );
-      await checkLayout(nav, true);
+      await checkLayout(nav, true, infrastructure);
       await nav.getByRole("link", { name: "Monitoring", exact: true }).hover();
       await expect(
         page.getByRole("tooltip", { name: "Monitoring", exact: true }),
@@ -209,7 +222,7 @@ for (const persona of personas)
         await trigger.click();
         const drawer = page.getByRole("dialog");
         await expect(drawer).toBeVisible();
-        await checkLayout(drawer);
+        await checkLayout(drawer, false, infrastructure);
         for (const name of expected)
           await expect(
             drawer.getByRole("link", { name, exact: true }),
@@ -235,7 +248,7 @@ for (const persona of personas)
         .click();
       for (const width of [768, 1024, 1440]) {
         await page.setViewportSize({ width, height: 1000 });
-        await checkLayout(nav);
+        await checkLayout(nav, false, infrastructure);
       }
       expect(errors).toEqual([]);
     });
