@@ -38,12 +38,14 @@ export function SectionNav({
   sections,
   value,
   onChange,
+  onIntent,
   children,
 }: {
   label: string;
   sections: { id: string; label: string }[];
   value: string;
   onChange: (v: string) => void;
+  onIntent?: (v: string) => void;
   children?: ReactNode;
 }) {
   if (!sections.length) return <>{children}</>;
@@ -71,6 +73,8 @@ export function SectionNav({
               className="min-h-10 rounded-md border border-transparent px-3 text-sm data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none"
               key={s.id}
               value={s.id}
+              onPointerEnter={() => onIntent?.(s.id)}
+              onFocus={() => onIntent?.(s.id)}
             >
               {s.label}
             </TabsTrigger>

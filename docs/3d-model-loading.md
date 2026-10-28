@@ -1,5 +1,17 @@
 # Native 3D delivery and loading
 
+## Studio rendering and first image
+
+The viewer uses a prefiltered HDR studio atlas rather than rebuilding reflection lighting for every viewer. The 396,143-byte public asset contains the pinned Three.js CubeUV roughness levels as linear RGBA16F data. Its decoded public pixels can be reused across viewers; each viewer owns and disposes its GPU texture. Failed asset delivery or an unsupported native gzip decoder uses direct lighting so inspection can continue without runtime environment generation. Private model delivery still uses the authorized same-origin route with no-store responses.
+
+Native reference paint now behaves as an opaque dielectric coating. Warm key and cool fill lighting separate metal surfaces, and shadow framing follows model size, including small boards. A small ambient contact patch provides grounding on mobile and software renderers. Uploaded materials keep their authored PBR properties. These changes preserve the original geometry, component IDs, sections and explosion choreography.
+
+All seven bundled reference revisions have small light/dark WebP previews rendered from the actual models. They appear during renderer-code and GLB preparation and are explicitly labelled as previews. The interactive canvas takes over after its first model draw. Unknown or uploaded revisions receive no unrelated reference image. Hover or keyboard focus on a 3D inspection entry begins code, public lighting and authorized metadata preparation; it does not download a private GLB or create a graphics context.
+
+Run `node scripts/equipment/qualify-rendering.mjs` after installing the project's Chromium to check all seven models on desktop/mobile in both themes, explosion/restoration, hollow sections, gallery switching and component selection with one active canvas, a preview with deliberately held GLB delivery and a missing-lighting fallback. The isolated fixture binds loopback and uses only checked-in public models; it does not require a database or an account. Gallery checks use local fixture responses; authenticated reference-file authorization has a separate HTTP test. `CHROMIUM_EXECUTABLE_PATH` can select an installed test browser. `node scripts/equipment/bake-studio.mjs` reproduces the HDR asset with the pinned Three version.
+
+The preview stays visible until a model draw has completed on the GPU and reached its following presentation frame. `firstDrawSubmitted` records command submission separately from interactive-ready `firstFrame`. In the final local software-GPU run, the pump completed in roughly 0.35–0.75 seconds from viewer mount and the other references in 0.25–0.38 seconds. These fixture timings exclude application navigation and remote API/network time. They are not a hosted load-time guarantee; a hosted comparison remains pending release. See the [screenshots and bounded qualification record](evidence/factory-models/README.md).
+
 A 3D workspace needs authorized item metadata, equipment/component mappings, viewer code, model delivery, geometry preparation, graphics compilation and a first model frame. The pump is 6,421,020 decoded bytes / 186,236 triangles. Its existing geometry, detailed parts and stable IDs are preserved. The additional [Raspberry Pi reference](../fixtures/equipment/raspberry-pi-4b/README.md) is 288,440 bytes / 5,406 triangles.
 
 ## Changes

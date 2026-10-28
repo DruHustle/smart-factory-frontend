@@ -1,0 +1,157 @@
+{
+  "revision": "smart-factory-illustrative-control-cabinet-1",
+  "sha256": "12eb0599c34a6e6843246342d2bb873cc5e92b429768e7919de739d96fb6ec33",
+  "bytes": 171316,
+  "components": 28,
+  "triangles": 4552,
+  "solids": [
+    {
+      "name": "Sheet steel enclosure",
+      "positiveVolumeCubicMetres": 0.07173299999999984,
+      "triangles": 28,
+      "manifold": true
+    },
+    {
+      "name": "Raised base plinth",
+      "positiveVolumeCubicMetres": 0.061152,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Front door panel",
+      "positiveVolumeCubicMetres": 0.029077200000000036,
+      "triangles": 32,
+      "manifold": true
+    },
+    {
+      "name": "Inspection window glazing",
+      "positiveVolumeCubicMetres": 0.0014616000000000026,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Window bezel",
+      "positiveVolumeCubicMetres": 0.0009750000000000032,
+      "triangles": 32,
+      "manifold": true
+    },
+    {
+      "name": "Door latch handle",
+      "positiveVolumeCubicMetres": 0.0003702866864730183,
+      "triangles": 92,
+      "manifold": true
+    },
+    {
+      "name": "Door hinge set",
+      "positiveVolumeCubicMetres": 0.00016557023779858023,
+      "triangles": 468,
+      "manifold": true
+    },
+    {
+      "name": "Internal mounting plate",
+      "positiveVolumeCubicMetres": 0.01730160000000003,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "DIN rail 1",
+      "positiveVolumeCubicMetres": 0.0005800000000000012,
+      "triangles": 32,
+      "manifold": true
+    },
+    {
+      "name": "DIN rail 2",
+      "positiveVolumeCubicMetres": 0.0005800000000000002,
+      "triangles": 32,
+      "manifold": true
+    },
+    {
+      "name": "DIN rail 3",
+      "positiveVolumeCubicMetres": 0.0005799999999999985,
+      "triangles": 32,
+      "manifold": true
+    },
+    {
+      "name": "DIN rail 4",
+      "positiveVolumeCubicMetres": 0.0005799999999999994,
+      "triangles": 32,
+      "manifold": true
+    },
+    {
+      "name": "PLC controller modules",
+      "positiveVolumeCubicMetres": 0.0060000000000000045,
+      "triangles": 60,
+      "manifold": true
+    },
+    {
+      "name": "Controller terminal connectors",
+      "positiveVolumeCubicMetres": 0.0008000000000000006,
+      "triangles": 60,
+      "manifold": true
+    },
+    {
+      "name": "Power supply module",
+      "positiveVolumeCubicMetres": 0.005243999999999999,
+      "triangles": 12,
+      "manifold": true
+    },
+    {
+      "name": "Circuit breaker bank",
+      "positiveVolumeCubicMetres": 0.008400000000000006,
+      "triangles": 120,
+      "manifold": true
+    },
+    {
+      "name": "Breaker toggle levers",
+      "positiveVolumeCubicMetres": 0.0003780000000000005,
+      "triangles": 120,
+      "manifold": true
+    },
+    {
+      "name": "Terminal block bank",
+      "positiveVolumeCubicMetres": 0.0044752499999999975,
+      "triangles": 156,
+      "manifold": true
+    },
+    {
+      "name": "Cable duct set",
+      "positiveVolumeCubicMetres": 0.023320374999999983,
+      "triangles": 152,
+      "manifold": true
+    },
+    {
+      "name": "Wiring loom 1",
+      "positiveVolumeCubicMetres": 7.424076583221058e-05,
+      "triangles": 92,
+      "manifold": true
+    },
+    {
+      "name": "Wiring loom 2",
+      "positiveVolumeCubicMetres": 7.424076583221053e-05,
+      "triangles": 92,
+      "manifold": true
+    },
+    {
+      "name": "Wiring loom 3",
+      "positiveVolumeCubicMetres": 7.424076583221077e-05,
+      "triangles": 92,
+      "manifold": true
+    },
+    {
+      "name": "Wiring loom 4",
+      "positiveVolumeCubicMetres": 7.42407658322106e-05,
+      "triangles": 92,
+      "manifold": true
+    },
+    {
+      "name": "Cable entry gland row",
+      "positiveVolumeCubicMetres": 0.00044207654990624854,
+      "triangles": 2688,
+      "manifold": true
+    }
+  ],
+  "limitations": [
+    "Illustrative construction and proportions, not manufacturing CAD.",
+    "No live state, connectivity, motion or component readings are asserted."
+  ]
+}

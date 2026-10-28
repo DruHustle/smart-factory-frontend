@@ -1,0 +1,1493 @@
+{
+  "revision": "smart-factory-illustrative-robot-arm-1",
+  "name": "Six-axis industrial robot \u00b7 illustrative",
+  "assetType": "robot",
+  "assetTypeId": "urn:smart-factory:type:robot-arm-illustrative",
+  "status": "Original illustrative reference; not manufacturer CAD or an installed-asset attestation",
+  "sha256": "77b2a6a949aadecfdeed729788bf0c5c9c76c2552d06760748f8e5faa5b56dbe",
+  "units": "m",
+  "handedness": "right",
+  "upAxis": "+Y",
+  "components": [
+    {
+      "templateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "name": "Six-axis industrial robot",
+      "nodeIndex": 0,
+      "nodePath": "/Six-axis_industrial_robot",
+      "parentTemplateComponentId": null,
+      "designation": "REF-ROBOT-ARM-000",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "30ce78cf-f653-5888-b376-b557341b2c8e",
+      "name": "Anchored base flange",
+      "nodeIndex": 1,
+      "nodePath": "/Six-axis_industrial_robot/Anchored_base_flange",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-001",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "structural",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "1fd5ba93-579c-575f-b50f-71640f9de071",
+      "name": "Base anchor bolts",
+      "nodeIndex": 2,
+      "nodePath": "/Six-axis_industrial_robot/Base_anchor_bolts",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-002",
+      "quantity": 8,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "efdc426c-c5b6-5230-abfc-007cf1f972e6",
+      "name": "Axis 1 base rotation",
+      "nodeIndex": 3,
+      "nodePath": "/Six-axis_industrial_robot/Axis_1_base_rotation",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-003",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.05,
+          0.08,
+          -0.08
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "426d90c4-ce7c-5bc4-9ed2-a2dffb4b33d5",
+      "name": "Axis 1 base rotation housing",
+      "nodeIndex": 4,
+      "nodePath": "/Six-axis_industrial_robot/Axis_1_base_rotation/Axis_1_base_rotation_housing",
+      "parentTemplateComponentId": "efdc426c-c5b6-5230-abfc-007cf1f972e6",
+      "designation": "REF-ROBOT-ARM-004",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.13
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "999e690e-9820-51d3-a714-b44eea3111b7",
+      "name": "Axis 1 base rotation bearing",
+      "nodeIndex": 5,
+      "nodePath": "/Six-axis_industrial_robot/Axis_1_base_rotation/Axis_1_base_rotation_bearing",
+      "parentTemplateComponentId": "efdc426c-c5b6-5230-abfc-007cf1f972e6",
+      "designation": "REF-ROBOT-ARM-005",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5e62ccb4-6451-5790-8861-ae54b781aa13",
+      "name": "Axis 1 base rotation geared rotor",
+      "nodeIndex": 6,
+      "nodePath": "/Six-axis_industrial_robot/Axis_1_base_rotation/Axis_1_base_rotation_geared_rotor",
+      "parentTemplateComponentId": "efdc426c-c5b6-5230-abfc-007cf1f972e6",
+      "designation": "REF-ROBOT-ARM-006",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "417c11f1-a92a-56a3-a678-ed6de3e05020",
+      "name": "Axis 1 base rotation service cover",
+      "nodeIndex": 7,
+      "nodePath": "/Six-axis_industrial_robot/Axis_1_base_rotation/Axis_1_base_rotation_service_cover",
+      "parentTemplateComponentId": "efdc426c-c5b6-5230-abfc-007cf1f972e6",
+      "designation": "REF-ROBOT-ARM-007",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "904cb67c-ccb3-5b94-a839-87acfaf7334e",
+      "name": "Axis 1 base rotation cover bolts",
+      "nodeIndex": 8,
+      "nodePath": "/Six-axis_industrial_robot/Axis_1_base_rotation/Axis_1_base_rotation_cover_bolts",
+      "parentTemplateComponentId": "efdc426c-c5b6-5230-abfc-007cf1f972e6",
+      "designation": "REF-ROBOT-ARM-008",
+      "quantity": 6,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3a582199-ce32-5900-b256-e7565c9d8e85",
+      "name": "Axis 2 shoulder",
+      "nodeIndex": 9,
+      "nodePath": "/Six-axis_industrial_robot/Axis_2_shoulder",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-009",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          -0.025,
+          0.16,
+          0.08
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "81190cc3-e993-571d-89cb-18d39e49e171",
+      "name": "Axis 2 shoulder housing",
+      "nodeIndex": 10,
+      "nodePath": "/Six-axis_industrial_robot/Axis_2_shoulder/Axis_2_shoulder_housing",
+      "parentTemplateComponentId": "3a582199-ce32-5900-b256-e7565c9d8e85",
+      "designation": "REF-ROBOT-ARM-010",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.13
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "31def69b-1652-5305-bfa0-27dfda9a50cb",
+      "name": "Axis 2 shoulder bearing",
+      "nodeIndex": 11,
+      "nodePath": "/Six-axis_industrial_robot/Axis_2_shoulder/Axis_2_shoulder_bearing",
+      "parentTemplateComponentId": "3a582199-ce32-5900-b256-e7565c9d8e85",
+      "designation": "REF-ROBOT-ARM-011",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "15f9284b-867b-5a20-b925-846abf14276b",
+      "name": "Axis 2 shoulder geared rotor",
+      "nodeIndex": 12,
+      "nodePath": "/Six-axis_industrial_robot/Axis_2_shoulder/Axis_2_shoulder_geared_rotor",
+      "parentTemplateComponentId": "3a582199-ce32-5900-b256-e7565c9d8e85",
+      "designation": "REF-ROBOT-ARM-012",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "618c02c6-9b4c-58f2-afe6-1c66624d6564",
+      "name": "Axis 2 shoulder service cover",
+      "nodeIndex": 13,
+      "nodePath": "/Six-axis_industrial_robot/Axis_2_shoulder/Axis_2_shoulder_service_cover",
+      "parentTemplateComponentId": "3a582199-ce32-5900-b256-e7565c9d8e85",
+      "designation": "REF-ROBOT-ARM-013",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "80733219-b698-542a-b99e-a7f62d33b6b7",
+      "name": "Axis 2 shoulder cover bolts",
+      "nodeIndex": 14,
+      "nodePath": "/Six-axis_industrial_robot/Axis_2_shoulder/Axis_2_shoulder_cover_bolts",
+      "parentTemplateComponentId": "3a582199-ce32-5900-b256-e7565c9d8e85",
+      "designation": "REF-ROBOT-ARM-014",
+      "quantity": 6,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3ecaf1c2-2a24-54a9-9e02-c4ce4c6652e7",
+      "name": "Axis 3 elbow",
+      "nodeIndex": 15,
+      "nodePath": "/Six-axis_industrial_robot/Axis_3_elbow",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-015",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.0,
+          0.24,
+          -0.08
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "7b034911-3871-5eaf-97e2-72d5788b03ce",
+      "name": "Axis 3 elbow housing",
+      "nodeIndex": 16,
+      "nodePath": "/Six-axis_industrial_robot/Axis_3_elbow/Axis_3_elbow_housing",
+      "parentTemplateComponentId": "3ecaf1c2-2a24-54a9-9e02-c4ce4c6652e7",
+      "designation": "REF-ROBOT-ARM-016",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.13
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "4f808999-44cf-5577-9862-d2313ce02a8c",
+      "name": "Axis 3 elbow bearing",
+      "nodeIndex": 17,
+      "nodePath": "/Six-axis_industrial_robot/Axis_3_elbow/Axis_3_elbow_bearing",
+      "parentTemplateComponentId": "3ecaf1c2-2a24-54a9-9e02-c4ce4c6652e7",
+      "designation": "REF-ROBOT-ARM-017",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "45ed60de-6d14-5a37-a4eb-4b5c107fe435",
+      "name": "Axis 3 elbow geared rotor",
+      "nodeIndex": 18,
+      "nodePath": "/Six-axis_industrial_robot/Axis_3_elbow/Axis_3_elbow_geared_rotor",
+      "parentTemplateComponentId": "3ecaf1c2-2a24-54a9-9e02-c4ce4c6652e7",
+      "designation": "REF-ROBOT-ARM-018",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "eb86d7ec-75d0-558a-9e2e-553c70f9fdd6",
+      "name": "Axis 3 elbow service cover",
+      "nodeIndex": 19,
+      "nodePath": "/Six-axis_industrial_robot/Axis_3_elbow/Axis_3_elbow_service_cover",
+      "parentTemplateComponentId": "3ecaf1c2-2a24-54a9-9e02-c4ce4c6652e7",
+      "designation": "REF-ROBOT-ARM-019",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "5a0e6039-29b7-514b-ab9a-5c8961ffc371",
+      "name": "Axis 3 elbow cover bolts",
+      "nodeIndex": 20,
+      "nodePath": "/Six-axis_industrial_robot/Axis_3_elbow/Axis_3_elbow_cover_bolts",
+      "parentTemplateComponentId": "3ecaf1c2-2a24-54a9-9e02-c4ce4c6652e7",
+      "designation": "REF-ROBOT-ARM-020",
+      "quantity": 6,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "dd2abe36-c955-5baf-80cc-54e6ecae67d0",
+      "name": "Axis 4 forearm roll",
+      "nodeIndex": 21,
+      "nodePath": "/Six-axis_industrial_robot/Axis_4_forearm_roll",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-021",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.025,
+          0.32,
+          0.08
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "a6b47c5b-aa4a-5605-86d7-0ddacf0fb9e3",
+      "name": "Axis 4 forearm roll housing",
+      "nodeIndex": 22,
+      "nodePath": "/Six-axis_industrial_robot/Axis_4_forearm_roll/Axis_4_forearm_roll_housing",
+      "parentTemplateComponentId": "dd2abe36-c955-5baf-80cc-54e6ecae67d0",
+      "designation": "REF-ROBOT-ARM-022",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.13
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "f9a76645-c6ec-550a-9064-72462dd2a7f2",
+      "name": "Axis 4 forearm roll bearing",
+      "nodeIndex": 23,
+      "nodePath": "/Six-axis_industrial_robot/Axis_4_forearm_roll/Axis_4_forearm_roll_bearing",
+      "parentTemplateComponentId": "dd2abe36-c955-5baf-80cc-54e6ecae67d0",
+      "designation": "REF-ROBOT-ARM-023",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "06959924-5181-57dd-8fcf-c3c042ea6aae",
+      "name": "Axis 4 forearm roll geared rotor",
+      "nodeIndex": 24,
+      "nodePath": "/Six-axis_industrial_robot/Axis_4_forearm_roll/Axis_4_forearm_roll_geared_rotor",
+      "parentTemplateComponentId": "dd2abe36-c955-5baf-80cc-54e6ecae67d0",
+      "designation": "REF-ROBOT-ARM-024",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "59b55192-9d96-5078-8d87-1687e4cd8879",
+      "name": "Axis 4 forearm roll service cover",
+      "nodeIndex": 25,
+      "nodePath": "/Six-axis_industrial_robot/Axis_4_forearm_roll/Axis_4_forearm_roll_service_cover",
+      "parentTemplateComponentId": "dd2abe36-c955-5baf-80cc-54e6ecae67d0",
+      "designation": "REF-ROBOT-ARM-025",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "b1b10406-a021-521c-8242-db4373d82441",
+      "name": "Axis 4 forearm roll cover bolts",
+      "nodeIndex": 26,
+      "nodePath": "/Six-axis_industrial_robot/Axis_4_forearm_roll/Axis_4_forearm_roll_cover_bolts",
+      "parentTemplateComponentId": "dd2abe36-c955-5baf-80cc-54e6ecae67d0",
+      "designation": "REF-ROBOT-ARM-026",
+      "quantity": 6,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "70642bfb-21e6-54a9-8b48-c329a9da65e2",
+      "name": "Axis 5 wrist pitch",
+      "nodeIndex": 27,
+      "nodePath": "/Six-axis_industrial_robot/Axis_5_wrist_pitch",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-027",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.05,
+          0.4,
+          -0.08
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "a4533296-8364-535b-8438-009be479726c",
+      "name": "Axis 5 wrist pitch housing",
+      "nodeIndex": 28,
+      "nodePath": "/Six-axis_industrial_robot/Axis_5_wrist_pitch/Axis_5_wrist_pitch_housing",
+      "parentTemplateComponentId": "70642bfb-21e6-54a9-8b48-c329a9da65e2",
+      "designation": "REF-ROBOT-ARM-028",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.13
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3f10e2c5-6373-542c-a16b-55fd276be2e8",
+      "name": "Axis 5 wrist pitch bearing",
+      "nodeIndex": 29,
+      "nodePath": "/Six-axis_industrial_robot/Axis_5_wrist_pitch/Axis_5_wrist_pitch_bearing",
+      "parentTemplateComponentId": "70642bfb-21e6-54a9-8b48-c329a9da65e2",
+      "designation": "REF-ROBOT-ARM-029",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3dbd4a59-00e6-5645-bcc9-5c57d90982c9",
+      "name": "Axis 5 wrist pitch geared rotor",
+      "nodeIndex": 30,
+      "nodePath": "/Six-axis_industrial_robot/Axis_5_wrist_pitch/Axis_5_wrist_pitch_geared_rotor",
+      "parentTemplateComponentId": "70642bfb-21e6-54a9-8b48-c329a9da65e2",
+      "designation": "REF-ROBOT-ARM-030",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "88fa9677-ac14-55e3-a27b-49b7b9cde8eb",
+      "name": "Axis 5 wrist pitch service cover",
+      "nodeIndex": 31,
+      "nodePath": "/Six-axis_industrial_robot/Axis_5_wrist_pitch/Axis_5_wrist_pitch_service_cover",
+      "parentTemplateComponentId": "70642bfb-21e6-54a9-8b48-c329a9da65e2",
+      "designation": "REF-ROBOT-ARM-031",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3ac70224-715b-59d4-a96b-f42984c196d1",
+      "name": "Axis 5 wrist pitch cover bolts",
+      "nodeIndex": 32,
+      "nodePath": "/Six-axis_industrial_robot/Axis_5_wrist_pitch/Axis_5_wrist_pitch_cover_bolts",
+      "parentTemplateComponentId": "70642bfb-21e6-54a9-8b48-c329a9da65e2",
+      "designation": "REF-ROBOT-ARM-032",
+      "quantity": 6,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2137f241-80da-5656-8c08-6930c37975ef",
+      "name": "Axis 6 tool rotation",
+      "nodeIndex": 33,
+      "nodePath": "/Six-axis_industrial_robot/Axis_6_tool_rotation",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-033",
+      "quantity": 1,
+      "material": "Assembly",
+      "role": "group",
+      "solid": false,
+      "inventoryKind": "assembly",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.07500000000000001,
+          0.48,
+          0.08
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "f27809b9-16ed-5439-8f29-e62a5b196dd7",
+      "name": "Axis 6 tool rotation housing",
+      "nodeIndex": 34,
+      "nodePath": "/Six-axis_industrial_robot/Axis_6_tool_rotation/Axis_6_tool_rotation_housing",
+      "parentTemplateComponentId": "2137f241-80da-5656-8c08-6930c37975ef",
+      "designation": "REF-ROBOT-ARM-034",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          0.13
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "b57e0a5c-75ea-5b2b-a818-1ccfb7e6e92d",
+      "name": "Axis 6 tool rotation bearing",
+      "nodeIndex": 35,
+      "nodePath": "/Six-axis_industrial_robot/Axis_6_tool_rotation/Axis_6_tool_rotation_bearing",
+      "parentTemplateComponentId": "2137f241-80da-5656-8c08-6930c37975ef",
+      "designation": "REF-ROBOT-ARM-035",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.04,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "ea2458e0-8554-5404-83f1-d65a447e7e4b",
+      "name": "Axis 6 tool rotation geared rotor",
+      "nodeIndex": 36,
+      "nodePath": "/Six-axis_industrial_robot/Axis_6_tool_rotation/Axis_6_tool_rotation_geared_rotor",
+      "parentTemplateComponentId": "2137f241-80da-5656-8c08-6930c37975ef",
+      "designation": "REF-ROBOT-ARM-036",
+      "quantity": 1,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          -0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "2fb1a55f-f4a3-5738-8b88-fa83e6ef4ee4",
+      "name": "Axis 6 tool rotation service cover",
+      "nodeIndex": 37,
+      "nodePath": "/Six-axis_industrial_robot/Axis_6_tool_rotation/Axis_6_tool_rotation_service_cover",
+      "parentTemplateComponentId": "2137f241-80da-5656-8c08-6930c37975ef",
+      "designation": "REF-ROBOT-ARM-037",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "3774505b-12d3-514b-863c-c8d695348bbb",
+      "name": "Axis 6 tool rotation cover bolts",
+      "nodeIndex": 38,
+      "nodePath": "/Six-axis_industrial_robot/Axis_6_tool_rotation/Axis_6_tool_rotation_cover_bolts",
+      "parentTemplateComponentId": "2137f241-80da-5656-8c08-6930c37975ef",
+      "designation": "REF-ROBOT-ARM-038",
+      "quantity": 6,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "8368099a-f242-5b57-bd36-8044dcdc8b27",
+      "name": "Upper arm casting",
+      "nodeIndex": 39,
+      "nodePath": "/Six-axis_industrial_robot/Upper_arm_casting",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-039",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.16,
+          -0.22
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "6af52a78-dc53-5697-855c-b1136b0aed4d",
+      "name": "Forearm casting",
+      "nodeIndex": 40,
+      "nodePath": "/Six-axis_industrial_robot/Forearm_casting",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-040",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.16,
+          -0.22
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "921d7dea-0974-56bb-bb61-1759d20f9c26",
+      "name": "Tool mounting flange",
+      "nodeIndex": 41,
+      "nodePath": "/Six-axis_industrial_robot/Tool_mounting_flange",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-041",
+      "quantity": 1,
+      "material": "Machined stainless steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.16,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "7dd07f0a-8983-52cb-8c01-ede6abff0b16",
+      "name": "Tool wrist link",
+      "nodeIndex": 42,
+      "nodePath": "/Six-axis_industrial_robot/Tool_wrist_link",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-042",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "housing",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.1,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "824cd210-1a79-5c26-857b-780fdfef7d38",
+      "name": "Tool flange bolts",
+      "nodeIndex": 43,
+      "nodePath": "/Six-axis_industrial_robot/Tool_flange_bolts",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-043",
+      "quantity": 6,
+      "material": "Satin steel",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "repeated part set",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0.22,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "8567b8c8-27f2-56db-b427-fdf39512b278",
+      "name": "Pedestal drive cover",
+      "nodeIndex": 44,
+      "nodePath": "/Six-axis_industrial_robot/Pedestal_drive_cover",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-044",
+      "quantity": 1,
+      "material": "Safety orange enamel",
+      "role": "cover",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.1,
+          -0.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "templateComponentId": "d2709e1f-b680-5995-9271-185fe41f1cb8",
+      "name": "Service cable loom",
+      "nodeIndex": 45,
+      "nodePath": "/Six-axis_industrial_robot/Service_cable_loom",
+      "parentTemplateComponentId": "11b482fc-1abd-5999-95be-53a72856bcbf",
+      "designation": "REF-ROBOT-ARM-045",
+      "quantity": 1,
+      "material": "Black polymer",
+      "role": "internal",
+      "solid": true,
+      "inventoryKind": "individual part",
+      "source": "scripts/equipment/factory_geometry.py",
+      "description": "Original illustrative component.",
+      "explode": {
+        "translation": [
+          0,
+          0.03,
+          -0.15
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "bindings": [],
+  "maintenanceText": null,
+  "initialViewDirection": [
+    1.6,
+    1,
+    1.8
+  ],
+  "provenance": "Original MIT parametric factory geometry. Illustrative construction; no supplier CAD or external textures."
+}
