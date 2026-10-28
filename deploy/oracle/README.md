@@ -44,6 +44,15 @@ After approved promotion, inspect `/release.json`, `/api/runtime/contract`, logi
 
 ## Rollback
 
+The qualified rollback sources are pinned in [rollback-sources.json](../rollback-sources.json).
+They pair the prior UI/API with a backend retaining the current administrator-only
+infrastructure email rule and reduced connection budget. This rollback backend
+deliberately emits the original bounded worker receipt shape accepted by the
+prior API; process resource fields remain unavailable on that older API. Do not
+substitute the previous production backend, which predates those safeguards.
+ARM64 qualification retains both tested image archives, image inspection and
+archive checksums in the same workflow artifact.
+
 Retain the prior Oracle image and Vercel artifact. Stop the candidate worker before starting the prior worker. Validate the prior application's compatibility with the additive database schema and current session/evidence contracts; then restore the prior API/worker image and UI artifact in API-first order. Do not reverse migrations or delete evidence as an application rollback. Restore data only through a separately approved recovery procedure with verified backups.
 
 Historical Render rollback configuration is not an instruction to reactivate Render. A hosting cutover requires its own reviewed plan and approval.

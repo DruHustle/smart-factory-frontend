@@ -59,6 +59,10 @@ jobs:
             for k in ('backend','edge'):
               assert re.fullmatch('[a-f0-9]{40}',v[k])
               f.write(k+'='+v[k]+'\n')
+            rollback=json.load(open('deploy/rollback-sources.json'))
+            for k in ('frontend','backend','edge'):
+              assert re.fullmatch('[a-f0-9]{40}',rollback[k])
+              f.write('rollback_'+k+'='+rollback[k]+'\n')
           PY
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -68,25 +72,28 @@ jobs:
           path: backend
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: a83a1908b14131b36248a3e7895566f03ce1fe0d
+          ref: ${{ steps.sources.outputs.rollback_frontend }}
           persist-credentials: false
           path: rollback
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: DruHustle/smart-factory-iot-backend
-          ref: 19a70a71ce3b40cc775f03d2ebe8efc2ce987e3c
+          ref: ${{ steps.sources.outputs.rollback_backend }}
           persist-credentials: false
           path: rollback-backend
-      - name: Build native ARM64 candidate and currently deployed rollback
+      - name: Build native ARM64 candidate and protected compatible rollback
         working-directory: candidate
         env:
           SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
           BACKEND_SOURCE: ${{ steps.sources.outputs.backend }}
           EDGE_SOURCE: ${{ steps.sources.outputs.edge }}
+          ROLLBACK_FRONTEND_SOURCE: ${{ steps.sources.outputs.rollback_frontend }}
+          ROLLBACK_BACKEND_SOURCE: ${{ steps.sources.outputs.rollback_backend }}
+          ROLLBACK_EDGE_SOURCE: ${{ steps.sources.outputs.rollback_edge }}
         run: |
           [[ "$(uname -m)" == aarch64 ]]
           docker buildx build --platform linux/arm64 --load --build-context backend=../backend --build-arg SOURCE_REVISION="$SOURCE_REVISION" --build-arg BACKEND_SOURCE_REVISION="$BACKEND_SOURCE" --build-arg EDGE_SOURCE_REVISION="$EDGE_SOURCE" -f deploy/render/Dockerfile -t factory-qualified:candidate .
-          docker buildx build --platform linux/arm64 --load --build-context backend=../rollback-backend --build-arg SOURCE_REVISION=a83a1908b14131b36248a3e7895566f03ce1fe0d --build-arg BACKEND_SOURCE_REVISION=19a70a71ce3b40cc775f03d2ebe8efc2ce987e3c --build-arg EDGE_SOURCE_REVISION=be917a4082ff70ded322bd2ac4cf982014b2346e -f ../rollback/deploy/render/Dockerfile -t factory-qualified:rollback ../rollback
+          docker buildx build --platform linux/arm64 --load --build-context backend=../rollback-backend --build-arg SOURCE_REVISION="$ROLLBACK_FRONTEND_SOURCE" --build-arg BACKEND_SOURCE_REVISION="$ROLLBACK_BACKEND_SOURCE" --build-arg EDGE_SOURCE_REVISION="$ROLLBACK_EDGE_SOURCE" -f ../rollback/deploy/render/Dockerfile -t factory-qualified:rollback ../rollback
       - name: Qualify six real processes, broker recovery and compatible rollback
         working-directory: candidate
         env:
@@ -101,8 +108,10 @@ jobs:
         working-directory: candidate
         run: |
           docker image inspect factory-qualified:candidate > test-results/arm64/image.json
+          docker image inspect factory-qualified:rollback > test-results/arm64/rollback-image.json
           docker save factory-qualified:candidate | gzip -3 > test-results/arm64/candidate.tar.gz
-          sha256sum test-results/arm64/candidate.tar.gz > test-results/arm64/archive.sha256
+          docker save factory-qualified:rollback | gzip -3 > test-results/arm64/rollback.tar.gz
+          sha256sum test-results/arm64/candidate.tar.gz test-results/arm64/rollback.tar.gz > test-results/arm64/archive.sha256
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
