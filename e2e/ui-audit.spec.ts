@@ -17,7 +17,8 @@ async function loginAs(page: Page, role: "admin" | "engineer" | "viewer") {
 }
 
 async function expectSoundDocumentStructure(page: Page) {
-  await expect(page.locator("h1").first()).toBeVisible();
+  // The connection screen also has an h1; audit the actual page landmark.
+  await expect(page.locator("main h1").first()).toBeVisible({ timeout: 15000 });
   const audit = await page.evaluate(() => {
     const duplicateIds = Array.from(
       document.querySelectorAll<HTMLElement>("[id]"),
