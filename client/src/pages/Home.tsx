@@ -217,7 +217,7 @@ export default function Home() {
           <Link
             key={kpi.title}
             href={kpi.href}
-            className="overview-kpi flex min-w-0 items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
+            className="overview-kpi flex min-w-0 items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors last:col-span-2 sm:last:col-span-1 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
           >
             <kpi.icon
               className="size-7 shrink-0 text-info"

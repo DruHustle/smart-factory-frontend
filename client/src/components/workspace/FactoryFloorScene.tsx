@@ -457,14 +457,20 @@ export default function FactoryFloorScene({
       controls.addEventListener("change", change);
       const ray = new THREE.Raycaster(),
         point = new THREE.Vector2();
-      let start: [number, number] | undefined;
+      let start: { x: number; y: number; pointerId: number } | undefined;
       const down = (e: PointerEvent) => {
-        start = [e.clientX, e.clientY];
+        // A second finger starts an orbit/zoom gesture, never a selection.
+        start = e.isPrimary
+          ? { x: e.clientX, y: e.clientY, pointerId: e.pointerId }
+          : undefined;
       };
       const up = (e: PointerEvent) => {
+        const began = start;
+        start = undefined;
         if (
-          !start ||
-          Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 6
+          !began ||
+          began.pointerId !== e.pointerId ||
+          Math.hypot(e.clientX - began.x, e.clientY - began.y) > 6
         )
           return;
         const rect = renderer.domElement.getBoundingClientRect();
@@ -479,6 +485,10 @@ export default function FactoryFloorScene({
         while (node && !node.userData.ref) node = node.parent;
         if (node?.userData.ref) choose.current(node.userData.ref as string);
       };
+      const cancel = () => {
+        start = undefined;
+      };
+      renderer.domElement.addEventListener("pointercancel", cancel);
       renderer.domElement.addEventListener("pointerdown", down);
       renderer.domElement.addEventListener("pointerup", up);
       const lost = (event: Event) => {
@@ -507,6 +517,7 @@ export default function FactoryFloorScene({
         observer.disconnect();
         controls.dispose();
         runtime.current = null;
+        renderer.domElement.removeEventListener("pointercancel", cancel);
         renderer.domElement.removeEventListener("pointerdown", down);
         renderer.domElement.removeEventListener("pointerup", up);
         renderer.domElement.removeEventListener("webglcontextlost", lost);

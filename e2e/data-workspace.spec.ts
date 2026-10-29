@@ -826,3 +826,145 @@ test("Overview design shows explicitly simulated infrastructure and a truthful G
     ),
   ).toBe(true);
 });
+
+for (const width of [390, 1440]) {
+  test(`Factory floor selects equipment directly by ${width < 768 ? "touch" : "mouse"} and reveals scoped details at ${width}px`, async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      viewport: { width, height: 960 },
+      hasTouch: width < 768,
+      isMobile: width < 768,
+      baseURL: "http://127.0.0.1:3185",
+    });
+    const page = await context.newPage();
+    try {
+      await workspaceFixture(page);
+      await page.route("**/api/equipment/reference/**", (route) =>
+        route.fulfill({ status: 503 }),
+      );
+      await page.goto("/#/");
+      const canvas = page.getByRole("img", {
+        name: "Interactive 3D factory floor",
+        exact: true,
+      });
+      await expect(
+        page.getByRole("status").filter({ hasText: "57 items on floor" }),
+      ).toBeVisible();
+      const details = page.getByLabel("Selected floor item", { exact: true });
+      // Hit the actual rendered floor, exercising raycasting rather than the item list.
+      for (const y of [0.5, 0.4, 0.6, 0.3, 0.7]) {
+        for (const x of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+          if (await details.count()) break;
+          const bounds = await canvas.boundingBox();
+          if (!bounds) throw new Error("Factory canvas has no bounds");
+          const position = { x: bounds.width * x, y: bounds.height * y };
+          if (width < 768) await canvas.tap({ position });
+          else await canvas.click({ position });
+        }
+        if (await details.count()) break;
+      }
+      await expect(details).toBeVisible();
+      const ref = new URLSearchParams(
+        new URL(page.url()).hash.split("?")[1],
+      ).get("source");
+      expect(ref).toBeTruthy();
+      const n = ref?.startsWith("equipment:") ? 17 : Number(ref?.split(":")[1]);
+      await expect(details.getByRole("heading")).toHaveText(
+        `Live system ${String(n).padStart(2, "0")}`,
+      );
+      await expect(details).toContainText(`live-source-${n}`);
+      await expect(details).toContainText("unknown quality");
+      await expect(details).toContainText("No scalar values in this sample");
+      await expect(
+        details.getByRole("link", { name: "Open item", exact: true }),
+      ).toHaveAttribute(
+        "href",
+        new RegExp(encodeURIComponent(ref!) + "/overview"),
+      );
+      await expect(page.getByTestId("factory-floor")).toHaveAttribute(
+        "data-visible-items",
+        "57",
+      );
+      await page
+        .getByLabel("Factory floor zone", { exact: true })
+        .selectOption("Packaging");
+      await expect(details).toHaveCount(0);
+      await expect(
+        page.getByLabel("Selected factory section", { exact: true }),
+      ).toContainText("20 registered items");
+      await expect(
+        page.getByLabel("Selected factory section", { exact: true }),
+      ).toContainText("unknown");
+      await page
+        .getByRole("button", { name: "Floor plan", exact: true })
+        .click();
+      await page
+        .getByRole("img", {
+          name: "Accessible factory floor plan",
+          exact: true,
+        })
+        .getByRole("button", { name: "Select Live system 21", exact: true })
+        .click();
+      await expect(details.getByRole("heading")).toHaveText("Live system 21");
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+for (const width of [375, 390, 430, 768, 1440]) {
+  test(`Overview KPI cards fill their final row without an empty mobile cell at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 960 });
+    await workspaceFixture(page);
+    await page.goto("/#/");
+    const cards = page.locator(".overview-kpi");
+    await expect(cards).toHaveCount(5);
+    const grid = await page.locator(".overview-kpis").boundingBox();
+    const last = await cards.last().boundingBox();
+    expect(grid).toBeTruthy();
+    expect(last).toBeTruthy();
+    if (width < 640) {
+      expect(Math.abs(last!.width - grid!.width)).toBeLessThan(2);
+      expect(Math.abs(last!.x - grid!.x)).toBeLessThan(2);
+    } else {
+      const first = await cards.first().boundingBox();
+      expect(Math.abs(last!.width - first!.width)).toBeLessThan(2);
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  });
+}
+
+test("Factory floor details follow registered connections and preserve the factory totals", async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.goto("/#/");
+  await page.getByRole("button", { name: "Floor plan", exact: true }).click();
+  await page
+    .getByRole("img", { name: "Accessible factory floor plan", exact: true })
+    .getByRole("button", { name: "Select Live system 06", exact: true })
+    .click();
+  const details = page.getByLabel("Selected floor item", { exact: true });
+  await expect(details).toContainText("Connected items · 2");
+  await details
+    .getByRole("button", { name: "Live system 01", exact: true })
+    .click();
+  await expect(details.getByRole("heading")).toHaveText("Live system 01");
+  await expect(details).toContainText("Connected items · 1");
+  await expect(page.getByTestId("factory-floor")).toHaveAttribute(
+    "data-visible-items",
+    "57",
+  );
+});
