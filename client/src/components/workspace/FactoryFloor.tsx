@@ -2,6 +2,8 @@ import {
   Component,
   lazy,
   Suspense,
+  useEffect,
+  useRef,
   useMemo,
   useState,
   type ReactNode,
@@ -9,12 +11,14 @@ import {
 import { Link } from "wouter";
 import { Box, Expand, Layers, ArrowUpRight } from "lucide-react";
 import { layoutFactory, type FloorLink } from "@shared/factory-floor";
+import { currentSample } from "@shared/measurements";
 import { itemHref, type InventoryItem } from "@shared/inventory";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FloorPlan } from "./FactoryFloorPlan";
-import { StatusBadge } from "./Primitives";
+import { SampleTime, StatusBadge } from "./Primitives";
+import { ObservationValues } from "./ObservationValues";
 const Scene = lazy(() => import("./FactoryFloorScene"));
 class FloorSceneBoundary extends Component<
   { children: ReactNode; fallback: ReactNode },
@@ -68,6 +72,19 @@ export function FactoryFloor({
   );
   const layout = useMemo(() => layoutFactory(visible), [visible]);
   const active = items.find((item) => item.ref === selected);
+  const details = useRef<HTMLDivElement>(null);
+  const related = active
+    ? items.filter((item) =>
+        links.some(
+          (link) =>
+            (link.from === active.ref && link.to === item.ref) ||
+            (link.to === active.ref && link.from === item.ref),
+        ),
+      )
+    : [];
+  useEffect(() => {
+    if (selected) details.current?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
   return (
     <section
       className="overview-floor min-w-0 overflow-hidden rounded-lg border bg-card"
@@ -88,7 +105,10 @@ export function FactoryFloor({
           <select
             aria-label="Factory floor zone"
             value={zone}
-            onChange={(e) => setZone(e.target.value)}
+            onChange={(e) => {
+              setZone(e.target.value);
+              onSelect("");
+            }}
             className="workspace-control h-9 w-auto max-w-44"
           >
             <option value="all">Whole factory</option>
@@ -135,6 +155,47 @@ export function FactoryFloor({
           </Button>
         </div>
       </div>
+      <p className="border-b px-4 py-2 text-xs text-muted-foreground">
+        Tap or click equipment to view its details. Choose a zone to inspect
+        that section.
+      </p>
+      {zone !== "all" && (
+        <div
+          className="border-b bg-info/5 px-4 py-3"
+          aria-label="Selected factory section"
+        >
+          <h3 className="text-sm font-semibold">{zone}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {visible.length} registered items ·{" "}
+            {visible.filter((item) => item.kind === "device").length} devices &
+            gateways
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {(
+              [
+                "live",
+                "stale",
+                "offline",
+                "unknown",
+                "maintenance",
+                "error",
+              ] as const
+            ).map((status) => {
+              const count = visible.filter(
+                (item) => item.status === status,
+              ).length;
+              return count ? (
+                <span
+                  key={status}
+                  className="inline-flex items-center gap-1 text-xs"
+                >
+                  <StatusBadge status={status} /> {count}
+                </span>
+              ) : null;
+            })}
+          </div>
+        </div>
+      )}
       <div
         className="overview-floor-viewport relative h-[21rem] min-w-0"
         data-testid="factory-floor"
@@ -204,11 +265,20 @@ export function FactoryFloor({
       </div>
       {active && (
         <div
-          className="flex flex-wrap items-center justify-between gap-3 border-t bg-info/5 px-4 py-3"
+          ref={details}
+          className="scroll-mt-20 space-y-3 border-t bg-info/5 px-4 py-3"
           aria-label="Selected floor item"
         >
           <div className="min-w-0">
-            <strong className="block break-words text-sm">{active.name}</strong>
+            <p className="text-xs text-muted-foreground">
+              Selected equipment or device
+            </p>
+            <h3
+              className="mt-1 break-words text-base font-semibold"
+              aria-live="polite"
+            >
+              {active.name}
+            </h3>
             <span className="text-xs text-muted-foreground">
               {active.zone || active.location || "Unassigned"} ·{" "}
               {active.itemType.replaceAll("_", " ")}
@@ -228,6 +298,62 @@ export function FactoryFloor({
                   Inspect 3D
                 </Link>
               </Button>
+            )}
+          </div>
+          <dl className="grid gap-3 text-xs sm:grid-cols-2">
+            <div className="min-w-0">
+              <dt className="text-muted-foreground">Identifier</dt>
+              <dd className="mt-1 break-all">{active.identifier}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Configuration</dt>
+              <dd className="mt-1">
+                {active.configured ? "Connection configured" : "Not configured"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Last observation</dt>
+              <dd className="mt-1">
+                <SampleTime
+                  value={active.sampleAt}
+                  historical={!currentSample(active)}
+                />{" "}
+                · {active.quality} quality
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Lifecycle</dt>
+              <dd className="mt-1">{active.lifecycle || "Not reported"}</dd>
+            </div>
+          </dl>
+          <ObservationValues
+            reading={{
+              ...active.values,
+              measurements: active.measurements,
+              integration: { sourceQuality: active.quality },
+            }}
+          />
+          <div aria-label="Selected item connections">
+            <p className="text-xs font-medium">
+              Connected items · {related.length}
+            </p>
+            {related.length ? (
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {related.map((item) => (
+                  <li key={item.ref}>
+                    <button
+                      className="min-h-11 rounded-md border bg-background px-3 py-2 text-left text-xs hover:border-info"
+                      onClick={() => onSelect(item.ref)}
+                    >
+                      {item.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                No registered connections for this item.
+              </p>
             )}
           </div>
         </div>
