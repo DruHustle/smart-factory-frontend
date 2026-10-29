@@ -56,6 +56,8 @@ const walkthroughQueries = new Set([
   "system.infrastructure",
   "assistant.context",
   "inventory.list",
+  "factory.floor",
+  "networkDiagnostics.overview",
   "inventory.item",
   "devices.monitor",
   "devices.heartbeatHistory",

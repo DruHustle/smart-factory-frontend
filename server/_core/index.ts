@@ -1,4 +1,5 @@
 import { installRequestMetrics } from "../infrastructure/metrics";
+import { installNetworkDiagnostics } from "../network-diagnostics/http";
 import { installRecoveryEvidence, startInfrastructureMonitoring } from "../infrastructure/store";
 import { requestedDataWorkspace } from "../../shared/data-workspace";
 import { installOperatingEvidence } from "../operatingEvidence";
@@ -194,6 +195,7 @@ async function startServer() {
   });
 
   installOperatingEvidence(app);
+  installNetworkDiagnostics(app);
   installRecoveryEvidence(app);
   installArtifactRoutes(app);
 

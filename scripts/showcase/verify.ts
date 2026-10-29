@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { sql } from "drizzle-orm";
 import { getDb, closeDatabase } from "../../server/db";
 import { planShowcase, seedCompleteShowcase } from "./complete";
+import { factoryFloor } from "../../server/factory";
+import { floorSpec, floorDevices } from "./factory-floor";
 import { workspace } from "../../server/equipment/local";
 import { withVisibility } from "../../server/demoData";
 const url = new URL(process.env.DATABASE_URL ?? "");
@@ -27,7 +29,26 @@ try {
     before,
     "Installation must retain original evidence and avoid duplicate rows",
   );
-  assert.equal(s.chapters?.length, 13);
+  assert.equal(s.chapters?.length, 15);
+  const floor = await withVisibility(
+    { demoOnly: true, includeDemo: true },
+    () => factoryFloor(),
+  );
+  assert.ok(
+    floor.items.length > 50,
+    "Whole factory must exceed an ordinary inventory page",
+  );
+  assert.equal(floor.items.length, floor.total);
+  for (const [key] of floorSpec)
+    assert.ok(
+      floor.items.some(
+        (i) => i.identifier === `urn:smart-factory:showcase:floor:${key}`,
+      ),
+    );
+  for (const d of floorDevices)
+    assert.ok(floor.items.some((i) => i.identifier === d.deviceId));
+  assert.ok(floor.links.length >= 32);
+  assert.equal(new Set(floor.items.map((i) => i.ref)).size, floor.items.length);
   assert.ok(s.raspberryPiRef);
   const pi = await withVisibility({ demoOnly: true, includeDemo: true }, () =>
     workspace(s.raspberryPiRef!.slice("equipment:".length)),
@@ -104,7 +125,7 @@ try {
     );
   }
   console.log(
-    "Complete showcase verified: idempotence, 13 chapters, detailed pump and Raspberry Pi, bound measurements, histories, mapped evidence, no email queue or live connectivity claim.",
+    "Complete showcase verified: idempotence, 15 chapters and a complete factory floor, detailed pump and Raspberry Pi, bound measurements, histories, mapped evidence, no email queue or live connectivity claim.",
   );
 } finally {
   await closeDatabase();

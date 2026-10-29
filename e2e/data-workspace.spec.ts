@@ -6,12 +6,18 @@ import {
   requiredCapabilities,
   runtimeContractVersion,
 } from "../shared/runtime-contract";
+import { demoNetwork } from "../server/network-diagnostics/demo";
+import { canonicalUnits } from "../shared/measurements";
 import type { InventoryItem } from "../shared/inventory";
 
 // Browser contracts use clearly labelled synthetic records and the real UI.
 // API authorization and record isolation are independently covered by the
 // private/shared acceptance suites; these mocks cannot establish authorization.
-async function workspaceFixture(page: Page, restricted = false) {
+async function workspaceFixture(
+  page: Page,
+  restricted = false,
+  control: { floor: "normal" | "empty" | "error" } = { floor: "normal" },
+) {
   let signedIn = true;
   const requests: { procedure: string; input: any }[] = [];
   await page.route("**/api/runtime/contract", (route) =>
@@ -38,7 +44,7 @@ async function workspaceFixture(page: Page, restricted = false) {
     const demo =
       restricted || /smart_factory_data_workspace=demo(?:;|$)/.test(cookie);
     const mode = demo ? "Demo" : "Live";
-    const items: InventoryItem[] = Array.from({ length: 17 }, (_, index) => {
+    const items: InventoryItem[] = Array.from({ length: 57 }, (_, index) => {
       const n = index + 1;
       const kind = n <= 5 ? "asset" : n === 17 ? "equipment" : "device";
       const id =
@@ -60,7 +66,8 @@ async function workspaceFixture(page: Page, restricted = false) {
                 ? "3D equipment"
                 : "sensor",
         location: "Synthetic factory",
-        zone: "Assembly",
+        zone:
+          n <= 20 ? "Assembly" : n <= 40 ? "Packaging" : "Process utilities",
         configured: n !== 16,
         isDemo: demo,
         route: n === 16 ? "Not configured" : "Linked devices",
@@ -79,9 +86,33 @@ async function workspaceFixture(page: Page, restricted = false) {
         firmware: null,
       };
     });
+    const groups = [
+      { kind: "asset", itemType: "pump", equipment: true, count: 2 },
+      { kind: "asset", itemType: "pump", equipment: false, count: 3 },
+      { kind: "device", itemType: "gateway", equipment: false, count: 7 },
+      { kind: "device", itemType: "sensor", equipment: false, count: 44 },
+      {
+        kind: "equipment",
+        itemType: "3D equipment",
+        equipment: true,
+        count: 1,
+      },
+    ];
     const responses = procedures.map((procedure, index) => {
       const input = (batch ? inputs[String(index)]?.json : inputs.json) ?? {};
       requests.push({ procedure, input });
+      if (procedure === "factory.floor" && control.floor === "error")
+        return {
+          error: superjson.serialize({
+            message: "Isolated floor interruption",
+            code: -32603,
+            data: {
+              code: "INTERNAL_SERVER_ERROR",
+              httpStatus: 500,
+              path: procedure,
+            },
+          }),
+        };
       let value: unknown;
       switch (procedure) {
         case "auth.me":
@@ -119,11 +150,11 @@ async function workspaceFixture(page: Page, restricted = false) {
         case "analytics.getOverview":
           value = {
             devices: {
-              total: 11,
+              total: 51,
               online: 0,
               stale: 0,
               offline: 0,
-              unknown: 11,
+              unknown: 51,
               maintenance: 0,
               error: 0,
             },
@@ -139,6 +170,70 @@ async function workspaceFixture(page: Page, restricted = false) {
         case "alerts.list":
           value = [];
           break;
+        case "factory.floor":
+          value = {
+            items: control.floor === "empty" ? [] : items,
+            total: control.floor === "empty" ? 0 : items.length,
+            groups: control.floor === "empty" ? [] : groups,
+            links: [
+              {
+                from: "device:6",
+                to: "asset:1",
+                kind: "acquisition",
+                label: "opcua",
+              },
+              {
+                from: "device:6",
+                to: "device:13",
+                kind: "gateway",
+                label: "Gateway uplink",
+              },
+            ],
+            complete: true,
+            sampledAt: new Date().toISOString(),
+          };
+          break;
+        case "networkDiagnostics.overview":
+          value = demo
+            ? demoNetwork(input.scenario)
+            : {
+                synthetic: false,
+                scenario: "operational",
+                snapshots: [],
+                importedAt: null,
+                stale: false,
+                provenance: "unavailable",
+              };
+          break;
+        case "readings.trend": {
+          const buckets = Array.from({ length: 30 }, (_, n) => ({
+            timestamp: input.startTime + n * 60000,
+            value: n === 8 ? null : 30 + Math.sin(n / 4) * 5,
+            count: n === 8 ? 0 : 6,
+          }));
+          value = {
+            scope: input.scope,
+            metric: input.metric,
+            unit: canonicalUnits[input.metric as keyof typeof canonicalUnits],
+            startTime: input.startTime,
+            endTime: input.endTime,
+            intervalMs: 60000,
+            total: 174,
+            verified: 174,
+            unverified: 0,
+            statisticsComplete: true,
+            truncated: false,
+            summary: {
+              min: 25,
+              max: 35,
+              average: 30,
+              latest: 33,
+              latestAt: input.endTime,
+            },
+            buckets,
+          };
+          break;
+        }
         case "inventory.list": {
           const start = Number(input.page ?? 0) * Number(input.pageSize ?? 12);
           value = {
@@ -220,59 +315,74 @@ async function workspaceFixture(page: Page, restricted = false) {
 }
 
 for (const width of [390, 1440]) {
-  test(`Overview graphics data modes: individual switches both ways and persists the scope at ${width}px`, async ({
+  test(`Overview graphics data modes: individual switches both ways and persists at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 960 });
     const requests = await workspaceFixture(page);
     const errors: string[] = [];
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(
-      "/?equipment=00000000-0000-4000-8000-000000000001#/?itemsPage=1",
+      "/?equipment=00000000-0000-4000-8000-000000000001#/?source=asset%3A1",
     );
     const selector = page.getByRole("combobox", {
       name: "Data workspace",
       exact: true,
     });
+    const floor = page.getByTestId("factory-floor");
+    await expect(selector).toHaveValue("live");
+    await expect(floor).toHaveAttribute("data-total-items", "57");
+    await page
+      .locator("summary")
+      .filter({ hasText: /^Find an item/ })
+      .click();
     const list = page.getByRole("list", {
-      name: "System inventory items",
+      name: "Factory floor items",
       exact: true,
     });
-    await expect(selector).toHaveValue("live");
-    await expect(list.getByRole("listitem")).toHaveCount(5);
-    await expect(list).toContainText("Live system 17");
+    await expect(list.getByRole("listitem")).toHaveCount(57);
+    await expect(list).toContainText("Live system 57");
     let navigations = 0;
     page.on("request", (request) => {
-      // History replacement is a same-document URL update, not a reload.
       if (request.isNavigationRequest() && request.frame() === page.mainFrame())
         navigations++;
     });
     await selector.selectOption("demo");
     await expect(selector).toHaveValue("demo");
-    await expect(list.getByRole("listitem")).toHaveCount(12);
-    await expect(list).toContainText("Demo system 01");
+    await expect(floor).toHaveAttribute("data-visible-items", "57");
+    await page
+      .locator("summary")
+      .filter({ hasText: /^Find an item/ })
+      .click();
+    await expect(list).toContainText("Demo system 57");
     await expect(list).not.toContainText("Live system");
     expect(new URL(page.url()).search).toBe("");
     expect(new URL(page.url()).hash).toBe("#/");
     expect(navigations).toBe(1);
     await page.reload();
     await expect(selector).toHaveValue("demo");
-    await expect(list).toContainText("Demo system 01");
+    await expect(floor).toHaveAttribute("data-total-items", "57");
     navigations = 0;
     await selector.selectOption("live");
     await expect(selector).toHaveValue("live");
-    await expect(list).toContainText("Live system 01");
-    await expect(list).not.toContainText("Demo system");
+    await expect(floor).toHaveAttribute("data-total-items", "57");
     expect(navigations).toBe(1);
     expect(
       (await page.context().cookies()).find(
-        (cookie) => cookie.name === "smart_factory_data_workspace",
+        (c) => c.name === "smart_factory_data_workspace",
       )?.value,
     ).toBe("live");
+    await expect
+      .poll(
+        () => requests.filter((r) => r.procedure === "readings.trend").length,
+      )
+      .toBeGreaterThan(0);
+    for (const request of requests.filter(
+      (r) => r.procedure === "readings.trend",
+    ))
+      expect(request.input.assetIds).toHaveLength(6);
     expect(
-      requests.filter(({ procedure }) =>
-        /equipment\.|readings\.trend/.test(procedure),
-      ),
+      requests.filter((r) => /equipment\.(get|workspace)/.test(r.procedure)),
     ).toEqual([]);
     expect(errors).toEqual([]);
     expect(
@@ -282,7 +392,7 @@ for (const width of [390, 1440]) {
     ).toBe(true);
   });
 
-  test(`Overview graphics data modes: demo restriction explains live access and offers account switching at ${width}px`, async ({
+  test(`Overview graphics data modes: shared demo explains live access at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 960 });
@@ -315,81 +425,163 @@ for (const width of [390, 1440]) {
     await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
     expect(
       (await page.context().cookies()).some(
-        (cookie) => cookie.name === "smart_factory_data_workspace",
+        (c) => c.name === "smart_factory_data_workspace",
       ),
     ).toBe(false);
   });
 }
 
-test("Overview graphics factory flow includes every gateway and independent item across pages", async ({
+test("Overview graphics renders all 57 items in 3D, preserves whole-factory scope after selection and supports the floor plan", async ({
   page,
 }) => {
   const requests = await workspaceFixture(page);
+  await page.route("**/api/equipment/reference/**", (route) =>
+    route.fulfill({
+      status: 503,
+      body: "Reference unavailable in this proxy-rendering fixture",
+    }),
+  );
   await page.goto("/#/");
-  const paths = page.getByRole("list", {
-    name: "Factory gateway paths",
+  const floor = page.getByTestId("factory-floor");
+  await expect(floor).toHaveAttribute("data-visible-items", "57");
+  const canvas = page.getByRole("img", {
+    name: "Interactive 3D factory floor",
     exact: true,
   });
-  // Assert the six gateway roots, rather than counting nested asset/device nodes.
-  await expect(paths.locator(":scope > li")).toHaveCount(6);
+  await expect(canvas).toHaveAttribute("data-floor-node-count", "57");
   await expect(
-    page.getByRole("list", {
-      name: "Recorded links for Live system 06",
-      exact: true,
-    }),
-  ).toContainText("Live system 01");
-  await expect(
-    page.getByRole("list", {
-      name: "Recorded links for Live system 06",
-      exact: true,
-    }),
-  ).toContainText("Live system 13");
-  const distribution = page.getByRole("group", {
-    name: "System item types",
-    exact: true,
-  });
-  await expect(distribution).toContainText("17");
-  await page
-    .getByRole("button", { name: "Next gateways", exact: true })
-    .click();
-  await expect(paths.locator(":scope > li")).toHaveCount(1);
-  await expect(paths).toContainText("Live system 12");
-  await expect(
-    page.getByRole("button", { name: "Next gateways", exact: true }),
-  ).toBeDisabled();
-  await expect(distribution).toContainText("17");
-  await page.getByRole("button", { name: "Next items", exact: true }).click();
-  const items = page.getByRole("list", {
-    name: "System inventory items",
-    exact: true,
-  });
-  await expect(items.getByRole("listitem")).toHaveCount(5);
-  await expect(items).toContainText("Live system 16");
-  await expect(items).toContainText("Not configured");
-  await expect(items).toContainText("Live system 17");
-  await page.reload();
-  await expect(paths.locator(":scope > li")).toHaveCount(1);
-  await expect(items.getByRole("listitem")).toHaveCount(5);
-  await page.goto("/#/?gatewaysPage=999");
-  await expect(
-    page.getByText("This gateway page is no longer available", { exact: true }),
+    page.getByRole("status").filter({ hasText: "57 items on floor" }),
   ).toBeVisible();
-  await expect(distribution).toContainText("17");
   await page
-    .getByRole("button", { name: "First gateway page", exact: true })
+    .locator("summary")
+    .filter({ hasText: /^Find an item/ })
     .click();
-  await expect(paths.locator(":scope > li")).toHaveCount(6);
-  await expect(items.getByRole("listitem")).toHaveCount(12);
+  const list = page.getByRole("list", {
+    name: "Factory floor items",
+    exact: true,
+  });
+  await expect(list.getByRole("listitem")).toHaveCount(57);
+  await list
+    .getByRole("button", { name: "Live system 57", exact: true })
+    .click();
+  await expect(page.getByLabel("Selected floor item")).toContainText(
+    "Live system 57",
+  );
+  await expect(floor).toHaveAttribute("data-visible-items", "57");
+  await expect(
+    page.getByRole("link", { name: "Open item", exact: true }),
+  ).toHaveAttribute("href", /#\/inventory\/device%3A57\/overview/);
+  await page.getByRole("button", { name: "Floor plan", exact: true }).click();
+  const plan = page.getByRole("img", {
+    name: "Accessible factory floor plan",
+    exact: true,
+  });
+  await expect(plan.getByRole("button")).toHaveCount(57);
+  await page
+    .getByLabel("Factory floor zone", { exact: true })
+    .selectOption("Packaging");
+  await expect(floor).toHaveAttribute("data-visible-items", "20");
+  await page
+    .getByRole("button", { name: "Fit whole factory floor", exact: true })
+    .click();
+  await expect(floor).toHaveAttribute("data-visible-items", "57");
+  await expect(
+    page.getByRole("group", { name: "System item types", exact: true }),
+  ).toContainText("57");
+  await expect(
+    page.getByRole("heading", { name: "Factory observations", exact: true }),
+  ).toBeVisible();
   expect(
-    requests.filter(({ procedure }) =>
-      /equipment\.|readings\.trend/.test(procedure),
-    ),
+    requests.filter((r) => /devices\.getConnected/.test(r.procedure)),
   ).toEqual([]);
   mkdirSync("test-results/factory-overview", { recursive: true });
-  await expect(paths.locator(":scope > li")).toHaveCount(6);
   await page.screenshot({
-    path: join("test-results/factory-overview", "factory-wide-overview.png"),
+    path: join("test-results/factory-overview", "factory-complete-plan.png"),
     fullPage: true,
     animations: "disabled",
   });
+});
+
+test("Overview graphics FX and TSN scenarios show late timing, clock loss and recovery without machine mutations", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page, true);
+  await page.goto("/#/network");
+  await expect(
+    page.getByRole("heading", { name: "FX & TSN", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("list", { name: "FX automation components", exact: true })
+      .getByRole("listitem"),
+  ).toHaveCount(4);
+  await expect(
+    page.getByRole("button", { name: "Import snapshot", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("tab", { name: "Timing & diagnostics", exact: true })
+    .click();
+  await expect(
+    page.getByRole("img", {
+      name: "Reported clock offset in nanoseconds",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Network demonstration scenario", { exact: true })
+    .selectOption("late-delivery");
+  await expect(page.getByText("12", { exact: true })).toBeVisible();
+  await page
+    .getByLabel("Network demonstration scenario", { exact: true })
+    .selectOption("clock-loss");
+  await expect(page.getByText(/One-way latency unavailable/)).toBeVisible();
+  await page
+    .getByLabel("Network demonstration scenario", { exact: true })
+    .selectOption("recovery");
+  await expect(page.getByText(/One-way latency unavailable/)).toHaveCount(0);
+  await expect(
+    page.getByRole("img", {
+      name: "Reported stream latency and jitter in microseconds",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(
+    requests.filter((r) =>
+      /importSnapshot|deploy|control|simulate/.test(r.procedure),
+    ),
+  ).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("Overview graphics distinguishes an unavailable floor from empty inventory and recovers complete scope", async ({
+  page,
+}) => {
+  const control: { floor: "normal" | "empty" | "error" } = { floor: "error" };
+  await workspaceFixture(page, false, control);
+  await page.goto("/#/");
+  await expect(
+    page.getByText("Factory floor unavailable", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("No registered factory items", { exact: true }),
+  ).toHaveCount(0);
+  control.floor = "empty";
+  await page
+    .getByRole("button", { name: "Retry factory floor", exact: true })
+    .click();
+  await expect(
+    page.getByText("No registered factory items", { exact: true }),
+  ).toBeVisible();
+  control.floor = "normal";
+  await page
+    .getByRole("button", { name: "Refresh overview", exact: true })
+    .click();
+  await expect(page.getByTestId("factory-floor")).toHaveAttribute(
+    "data-visible-items",
+    "57",
+  );
 });

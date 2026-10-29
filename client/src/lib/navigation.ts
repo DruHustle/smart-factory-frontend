@@ -14,6 +14,7 @@ import {
   PanelsTopLeft,
   Server,
   HeartPulse,
+  Network,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,6 +40,7 @@ export const navigationGroups: NavigationGroup[] = [
     label: "Operations",
     items: [
       { icon: Activity, label: "Monitoring", path: "/monitoring" },
+      { icon: Network, label: "FX & TSN", path: "/network" },
       { icon: AlertTriangle, label: "Alerts", path: "/alerts" },
       {
         icon: Download,

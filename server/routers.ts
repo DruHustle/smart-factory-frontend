@@ -14,6 +14,8 @@ import { evidenceScope } from "./evidenceScope";
 import * as passports from "./passport";
 import { demoOnlyRead } from "./demoData";
 import { inventoryRouter } from "./inventory";
+import { factoryRouter } from "./factory";
+import { networkDiagnosticsRouter } from "./network-diagnostics/router";
 import {
   registerDeviceInput,
   editCommissioningInput,
@@ -500,6 +502,8 @@ export const appRouter = router({
   }),
 
   inventory: inventoryRouter,
+  factory: factoryRouter,
+  networkDiagnostics: networkDiagnosticsRouter,
   devices: router({
     heartbeatHistory: viewerProcedure
       .input(z.object({ id: z.number().int().positive() }))

@@ -15,6 +15,13 @@ export default defineConfig({
     ...devices["Desktop Chrome"],
     baseURL: "http://127.0.0.1:3185",
     trace: "retain-on-failure",
+    launchOptions: {
+      args: [
+        "--use-gl=angle",
+        "--use-angle=swiftshader",
+        "--enable-unsafe-swiftshader",
+      ],
+    },
     screenshot: "only-on-failure",
   },
   webServer: {
