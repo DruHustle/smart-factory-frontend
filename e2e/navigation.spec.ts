@@ -158,6 +158,7 @@ for (const persona of personas)
         "Overview",
         "Assets & devices",
         "Monitoring",
+        "FX & TSN",
         "Alerts",
         ...(engineering ? ["Firmware & updates"] : []),
         "Cybersecurity",

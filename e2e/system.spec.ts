@@ -909,7 +909,9 @@ test("viewer sees asset summaries while engineering and admin screens stay hidde
     page.getByRole("heading", { name: /^overview$/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Assets & devices", exact: true }),
+    page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "Assets & devices", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Firmware & updates" }),
@@ -940,7 +942,9 @@ test("operator can acknowledge alerts but cannot open AAS or user administration
 }) => {
   await loginAs(page, "operator");
   await expect(
-    page.getByRole("link", { name: "Assets & devices", exact: true }),
+    page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "Assets & devices", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Firmware & updates" }),

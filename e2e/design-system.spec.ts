@@ -2,8 +2,7 @@ import { test, expect } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { enterSimulation, noOverflow } from "./visual-workspace-helpers";
 const dir =
-  process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ??
-  "test-results/visual-workspaces";
+  process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ?? "test-results/visual-workspaces";
 for (const width of [360, 390, 768, 1024, 1440])
   for (const theme of ["light", "dark"])
     test(`shared typography and graphical workspaces ${width} ${theme}`, async ({
@@ -63,6 +62,7 @@ for (const width of [360, 390, 768, 1024, 1440])
         ["overview", "/", "Overview"],
         ["inventory", "/inventory", "Assets & devices"],
         ["monitoring", "/monitoring", "Monitoring"],
+        ["network", "/network", "FX & TSN"],
         ["alerts", "/alerts", "Alerts"],
         ["security", "/cybersecurity", "Cybersecurity"],
         ["analytics", "/analytics", "Analytics"],
@@ -80,7 +80,9 @@ for (const width of [360, 390, 768, 1024, 1440])
         expect(
           await heading.evaluate((el) => getComputedStyle(el).fontSize),
         ).toBe("26px");
-        expect(await heading.evaluate(el=>getComputedStyle(el).fontWeight)).toBe('730');
+        expect(
+          await heading.evaluate((el) => getComputedStyle(el).fontWeight),
+        ).toBe("730");
         await noOverflow(page);
         const fields = page.locator(
           "input:not([type=checkbox]):not([type=range]):visible,select:visible,textarea:visible",

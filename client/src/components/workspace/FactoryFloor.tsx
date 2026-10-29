@@ -89,7 +89,7 @@ export function FactoryFloor({
             aria-label="Factory floor zone"
             value={zone}
             onChange={(e) => setZone(e.target.value)}
-            className="h-9 max-w-44 rounded-md border bg-background px-2 text-xs"
+            className="workspace-control h-9 w-auto max-w-44"
           >
             <option value="all">Whole factory</option>
             {zones.map((name) => (
@@ -272,6 +272,7 @@ export function FactoryFloor({
                 <li key={item.ref}>
                   <button
                     className={`w-full rounded-md border px-3 py-2 text-left text-xs hover:bg-muted ${selected === item.ref ? "border-info bg-info/5" : ""}`}
+                    aria-label={item.name}
                     aria-pressed={selected === item.ref}
                     onClick={() => {
                       setZone("all");
