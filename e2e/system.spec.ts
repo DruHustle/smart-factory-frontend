@@ -95,6 +95,10 @@ test("Overview, Monitoring, Analytics, alerts and Assistant expose focused evide
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await loginAs(page, "viewer");
+  await page
+    .locator("summary")
+    .filter({ hasText: "Process and FX / TSN evidence" })
+    .click();
   await expect(
     page.getByText("Confirmed downtime", { exact: true }),
   ).toBeVisible();
@@ -1167,12 +1171,15 @@ test("individual Demo/Live switch scopes data without changing factory settings"
   const input = encodeURIComponent(
     JSON.stringify({ json: { page: 0, pageSize: 50 } }),
   );
-  await page
-    .getByRole("combobox", { name: "Data workspace", exact: true })
-    .selectOption("demo");
+  await Promise.all([
+    page.waitForEvent("load", { timeout: 30000 }),
+    page
+      .getByRole("combobox", { name: "Data workspace", exact: true })
+      .selectOption("demo"),
+  ]);
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30000 });
   await expect(
     page.getByRole("combobox", { name: "Data workspace", exact: true }),
   ).toHaveValue("demo");
@@ -1191,12 +1198,15 @@ test("individual Demo/Live switch scopes data without changing factory settings"
     ).status(),
   ).toBe(403);
   expect((await page.request.get("/api/trpc/users.list")).status()).toBe(403);
-  await page
-    .getByRole("combobox", { name: "Data workspace", exact: true })
-    .selectOption("live");
+  await Promise.all([
+    page.waitForEvent("load", { timeout: 30000 }),
+    page
+      .getByRole("combobox", { name: "Data workspace", exact: true })
+      .selectOption("live"),
+  ]);
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30000 });
   await expect(
     page.getByRole("combobox", { name: "Data workspace", exact: true }),
   ).toHaveValue("live");

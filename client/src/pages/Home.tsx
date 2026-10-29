@@ -440,8 +440,8 @@ export default function Home() {
               </span>
             </p>
             <p className="text-muted-foreground">
-              Confirmed downtime · {stats?.alerts.activeDowntime ?? "…"}{" "}
-              explicitly confirmed events
+              <span>Confirmed downtime</span> ·{" "}
+              {stats?.alerts.activeDowntime ?? "…"} explicitly confirmed events
             </p>
             <Link
               href="/cybersecurity"
