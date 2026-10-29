@@ -45,6 +45,8 @@ import { SafeMarkdown } from "@/components/SafeMarkdown";
 import { EvidenceInspector } from "@/components/assistant/EvidenceInspector";
 import { AnswerVisual } from "@/components/assistant/AnswerVisual";
 import { EquipmentContextSelect } from "@/components/assistant/EquipmentContextSelect";
+import { AssistantModelSelect } from "@/components/assistant/AssistantModelSelect";
+import { assistantProviderLabels } from "@shared/assistant-providers";
 
 function time(value: string) {
   const at = Date.parse(value);
@@ -106,6 +108,7 @@ export default function Assistant() {
     session.turns.find((t) => t.id === session.selectedTurnId) ??
     session.turns.at(-1);
   const ask = trpc.assistant.ask.useMutation();
+  const utils = trpc.useUtils();
   const scrollToLatest = (smooth = true) => {
     follow.current = true;
     setShowLatest(false);
@@ -239,6 +242,8 @@ export default function Assistant() {
         generation,
       );
     } catch (error) {
+      if (error instanceof Error && error.message.includes("selected AI provider or model"))
+        void utils.assistant.providers.invalidate();
       updateAssistantSession(
         owner,
         (s) => ({
@@ -295,7 +300,7 @@ export default function Assistant() {
       question,
       submittedAt: new Date().toISOString(),
       context,
-      request: { question, selectedAssetId: context?.assetId, history },
+      request: { question, selectedAssetId: context?.assetId, history, selection: current.selection },
       status: "pending",
     };
     setSession((s) => ({
@@ -312,13 +317,14 @@ export default function Assistant() {
   };
   const retry = (turn: AssistantTurn) => {
     if (requestPending.current || busy) return;
+    const request = { ...turn.request, selection: (readAssistantSession(owner) ?? session).selection };
     setSession((s) => ({
       ...s,
       turns: s.turns.map((t) =>
-        t.id === turn.id ? { ...t, status: "pending", error: undefined } : t,
+        t.id === turn.id ? { ...t, request, status: "pending", error: undefined } : t,
       ),
     }));
-    void perform(turn, session.draft === turn.question ? session.draft : "");
+    void perform({ ...turn, request }, session.draft === turn.question ? session.draft : "");
   };
   const newConversation = () => {
     if (busy || requestPending.current) return;
@@ -380,6 +386,7 @@ export default function Assistant() {
           </div>
         }
       />
+      <AssistantModelSelect value={session.selection} disabled={busy} onChange={(selection) => setSession((s) => ({ ...s, selection }))} />
       <section
         aria-label="Conversation"
         className={`grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] ${session.turns.length ? "items-stretch" : "items-start"}`}
@@ -539,6 +546,9 @@ export default function Assistant() {
                               {time(turn.result.contextAt)}
                             </time>
                           )}
+                          {turn.result?.execution && <span data-testid="assistant-execution">
+                            {turn.result.execution.provider === "local" ? "Local knowledge" : `${assistantProviderLabels[turn.result.execution.provider]} · ${turn.result.execution.model}`}
+                          </span>}
                         </div>
                         {turn.status === "pending" ? (
                           <div

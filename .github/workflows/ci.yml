@@ -157,6 +157,45 @@ jobs:
           path: test-results/
           if-no-files-found: warn
 
+  complete-feature-journeys:
+    name: Full feature journeys (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: product-experience
+            script: e2e:experience
+          - suite: resource-budget
+            script: e2e:resources
+          - suite: private-integration
+            script: e2e:onesa
+          - suite: rendering
+            script: e2e:rendering
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { persist-credentials: false }
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with: { version: 10.34.5 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify the complete isolated feature journey
+        run: pnpm ${{ matrix.script }}
+        env:
+          EXPERIENCE_CAPTURE_PHASE: preview
+          EXPERIENCE_PREVIEW_DIR: test-results/product-experience
+          RESOURCE_EVIDENCE_DIR: test-results/resources/evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: complete-feature-${{ matrix.suite }}
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
   visual-workspaces:
     name: Visual navigation and overview
     runs-on: ubuntu-24.04

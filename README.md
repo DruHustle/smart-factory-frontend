@@ -8,6 +8,8 @@ Production topology is **Vercel UI → Oracle ARM64 API**, with a separate **sin
 
 [28 October review and gap remediation](docs/review-2026-10-28.md) · [Service health operating guide](docs/service-health.md)
 
+[Repository feature review and AI provider selection](docs/repository-feature-review.md)
+
 ## Local development
 
 All three repositories belong under the plain `smart-factory` workspace parent.
@@ -38,7 +40,7 @@ Open `http://localhost:3000`. Create the first individual administrator using th
 - **Alerts** contains process investigations, assignment, notes and explicit downtime confirmation. **Cybersecurity** owns separate findings, evidence, sources, incidents and reviewed policies.
 - **Analytics** aggregates the complete selected evidence range in SQL; bounded chart buckets retain missing-data gaps. Exports describe scope and completeness.
 - **3D inspection** runs independently with the existing detailed reference geometry, component tree, inspector, explode/reassemble, section caps, ghost housings, saved views and accessible BOM fallback. A reference model is illustrative; parent observations are not component measurements.
-- **Assistant** is read-only and uses the same authorized evidence scope. Local fallback works without a provider. **Administration** contains users, integrations, recorded audits, settings and operating evidence. Notifications remain owner-scoped in the header.
+- **Assistant** is read-only and uses the same authorized evidence scope. Its AI provider/model picker supports approved Gemini, Groq, OpenAI, Anthropic and compatible services; local knowledge remains available without a provider. See [AI service configuration](docs/assistant.md). **Administration** contains users, integrations, recorded audits, settings and operating evidence. Notifications remain owner-scoped in the header.
 - **Service health** gives individual administrators scoped dependency, resource, queue, collector, history and recovery evidence. Shared demonstrations use fixed synthetic scenarios.
 
 Registration saves identity, explicit links and a reviewed software route. It does not install credentials, publish a gateway profile or establish physical commissioning. Protocol secrets stay outside browser records and published mappings. Native OTA remains unavailable until a verified updater is installed.
@@ -69,6 +71,9 @@ pnpm e2e:workspace
 pnpm e2e:experience
 pnpm e2e:equipment
 pnpm e2e:security
+pnpm e2e:resources
+pnpm e2e:onesa
+pnpm e2e:rendering
 pnpm deployment:check
 pnpm docs:check
 ```

@@ -68,6 +68,8 @@ import {
 } from "../shared/demo-accounts";
 import { edgeTagMappingsSchema } from "../shared/edge-configuration";
 import { answerFactoryQuestion } from "./assistantKnowledge";
+import { assistantSelection } from "../shared/assistant-providers";
+import { assistantProviderCatalog, validateAssistantSelection } from "./assistantProvider";
 import {
   AccountAccessError,
   changeUserAccess,
@@ -1777,6 +1779,7 @@ export const appRouter = router({
   }),
 
   assistant: router({
+    providers: viewerProcedure.query(() => assistantProviderCatalog(!demoOnlyRead())),
     context: viewerProcedure
       .input(z.object({ assetId: z.string().trim().min(3).max(128) }))
       .query(async ({ input }) =>
@@ -1789,6 +1792,7 @@ export const appRouter = router({
         z.object({
           question: z.string().trim().min(3).max(500),
           selectedAssetId: z.string().trim().min(3).max(128).optional(),
+          selection: assistantSelection.optional(),
           history: z
             .array(
               z.object({
@@ -1801,6 +1805,11 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ input, ctx }) => {
+        try {
+          validateAssistantSelection(input.selection, !demoOnlyRead());
+        } catch {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "The selected AI provider or model is no longer available. Choose an enabled option." });
+        }
         if (
           /\b(security|cybersecurity|vulnerabilit(?:y|ies)|cyber)\b/i.test(
             input.question,
@@ -1812,6 +1821,7 @@ export const appRouter = router({
                 "Cybersecurity collection is disabled. Existing equipment and telemetry remain available; no security assessment is implied.",
               sources: [],
               contextAt: new Date().toISOString(),
+              execution: { provider: "local" as const, model: null },
             };
           const { overview, findings, filters } =
             await import("./security/service");
@@ -1833,6 +1843,7 @@ export const appRouter = router({
                 },
               ],
               contextAt: new Date().toISOString(),
+              execution: { provider: "local" as const, model: null },
             };
           } catch {
             return {
@@ -1840,6 +1851,7 @@ export const appRouter = router({
                 "Security evidence is unavailable. Review the Cybersecurity workspace source status and configured permissions; no secure assessment can be made.",
               sources: [],
               contextAt: new Date().toISOString(),
+              execution: { provider: "local" as const, model: null },
             };
           }
         }
@@ -1851,8 +1863,9 @@ export const appRouter = router({
           role: ctx.user.role,
           selectedAssetId: input.selectedAssetId,
           history: input.history,
+          selection: input.selection,
         });
-        return publicResult;
+        return { ...publicResult, execution: { provider: _provider, model: _model } };
       }),
   }),
 });

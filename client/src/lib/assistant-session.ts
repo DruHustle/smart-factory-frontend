@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AssistantAnswer } from "@shared/assistant";
+import type { AssistantSelection } from "@shared/assistant-providers";
 export type TurnContext = { assetId: string; name: string } | null;
 export type AssistantTurn = {
   id: string;
@@ -9,6 +10,7 @@ export type AssistantTurn = {
   request: {
     question: string;
     selectedAssetId?: string;
+    selection?: AssistantSelection;
     history: Array<{ role: "user" | "assistant"; content: string }>;
   };
   status: "pending" | "complete" | "failed";
@@ -21,6 +23,7 @@ export type AssistantSession = {
   draft: string;
   selectedAssetId: string;
   selectedAssetName: string | null;
+  selection: AssistantSelection;
   turns: AssistantTurn[];
   selectedTurnId: string | null;
   scrollTop: number;
@@ -77,6 +80,7 @@ export function useAssistantSession(owner: string) {
       draft: "",
       selectedAssetId: "automatic",
       selectedAssetName: null,
+      selection: { provider: "auto" },
       turns: [],
       selectedTurnId: null,
       scrollTop: 0,

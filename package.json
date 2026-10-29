@@ -32,6 +32,8 @@
     "e2e:experience": "bash scripts/experience/e2e.sh",
     "e2e:public-demo": "bash scripts/public-demo/e2e.sh",
     "e2e:resources": "bash scripts/resources/e2e.sh",
+    "e2e:onesa": "bash scripts/onesa/e2e.sh",
+    "e2e:rendering": "node scripts/equipment/qualify-rendering.mjs",
     "e2e:visual-workspaces": "PUBLIC_DEMO_PLAYWRIGHT_CONFIG=playwright.visual-workspaces.config.ts PUBLIC_DEMO_COMPOSE_PROJECT=smart-factory-visual-workspaces-e2e bash scripts/public-demo/e2e.sh"
   },
   "dependencies": {
