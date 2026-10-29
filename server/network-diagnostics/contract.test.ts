@@ -48,6 +48,11 @@ describe("FX and TSN evidence contracts", () => {
         s.ports[1].grandmasterId = "different";
       },
       (s: ReturnType<typeof networkSnapshot.parse>) => {
+        s.ports.forEach((port) => {
+          port.grandmasterId = "";
+        });
+      },
+      (s: ReturnType<typeof networkSnapshot.parse>) => {
         s.streams[0].subscriberPortId = s.streams[0].publisherPortId;
       },
     ]) {

@@ -70,7 +70,7 @@ export const tsnPort = z.object({
   name: text,
   link: z.enum(["up", "down", "unknown"]),
   clockDomain: z.number().int().min(0).max(255).nullable(),
-  grandmasterId: text.nullable(),
+  grandmasterId: text.min(1).nullable(),
   syncState: z.enum(["locked", "acquiring", "unlocked", "unknown"]),
   offsetNs: z.number().finite().min(-1e12).max(1e12).nullable(),
   timestamping: z.enum(["hardware", "software", "unknown"]),
