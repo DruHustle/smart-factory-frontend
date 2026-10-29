@@ -28,6 +28,7 @@ const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const Monitoring = lazy(() => import("./pages/Monitoring"));
+const NetworkDiagnostics = lazy(() => import("./pages/NetworkDiagnostics"));
 const Devices = lazy(() => import("./pages/Devices"));
 const DeviceDetail = lazy(() => import("./pages/DeviceDetail"));
 const Alerts = lazy(() => import("./pages/Alerts"));
@@ -156,6 +157,7 @@ function AppRouter() {
                   <Route path="/" component={Home} />
                   <Route path="/demo" component={Demonstration} />
                   <Route path="/monitoring" component={Monitoring} />
+                  <Route path="/network" component={NetworkDiagnostics} />
                   <Route path="/devices">
                     <Redirect to="/inventory?view=devices" />
                   </Route>
@@ -194,8 +196,14 @@ function AppRouter() {
                   </Route>
                   <Route path="/analytics" component={AnalyticsPage} />
                   <Route path="/assistant" component={Assistant} />
-                  <Route path="/infrastructure/service-health/:section" component={ServiceHealth} />
-                  <Route path="/infrastructure/service-health" component={ServiceHealth} />
+                  <Route
+                    path="/infrastructure/service-health/:section"
+                    component={ServiceHealth}
+                  />
+                  <Route
+                    path="/infrastructure/service-health"
+                    component={ServiceHealth}
+                  />
                   <Route path="/ota">
                     {user.access?.demoOnly || canViewEngineering(user.role) ? (
                       <OTAUpdates />

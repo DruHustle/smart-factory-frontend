@@ -27,6 +27,8 @@ import type { Showcase } from "../../shared/showcase";
 import { seedBasicShowcase, showcaseUuid as uuid } from "./basic";
 import { addRaspberryPiShowcase, raspberryPiShowcaseId } from "./raspberry-pi";
 
+import { addFactoryFloorShowcase, planFactoryFloor } from "./factory-floor";
+
 const standaloneId = uuid("standalone-v2");
 const ids = [
   "showcase.motor:02",
@@ -35,6 +37,7 @@ const ids = [
   "showcase.compressor:01",
 ];
 export async function planShowcase() {
+  await planFactoryFloor();
   const db = (await getDb())!;
   // Fail closed rather than updating any colliding operational record.
   const collisions = await db.execute(
@@ -66,16 +69,16 @@ export async function planShowcase() {
       "Unrecognized showcase metadata. Review it without replacing it.",
     );
   return {
-    version: 3,
+    version: 4,
     installedVersion: (current?.value as Showcase | undefined)?.version ?? 0,
     isolated: true,
     operationalWrites: false,
     emailRequests: false,
     visibilityChange: false,
-    equipment: 3,
+    equipment: 23,
     telemetryMetrics: 6,
     evidenceModes: ["simulated", "replay"],
-    chapters: 13,
+    chapters: 15,
   };
 }
 export async function seedCompleteShowcase(persistDemoVisibility = false) {
@@ -84,7 +87,7 @@ export async function seedCompleteShowcase(persistDemoVisibility = false) {
   const db = (await getDb())!;
   if (base.version >= 2) {
     await seedInboxes(base);
-    return addRaspberryPiShowcase(base);
+    return addFactoryFloorShowcase(await addRaspberryPiShowcase(base));
   }
   const anchor = Date.parse(base.anchor),
     at = (offset: number) => new Date(anchor + offset),
@@ -746,7 +749,7 @@ export async function seedCompleteShowcase(persistDemoVisibility = false) {
     .set({ value: full })
     .where(eq(systemSettings.key, "showcase_v1"));
   await seedInboxes(full);
-  return addRaspberryPiShowcase(full);
+  return addFactoryFloorShowcase(await addRaspberryPiShowcase(full));
 }
 async function seedInboxes(s: Showcase) {
   const db = (await getDb())!;

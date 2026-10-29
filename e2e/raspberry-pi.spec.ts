@@ -26,8 +26,8 @@ for (const width of [390, 1440])
         let modelPath: string | undefined;
         let codeRequested = false,
           modelRequests = 0;
-        // Overview now starts its own authorized preview automatically. Observe
-        // shared code across the journey, but count only the Pi workspace's GLB.
+        // Observe shared renderer code across the journey, but count only the
+        // selected Pi workspace's GLB; floor references use separate endpoints.
         page.on("request", (request) => {
           if (request.url().includes("LocalEquipmentRenderer"))
             codeRequested = true;
@@ -48,11 +48,14 @@ for (const width of [390, 1440])
           const s = (
             await (await page.request.get("/api/trpc/system.showcase")).json()
           ).result.data.json;
-          expect(s.version).toBe(3);
+          expect(s.version).toBe(4);
           expect(s.raspberryPiRef).toMatch(/^equipment:/);
           if (width < 768)
             await page.locator('[data-sidebar="trigger"]').click();
           await page
+            .locator('[data-sidebar="sidebar"]')
+            .filter({ visible: true })
+            .first()
             .getByRole("link", { name: "Demo guide", exact: true })
             .click();
           await expect(

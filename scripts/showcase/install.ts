@@ -6,10 +6,10 @@ import { planShowcase, seedCompleteShowcase } from "./complete";
 const apply = process.argv.includes("--apply");
 if (
   !publicDemoDeployment() ||
-  process.env.SHOWCASE_INSTALL_APPROVED !== "read-only-showcase-v3"
+  process.env.SHOWCASE_INSTALL_APPROVED !== "read-only-showcase-v4"
 )
   throw Error(
-    "Explicit public-demo deployment and SHOWCASE_INSTALL_APPROVED=read-only-showcase-v3 are required. No records were changed.",
+    "Explicit public-demo deployment and SHOWCASE_INSTALL_APPROVED=read-only-showcase-v4 are required. No records were changed.",
   );
 try {
   const plan = await planShowcase();
@@ -24,16 +24,23 @@ try {
       throw Error(
         "The demo notification isolation migration must be applied before installation.",
       );
+    const prior = await db.execute(
+      sql`select key from system_settings where key in ('showcase_install_v1','showcase_install_v2','showcase_install_v3') and coalesce(value->>'state','')<>'complete' limit 1`,
+    );
+    if (prior.length)
+      throw Error(
+        "A prior demo installation needs operator review. Retain its evidence and protected backup before continuing.",
+      );
     // A retained claim prevents concurrent/partial retries from silently overwriting evidence.
     const claims = await db.execute(
-      sql`insert into system_settings(key,value) values('showcase_install_v3',${JSON.stringify({ state: "installing", startedAt: new Date().toISOString() })}::jsonb) on conflict(key) do nothing returning key`,
+      sql`insert into system_settings(key,value) values('showcase_install_v4',${JSON.stringify({ state: "installing", startedAt: new Date().toISOString() })}::jsonb) on conflict(key) do nothing returning key`,
     );
     const [retainedClaim] = await db.execute<{ value: { state?: string } }>(
-      sql`select value from system_settings where key='showcase_install_v3'`,
+      sql`select value from system_settings where key='showcase_install_v4'`,
     );
     if (
       !claims.length &&
-      (plan.installedVersion < 3 || retainedClaim?.value.state !== "complete")
+      (plan.installedVersion < 4 || retainedClaim?.value.state !== "complete")
     )
       throw Error(
         "A prior install needs operator review. Retain the original evidence and review its protected backup; do not delete records to retry.",
@@ -50,7 +57,7 @@ try {
         "External delivery queue increased; review before declaring the installation complete.",
       );
     await db.execute(
-      sql`update system_settings set value=${JSON.stringify({ state: "complete", version: result.version, anchor: result.anchor })}::jsonb where key='showcase_install_v3'`,
+      sql`update system_settings set value=${JSON.stringify({ state: "complete", version: result.version, anchor: result.anchor })}::jsonb where key='showcase_install_v4'`,
     );
     console.log(
       JSON.stringify({

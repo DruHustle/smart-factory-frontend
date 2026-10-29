@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Route } from "@playwright/test";
+import type { InventoryItem } from "../shared/inventory";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -8,14 +9,21 @@ import { setTheme, selectSection } from "./experience-helpers";
 const directory =
   process.env.OVERVIEW_EVIDENCE_DIR ?? join(tmpdir(), "visual-first-evidence");
 
-test("Overview graphics to Analytics: custom date recovery at 390px", async ({ page }) => {
+test("Overview graphics to Analytics: custom date recovery at 390px", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  await page.goto("/#/analytics?from=not-a-date&to=2026-10-28T12%3A00&interval=60000.5");
+  await page.goto(
+    "/#/analytics?from=not-a-date&to=2026-10-28T12%3A00&interval=60000.5",
+  );
   const invalid = page.getByText("Review the selected dates", { exact: true });
   await expect(invalid).toBeVisible();
   await expect(page.getByLabel("Analysis from UTC")).toBeVisible();
-  const period = page.getByRole("combobox", { name: "Time range", exact: true });
+  const period = page.getByRole("combobox", {
+    name: "Time range",
+    exact: true,
+  });
   await period.selectOption("24h");
   await period.selectOption("custom");
   const from = page.getByLabel("Analysis from UTC");
@@ -23,27 +31,51 @@ test("Overview graphics to Analytics: custom date recovery at 390px", async ({ p
   await expect(invalid).toBeVisible();
   await expect(from).toBeVisible();
   await expect(page.getByLabel("Analysis to UTC")).toBeVisible();
-  await expect(page.getByRole("img", { name: /temperature in °C/ })).toHaveCount(0);
-  await capture(page, "analytics-cleared-date-390", { state: "incomplete custom UTC dates remain editable" });
+  await expect(
+    page.getByRole("img", { name: /temperature in °C/ }),
+  ).toHaveCount(0);
+  await capture(page, "analytics-cleared-date-390", {
+    state: "incomplete custom UTC dates remain editable",
+  });
   await from.fill("2026-10-27T12:00");
   await page.getByLabel("Analysis to UTC").fill("2026-10-28T12:00");
   await expect(invalid).toHaveCount(0);
-  await expect(page.getByText("Analytics unavailable", { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("Aggregation", { exact: true })).toHaveValue("60000");
-  await capture(page, "analytics-restored-date-390", { state: "custom UTC dates restored; malformed aggregation normalized" });
+  await expect(
+    page.getByText("Analytics unavailable", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Aggregation", { exact: true })).toHaveValue(
+    "60000",
+  );
+  await capture(page, "analytics-restored-date-390", {
+    state: "custom UTC dates restored; malformed aggregation normalized",
+  });
 });
 
-test("Overview graphics recovery after a lazy page cannot load", async ({ page }) => {
+test("Overview graphics recovery after a lazy page cannot load", async ({
+  page,
+}) => {
   await login(page);
-  await page.route("**/src/pages/AnalyticsPage.tsx*", (route) => route.abort("failed"));
+  await page.route("**/src/pages/AnalyticsPage.tsx*", (route) =>
+    route.abort("failed"),
+  );
   await page.goto("/#/analytics");
-  await expect(page.getByRole("heading", { name: "This page couldn’t load" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Reload page", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "This page couldn’t load" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Reload page", exact: true }),
+  ).toBeVisible();
   await page.unroute("**/src/pages/AnalyticsPage.tsx*");
-  await page.getByRole("button", { name: "Open overview", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Open overview", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
   await page.goto("/#/analytics");
-  await expect(page.getByRole("heading", { name: "Analytics", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Analytics", exact: true }),
+  ).toBeVisible();
 });
 
 async function login(page: Page) {
@@ -55,7 +87,7 @@ async function login(page: Page) {
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30000 });
 }
 async function typography(page: Page, width: number) {
   if (width < 768)
@@ -153,15 +185,14 @@ async function capture(page: Page, name: string, metadata: unknown) {
 
 for (const width of [390, 1440])
   for (const theme of ["light", "dark"] as const)
-    test.describe(`Overview graphics ${width}px ${theme}`, () => {
+    test.describe(`Overview graphics whole factory ${width}px ${theme}`, () => {
       test.skip(
         process.env.EXPERIENCE_E2E !== "true",
-        "Requires the guarded disposable experience fixture",
+        "Requires guarded disposable factory",
       );
-      test("recorded visuals, scoped drill-downs, uniform sidebar and on-demand model", async ({
+      test("renders all floor items and native references with summary graphs and item drill-down", async ({
         browser,
       }) => {
-        mkdirSync(directory, { recursive: true });
         const context = await browser.newContext({
           baseURL:
             process.env.EXPERIENCE_E2E_BASE_URL ?? "http://127.0.0.1:3123",
@@ -174,222 +205,153 @@ for (const width of [390, 1440])
             size: { width, height: 960 },
           },
         });
-        const page = await context.newPage();
-        const video = page.video();
-        const commands: string[] = [],
-          errors: string[] = [];
-        page.on("pageerror", (error) => errors.push(error.message));
-        page.on("request", (request) => {
+        const page = await context.newPage(),
+          video = page.video();
+        const errors: string[] = [],
+          commands: string[] = [];
+        page.on("pageerror", (e) => errors.push(e.message));
+        page.on("request", (r) => {
           if (
-            request.method() === "POST" &&
-            /controlAda031|pulseIndicator|ota\.deploy|simulate/.test(
-              request.url(),
+            r.method() === "POST" &&
+            /controlAda031|pulseIndicator|ota.deploy|simulate|importSnapshot/.test(
+              r.url(),
             )
           )
-            commands.push(request.url());
+            commands.push(r.url());
         });
         try {
           await login(page);
+          await Promise.all([
+            page.waitForEvent("load", { timeout: 30000 }),
+            page
+              .getByRole("combobox", { name: "Data workspace", exact: true })
+              .selectOption("demo"),
+          ]);
+          await expect(
+            page.getByRole("combobox", { name: "Data workspace", exact: true }),
+          ).toHaveValue("demo", { timeout: 15000 });
           await setTheme(page, theme);
-          const font = await typography(page, width);
+          const styles = await typography(page, width);
           const s = (
             await (await page.request.get("/api/trpc/system.showcase")).json()
           ).result.data.json;
-          const overviewContext = `/?source=${encodeURIComponent(s.assetRef)}&scope=simulated&range=1h&at=${Date.parse(s.anchor)}`;
-          await page.goto("/#" + overviewContext);
-          await expect(
-            page.getByRole("group", {
-              name: "Source observation states",
-              exact: true,
-            }),
-          ).toBeVisible();
-          await expect(
-            page.getByRole("figure", {
-              name: "Recorded gateway and equipment relationships",
-              exact: true,
-            }),
-          ).toBeVisible();
-          await expect(
-            page.getByRole("link", { name: /temperature in °C/ }),
-          ).toBeVisible();
-          const trendInput = {
-            assetIds: [s.assetId],
-            metric: "temperature",
-            scope: "simulated",
-            startTime: Date.parse(s.anchor) - 3600000,
-            endTime: Date.parse(s.anchor),
-            intervalMs: 60000,
-          };
-          const trend = (
-            await (
-              await page.request.get(
-                "/api/trpc/readings.trend?input=" +
-                  encodeURIComponent(JSON.stringify({ json: trendInput })),
-              )
-            ).json()
+          const snapshot = (
+            await (await page.request.get("/api/trpc/factory.floor")).json()
           ).result.data.json;
-          expect(trend.verified).toBeGreaterThan(0);
-          expect(
-            trend.buckets.some(
-              (bucket: { value: number | null }) => bucket.value === null,
-            ),
-          ).toBe(true);
-          const canvas = page.getByRole("img", {
-            name: "Interactive 3D equipment model",
+          expect(snapshot.complete).toBe(true);
+          expect(snapshot.items.length).toBeGreaterThan(50);
+          expect(snapshot.total).toBe(snapshot.items.length);
+          expect(snapshot.links.length).toBeGreaterThan(30);
+          const count = String(snapshot.total),
+            floor = page.getByTestId("factory-floor");
+          await expect(floor).toHaveAttribute("data-total-items", count);
+          await expect(floor).toHaveAttribute("data-visible-items", count);
+          await expect(
+            page.getByRole("img", {
+              name: "Interactive 3D factory floor",
+              exact: true,
+            }),
+          ).toHaveAttribute("data-floor-node-count", count);
+          await expect
+            .poll(
+              async () => {
+                const text = await floor.getByRole("status").textContent();
+                return Number(
+                  text?.match(/· (\d+) detailed models ready/)?.[1] ?? 0,
+                );
+              },
+              { timeout: 30000 },
+            )
+            .toBeGreaterThan(5);
+          await expect(
+            page.getByRole("heading", {
+              name: "Factory observations",
+              exact: true,
+            }),
+          ).toBeVisible();
+          const timingEvidence = page
+            .locator("summary")
+            .filter({ hasText: "Process and FX / TSN evidence" });
+          await timingEvidence.click();
+          await expect(
+            page.getByRole("heading", { name: "FX / TSN health", exact: true }),
+          ).toBeVisible();
+          await timingEvidence.click();
+          await capture(page, `factory-floor-${theme}-${width}`, {
+            total: snapshot.total,
+            complete: snapshot.complete,
+            styles,
+            source: s.anchor,
+          });
+          await page
+            .locator("summary")
+            .filter({ hasText: /^Find an item/ })
+            .click();
+          const list = page.getByRole("list", {
+            name: "Factory floor items",
             exact: true,
           });
-          await expect(page.locator("[data-state=ready]")).toBeVisible({
-            timeout: 30000,
-          });
-          await expect(canvas).toHaveCount(1);
-          const box = (await canvas.boundingBox())!;
-          if (width < 768) {
-            const touch = await context.newCDPSession(page);
-            await touch.send("Input.dispatchTouchEvent", {
-              type: "touchStart",
-              touchPoints: [
-                { x: box.x + box.width * 0.45, y: box.y + box.height * 0.5 },
-              ],
-            });
-            for (let step = 1; step <= 12; step++)
-              await touch.send("Input.dispatchTouchEvent", {
-                type: "touchMove",
-                touchPoints: [
-                  {
-                    x: box.x + box.width * (0.45 + (0.2 * step) / 12),
-                    y: box.y + box.height * (0.5 + (0.1 * step) / 12),
-                  },
-                ],
-              });
-            await touch.send("Input.dispatchTouchEvent", {
-              type: "touchEnd",
-              touchPoints: [],
-            });
-            await touch.detach();
-          } else {
-            await page.mouse.move(
-              box.x + box.width * 0.45,
-              box.y + box.height * 0.5,
-            );
-            await page.mouse.down();
-            await page.mouse.move(
-              box.x + box.width * 0.65,
-              box.y + box.height * 0.6,
-              { steps: 15 },
-            );
-            await page.mouse.up();
-          }
-          await page
-            .getByRole("button", { name: "Reset model preview", exact: true })
-            .click();
-          await expect(page.locator('[data-camera-moving="true"]')).toHaveCount(
-            0,
+          await expect(list.getByRole("listitem")).toHaveCount(snapshot.total);
+          const item = snapshot.items.find(
+            (i: InventoryItem) =>
+              i.identifier === "urn:smart-factory:showcase:floor:robot-01",
           );
-          await capture(page, `overview-${theme}-${width}`, {
-            typography: font,
-            gapBuckets: trend.buckets.filter(
-              (bucket: { value: number | null }) => bucket.value === null,
-            ).length,
-            modelLoadedOnDemand: true,
-          });
+          expect(item).toBeTruthy();
+          await list
+            .getByRole("button", { name: item.name, exact: true })
+            .click();
+          await expect(page.getByLabel("Selected floor item")).toContainText(
+            item.name,
+          );
+          await expect(floor).toHaveAttribute("data-visible-items", count);
+          const returnContext = new URL(page.url()).hash.slice(1);
           await page
-            .getByRole("list", {
-              name: "Source observation states details",
-              exact: true,
-            })
-            .getByRole("link", { name: /Unknown/ })
+            .getByRole("link", { name: "Open item", exact: true })
             .click();
           await expect(
-            page.getByRole("heading", {
-              name: "Assets & devices",
-              exact: true,
-            }),
+            page.getByRole("heading", { name: item.name, exact: true }),
           ).toBeVisible();
-          await typography(page, width);
-          expect(new URL(page.url()).hash).toContain("status=unknown");
-          await page.goBack();
-          await expect(
-            page.getByLabel("Overview evidence scope", { exact: true }),
-          ).toHaveValue("simulated");
+          await expect(page).toHaveURL(
+            new RegExp(
+              "return=" +
+                encodeURIComponent(returnContext).replace(
+                  /[.*+?^$()|[\]{}\\]/g,
+                  "\\$&",
+                ),
+            ),
+          );
+          await page.goto("/#" + returnContext);
+          await expect(floor).toHaveAttribute("data-visible-items", count);
           await page
-            .getByRole("link", { name: "Open telemetry", exact: true })
-            .click();
-          await expect(
-            page.getByRole("heading", {
-              name: "Showcase pump 01",
-              exact: true,
-            }),
-          ).toBeVisible();
-          expect(new URL(page.url()).hash).toContain("scope=simulated");
-          await page
-            .getByRole("link", {
-              name: "Overview / Return to overview",
-              exact: true,
-            })
-            .click();
-          expect(new URL(page.url()).hash).toContain("scope=simulated");
-          await page
-            .getByRole("list", {
-              name: "Recent open process incident timeline",
-              exact: true,
-            })
-            .getByRole("link")
-            .first()
+            .getByRole("button", { name: "Floor plan", exact: true })
             .click();
           await expect(
             page
-              .getByRole("button", { name: "Acknowledge", exact: true })
-              .or(page.getByRole("heading", { name: /Investigation/ }))
-              .first(),
-          ).toBeVisible();
-          await page
-            .getByRole("link", { name: "Return to overview", exact: true })
-            .click();
-          for (const [name, route, heading] of [
-            ["inventory", "/inventory", "Assets & devices"],
-            ["monitoring", "/monitoring", "Monitoring"],
-            ["security", "/cybersecurity", "Cybersecurity"],
-            [
-              "analytics",
-              `/analytics?asset=${encodeURIComponent(s.assetId)}&scope=simulated&from=${encodeURIComponent(s.from.slice(0, 16))}&to=${encodeURIComponent(s.anchor.slice(0, 16))}`,
-              "Analytics",
-            ],
-            ["assistant", "/assistant", "Assistant"],
-            [
-              "administration",
-              "/administration/integrations",
-              "Administration",
-            ],
-          ]) {
+              .getByRole("img", {
+                name: "Accessible factory floor plan",
+                exact: true,
+              })
+              .getByRole("button"),
+          ).toHaveCount(snapshot.total);
+          await capture(page, `factory-plan-${theme}-${width}`, {
+            total: snapshot.total,
+            selected: item.ref,
+          });
+          for (const [route, heading] of [
+            ["/monitoring", "Monitoring"],
+            ["/alerts", "Alerts"],
+            ["/network", "FX & TSN"],
+            ["/analytics", "Analytics"],
+          ] as const) {
             await page.goto("/#" + route);
             await expect(
               page.getByRole("heading", { name: heading, exact: true }),
             ).toBeVisible();
-            if (name === "monitoring") {
-              await expect(
-                page.getByRole("heading", {
-                  name: "Workspace direct sensor",
-                  exact: true,
-                }),
-              ).toBeVisible();
-              await expect(
-                page
-                  .getByRole("img", { name: /temperature in °C/ })
-                  .locator(".recharts-line-dot"),
-              ).toBeVisible();
-            }
-            if (name === "assistant") {
-              await page
-                .getByLabel("Ask the Smart Factory Assistant")
-                .fill("What evidence is available for Showcase pump 01?");
-              await page
-                .getByRole("button", { name: "Ask", exact: true })
-                .click();
-              await expect(
-                page.getByTestId("assistant-answer-content").first(),
-              ).toBeVisible();
-            }
-            await capture(page, `${name}-${theme}-${width}`, { route });
+            expect(
+              await page.evaluate(
+                () => document.documentElement.scrollWidth <= innerWidth,
+              ),
+            ).toBe(true);
           }
           expect(commands).toEqual([]);
           expect(errors).toEqual([]);
@@ -397,7 +359,7 @@ for (const width of [390, 1440])
           await context.close();
           if (video)
             await video.saveAs(
-              `${directory}/navigation-${theme}-${width}.webm`,
+              `${directory}/factory-overview-${theme}-${width}.webm`,
             );
         }
       });

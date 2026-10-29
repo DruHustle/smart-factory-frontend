@@ -32,6 +32,7 @@ export async function setTheme(page: Page, theme: "light" | "dark" | "system") {
       exact: true,
     })
     .click();
+  await expect(page.getByRole("menu")).toHaveCount(0);
   if (theme !== "system")
     await expect
       .poll(() =>

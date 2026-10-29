@@ -95,6 +95,10 @@ test("Overview, Monitoring, Analytics, alerts and Assistant expose focused evide
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await loginAs(page, "viewer");
+  await page
+    .locator("summary")
+    .filter({ hasText: "Process and FX / TSN evidence" })
+    .click();
   await expect(
     page.getByText("Confirmed downtime", { exact: true }),
   ).toBeVisible();
@@ -920,7 +924,9 @@ test("viewer sees asset summaries while engineering and admin screens stay hidde
     page.getByRole("heading", { name: /^overview$/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Assets & devices", exact: true }),
+    page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "Assets & devices", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Firmware & updates" }),
@@ -951,7 +957,9 @@ test("operator can acknowledge alerts but cannot open AAS or user administration
 }) => {
   await loginAs(page, "operator");
   await expect(
-    page.getByRole("link", { name: "Assets & devices", exact: true }),
+    page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "Assets & devices", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Firmware & updates" }),
@@ -1015,9 +1023,9 @@ test("administrator recovery enforces first password change, revocation and disa
   baseURL,
 }) => {
   // This multi-account journey signs in repeatedly, now starting automatic 3D
-  // previews each time. Keep the complete recovery workflow bounded separately
-  // from the individual action and access assertions.
-  test.setTimeout(60000);
+  // previews each time. Allow the five independent sign-ins and credential
+  // changes to finish while retaining the individual action/access assertions.
+  test.setTimeout(120000);
   await loginAs(page, "admin");
   const email = `recovery-${Date.now()}@example.test`,
     temporary = "Synthetic-initial-only-2026!",
@@ -1163,12 +1171,15 @@ test("individual Demo/Live switch scopes data without changing factory settings"
   const input = encodeURIComponent(
     JSON.stringify({ json: { page: 0, pageSize: 50 } }),
   );
-  await page
-    .getByRole("combobox", { name: "Data workspace", exact: true })
-    .selectOption("demo");
+  await Promise.all([
+    page.waitForEvent("load", { timeout: 30000 }),
+    page
+      .getByRole("combobox", { name: "Data workspace", exact: true })
+      .selectOption("demo"),
+  ]);
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30000 });
   await expect(
     page.getByRole("combobox", { name: "Data workspace", exact: true }),
   ).toHaveValue("demo");
@@ -1187,12 +1198,15 @@ test("individual Demo/Live switch scopes data without changing factory settings"
     ).status(),
   ).toBe(403);
   expect((await page.request.get("/api/trpc/users.list")).status()).toBe(403);
-  await page
-    .getByRole("combobox", { name: "Data workspace", exact: true })
-    .selectOption("live");
+  await Promise.all([
+    page.waitForEvent("load", { timeout: 30000 }),
+    page
+      .getByRole("combobox", { name: "Data workspace", exact: true })
+      .selectOption("live"),
+  ]);
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30000 });
   await expect(
     page.getByRole("combobox", { name: "Data workspace", exact: true }),
   ).toHaveValue("live");

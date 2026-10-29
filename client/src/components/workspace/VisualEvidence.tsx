@@ -75,10 +75,13 @@ export function StateDistribution({
   const patternId = `observation-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   let offset = 0;
   return (
-    <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
+    <div
+      data-distribution
+      className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-4 sm:grid-cols-[7rem_minmax(0,1fr)]"
+    >
       <svg
         viewBox="0 0 200 200"
-        className="mx-auto w-28 max-w-full sm:w-40"
+        className="mx-auto w-24 max-w-full sm:w-28"
         role="group"
         aria-label={label}
       >

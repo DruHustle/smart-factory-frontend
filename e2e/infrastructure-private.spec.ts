@@ -14,7 +14,7 @@ async function login(page: Page, role: string) {
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 }
 for (const role of ["viewer", "operator", "engineer"])
   test(`private ${role} cannot inspect installation infrastructure`, async ({

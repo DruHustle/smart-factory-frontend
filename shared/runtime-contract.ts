@@ -14,6 +14,8 @@ export const requiredCapabilities = [
   "complete-reports-v1",
   "published-passports-v1",
   "inventory-v1",
+  "factory-floor-v1",
+  "fx-tsn-diagnostics-v1",
   "native-equipment-v1",
   "raspberry-pi-model-v1",
   "factory-reference-models-v1",
