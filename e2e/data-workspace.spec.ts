@@ -141,6 +141,9 @@ async function workspaceFixture(
         case "auth.demoAccounts":
           value = [];
           break;
+        case "auth.registrationPolicy":
+          value = { enabled: !restricted };
+          break;
         case "notifications.summary":
           value = { unread: 0 };
           break;
@@ -421,6 +424,19 @@ for (const width of [390, 1440]) {
     ).toBe(true);
     await dialog
       .getByRole("button", { name: "Sign out and switch account", exact: true })
+      .click();
+    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Register", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Account access", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Ask your factory administrator to create your account.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Back to login", exact: true })
       .click();
     await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
     expect(

@@ -27,7 +27,7 @@ for (const width of [390, 1440])
         let codeRequested = false,
           modelRequests = 0;
         // Observe shared renderer code across the journey, but count only the
-        // selected Pi workspace's GLB; the system Overview has no model preview.
+        // selected Pi workspace's GLB; floor references use separate endpoints.
         page.on("request", (request) => {
           if (request.url().includes("LocalEquipmentRenderer"))
             codeRequested = true;
@@ -48,7 +48,7 @@ for (const width of [390, 1440])
           const s = (
             await (await page.request.get("/api/trpc/system.showcase")).json()
           ).result.data.json;
-          expect(s.version).toBe(3);
+          expect(s.version).toBe(4);
           expect(s.raspberryPiRef).toMatch(/^equipment:/);
           if (width < 768)
             await page.locator('[data-sidebar="trigger"]').click();

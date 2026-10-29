@@ -38,6 +38,17 @@ test("account routes and the signed-out flow render", async ({ page }) => {
       /accounts and password changes are managed by your administrator/i,
     ),
   ).toHaveCount(0);
+  await page.getByRole("link", { name: "Register", exact: true }).click();
+  await expect(page).toHaveURL(/#\/register/);
+  await expect(
+    page.getByRole("heading", { name: "Create Account", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Full Name", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Register Now", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Sign In", exact: true }).click();
+  await expect(page).toHaveURL(/#\/login/);
   await page.goto("/#/forgot-password");
   await expect(
     page.getByRole("heading", { name: /password assistance/i }),
