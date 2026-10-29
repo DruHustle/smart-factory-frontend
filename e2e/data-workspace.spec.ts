@@ -242,8 +242,10 @@ for (const width of [390, 1440]) {
     await expect(list.getByRole("listitem")).toHaveCount(5);
     await expect(list).toContainText("Live system 17");
     let navigations = 0;
-    page.on("framenavigated", (frame) => {
-      if (frame === page.mainFrame()) navigations++;
+    page.on("request", (request) => {
+      // History replacement is a same-document URL update, not a reload.
+      if (request.isNavigationRequest() && request.frame() === page.mainFrame())
+        navigations++;
     });
     await selector.selectOption("demo");
     await expect(selector).toHaveValue("demo");
