@@ -221,12 +221,15 @@ for (const width of [390, 1440])
         });
         try {
           await login(page);
-          await page
-            .getByRole("combobox", { name: "Data workspace", exact: true })
-            .selectOption("demo");
+          await Promise.all([
+            page.waitForEvent("load", { timeout: 30000 }),
+            page
+              .getByRole("combobox", { name: "Data workspace", exact: true })
+              .selectOption("demo"),
+          ]);
           await expect(
             page.getByRole("combobox", { name: "Data workspace", exact: true }),
-          ).toHaveValue("demo");
+          ).toHaveValue("demo", { timeout: 15000 });
           await setTheme(page, theme);
           const styles = await typography(page, width);
           const s = (
