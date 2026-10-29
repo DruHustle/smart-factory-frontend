@@ -108,12 +108,13 @@ export function OverviewInfrastructure() {
             </p>
           </>
         )}
-        <Link
+        {allowed && <Link
+          aria-label="Inspect service health"
           href="/infrastructure/service-health"
           className="mt-auto inline-flex min-h-9 items-center justify-end gap-1 pt-2 text-xs underline"
         >
           Service health <ArrowUpRight className="size-3" aria-hidden />
-        </Link>
+        </Link>}
       </CardContent>
     </Card>
   );

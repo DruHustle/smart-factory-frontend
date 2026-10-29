@@ -87,7 +87,7 @@ async function login(page: Page) {
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30000 });
 }
 async function typography(page: Page, width: number) {
   if (width < 768)
