@@ -3,6 +3,8 @@ import { FloorPlan } from "./FactoryFloorPlan";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { createWorkshop, createEquipmentProxy } from "./FactoryEnvironment";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   floorModelUrl,
@@ -14,13 +16,15 @@ type Layout = ReturnType<typeof layoutFactory>;
 const indicatorColor = (item: Layout["placements"][number]["item"]) =>
   item.status === "error"
     ? 0xef6461
-    : item.status === "maintenance"
+    : item.status === "maintenance" || item.status === "stale"
       ? 0xdba64a
       : item.mode === "simulated"
         ? 0x28a6c4
         : item.status === "live"
           ? 0x32b881
-          : 0xdba64a;
+          : item.status === "offline"
+            ? 0xef6461
+            : 0x8191a3;
 function disposeObject(root: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(),
     materials = new Set<THREE.Material>(),
@@ -101,8 +105,8 @@ function compactReference(root: THREE.Group) {
       geometry,
       new THREE.MeshStandardMaterial({
         vertexColors: true,
-        roughness: 0.6,
-        metalness: 0.25,
+        roughness: 0.38,
+        metalness: 0.5,
       }),
     ),
   );
@@ -155,57 +159,6 @@ function label(text: string, color: string, size = 3.4) {
   );
   sprite.scale.set(size, (size * 72) / 512, 1);
   return sprite;
-}
-function proxy(model: string | null, color: THREE.ColorRepresentation) {
-  const body = new THREE.Group(),
-    material = new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.65,
-      metalness: 0.35,
-    });
-  const part = (
-    geometry: THREE.BufferGeometry,
-    x: number,
-    y: number,
-    z: number,
-  ) => {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    body.add(mesh);
-    return mesh;
-  };
-  if (model === "storage-tank")
-    part(new THREE.CylinderGeometry(0.65, 0.65, 1.7, 24), 0, 0.9, 0);
-  else if (model === "conveyor") {
-    part(new THREE.BoxGeometry(2.4, 0.35, 0.85), 0, 0.65, 0);
-    for (const x of [-0.8, 0.8])
-      part(new THREE.BoxGeometry(0.12, 0.6, 0.65), x, 0.3, 0);
-  } else if (model === "robot-arm") {
-    part(new THREE.CylinderGeometry(0.5, 0.6, 0.3, 16), 0, 0.15, 0);
-    const link = part(new THREE.BoxGeometry(0.35, 1.3, 0.35), -0.1, 0.85, 0);
-    link.rotation.z = -0.35;
-    const arm = part(new THREE.BoxGeometry(1.2, 0.3, 0.3), 0.65, 1.4, 0);
-    arm.rotation.z = -0.2;
-  } else if (model === "pump-motor") {
-    part(new THREE.BoxGeometry(1.8, 0.12, 0.9), 0, 0.1, 0);
-    const motor = part(
-      new THREE.CylinderGeometry(0.4, 0.4, 1.1, 20),
-      0,
-      0.6,
-      0,
-    );
-    motor.rotation.z = Math.PI / 2;
-  } else if (model === "control-cabinet")
-    part(new THREE.BoxGeometry(1, 1.7, 0.6), 0, 0.85, 0);
-  else if (model === "raspberry-pi-4b")
-    part(new THREE.BoxGeometry(1, 0.3, 0.7), 0, 0.3, 0);
-  else {
-    part(new THREE.CylinderGeometry(0.25, 0.3, 0.8, 16), 0, 0.5, 0);
-    part(new THREE.SphereGeometry(0.3, 16, 12), 0, 0.95, 0);
-  }
-  return body;
 }
 
 export default function FactoryFloorScene({
@@ -272,13 +225,19 @@ export default function FactoryFloorScene({
         dirty = true,
         frame = 0;
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(dark ? "#101a26" : "#eaf0f3");
+      scene.background = new THREE.Color(dark ? "#182532" : "#dce3e6");
       renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
+      renderer.toneMappingExposure = dark ? 0.95 : 1.05;
+      const environment = new RoomEnvironment();
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const roomMap = pmrem.fromScene(environment, 0.04);
+      scene.environment = roomMap.texture;
+      environment.dispose();
+      pmrem.dispose();
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFShadowMap;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.domElement.setAttribute(
         "aria-label",
         "Interactive 3D factory floor",
@@ -302,34 +261,22 @@ export default function FactoryFloorScene({
       controls.minZoom = 0.4;
       controls.maxZoom = 10;
       controls.screenSpacePanning = true;
-      scene.add(new THREE.HemisphereLight(0xdcefff, 0x667766, 2.6));
-      const sun = new THREE.DirectionalLight(0xfff5e8, 3.5);
+      scene.add(new THREE.HemisphereLight(0xdcefff, 0x566674, 1.8));
+      const sun = new THREE.DirectionalLight(0xfff5e8, 3.2);
       sun.position.set(12, 28, 18);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(1024, 1024);
+      sun.shadow.mapSize.set(
+        innerWidth < 768 ? 1024 : 2048,
+        innerWidth < 768 ? 1024 : 2048,
+      );
+      sun.shadow.normalBias = 0.025;
+      sun.shadow.bias = -0.00015;
       sun.shadow.camera.left = -40;
       sun.shadow.camera.right = 40;
       sun.shadow.camera.top = 40;
       sun.shadow.camera.bottom = -40;
       scene.add(sun);
-      const plane = new THREE.Mesh(
-        new THREE.BoxGeometry(layout.width + 4, 0.2, layout.depth + 4),
-        new THREE.MeshStandardMaterial({
-          color: dark ? 0x23313c : 0xcbd5db,
-          roughness: 0.95,
-        }),
-      );
-      plane.position.y = -0.22;
-      plane.receiveShadow = true;
-      scene.add(plane);
-      const grid = new THREE.GridHelper(
-        Math.max(layout.width, layout.depth) + 4,
-        Math.ceil(Math.max(layout.width, layout.depth)),
-        dark ? 0x496175 : 0xa5b5bf,
-        dark ? 0x2b4050 : 0xc2d0d5,
-      );
-      grid.position.y = -0.105;
-      scene.add(grid);
+      scene.add(createWorkshop(layout, dark));
       const objects = new Map<string, THREE.Group>(),
         hits: THREE.Object3D[] = [],
         indicators = new Map<string, THREE.Mesh>(),
@@ -337,50 +284,41 @@ export default function FactoryFloorScene({
           string,
           THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>
         >();
-      const zoneColors = [0x2c8f9b, 0x537dd3, 0xb58d42, 0x608d71, 0x8b72ad];
-      layout.zones.forEach((area, index) => {
-        const plate = new THREE.Mesh(
-          new THREE.BoxGeometry(area.width, 0.04, area.depth),
-          new THREE.MeshStandardMaterial({
-            color: zoneColors[index % zoneColors.length],
-            transparent: true,
-            opacity: dark ? 0.17 : 0.1,
-            roughness: 1,
-          }),
-        );
-        plate.position.set(
-          area.x + area.width / 2,
-          -0.08,
-          area.z + area.depth / 2,
-        );
-        scene.add(plate);
+      const labels = new Map<string, THREE.Sprite>();
+      const retired: THREE.Object3D[] = [];
+      layout.zones.forEach((area) => {
         const name = label(
           `${area.name} · ${area.count}`,
           "#284d64",
           Math.min(area.width - 1, 6),
         );
-        name.position.set(area.x + area.width / 2, 0.3, area.z + 0.6);
+        name.position.set(area.x + area.width / 2, 1.45, area.z + 0.6);
         scene.add(name);
       });
       for (const p of layout.placements) {
         const group = new THREE.Group();
         group.position.set(p.x, 0, p.z);
         group.userData.ref = p.item.ref;
-        const body = proxy(
-          p.model,
-          p.item.kind === "device" ? 0x5089a3 : 0x738da1,
-        );
+        const body = createEquipmentProxy(p.model, p.item.itemType);
         group.add(body);
         const name = label(p.item.name, "#203c4b");
-        name.position.set(0, 2.6, 0);
+        name.position.set(0, 3.05, 0);
+        name.visible = p.item.ref === selection.current;
+        labels.set(p.item.ref, name);
         group.add(name);
         const marker = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.15, 0.15, 0.08, 12),
+          new THREE.CylinderGeometry(0.13, 0.13, 0.1, 16),
           new THREE.MeshBasicMaterial({
             color: indicatorColor(p.item),
           }),
         );
-        marker.position.set(-0.8, 0.12, -0.7);
+        marker.position.set(-0.64, 2.55, 0);
+        const rim = new THREE.Mesh(
+          new THREE.TorusGeometry(0.16, 0.035, 8, 16),
+          new THREE.MeshBasicMaterial({ color: 0xf7fafc }),
+        );
+        rim.rotation.x = Math.PI / 2;
+        marker.add(rim);
         group.add(marker);
         markers.set(p.item.ref, marker);
         const halo = new THREE.Mesh(
@@ -400,7 +338,7 @@ export default function FactoryFloorScene({
         scene.add(group);
         objects.set(p.item.ref, group);
         hits.push(group);
-        if (p.model)
+        if (p.model && (p.model !== "raspberry-pi-4b" || p.item.equipmentId))
           void referenceModel(p.model)
             .then((model) => {
               if (disposed) return;
@@ -408,7 +346,7 @@ export default function FactoryFloorScene({
                 box = new THREE.Box3().setFromObject(copy),
                 size = box.getSize(new THREE.Vector3()),
                 center = box.getCenter(new THREE.Vector3());
-              const scale = 2.35 / Math.max(size.x, size.y, size.z, 0.001);
+              const scale = 2.7 / Math.max(size.x, size.y, size.z, 0.001);
               copy.position.sub(center);
               const normalized = new THREE.Group();
               normalized.add(copy);
@@ -421,7 +359,7 @@ export default function FactoryFloorScene({
                 }
               });
               group.remove(body);
-              disposeObject(body);
+              retired.push(body);
               group.add(normalized);
               setLoaded((n) => n + 1);
               dirty = true;
@@ -445,7 +383,7 @@ export default function FactoryFloorScene({
             dashSize: 0.25,
             gapSize: 0.15,
             transparent: true,
-            opacity: 0.55,
+            opacity: 0.24,
           }),
         );
         line.computeLineDistances();
@@ -461,7 +399,7 @@ export default function FactoryFloorScene({
         // Fit the projected bounds, including the outermost equipment labels.
         // A width/depth heuristic clips corners after an isometric rotation.
         for (const x of [-layout.width / 2 - 2, layout.width / 2 + 2])
-          for (const y of [-0.5, 3.6])
+          for (const y of [-0.5, 5])
             for (const z of [-layout.depth / 2 - 2, layout.depth / 2 + 2]) {
               const point = new THREE.Vector3(x, y, z).applyMatrix4(
                 camera.matrixWorldInverse,
@@ -482,8 +420,8 @@ export default function FactoryFloorScene({
       const fit = () => {
         camera.position.set(
           layout.width * 0.8,
-          Math.max(layout.width, layout.depth),
-          layout.depth * 0.9,
+          Math.max(layout.width, layout.depth) * 0.82,
+          layout.depth * 0.95,
         );
         camera.zoom = 1;
         controls.target.set(0, 0, 0);
@@ -504,6 +442,7 @@ export default function FactoryFloorScene({
         },
         focus: (ref) => {
           for (const [id, halo] of indicators) halo.visible = id === ref;
+          for (const [id, itemLabel] of labels) itemLabel.visible = id === ref;
           dirty = true;
         },
       };
@@ -569,7 +508,9 @@ export default function FactoryFloorScene({
         renderer.domElement.removeEventListener("pointerup", up);
         renderer.domElement.removeEventListener("webglcontextlost", lost);
         // Disposing GPU resources preserves the cached CPU references for reuse.
+        retired.forEach(disposeObject);
         disposeObject(scene);
+        roomMap.dispose();
         renderer.dispose();
         renderer.domElement.remove();
       };
@@ -593,21 +534,34 @@ export default function FactoryFloorScene({
     <div className="relative h-full w-full">
       <div ref={host} className={`h-full w-full ${failed ? "hidden" : ""}`} />
       {failed ? (
-        <FloorPlan
-          layout={layout}
-          links={links}
-          selected={selected}
-          onSelect={onSelect}
-        />
+        <>
+          <FloorPlan
+            layout={layout}
+            links={links}
+            selected={selected}
+            onSelect={onSelect}
+          />
+          <p
+            role="status"
+            className="pointer-events-none absolute left-3 right-3 top-3 w-fit rounded-md border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground"
+          >
+            3D unavailable on this device · Showing floor plan
+          </p>
+        </>
       ) : (
-        <span
-          className="pointer-events-none absolute bottom-3 left-3 rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground"
-          role="status"
-        >
-          {ready
-            ? `${layout.placements.length} items on floor · ${loaded} detailed models ready`
-            : "Preparing factory floor…"}
-        </span>
+        <>
+          <span className="pointer-events-none absolute right-3 top-3 rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground">
+            Drag to orbit · scroll to zoom
+          </span>
+          <span
+            className="pointer-events-none absolute top-3 left-3 rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground"
+            role="status"
+          >
+            {ready
+              ? `${layout.placements.length} items on floor · ${loaded} detailed models ready`
+              : "Preparing factory floor…"}
+          </span>
+        </>
       )}
     </div>
   );

@@ -40,6 +40,7 @@ export function ObservationTrend({
   snapshot,
   compact = false,
   threshold,
+  dashboard = false,
 }: {
   deviceId?: number;
   assetIds?: string[];
@@ -53,6 +54,7 @@ export function ObservationTrend({
   openHref?: string;
   snapshot?: AssistantTrendSnapshot;
   compact?: boolean;
+  dashboard?: boolean;
   threshold?: { value: number; unit: string; label: string };
 }) {
   const { user } = useAuth();
@@ -145,7 +147,7 @@ export function ObservationTrend({
   };
   return (
     <section
-      className="min-w-0 overflow-hidden rounded-lg border bg-card"
+      className={`min-w-0 overflow-hidden rounded-lg border bg-card ${dashboard ? "overview-trend" : ""}`}
       aria-label={title}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
@@ -158,8 +160,18 @@ export function ObservationTrend({
                 aria-label="Open telemetry"
                 title="Open telemetry"
               >
-                {compact && <ArrowUpRight aria-hidden className="size-4" />}
-                <span className={compact ? "sr-only sm:not-sr-only" : ""}>
+                {(compact || dashboard) && (
+                  <ArrowUpRight aria-hidden className="size-4" />
+                )}
+                <span
+                  className={
+                    dashboard
+                      ? "sr-only"
+                      : compact
+                        ? "sr-only sm:not-sr-only"
+                        : ""
+                  }
+                >
                   Open telemetry
                 </span>
               </Link>
@@ -194,22 +206,24 @@ export function ObservationTrend({
                   <option value={604800000}>Last 7 days</option>
                 </select>
               )}
-              {!user?.access?.demoOnly && data && (
+              {!dashboard && !user?.access?.demoOnly && data && (
                 <Button variant="outline" size="sm" onClick={exportCsv}>
                   Export CSV
                 </Button>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={query.isFetching}
-                onClick={() => {
-                  setEnd(Date.now());
-                  void query.refetch();
-                }}
-              >
-                Refresh trend
-              </Button>
+              {!dashboard && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={query.isFetching}
+                  onClick={() => {
+                    setEnd(Date.now());
+                    void query.refetch();
+                  }}
+                >
+                  Refresh trend
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -245,7 +259,7 @@ export function ObservationTrend({
         />
       ) : (
         <>
-          <div className="p-4">
+          <div className={dashboard ? "overview-trend-plot p-3" : "p-4"}>
             <p className="mb-3 text-xs text-muted-foreground">
               {compact ? (
                 <>
@@ -270,7 +284,13 @@ export function ObservationTrend({
               {data.unit}
             </p>
             <div
-              className={compact ? "h-44 w-full" : "h-64 w-full"}
+              className={
+                dashboard
+                  ? "h-32 w-full"
+                  : compact
+                    ? "h-44 w-full"
+                    : "h-64 w-full"
+              }
               role={openHref ? "link" : "img"}
               tabIndex={openHref ? 0 : undefined}
               onClick={

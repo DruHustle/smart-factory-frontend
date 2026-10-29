@@ -51,18 +51,41 @@ export function layoutFactory(items: InventoryItem[]) {
   const widths = Array(columns).fill(0) as number[];
   const depths = Array(Math.ceil(groups.length / columns)).fill(0) as number[];
   const dimensions = groups.map(([, nodes], index) => {
-    const cols = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(nodes.length))));
-    const width = cols * 3.5 + 3,
-      depth = Math.ceil(nodes.length / cols) * 3.8 + 4;
+    const machinery = nodes.filter((item) => item.kind !== "device");
+    const instruments = nodes.filter((item) => item.kind === "device");
+    const cols = Math.min(
+      3,
+      Math.max(2, Math.ceil(Math.sqrt(machinery.length))),
+    );
+    const instrumentCols = Math.min(
+      6,
+      Math.max(2, Math.floor((cols * 3.7) / 1.2)),
+    );
+    const instrumentRows = Math.ceil(instruments.length / instrumentCols);
+    const width = Math.max(cols * 3.7 + 2.2, instrumentCols * 1.2 + 2.4);
+    const depth = Math.max(
+      7,
+      Math.ceil(machinery.length / cols) * 3.6 + instrumentRows * 1.25 + 3.4,
+    );
     widths[index % columns] = Math.max(widths[index % columns], width);
     depths[Math.floor(index / columns)] = Math.max(
       depths[Math.floor(index / columns)],
       depth,
     );
-    return { cols, width, depth };
+    return {
+      cols,
+      width,
+      depth,
+      machinery,
+      instruments,
+      instrumentCols,
+      instrumentRows,
+    };
   });
-  const width = widths.reduce((a, b) => a + b + 2, 0),
-    depth = depths.reduce((a, b) => a + b + 2, 0);
+  const width =
+      widths.reduce((a, b) => a + b, 0) + Math.max(0, widths.length - 1) * 2,
+    depth =
+      depths.reduce((a, b) => a + b, 0) + Math.max(0, depths.length - 1) * 2;
   const placements: FloorPlacement[] = [],
     zones: FloorZone[] = [];
   groups.forEach(([name, nodes], index) => {
@@ -79,11 +102,21 @@ export function layoutFactory(items: InventoryItem[]) {
       depth: d.depth,
       count: nodes.length,
     });
-    nodes.forEach((item, n) =>
+    // Instrumentation occupies a compact service strip behind each work cell.
+    // A sensor does not reserve the footprint of a production machine.
+    d.instruments.forEach((item, n) =>
       placements.push({
         item,
-        x: x + 2.8 + (n % d.cols) * 3.5,
-        z: z + 3 + Math.floor(n / d.cols) * 3.8,
+        x: x + 1.8 + (n % d.instrumentCols) * 1.2,
+        z: z + 1.8 + Math.floor(n / d.instrumentCols) * 1.25,
+        model: floorModel(item),
+      }),
+    );
+    d.machinery.forEach((item, n) =>
+      placements.push({
+        item,
+        x: x + 2.8 + (n % d.cols) * 3.7,
+        z: z + d.instrumentRows * 1.25 + 3.1 + Math.floor(n / d.cols) * 3.6,
         model: floorModel(item),
       }),
     );

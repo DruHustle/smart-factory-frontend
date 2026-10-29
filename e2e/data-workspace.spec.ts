@@ -6,6 +6,7 @@ import {
   requiredCapabilities,
   runtimeContractVersion,
 } from "../shared/runtime-contract";
+import { demoInfrastructure } from "../server/infrastructure/demo";
 import { demoNetwork } from "../server/network-diagnostics/demo";
 import { canonicalUnits } from "../shared/measurements";
 import type { InventoryItem } from "../shared/inventory";
@@ -146,6 +147,9 @@ async function workspaceFixture(
           break;
         case "notifications.summary":
           value = { unread: 0 };
+          break;
+        case "system.infrastructure":
+          value = demoInfrastructure();
           break;
         case "system.showcase":
           value = null;
@@ -634,4 +638,98 @@ test("Overview graphics retains the complete floor plan when WebGL is unavailabl
   await expect(
     page.getByRole("heading", { name: "Factory observations", exact: true }),
   ).toBeVisible();
+});
+
+test("Overview design keeps factory, status and summaries in the desktop composition and restricts live infrastructure", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page);
+  await page.setViewportSize({ width: 1600, height: 1050 });
+  await page.goto("/#/");
+  const floor = page.getByTestId("factory-floor");
+  const status = page.getByRole("complementary", {
+    name: "Factory status",
+    exact: true,
+  });
+  await expect(floor).toHaveAttribute("data-visible-items", "57");
+  await expect(
+    status.getByRole("heading", { name: "Connection health", exact: true }),
+  ).toBeVisible();
+  const floorBounds = await floor.boundingBox(),
+    statusBounds = await status.boundingBox();
+  expect(floorBounds).not.toBeNull();
+  expect(statusBounds!.x).toBeGreaterThan(floorBounds!.x + floorBounds!.width);
+  await expect(
+    page.getByRole("group", { name: "Source observation states", exact: true }),
+  ).toContainText("51");
+  await expect(
+    page.getByText("Service evidence is available to administrators.", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  expect(
+    requests.filter((r) => r.procedure === "system.infrastructure"),
+  ).toHaveLength(0);
+  await page
+    .getByLabel("Overview time range", { exact: true })
+    .selectOption("24h");
+  await expect
+    .poll(() =>
+      requests
+        .filter((r) => r.procedure === "readings.trend")
+        .some((r) => r.input.endTime - r.input.startTime === 86400000),
+    )
+    .toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("Overview design shows explicitly simulated infrastructure and a truthful GPU fallback", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (
+      kind: string,
+      ...args: any[]
+    ) {
+      return /webgl/i.test(kind)
+        ? null
+        : getContext.call(this, kind as any, ...args);
+    } as typeof getContext;
+  });
+  await workspaceFixture(page, true);
+  await page.goto("/#/");
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "3D unavailable on this device" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", {
+      name: "Accessible factory floor plan",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("list", { name: "Overview service health", exact: true })
+      .getByRole("listitem"),
+  ).toHaveCount(4);
+  await expect(
+    page.getByText("Simulated infrastructure", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Theme settings, system", exact: true })
+    .click();
+  await page.getByRole("menuitemradio", { name: /Dark/ }).click();
+  await expect(page.getByTestId("factory-overview-dashboard")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

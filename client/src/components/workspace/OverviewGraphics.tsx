@@ -13,7 +13,9 @@ const Renderer = lazy(loadEquipmentRenderer);
 
 export function SourceStates({
   stats,
+  compact = false,
 }: {
+  compact?: boolean;
   stats: {
     online: number;
     stale: number;
@@ -33,13 +35,18 @@ export function SourceStates({
         ["Unknown", stats.unknown, "var(--muted-foreground)", "unknown"],
         ["Maintenance", stats.maintenance, "var(--chart-4)", "maintenance"],
         ["Error", stats.error, "var(--destructive)", "error"],
-      ].map(([label, value, color, status]) => ({
-        label: String(label),
-        value: Number(value),
-        color: String(color),
-        href: `/monitoring?status=${status}`,
-        striped: status === "offline",
-      }))}
+      ]
+        .filter(
+          ([label, value]) =>
+            !compact || Number(value) > 0 || label === "Receiving",
+        )
+        .map(([label, value, color, status]) => ({
+          label: String(label),
+          value: Number(value),
+          color: String(color),
+          href: `/monitoring?status=${status}`,
+          striped: status === "offline",
+        }))}
     />
   );
 }

@@ -70,7 +70,7 @@ export function FactoryFloor({
   const active = items.find((item) => item.ref === selected);
   return (
     <section
-      className="min-w-0 overflow-hidden rounded-xl border bg-card"
+      className="overview-floor min-w-0 overflow-hidden rounded-lg border bg-card"
       aria-label="Factory floor overview"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
@@ -107,7 +107,7 @@ export function FactoryFloor({
               <Button
                 key={mode}
                 size="sm"
-                variant={view === mode ? "secondary" : "ghost"}
+                variant={view === mode ? "default" : "ghost"}
                 aria-pressed={view === mode}
                 onClick={() => setView(mode)}
                 className="h-8 gap-1 px-2"
@@ -136,7 +136,7 @@ export function FactoryFloor({
         </div>
       </div>
       <div
-        className="relative h-[27rem] min-w-0 sm:h-[34rem]"
+        className="overview-floor-viewport relative h-[21rem] min-w-0"
         data-testid="factory-floor"
         data-total-items={items.length}
         data-visible-items={visible.length}
@@ -181,9 +181,26 @@ export function FactoryFloor({
             </Suspense>
           </FloorSceneBoundary>
         )}
-        <span className="pointer-events-none absolute right-3 top-3 rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground">
-          Drag to orbit · scroll to zoom
-        </span>
+        <div
+          className="pointer-events-none absolute bottom-3 left-3 right-3 flex w-fit max-w-[calc(100%-1.5rem)] flex-wrap gap-x-3 gap-y-1 rounded-md border bg-background/95 px-2 py-1 text-[10px] text-muted-foreground"
+          aria-label="Floor indicator legend"
+        >
+          {[
+            ["#28a6c4", "Simulated"],
+            ["#32b881", "Fresh source"],
+            ["#dba64a", "Needs review"],
+            ["#ef6461", "Reported error"],
+            ["#8191a3", "Unknown"],
+          ].map(([color, text]) => (
+            <span key={text} className="inline-flex items-center gap-1">
+              <span
+                className="size-1.5 rounded-full"
+                style={{ backgroundColor: color }}
+              />
+              {text}
+            </span>
+          ))}
+        </div>
       </div>
       {active && (
         <div
@@ -217,34 +234,14 @@ export function FactoryFloor({
       )}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2 text-[11px] text-muted-foreground">
         <span>
-          Automatic layout · illustrative geometry · lines show recorded data
-          connections
+          {visible.length} of {items.length} items shown · Illustrative layout
         </span>
         <Link
           href="/inventory"
           className="inline-flex min-h-8 items-center gap-1 text-foreground underline"
         >
-          Manage assets & devices <ArrowUpRight className="size-3" />
+          Explore assets <ArrowUpRight className="size-3" />
         </Link>
-      </div>
-      <div
-        className="flex flex-wrap gap-x-4 gap-y-1 px-4 pb-3 text-[11px] text-muted-foreground"
-        aria-label="Floor indicator legend"
-      >
-        {[
-          ["#28a6c4", "Simulated"],
-          ["#32b881", "Fresh source"],
-          ["#dba64a", "Unknown / needs review"],
-          ["#ef6461", "Reported error"],
-        ].map(([color, text]) => (
-          <span key={text} className="inline-flex items-center gap-1.5">
-            <span
-              className="size-2 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            {text}
-          </span>
-        ))}
       </div>
       <details className="border-t px-4 py-2">
         <summary className="cursor-pointer text-xs font-medium">

@@ -269,9 +269,14 @@ for (const width of [390, 1440])
               exact: true,
             }),
           ).toBeVisible();
+          const timingEvidence = page
+            .locator("summary")
+            .filter({ hasText: "Process and FX / TSN evidence" });
+          await timingEvidence.click();
           await expect(
             page.getByRole("heading", { name: "FX / TSN health", exact: true }),
           ).toBeVisible();
+          await timingEvidence.click();
           await capture(page, `factory-floor-${theme}-${width}`, {
             total: snapshot.total,
             complete: snapshot.complete,

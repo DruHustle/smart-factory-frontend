@@ -8,6 +8,9 @@ import {
   AlertTriangle,
   Network,
   Clock3,
+  Gauge,
+  ChevronRight,
+  CircleAlert,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,10 +26,8 @@ import {
 } from "@/components/workspace/Primitives";
 import { FactoryFloor } from "@/components/workspace/FactoryFloor";
 import { ObservationTrend } from "@/components/workspace/ObservationTrend";
-import {
-  ProcessDistribution,
-  SourceStates,
-} from "@/components/workspace/OverviewGraphics";
+import { SourceStates } from "@/components/workspace/OverviewGraphics";
+import { OverviewInfrastructure } from "@/components/workspace/OverviewInfrastructure";
 import { SystemItemTypes } from "@/components/workspace/SystemInventoryOverview";
 import { metrics, type Metric } from "@shared/measurements";
 import type { FloorLink } from "@shared/factory-floor";
@@ -51,7 +52,7 @@ export default function Home() {
   const floor = trpc.factory.floor.useQuery({ zone: "" }, options);
   const overview = trpc.analytics.getOverview.useQuery(undefined, options);
   const incidents = trpc.alerts.list.useQuery(
-    { openOnly: true, limit: 3 },
+    { openOnly: true, limit: 2 },
     options,
   );
   const network = trpc.networkDiagnostics.overview.useQuery(
@@ -68,6 +69,7 @@ export default function Home() {
   const metric = metrics.includes(params.get("metric") as Metric)
     ? (params.get("metric") as Metric)
     : "temperature";
+  const rangeMs = params.get("range") === "24h" ? 86400000 : 3600000;
   const at = Number(params.get("at"));
   const end =
     params.has("at") && at > 0 && at <= Date.now() + 300000
@@ -155,104 +157,260 @@ export default function Home() {
     },
   ];
   return (
-    <div className="space-y-5">
+    <div
+      className="factory-overview space-y-3"
+      data-testid="factory-overview-dashboard"
+    >
       <PageHeader
         title="Overview"
-        description="Your factory floor, equipment activity and connection health at a glance."
+        description="Your connected factory, at a glance."
         action={
           <>
+            <select
+              aria-label="Overview time range"
+              value={rangeMs === 86400000 ? "24h" : "1h"}
+              onChange={(e) => update({ range: e.target.value })}
+              className="workspace-control h-9 w-auto text-xs"
+            >
+              <option value="1h">Last 60 min</option>
+              <option value="24h">Last 24 hours</option>
+            </select>
             <Button
               variant="outline"
               size="icon"
+              className="size-9"
               aria-label="Refresh overview"
               onClick={refresh}
               disabled={busy}
             >
-              <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
-            </Button>
-            <Button asChild>
-              <Link href="/inventory">
-                Assets & devices <ArrowRight className="size-4" />
-              </Link>
+              <RefreshCw
+                className={`size-4 ${busy ? "motion-safe:animate-spin" : ""}`}
+              />
             </Button>
           </>
         }
       />
       {demo && (
         <div
-          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-xs"
+          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border border-warning/25 bg-warning/5 px-3 py-1.5 text-xs"
           role="note"
         >
-          <span>
-            <strong>Demo factory · simulated evidence.</strong>{" "}
-            {user?.access?.canSwitchData
-              ? "Switch to Live data to view your operational installation."
-              : "Live data requires an individual account on your operational installation."}
+          <span className="flex min-w-0 items-center gap-2">
+            <CircleAlert className="size-4 shrink-0 text-warning" aria-hidden />
+            <span>
+              <strong>Demo factory · simulated evidence.</strong>{" "}
+              {user?.access?.canSwitchData
+                ? "Switch to Live data to view your operational installation."
+                : "Live data requires an individual account on your operational installation."}
+            </span>
           </span>
           <Link
             href="/demo"
-            className="inline-flex min-h-8 items-center gap-1 underline"
+            className="inline-flex min-h-7 items-center gap-1 underline"
           >
-            Demo guide <ArrowRight className="size-3" />
+            Demo guide <ArrowRight className="size-3" aria-hidden />
           </Link>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="overview-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {kpis.map((kpi) => (
           <Link
             key={kpi.title}
             href={kpi.href}
-            className="min-w-0 rounded-xl border bg-card p-3 transition-colors hover:border-info"
+            className="overview-kpi flex min-w-0 items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
           >
-            <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              {kpi.title}
-              <kpi.icon className="size-4 shrink-0 text-info" />
+            <kpi.icon
+              className="size-7 shrink-0 text-info"
+              strokeWidth={1.5}
+              aria-hidden
+            />
+            <span className="min-w-0">
+              <span className="block text-[11px] text-muted-foreground">
+                {kpi.title}
+              </span>
+              <strong
+                className={`mt-1 block font-semibold tabular-nums ${String(kpi.value).length > 8 ? "text-sm" : "text-2xl"}`}
+              >
+                {kpi.value}
+              </strong>
             </span>
-            <strong className="mt-2 block truncate text-2xl font-semibold tabular-nums">
-              {kpi.value}
-            </strong>
           </Link>
         ))}
       </div>
-      {floor.isLoading ? (
-        <div className="flex h-[32rem] items-center justify-center rounded-xl border bg-card">
-          <EmptyState title="Loading the complete factory floor…" />
+      <div className="overview-main-grid grid min-w-0 items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-w-0">
+          {floor.isLoading ? (
+            <div className="flex h-[28rem] items-center justify-center rounded-lg border bg-card">
+              <EmptyState title="Loading the complete factory floor…" />
+            </div>
+          ) : floor.error || !floor.data ? (
+            <EmptyState
+              error
+              title="Factory floor unavailable"
+              description={floor.error?.message}
+              action={
+                <Button variant="outline" onClick={() => void floor.refetch()}>
+                  Retry factory floor
+                </Button>
+              }
+            />
+          ) : !items.length ? (
+            <EmptyState
+              title="No registered factory items"
+              description="Connect assets, gateways and devices through Assets & devices to populate this floor."
+              action={
+                <Button asChild>
+                  <Link href="/inventory">Connect first item</Link>
+                </Button>
+              }
+            />
+          ) : (
+            <FactoryFloor
+              items={items}
+              links={[...floor.data.links, ...fxLinks]}
+              selected={selected?.ref ?? null}
+              onSelect={(ref) => update({ source: ref })}
+              returnTo={location}
+              demo={demo}
+            />
+          )}
         </div>
-      ) : floor.error || !floor.data ? (
-        <EmptyState
-          error
-          title="Factory floor unavailable"
-          description={floor.error?.message}
-          action={
-            <Button variant="outline" onClick={() => void floor.refetch()}>
-              Retry factory floor
-            </Button>
-          }
-        />
-      ) : !items.length ? (
-        <EmptyState
-          title="No registered factory items"
-          description="Connect assets, gateways and devices through Assets & devices to populate this floor."
-          action={
-            <Button asChild>
-              <Link href="/inventory">Connect first item</Link>
-            </Button>
-          }
-        />
-      ) : (
-        <FactoryFloor
-          items={items}
-          links={[...floor.data.links, ...fxLinks]}
-          selected={selected?.ref ?? null}
-          onSelect={(ref) => update({ source: ref })}
-          returnTo={location}
-          demo={demo}
-        />
-      )}
-      <div className="grid items-stretch gap-4 lg:grid-cols-3">
-        <Card className="min-w-0">
+        <aside
+          aria-label="Factory status"
+          className="overview-status grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-1"
+        >
+          <Card className="overview-panel min-w-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock3 className="size-4 text-info" aria-hidden />
+                Needs attention
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {overview.error
+                  ? "Incident count unavailable"
+                  : `${stats?.alerts.open ?? "…"} open process incidents`}
+              </p>
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col">
+              {incidents.error ? (
+                <EmptyState error title="Incidents unavailable" />
+              ) : incidents.isLoading ? (
+                <p className="text-xs text-muted-foreground" role="status">
+                  Loading incidents…
+                </p>
+              ) : !incidents.data?.length ? (
+                <p className="py-3 text-xs text-muted-foreground">
+                  No open process incidents.
+                </p>
+              ) : (
+                <ul
+                  className="space-y-2"
+                  aria-label="Incidents needing attention"
+                >
+                  {incidents.data.map((incident) => (
+                    <li key={incident.id}>
+                      <Link
+                        href={`/alerts/${incident.id}`}
+                        className="flex min-h-16 items-start gap-2 rounded-lg border p-2.5 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
+                      >
+                        <span
+                          className={`mt-1 size-2.5 shrink-0 rounded-full ${incident.severity === "critical" ? "bg-destructive" : incident.severity === "warning" ? "bg-warning" : "bg-info"}`}
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1">
+                          <strong className="line-clamp-2 block text-xs font-semibold">
+                            {incident.message}
+                          </strong>
+                          <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <span className="capitalize">
+                              {incident.severity}
+                            </span>{" "}
+                            ·{" "}
+                            <SampleTime
+                              value={incident.createdAt.toISOString()}
+                              historical
+                            />
+                          </span>
+                        </span>
+                        <ChevronRight
+                          className="mt-0.5 size-3 shrink-0"
+                          aria-hidden
+                        />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link
+                href="/alerts?status=open"
+                className="mt-auto inline-flex min-h-8 items-center justify-end gap-1 pt-2 text-xs underline"
+              >
+                View alerts <ArrowRight className="size-3" aria-hidden />
+              </Link>
+            </CardContent>
+          </Card>
+          <Card className="overview-panel min-w-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Gauge className="size-4 text-info" aria-hidden />
+                Connection health
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stats && !overview.error ? (
+                <SourceStates stats={stats.devices} compact />
+              ) : (
+                <EmptyState title="Connection summary unavailable" />
+              )}
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                {demo
+                  ? "Simulated source evidence"
+                  : "Reported observation states"}{" "}
+                · Unknown remains unknown
+              </p>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+      <div className="overview-bottom-grid grid min-w-0 items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,2.15fr)_minmax(14rem,1fr)_minmax(13rem,.9fr)]">
+        <div className="overview-telemetry min-w-0 lg:col-span-2 xl:col-span-1">
+          {assetIds.length > 0 && assetIds.length <= 1000 ? (
+            <ObservationTrend
+              dashboard
+              title="Factory observations"
+              assetIds={assetIds}
+              metric={metric}
+              onMetricChange={(value) => update({ metric: value })}
+              scope={demo ? "simulated" : "operational"}
+              startTime={end - rangeMs}
+              endTime={end}
+              intervalMs={rangeMs === 86400000 ? 900000 : 60000}
+              openHref="/analytics"
+            />
+          ) : (
+            <Card className="overview-panel h-full">
+              <CardHeader>
+                <CardTitle>Factory observations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <EmptyState
+                  title={
+                    assetIds.length > 1000
+                      ? "Select a zone in Analytics for detailed comparisons"
+                      : "No factory observations yet"
+                  }
+                  description="Connected equipment will contribute measurements to the factory trend."
+                />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+        <Card className="overview-panel overview-inventory min-w-0">
           <CardHeader>
-            <CardTitle>Factory inventory</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Boxes className="size-4 text-info" aria-hidden />
+              Factory inventory
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {floor.data && !floor.error ? (
@@ -262,174 +420,88 @@ export default function Home() {
             )}
           </CardContent>
         </Card>
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardTitle>Connection evidence</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stats && !overview.error ? (
-              <SourceStates stats={stats.devices} />
-            ) : (
-              <EmptyState title="Connection summary unavailable" />
-            )}
-          </CardContent>
-        </Card>
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardTitle>Process incidents</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {stats && !overview.error ? (
-              <ProcessDistribution stats={stats.alerts} />
-            ) : (
-              <EmptyState title="Incident summary unavailable" />
-            )}
-            <p className="text-xs text-muted-foreground">
-              <span>Confirmed downtime</span> ·{" "}
-              {stats?.alerts.activeDowntime ?? "…"} explicitly confirmed events
+        <OverviewInfrastructure />
+      </div>
+      <details className="rounded-lg border bg-card px-4 py-2 text-xs">
+        <summary className="cursor-pointer font-medium">
+          Process and FX / TSN evidence
+        </summary>
+        <div className="grid gap-4 py-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <p>
+              <strong>{stats?.alerts.open ?? "…"}</strong> open process
+              incidents ·{" "}
+              <span className="text-destructive">
+                {stats?.alerts.critical ?? "…"} critical
+              </span>{" "}
+              ·{" "}
+              <span className="text-warning">
+                {stats?.alerts.warning ?? "…"} warning
+              </span>
+            </p>
+            <p className="text-muted-foreground">
+              Confirmed downtime · {stats?.alerts.activeDowntime ?? "…"}{" "}
+              explicitly confirmed events
             </p>
             <Link
               href="/cybersecurity"
-              className="inline-flex min-h-9 items-center gap-2 text-xs underline"
+              className="inline-flex min-h-8 items-center gap-1 underline"
             >
-              Separate cybersecurity evidence <ArrowRight className="size-3" />
+              Separate cybersecurity evidence{" "}
+              <ArrowRight className="size-3" aria-hidden />
             </Link>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(16rem,1fr)]">
-        <div className="min-w-0 rounded-xl border bg-card p-4">
-          {assetIds.length > 0 && assetIds.length <= 1000 ? (
-            <>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Factory trend · all {assetIds.length} registered
-                assets/equipment · bucket averages of verified samples ·{" "}
-                {demo ? "simulated" : "operational"} evidence
+          </div>
+          <div className="space-y-2">
+            <h3 className="font-semibold">FX / TSN health</h3>
+            {network.error ? (
+              <p>Network diagnostics unavailable</p>
+            ) : !snapshots.length ? (
+              <p className="text-muted-foreground">
+                Connect a diagnostics collector to see FX components, streams
+                and clock quality.
               </p>
-              <ObservationTrend
-                title="Factory observations"
-                assetIds={assetIds}
-                metric={metric}
-                onMetricChange={(value) => update({ metric: value })}
-                scope={demo ? "simulated" : "operational"}
-                startTime={end - 3600000}
-                endTime={end}
-                intervalMs={60000}
-                openHref="/analytics"
-              />
-            </>
-          ) : (
-            <EmptyState
-              title={
-                assetIds.length > 1000
-                  ? "Select a zone in Analytics for detailed comparisons"
-                  : "No factory observations yet"
-              }
-              description="Connected equipment will contribute measurements to the factory trend."
-            />
-          )}
-        </div>
-        <div className="min-w-0 space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
-              <CardTitle>FX / TSN health</CardTitle>
-              <Link href="/network" className="text-xs underline">
-                Inspect <ArrowRight className="inline size-3" />
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              {network.error ? (
-                <EmptyState error title="Network diagnostics unavailable" />
-              ) : !snapshots.length ? (
-                <p className="text-muted-foreground">
-                  Connect a diagnostics collector to see FX components, streams
-                  and clock quality.
-                </p>
-              ) : (
-                <>
-                  {coverage && coverage.returned < coverage.total && (
-                    <p className="text-xs text-warning">
-                      Coverage: {coverage.returned}/{coverage.total} gateway
-                      reports
-                    </p>
-                  )}
-                  <div className="flex justify-between">
-                    <span>Automation components</span>
-                    <strong>{components.length}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Operational connections</span>
-                    <strong>
-                      {
-                        connections.filter((c) => c.state === "operational")
-                          .length
-                      }
-                      /{connections.length}
-                    </strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Clock synchronisation</span>
-                    <Badge variant="outline">
-                      {network.data?.stale
-                        ? "Stale evidence"
-                        : ports.every((p) => p.syncState === "locked") &&
-                            ports.length
-                          ? "Locked"
-                          : "Needs review"}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {network.data?.synthetic
-                      ? "Authored simulation · no physical TSN timing claim"
-                      : network.data?.stale
-                        ? "Stale collector evidence · review diagnostics"
-                        : "Reported collector evidence"}
+            ) : (
+              <>
+                {coverage && coverage.returned < coverage.total && (
+                  <p className="text-warning">
+                    Coverage: {coverage.returned}/{coverage.total} gateway
+                    reports
                   </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
-              <CardTitle>Needs attention</CardTitle>
-              <Link href="/alerts?status=open" className="text-xs underline">
-                All incidents
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {incidents.error ? (
-                <EmptyState error title="Incidents unavailable" />
-              ) : !incidents.data?.length ? (
-                <p className="text-sm text-muted-foreground">
-                  No open process incidents.
+                )}
+                <p>
+                  {components.length} automation components ·{" "}
+                  {connections.filter((c) => c.state === "operational").length}/
+                  {connections.length} operational connections
                 </p>
-              ) : (
-                <ul className="divide-y">
-                  {incidents.data.map((incident) => (
-                    <li key={incident.id} className="py-3 first:pt-0">
-                      <Link
-                        href={`/alerts/${incident.id}`}
-                        className="block text-sm hover:underline"
-                      >
-                        <strong className="font-medium">
-                          {incident.message}
-                        </strong>
-                        <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <Badge variant="outline">{incident.severity}</Badge>
-                          <SampleTime
-                            value={incident.createdAt.toISOString()}
-                            historical
-                          />
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+                <p>
+                  Clock synchronisation{" "}
+                  <Badge variant="outline">
+                    {network.data?.stale
+                      ? "Stale evidence"
+                      : ports.every((p) => p.syncState === "locked") &&
+                          ports.length
+                        ? "Locked"
+                        : "Needs review"}
+                  </Badge>
+                </p>
+                <p className="text-muted-foreground">
+                  {network.data?.synthetic
+                    ? "Authored simulation · no physical TSN timing claim"
+                    : network.data?.stale
+                      ? "Stale collector evidence · review diagnostics"
+                      : "Reported collector evidence"}
+                </p>
+              </>
+            )}
+            <Link
+              href="/network"
+              className="inline-flex min-h-8 items-center gap-1 underline"
+            >
+              Inspect FX / TSN <ArrowRight className="size-3" aria-hidden />
+            </Link>
+          </div>
         </div>
-      </div>
+      </details>
     </div>
   );
 }
