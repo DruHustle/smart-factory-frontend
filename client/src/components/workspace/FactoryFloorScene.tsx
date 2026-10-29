@@ -196,6 +196,7 @@ export default function FactoryFloorScene({
       .map((p) => `${p.item.ref}:${p.x}:${p.z}:${p.model}`)
       .join("|") + links.map((l) => `${l.from}:${l.to}`).join("|");
   useEffect(() => {
+    if (failed) return;
     let cleanup: (() => void) | undefined;
     let secondFrame = 0;
     // Present the summary and accessible floor before initializing WebGL.
@@ -484,6 +485,7 @@ export default function FactoryFloorScene({
         event.preventDefault();
         cancelAnimationFrame(frame);
         setFailed(true);
+        cleanup?.();
       };
       renderer.domElement.addEventListener("webglcontextlost", lost);
       const tick = () => {
@@ -499,6 +501,7 @@ export default function FactoryFloorScene({
       };
       tick();
       return () => {
+        if (disposed) return;
         disposed = true;
         cancelAnimationFrame(frame);
         observer.disconnect();
@@ -520,7 +523,7 @@ export default function FactoryFloorScene({
       cancelAnimationFrame(secondFrame);
       cleanup?.();
     };
-  }, [key, dark]);
+  }, [key, dark, failed]);
   useEffect(() => {
     runtime.current?.focus(selected);
   }, [selected, key, dark]);

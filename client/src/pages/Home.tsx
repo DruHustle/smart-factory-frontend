@@ -445,6 +445,7 @@ export default function Home() {
             </p>
             <Link
               href="/cybersecurity"
+              aria-label="Separate cybersecurity evidence"
               className="inline-flex min-h-8 items-center gap-1 underline"
             >
               Separate cybersecurity evidence{" "}
@@ -495,6 +496,7 @@ export default function Home() {
             )}
             <Link
               href="/network"
+              aria-label="Inspect FX / TSN"
               className="inline-flex min-h-8 items-center gap-1 underline"
             >
               Inspect FX / TSN <ArrowRight className="size-3" aria-hidden />

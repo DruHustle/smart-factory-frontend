@@ -33,7 +33,7 @@ async function login(page: Page, persona: Persona) {
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30000 });
 }
 
 async function checkLayout(

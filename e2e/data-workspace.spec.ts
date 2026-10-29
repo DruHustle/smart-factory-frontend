@@ -640,6 +640,99 @@ test("Overview graphics retains the complete floor plan when WebGL is unavailabl
   ).toBeVisible();
 });
 
+for (const width of [390, 1440])
+  for (const theme of ["light", "dark"] as const)
+    test(`Overview graphics recovers actual WebGL context loss at ${width}px ${theme}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 960 });
+      await page.emulateMedia({ colorScheme: theme });
+      await workspaceFixture(page);
+      await page.route("**/api/equipment/reference/**", (route) =>
+        route.fulfill({ status: 503 }),
+      );
+      await page.goto("/#/");
+      const canvas = page.getByRole("img", {
+        name: "Interactive 3D factory floor",
+        exact: true,
+      });
+      await expect(canvas).toHaveAttribute("data-floor-node-count", "57");
+      await expect(
+        page.getByRole("status").filter({ hasText: "57 items on floor" }),
+      ).toBeVisible();
+      await canvas.evaluate((node) => {
+        const gl = (node as HTMLCanvasElement).getContext("webgl2");
+        const extension = gl?.getExtension("WEBGL_lose_context");
+        if (!extension)
+          throw new Error(
+            "The rendering fixture must support actual context-loss testing",
+          );
+        extension.loseContext();
+      });
+      await expect(
+        page
+          .getByRole("status")
+          .filter({ hasText: "3D unavailable on this device" }),
+      ).toBeVisible();
+      const plan = page.getByRole("img", {
+        name: "Accessible factory floor plan",
+        exact: true,
+      });
+      await expect(plan.getByRole("button")).toHaveCount(57);
+      const item = plan.getByRole("button", {
+        name: "Select Live system 57",
+        exact: true,
+      });
+      await expect(item).toHaveAttribute(
+        "aria-description",
+        "unknown · live evidence",
+      );
+      await item.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.getByLabel("Selected floor item")).toContainText(
+        "Live system 57",
+      );
+      await expect(item).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByTestId("factory-floor")).toHaveAttribute(
+        "data-visible-items",
+        "57",
+      );
+      await expect(
+        page.getByRole("link", { name: "Open item", exact: true }),
+      ).toHaveAttribute("href", /#\/inventory\/device%3A57\/overview/);
+      await expect(
+        page.getByRole("heading", {
+          name: "Factory observations",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await page
+        .getByLabel("Factory floor zone", { exact: true })
+        .selectOption("Packaging");
+      await expect(page.getByTestId("factory-floor")).toHaveAttribute(
+        "data-visible-items",
+        "20",
+      );
+      await page
+        .getByRole("button", { name: "Fit whole factory floor", exact: true })
+        .click();
+      await expect(plan.getByRole("button")).toHaveCount(57);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      mkdirSync("test-results/factory-overview", { recursive: true });
+      await page.screenshot({
+        path: join(
+          "test-results/factory-overview",
+          `context-loss-${width}-${theme}.png`,
+        ),
+        fullPage: true,
+        animations: "disabled",
+      });
+    });
+
 test("Overview design keeps factory, status and summaries in the desktop composition and restricts live infrastructure", async ({
   page,
 }) => {

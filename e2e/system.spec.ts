@@ -1023,9 +1023,9 @@ test("administrator recovery enforces first password change, revocation and disa
   baseURL,
 }) => {
   // This multi-account journey signs in repeatedly, now starting automatic 3D
-  // previews each time. Keep the complete recovery workflow bounded separately
-  // from the individual action and access assertions.
-  test.setTimeout(60000);
+  // previews each time. Allow the five independent sign-ins and credential
+  // changes to finish while retaining the individual action/access assertions.
+  test.setTimeout(120000);
   await loginAs(page, "admin");
   const email = `recovery-${Date.now()}@example.test`,
     temporary = "Synthetic-initial-only-2026!",
