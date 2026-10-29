@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { itemHref, type InventoryItem } from "@shared/inventory";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, SampleTime, StatusBadge } from "./Primitives";
 import { EquipmentSymbol, StateDistribution } from "./VisualEvidence";
@@ -17,9 +18,14 @@ export function FactoryConnections({
   onPage: (page: number) => void;
   returnTo: string;
 }) {
+  const active = useDocumentActive();
   const gateways = trpc.devices.monitor.useQuery(
     { type: "gateway", page, pageSize: 6 },
-    { staleTime: 60000 },
+    {
+      staleTime: 60000,
+      refetchInterval: active ? 60000 : false,
+      refetchIntervalInBackground: false,
+    },
   );
   return (
     <section aria-label="Factory connections" className="min-w-0">
@@ -52,6 +58,16 @@ export function FactoryConnections({
             <EmptyState
               title="No registered gateways"
               description="Direct devices and assets are listed in All system items. No gateway path is inferred."
+            />
+          ) : !gateways.data.items.length ? (
+            <EmptyState
+              title="This gateway page is no longer available"
+              description={`${gateways.data.total} registered gateways are available. Return to the first page to browse their paths.`}
+              action={
+                <Button variant="outline" onClick={() => onPage(0)}>
+                  First gateway page
+                </Button>
+              }
             />
           ) : (
             <>
@@ -114,13 +130,19 @@ function GatewayPath({
   };
   returnTo: string;
 }) {
+  const active = useDocumentActive();
+  const polling = {
+    staleTime: 60000,
+    refetchInterval: active ? 60000 : (false as const),
+    refetchIntervalInBackground: false,
+  };
   const children = trpc.devices.getConnectedDevices.useQuery(
     { id: gateway.id },
-    { staleTime: 60000 },
+    polling,
   );
   const assets = trpc.devices.getConnectedAssets.useQuery(
     { id: gateway.id },
-    { staleTime: 60000 },
+    polling,
   );
   const nodes = [
     ...(assets.data ?? []).map((asset) => ({

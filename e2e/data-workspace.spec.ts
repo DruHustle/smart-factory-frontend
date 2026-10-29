@@ -368,18 +368,22 @@ test("Overview graphics factory flow includes every gateway and independent item
   await page.reload();
   await expect(paths.locator(":scope > li")).toHaveCount(1);
   await expect(items.getByRole("listitem")).toHaveCount(5);
+  await page.goto("/#/?gatewaysPage=999");
+  await expect(
+    page.getByText("This gateway page is no longer available", { exact: true }),
+  ).toBeVisible();
+  await expect(distribution).toContainText("17");
+  await page
+    .getByRole("button", { name: "First gateway page", exact: true })
+    .click();
+  await expect(paths.locator(":scope > li")).toHaveCount(6);
+  await expect(items.getByRole("listitem")).toHaveCount(12);
   expect(
     requests.filter(({ procedure }) =>
       /equipment\.|readings\.trend/.test(procedure),
     ),
   ).toEqual([]);
   mkdirSync("test-results/factory-overview", { recursive: true });
-  await page
-    .getByRole("button", { name: "Previous gateways", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Previous items", exact: true })
-    .click();
   await expect(paths.locator(":scope > li")).toHaveCount(6);
   await page.screenshot({
     path: join("test-results/factory-overview", "factory-wide-overview.png"),
