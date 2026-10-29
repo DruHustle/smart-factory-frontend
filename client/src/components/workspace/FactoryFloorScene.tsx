@@ -12,13 +12,15 @@ import {
 
 type Layout = ReturnType<typeof layoutFactory>;
 const indicatorColor = (item: Layout["placements"][number]["item"]) =>
-  item.mode === "simulated"
-    ? 0x28a6c4
-    : item.status === "live"
-      ? 0x32b881
-      : item.status === "error"
-        ? 0xef6461
-        : 0xdba64a;
+  item.status === "error"
+    ? 0xef6461
+    : item.status === "maintenance"
+      ? 0xdba64a
+      : item.mode === "simulated"
+        ? 0x28a6c4
+        : item.status === "live"
+          ? 0x32b881
+          : 0xdba64a;
 function disposeObject(root: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(),
     materials = new Set<THREE.Material>(),

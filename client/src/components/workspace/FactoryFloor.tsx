@@ -1,4 +1,11 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import {
+  Component,
+  lazy,
+  Suspense,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { Link } from "wouter";
 import { Box, Expand, Layers, ArrowUpRight } from "lucide-react";
 import { layoutFactory, type FloorLink } from "@shared/factory-floor";
@@ -9,6 +16,18 @@ import { Badge } from "@/components/ui/badge";
 import { FloorPlan } from "./FactoryFloorPlan";
 import { StatusBadge } from "./Primitives";
 const Scene = lazy(() => import("./FactoryFloorScene"));
+class FloorSceneBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
 
 export function FactoryFloor({
   items,
@@ -130,7 +149,7 @@ export function FactoryFloor({
             onSelect={onSelect}
           />
         ) : (
-          <Suspense
+          <FloorSceneBoundary
             fallback={
               <FloorPlan
                 layout={layout}
@@ -140,16 +159,27 @@ export function FactoryFloor({
               />
             }
           >
-            <Scene
-              layout={layout}
-              links={links}
-              selected={selected}
-              onSelect={onSelect}
-              dark={theme === "dark"}
-              reset={reset}
-              zone={zone}
-            />
-          </Suspense>
+            <Suspense
+              fallback={
+                <FloorPlan
+                  layout={layout}
+                  links={links}
+                  selected={selected}
+                  onSelect={onSelect}
+                />
+              }
+            >
+              <Scene
+                layout={layout}
+                links={links}
+                selected={selected}
+                onSelect={onSelect}
+                dark={theme === "dark"}
+                reset={reset}
+                zone={zone}
+              />
+            </Suspense>
+          </FloorSceneBoundary>
         )}
         <span className="pointer-events-none absolute right-3 top-3 rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground">
           Drag to orbit · scroll to zoom
@@ -196,6 +226,25 @@ export function FactoryFloor({
         >
           Manage assets & devices <ArrowUpRight className="size-3" />
         </Link>
+      </div>
+      <div
+        className="flex flex-wrap gap-x-4 gap-y-1 px-4 pb-3 text-[11px] text-muted-foreground"
+        aria-label="Floor indicator legend"
+      >
+        {[
+          ["#28a6c4", "Simulated"],
+          ["#32b881", "Fresh source"],
+          ["#dba64a", "Unknown / needs review"],
+          ["#ef6461", "Reported error"],
+        ].map(([color, text]) => (
+          <span key={text} className="inline-flex items-center gap-1.5">
+            <span
+              className="size-2 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            {text}
+          </span>
+        ))}
       </div>
       <details className="border-t px-4 py-2">
         <summary className="cursor-pointer text-xs font-medium">

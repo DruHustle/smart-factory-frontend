@@ -513,7 +513,7 @@ test("Overview graphics FX and TSN scenarios show late timing, clock loss and re
   await expect(
     page
       .getByRole("list", { name: "FX automation components", exact: true })
-      .getByRole("listitem"),
+      .locator(":scope > li"),
   ).toHaveCount(4);
   await expect(
     page.getByRole("button", { name: "Import snapshot", exact: true }),
@@ -584,4 +584,38 @@ test("Overview graphics distinguishes an unavailable floor from empty inventory 
     "data-visible-items",
     "57",
   );
+});
+
+test("Overview graphics retains the complete floor plan when WebGL is unavailable", async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (
+      context: string,
+      ...args: unknown[]
+    ) {
+      if (
+        context === "webgl2" ||
+        context === "webgl" ||
+        context === "experimental-webgl"
+      )
+        return null;
+      return original.call(this, context as "2d", ...args);
+    } as typeof original;
+  });
+  await page.goto("/#/");
+  await expect(page.getByTestId("factory-floor")).toHaveAttribute(
+    "data-visible-items",
+    "57",
+  );
+  await expect(
+    page
+      .getByRole("img", { name: "Accessible factory floor plan", exact: true })
+      .getByRole("button"),
+  ).toHaveCount(57);
+  await expect(
+    page.getByRole("heading", { name: "Factory observations", exact: true }),
+  ).toBeVisible();
 });

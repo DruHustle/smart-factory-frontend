@@ -24,6 +24,13 @@ try {
       throw Error(
         "The demo notification isolation migration must be applied before installation.",
       );
+    const prior = await db.execute(
+      sql`select key from system_settings where key in ('showcase_install_v1','showcase_install_v2','showcase_install_v3') and coalesce(value->>'state','')<>'complete' limit 1`,
+    );
+    if (prior.length)
+      throw Error(
+        "A prior demo installation needs operator review. Retain its evidence and protected backup before continuing.",
+      );
     // A retained claim prevents concurrent/partial retries from silently overwriting evidence.
     const claims = await db.execute(
       sql`insert into system_settings(key,value) values('showcase_install_v4',${JSON.stringify({ state: "installing", startedAt: new Date().toISOString() })}::jsonb) on conflict(key) do nothing returning key`,

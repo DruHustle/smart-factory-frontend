@@ -133,6 +133,30 @@ export const networkSnapshot = z
     }
     const ids = new Set(snapshot.components.map((c) => c.id));
     if (
+      snapshot.components.some(
+        (c) =>
+          new Set(c.functionalEntities.map((e) => e.id)).size !==
+          c.functionalEntities.length,
+      )
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["components"],
+        message:
+          "Functional entity identities must be unique within a component",
+      });
+    if (
+      snapshot.ports.some(
+        (p) => p.scheduleHardwareVerified && !p.scheduleConfigured,
+      )
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["ports"],
+        message:
+          "Hardware schedule verification requires a configured schedule",
+      });
+    if (
       snapshot.connections.some(
         (c) =>
           !ids.has(c.publisher) ||

@@ -122,6 +122,18 @@ export async function planFactoryFloor() {
     throw Error(
       "Reserved factory demo identity collides with non-demo data. Nothing was changed.",
     );
+  const expected = floorSpec.map(
+    ([key, , slug]) =>
+      sql`(${floorEquipmentId(key)}::uuid,${`urn:smart-factory:showcase:floor:${key}`}::text,${referenceModels.find((m) => m.slug === slug)!.revision}::text)`,
+  );
+  const mismatched = await db.execute(sql`
+    select w.id from (values ${sql.join(expected, sql`,`)}) as e(id,asset,revision)
+    join equipment_workspaces w on w.id=e.id join assets a on a.id=w.asset_id
+    where w.template_revision<>e.revision or a."assetId"<>e.asset or w.is_demo=false or a."isDemo"=false`);
+  if (mismatched.length)
+    throw Error(
+      "Reserved factory model identity has incompatible retained content. Nothing was changed.",
+    );
 }
 
 export async function addFactoryFloorShowcase(
