@@ -676,3 +676,12 @@ input[type="radio"] {
     min-height: 2.75rem;
   }
 }
+
+@media (max-width: 767px) {
+  .factory-overview .overview-trend > div:first-child select,
+  .factory-overview .workspace-control {
+    font-size: 1rem;
+    min-height: 2.75rem;
+    height: auto;
+  }
+}

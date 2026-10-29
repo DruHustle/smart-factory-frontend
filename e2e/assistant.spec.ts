@@ -142,7 +142,7 @@ test("Assistant immediately shows pending, retains a failed draft and retries it
   await expect(
     page.getByRole("button", { name: "Ask", exact: true }),
   ).toBeDisabled();
-  expect(attempts).toBe(1);
+  await expect.poll(() => attempts).toBe(1);
   release();
   await expect(
     page.getByRole("button", { name: "Retry this question" }),
