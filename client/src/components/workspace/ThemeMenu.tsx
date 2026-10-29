@@ -26,7 +26,10 @@ export function ThemeMenu() {
           <span className="hidden sm:inline">Theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        className="data-[state=closed]:animate-none!"
+      >
         <DropdownMenuLabel>Appearance</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={preference}

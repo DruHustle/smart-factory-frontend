@@ -53,6 +53,9 @@ for (const width of [390, 1440])
           if (width < 768)
             await page.locator('[data-sidebar="trigger"]').click();
           await page
+            .locator('[data-sidebar="sidebar"]')
+            .filter({ visible: true })
+            .first()
             .getByRole("link", { name: "Demo guide", exact: true })
             .click();
           await expect(
