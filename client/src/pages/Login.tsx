@@ -18,7 +18,7 @@ import { Factory, Lock, Mail, Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { safeSessionStorage } from "@/lib/storage";
 import { DEMO_ACCOUNTS, type DemoAccount } from "../../../shared/demo-accounts";
@@ -126,9 +126,7 @@ export default function Login() {
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl font-bold tracking-wide">
-            Smart Factory
-          </h1>
+          <h1 className="text-2xl font-bold tracking-wide">Smart Factory</h1>
 
           {/* Subtitle */}
           <CardDescription className="text-muted-foreground">
@@ -206,6 +204,15 @@ export default function Login() {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
+
+          <div className="space-y-2 text-center">
+            <p className="text-sm text-muted-foreground">
+              New to Smart Factory?
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/register">Register</Link>
+            </Button>
+          </div>
 
           {/* Demo Accounts Section */}
           {demoAccountsQuery.isLoading && demoAccounts.length === 0 && (
