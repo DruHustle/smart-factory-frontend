@@ -6,10 +6,10 @@ export async function enterSimulation(page:Page,width=1440,theme='light'){
  await page.addInitScript(t=>localStorage.setItem('theme',t),theme);
  await page.goto('/#/login');await page.getByRole('button',{name:'Demo Viewer',exact:true}).click();await page.getByRole('button',{name:/^sign in$/i}).click();
  await expect(page.getByRole('heading',{name:'Overview',exact:true})).toBeVisible();
- // Sign-in now starts the real Overview preview automatically. Finish its first
- // frame (or WebGL fallback) before navigating so software-GPU preparation does
- // not overlap another workspace's assertions.
- await expect(page.locator('[aria-label="Linked equipment preview"] [data-state]')).toHaveAttribute('data-state',/^(ready|unsupported)$/,{timeout:30000});
+ // The landing page summarizes the system; 3D belongs to the chosen item's workspace.
+ await expect(page.getByRole('group',{name:'System item types',exact:true})).toBeVisible();
+ await expect(page.getByRole('region',{name:'All system items',exact:true})).toBeVisible();
+ await expect(page.locator('canvas')).toHaveCount(0);
  return (await(await page.request.get('/api/trpc/system.showcase')).json()).result.data.json;
 }
 export const rpc=(name:string,input:unknown)=>'/api/trpc/'+name+'?input='+encodeURIComponent(JSON.stringify({json:input}));

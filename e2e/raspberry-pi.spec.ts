@@ -26,8 +26,8 @@ for (const width of [390, 1440])
         let modelPath: string | undefined;
         let codeRequested = false,
           modelRequests = 0;
-        // Overview now starts its own authorized preview automatically. Observe
-        // shared code across the journey, but count only the Pi workspace's GLB.
+        // Observe shared renderer code across the journey, but count only the
+        // selected Pi workspace's GLB; the system Overview has no model preview.
         page.on("request", (request) => {
           if (request.url().includes("LocalEquipmentRenderer"))
             codeRequested = true;

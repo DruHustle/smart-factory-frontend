@@ -4,13 +4,15 @@
 
 ## Recovered journeys and distinct representations
 
-Git history at `81bdd2f`, `0524254`, `ce2f5b4`, `26f21df` and the initial implementation retained connectivity summaries, incident severity, an asset portfolio and navigation into detailed tools. Those Overview versions primarily used cards; the history did not contain a removed native 3D scene or time-series chart to restore verbatim. The implementation preserves their useful data and drill-downs, and brings the existing application-owned renderer and gap-aware observation chart into Overview.
+Git history at `81bdd2f`, `0524254`, `ce2f5b4`, `26f21df` and the initial implementation retained connectivity summaries, incident severity, an asset portfolio and navigation into detailed tools. The graphical implementation added native item previews and gap-aware observation charts. The system Overview now keeps the whole inventory in view; native 3D belongs to an individual item's workspace.
 
-Overview leads with linked equipment and explicitly configured gateway relationships. Source-state segments open filtered inventory; process severity opens the incident queue; timeline events open their investigation; plots open the appropriate typed telemetry destination. Source, metric, evidence scope, period and return context remain in the URL. Historical windows retain their acquisition dates. Numerical totals support these representations instead of dominating a card grid.
+Overview leads with the complete authorized inventory, a graphical item-type distribution, device/gateway observation states and process incidents. Factory connections shows recorded paths for six gateways per page, with their explicitly linked assets and devices and access to every remaining gateway. Each gateway preview shows up to six recorded links and a link to all of its connections; independent and unconfigured items remain in the inventory. The visible item collection is ordered by name and paginated in groups of twelve; every registered asset, gateway, device and standalone equipment item remains reachable, whether connected, offline or unconfigured. Summary counts come from the API's full-scope groups, not the displayed page. A linked 3D representation remains part of its asset, and standalone equipment appears once. No arbitrary model or gateway is selected as the factory Overview.
+
+Item-type links open filtered inventory; source-state links open Monitoring with the same device/gateway scope; process severity opens the incident queue; timeline events open their investigation. An optional item-telemetry section starts without a selected source. Explicit source, metric, evidence scope, period, item page and return context remain in the URL without narrowing the system totals. Historical windows retain their acquisition dates. Source observation states cover devices and gateways; registered item counts do not imply current physical connectivity.
 
 Each workspace has a purposeful visual: equipment symbols in inventory, one selected source path in Monitoring, investigation timelines, a security collector coverage matrix and severity profile, signed Analytics comparisons, grounded Assistant evidence links, and one integration configuration map. Repeated symbols convey the same equipment kind. No extra charts repeat the same information merely to decorate a page.
 
-The linked-model preview fetches geometry on demand and has a reset action and an accessible component link. The full native workspace retains its detailed component identities, explosion/reassembly, sections, ghost housings, internal inspection, observations, saved views and security-to-component focus. The preview does not project parent readings onto components.
+An individual item's linked-model preview loads automatically when opened and has a reset action and an accessible component link. The full native workspace retains its detailed component identities, explosion/reassembly, sections, ghost housings, internal inspection, observations, saved views and security-to-component focus. The preview does not project parent readings onto components.
 
 ## Brand, motion and access
 
@@ -21,6 +23,8 @@ Camera fitting, focus and saved-view restoration use a finite 300ms transition, 
 Existing authorization, evidence, unit, timestamp, publication and command boundaries remain in force. Demonstration screenshots use isolated fixtures. Configuration lines do not assert active delivery, source coverage does not certify security, illustrative geometry does not establish physical state, and firmware delivery remains disabled without a verified updater.
 
 ## Verification
+
+The Overview regression suite covers full-scope mixed-item totals, linked-model deduplication, pagination beyond twelve items, reload/return context, source-filter isolation, loading failures and empty states. Additional synthetic browser contracts cover both directions of Demo/Live switching with a single reload, persistence, removal of legacy equipment filters, restricted-session explanations, explicit account switching, all gateway pages and independent/unconfigured items. Responsive journeys verify no model loads on the system Overview and automatic rendering still works after opening the relevant item. The historical evidence below records the earlier layout.
 
 - Typecheck and production build pass.
 - Sixteen inspection and camera unit checks pass, including exact final camera position, interruption, hidden-page completion and reduced motion.

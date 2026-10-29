@@ -37,7 +37,7 @@ export function SourceStates({
         label: String(label),
         value: Number(value),
         color: String(color),
-        href: `/inventory?status=${status}`,
+        href: `/monitoring?status=${status}`,
         striped: status === "offline",
       }))}
     />
