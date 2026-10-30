@@ -48,9 +48,8 @@ async function checkLayout(
   if (collapsed) await expect(nav).toHaveCSS("width", "48px");
   const headings = nav.locator("[data-navigation-heading]");
   await expect(headings).toHaveCount(infrastructure ? 6 : 5);
-  const rows = await nav
-    .locator("[data-navigation-layout]")
-    .evaluateAll((nodes) =>
+  const measure = () =>
+    nav.locator("[data-navigation-layout]").evaluateAll((nodes) =>
       nodes.map((node) => {
         const label = node.querySelector<HTMLElement>(
           "[data-navigation-label]",
@@ -86,6 +85,17 @@ async function checkLayout(
         };
       }),
     );
+  let rows = await measure();
+  // The collapse attribute and computed width can update before the nested list
+  // has finished repositioning. Require the same exact final geometry, with a
+  // bounded wait, before checking the complete typography/icon contract.
+  await expect
+    .poll(async () => {
+      rows = await measure();
+      const origin = rows.find((row) => row.text === "Overview")!.x;
+      return rows.map((row) => row.x - origin);
+    })
+    .toEqual(rows.map((row) => (collapsed || row.heading ? 0 : 12)));
   const baseX = rows.find((row) => row.text === "Overview")!.x;
   for (const row of rows) {
     expect(row.count, `${row.text} must have one configured icon`).toBe(1);
