@@ -10,6 +10,12 @@ import {
   type FloorSelect,
   type FloorMove,
 } from "./floor-arrangement";
+import {
+  factoryAreas,
+  factoryAreaColors,
+  factoryAreaTitles,
+} from "./factory-spaces";
+
 type Layout = ReturnType<typeof layoutFactory>;
 
 function EquipmentSymbol({ model }: { model: string | null }) {
@@ -106,6 +112,7 @@ export function FloorPlan({
   onMove?: FloorMove;
   reset?: number;
 }) {
+  const areas = factoryAreas(layout);
   const canvas = useRef<SVGSVGElement>(null);
   const panModifier = useRef(false);
   const [grabbed, setGrabbed] = useState<"item" | "floor" | null>(null);
@@ -230,6 +237,7 @@ export function FloorPlan({
       className="h-full w-full bg-muted/30 text-foreground"
       role="img"
       aria-label="Accessible factory floor plan"
+      data-factory-areas={JSON.stringify(areas)}
       tabIndex={0}
       style={{
         touchAction: "none",
@@ -302,6 +310,88 @@ export function FloorPlan({
         }
       }}
     >
+      <g
+        pointerEvents="none"
+        aria-label="Factory loading, storage, production and exit areas"
+      >
+        {areas.map((area, index) => {
+          const color = factoryAreaColors[area.kind];
+          const cx = area.x + area.width / 2,
+            cz = area.z + area.depth / 2;
+          return (
+            <g
+              key={`${area.kind}-${index}`}
+              role="img"
+              aria-label={`${factoryAreaTitles[area.kind]}: ${area.name}`}
+            >
+              <title>
+                {area.name} ·{" "}
+                {area.origin === "zone"
+                  ? "Saved layout zone"
+                  : "Illustrative reference area"}
+              </title>
+              <rect
+                x={area.x}
+                y={area.z}
+                width={area.width}
+                height={area.depth}
+                rx=".12"
+                fill={color}
+                fillOpacity=".09"
+                stroke={color}
+                strokeWidth=".05"
+                strokeDasharray=".22 .13"
+              />
+              {area.kind === "storage" &&
+                [0.25, 0.5, 0.75].map((part) => (
+                  <path
+                    key={part}
+                    d={`M${area.x + 0.16} ${area.z + area.depth * part}h${Math.max(0.1, area.width - 0.32)}`}
+                    stroke={color}
+                    strokeWidth=".06"
+                  />
+                ))}
+              {area.origin === "reference" && (
+                <text
+                  x={cx}
+                  y={cz + 0.12}
+                  textAnchor="middle"
+                  fill={color}
+                  fontSize={Math.min(0.8, area.width / 8)}
+                  fontWeight="600"
+                >
+                  {area.name.split(/\s*\/\s*/).map((part, line) => (
+                    <tspan key={line} x={cx} dy={line ? ".95em" : 0}>
+                      {part}
+                    </tspan>
+                  ))}
+                </text>
+              )}
+              {area.door && (
+                <g
+                  transform={`translate(${area.door.x} ${area.door.z}) rotate(${(-area.door.rotation * 180) / Math.PI})`}
+                >
+                  <path
+                    d={`M${-area.door.width / 2} .3v-.6M${area.door.width / 2} .3v-.6M${-area.door.width / 2} -.3h${area.door.width}`}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth=".14"
+                  />
+                  <text
+                    y=".7"
+                    textAnchor="middle"
+                    fill={color}
+                    fontSize=".4"
+                    fontWeight="700"
+                  >
+                    {area.kind === "inbound" ? "IN" : "EXIT"}
+                  </text>
+                </g>
+              )}
+            </g>
+          );
+        })}
+      </g>
       {layout.zones.map((z) => (
         <g key={z.name}>
           <rect

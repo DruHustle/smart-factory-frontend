@@ -418,14 +418,220 @@ async function grabFixture(page: Page, plan = false) {
   await canvas.scrollIntoViewIfNeeded();
   await canvas.hover({ position: { x: 15, y: 15 } });
   const bounds = (await canvas.boundingBox())!;
-  const item = {
-    x: bounds.x + bounds.width / 2,
-    y: bounds.y + bounds.height / 2 - 10,
-  };
+  // Aim at the visible proxy itself, rather than relying on an expanded hit box.
+  let item: { x: number; y: number } | undefined;
+  if (plan)
+    item = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  for (const dy of plan ? [] : [-5, -10, 0, -15, 5]) {
+    for (const dx of [0, -5, 5, -10, 10]) {
+      await page.mouse.move(bounds.x - 10, bounds.y - 10);
+      const point = {
+        x: bounds.x + bounds.width / 2 + dx,
+        y: bounds.y + bounds.height / 2 + dy,
+      };
+      await page.mouse.move(point.x, point.y);
+      if ((await canvas.getAttribute("data-grab-target")) === "asset:1") {
+        item = point;
+        break;
+      }
+    }
+    if (item) break;
+  }
+  if (!item)
+    throw new Error(
+      "The visible equipment surface must be directly grabbable.",
+    );
   const placement = async () =>
     (await readDrafts(page))[0].document.placements[0];
   return { canvas, bounds, item, placement };
 }
+
+test("loading, warehouse, production and exit areas follow saved named zones in 3D and plan", async ({
+  page,
+}) => {
+  await fixture(page);
+  const canvas = page.getByRole("img", {
+    name: "Interactive 3D factory floor",
+    exact: true,
+  });
+  await expect(canvas).toBeVisible();
+  const areas = async () =>
+    JSON.parse((await canvas.getAttribute("data-factory-areas"))!);
+  await expect
+    .poll(async () => (await areas()).map((a: any) => a.kind))
+    .toEqual(["inbound", "storage", "production", "outbound"]);
+  await page.getByRole("button", { name: "Add zone", exact: true }).click();
+  await page
+    .getByLabel("Zone 1 name", { exact: true })
+    .fill("Warehouse / inventory");
+  await expect
+    .poll(
+      async () =>
+        (await areas()).find((a: any) => a.kind === "storage")?.origin,
+    )
+    .toBe("zone");
+  await page
+    .getByLabel("Warehouse / inventory Left (m)", { exact: true })
+    .fill("3");
+  await page
+    .getByLabel("Warehouse / inventory Left (m)", { exact: true })
+    .press("Tab");
+  await expect
+    .poll(async () => (await areas()).find((a: any) => a.kind === "storage")?.x)
+    .toBe(-17);
+  await page.getByRole("button", { name: "Add zone", exact: true }).click();
+  await page
+    .getByLabel("Zone 2 name", { exact: true })
+    .fill("Inbound / loading");
+  await expect
+    .poll(
+      async () =>
+        (await areas()).find((a: any) => a.kind === "inbound")?.door?.edge,
+    )
+    .toBe("north");
+  await page
+    .getByRole("button", { name: "Enter fullscreen", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Factory floor overview", exact: true }),
+  ).toContainText("2 zones");
+  await expect
+    .poll(async () => (await canvas.boundingBox())!.height)
+    .toBeGreaterThan(500);
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/factory-flow-areas.png",
+    animations: "disabled",
+  });
+  await page
+    .getByRole("button", { name: "Exit fullscreen", exact: true })
+    .click();
+  await page.reload();
+  await expect
+    .poll(async () => (await areas()).find((a: any) => a.kind === "storage")?.x)
+    .toBe(-17);
+  await page.getByRole("button", { name: "Floor plan", exact: true }).click();
+  const plan = page.getByRole("img", {
+    name: "Accessible factory floor plan",
+    exact: true,
+  });
+  await expect(
+    plan.getByRole("img", {
+      name: "Warehouse / inventory: Warehouse / inventory",
+      exact: true,
+    }),
+  ).toBeAttached();
+  await expect(
+    plan.getByRole("img", {
+      name: "Inbound / loading: Inbound / loading",
+      exact: true,
+    }),
+  ).toBeAttached();
+  expect(
+    JSON.parse((await plan.getAttribute("data-factory-areas"))!).find(
+      (a: any) => a.kind === "storage",
+    ).x,
+  ).toBe(-17);
+  await page
+    .getByRole("button", { name: "Enter fullscreen", exact: true })
+    .click();
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/factory-flow-plan.png",
+    animations: "disabled",
+  });
+  await page
+    .getByRole("button", { name: "Exit fullscreen", exact: true })
+    .click();
+});
+
+test("mouse movement rotates 3D without grabbing, stops at rest and resets across leaving/fullscreen", async ({
+  page,
+}) => {
+  const { canvas, bounds, placement } = await grabFixture(page);
+  const original = await placement();
+  const view = async () =>
+    JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+  const before = await view();
+  await page.mouse.move(bounds.x + 100, bounds.y + 65, { steps: 8 });
+  const rotated = await view();
+  expect(rotated.position).not.toEqual(before.position);
+  expect(rotated.target).toEqual(before.target);
+  expect(rotated.zoom).toBe(before.zoom);
+  const distance = (v: typeof before) =>
+    Math.hypot(
+      ...v.position.map((value: number, i: number) => value - v.target[i]),
+    );
+  expect(distance(rotated)).toBeCloseTo(distance(before), 8);
+  await expect(canvas).toHaveCSS("cursor", "grab");
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  expect(await placement()).toEqual(original);
+  // A motionless hand must not leave the factory spinning between frames.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let frames = 0;
+        const next = () =>
+          ++frames === 8 ? resolve() : requestAnimationFrame(next);
+        requestAnimationFrame(next);
+      }),
+  );
+  expect(await view()).toEqual(rotated);
+  await page.mouse.move(bounds.x - 10, bounds.y + 30);
+  await page.mouse.move(bounds.x + bounds.width - 20, bounds.y + 30);
+  expect(await view()).toEqual(rotated); // Re-entering at a distant point cannot jump.
+  await page.keyboard.down("Space");
+  await page.mouse.move(bounds.x + bounds.width - 100, bounds.y + 70, {
+    steps: 8,
+  });
+  expect(await view()).toEqual(rotated);
+  await page.keyboard.up("Space");
+  await canvas.dispatchEvent("pointermove", {
+    pointerType: "touch",
+    buttons: 0,
+    clientX: bounds.x + 50,
+    clientY: bounds.y + 50,
+  });
+  expect(await view()).toEqual(rotated);
+  await page
+    .getByRole("button", { name: "Enter fullscreen", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Factory floor overview", exact: true }),
+  ).toBeVisible();
+  const full = (await canvas.boundingBox())!;
+  await page.mouse.move(full.x + 30, full.y + 30);
+  const fullBefore = await view();
+  await page.mouse.move(full.x + 150, full.y + 90, { steps: 8 });
+  expect((await view()).position).not.toEqual(fullBefore.position);
+  expect((await view()).target).toEqual(fullBefore.target);
+  expect(await placement()).toEqual(original);
+  await page
+    .getByRole("button", { name: "Exit fullscreen", exact: true })
+    .click();
+});
+
+test("space beside equipment cannot start an item grab", async ({ page }) => {
+  const { canvas, bounds, placement } = await grabFixture(page);
+  const original = await placement();
+  await page.mouse.move(bounds.x - 10, bounds.y - 10);
+  const point = {
+    x: bounds.x + bounds.width / 2 + 8,
+    y: bounds.y + bounds.height / 2 - 16,
+  };
+  await page.mouse.move(point.x, point.y);
+  await expect(canvas).toHaveAttribute("data-grab-target", "floor");
+  const camera = JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+  await canvas.screenshot({
+    path: "test-results/direct-floor-grab/precise-empty-point.png",
+  });
+  await page.mouse.down();
+  await expect(canvas).toHaveAttribute("data-grab-state", "floor");
+  await page.mouse.move(point.x + 30, point.y + 15, { steps: 8 });
+  await page.mouse.up();
+  expect(await placement()).toEqual(original);
+  expect(
+    JSON.parse((await canvas.getAttribute("data-camera-view"))!).target,
+  ).not.toEqual(camera.target);
+});
 
 test("3D hand grabs empty floor or equipment directly; camera stays fixed during item movement", async ({
   page,
@@ -641,6 +847,70 @@ test("floor-plan fallback uses the same hand gesture and preserves cancelled edi
   await expect(canvas).toHaveAttribute("viewBox", fixed!);
   await expect(canvas).toHaveCSS("cursor", "grab");
 });
+
+for (const missedEnter of [false, true]) {
+  test(`fullscreen cancellation survives ${missedEnter ? "a native Escape before the enter event" : "a delayed native entry"}`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      ({ missedEnter }) => {
+        let active: Element | null = null;
+        Object.defineProperty(document, "fullscreenElement", {
+          configurable: true,
+          get: () => active,
+        });
+        Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+          configurable: true,
+          value: function (this: HTMLElement) {
+            const element = this;
+            return new Promise<void>((resolve) => {
+              (window as any).completeFloorEntry = () => {
+                active = missedEnter ? null : element;
+                document.dispatchEvent(new Event("fullscreenchange"));
+                resolve();
+              };
+            });
+          },
+        });
+        Object.defineProperty(document, "exitFullscreen", {
+          configurable: true,
+          value: async () => {
+            active = null;
+            document.dispatchEvent(new Event("fullscreenchange"));
+          },
+        });
+      },
+      { missedEnter },
+    );
+    const { placement } = await grabFixture(page);
+    const original = await placement();
+    await page
+      .getByRole("button", { name: "Enter fullscreen", exact: true })
+      .click();
+    const panel = page.getByRole("dialog", {
+      name: "Factory floor overview",
+      exact: true,
+    });
+    await expect(panel).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => document.body.style.overflow))
+      .toBe("hidden");
+    if (!missedEnter) {
+      await page.keyboard.press("Escape");
+      await expect(panel).toHaveCount(0);
+    }
+    await page.evaluate(() => (window as any).completeFloorEntry());
+    await expect(
+      page.getByRole("button", { name: "Enter fullscreen", exact: true }),
+    ).toBeEnabled();
+    await expect(panel).toHaveCount(0);
+    expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+    expect(await page.evaluate(() => document.body.style.overflow)).not.toBe(
+      "hidden",
+    );
+    expect(await placement()).toEqual(original);
+  });
+}
 
 for (const fallback of [false, true]) {
   test(`fullscreen enlarges the live floor and exits safely (${fallback ? "page fallback" : "native"})`, async ({

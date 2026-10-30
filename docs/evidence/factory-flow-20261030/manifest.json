@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "scope": "Isolated synthetic browser fixture; layout feature preview, not production inventory evidence.",
+  "images": [
+    {
+      "file": "factory-flow-3d.png",
+      "sha256": "e4596f42d7ed87bfae978199914008b10233ce6075cbec4e024b905dbdb90336",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "file": "factory-flow-plan.png",
+      "sha256": "8901e54dc1ccbe1ab6fc9f52dc4134a64eaaffdd8dfc396891e551045089c8d3",
+      "width": 1280,
+      "height": 720
+    }
+  ]
+}

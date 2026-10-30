@@ -285,12 +285,12 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
         )[0].document.placements[0],
     );
   const originalPlacement = await readPlacement();
-  const before = await canvas.getAttribute("data-camera-view"),
-    box = (await canvas.boundingBox())!;
+  const box = (await canvas.boundingBox())!;
   await canvas.hover({ position: { x: box.width * 0.5, y: box.height * 0.6 } });
   await expect(canvas).toHaveAttribute("data-grab-target", "floor");
   await page.mouse.down();
   await expect(canvas).toHaveAttribute("data-grab-state", "floor");
+  const before = await canvas.getAttribute("data-camera-view");
   expect((await canvas.boundingBox())!.y).toBe(box.y);
   await page.mouse.move(box.x + box.width * 0.65, box.y + box.height * 0.7, {
     steps: 12,
@@ -305,7 +305,6 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
     .getByRole("button", { name: "Fit whole factory floor", exact: true })
     .click();
   const placement = await readPlacement();
-  const fixedCamera = await canvas.getAttribute("data-camera-view");
   await expect(canvas).toHaveAttribute("data-interaction", "grab");
   await canvas.scrollIntoViewIfNeeded();
   await canvas.hover({ position: { x: 20, y: 20 } });
@@ -317,11 +316,15 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
   await expect(canvas).toHaveAttribute("data-grab-target", placement.ref);
   await page.mouse.down();
   await expect(canvas).toHaveAttribute("data-grab-state", "item");
+  // Hover rotates while approaching; the camera must stay fixed during the grab.
+  const fixedCamera = await canvas.getAttribute("data-camera-view");
   await page.mouse.move(
     bounds.x + bounds.width / 2 + 60,
     bounds.y + bounds.height / 2 + 20,
     { steps: 12 },
   );
+  expect(await canvas.getAttribute("data-camera-view")).toBe(fixedCamera);
+  expect(await readPlacement()).toEqual(placement);
   await page.mouse.up();
   await expect.poll(readPlacement).not.toEqual(placement);
   expect(await canvas.getAttribute("data-camera-view")).toBe(fixedCamera);

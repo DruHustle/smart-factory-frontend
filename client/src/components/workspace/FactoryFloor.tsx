@@ -98,11 +98,12 @@ export function FactoryFloor({
     [reset, setReset] = useState(0),
     [search, setSearch] = useState("");
   const zones = [
-    ...new Set(
-      items.map(
+    ...new Set([
+      ...(layoutDocument?.zones.map((zone) => zone.name) ?? []),
+      ...items.map(
         (item) => item.zone?.trim() || item.location?.trim() || "Unassigned",
       ),
-    ),
+    ]),
   ].sort();
   const visible = useMemo(
     () =>
@@ -185,8 +186,9 @@ export function FactoryFloor({
             Factory floor
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {visible.length} of {items.length} items shown · {zones.length}{" "}
-            zones {demo && "· Simulated installation"}
+            {visible.length} of {items.length} items shown ·{" "}
+            {layoutDocument ? layoutDocument.zones.length : zones.length} zones{" "}
+            {demo && "· Simulated installation"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1">
@@ -286,7 +288,7 @@ export function FactoryFloor({
       </div>
       <p className="border-b px-4 py-2 text-xs text-muted-foreground">
         Grab an item to move it, or empty floor to move the view.{" "}
-        {view === "3d" && "Right-drag to rotate · Scroll to zoom."}
+        {view === "3d" && "Move mouse to rotate · Scroll or pinch to zoom."}
         {fullscreen.expanded && " · Esc to exit fullscreen."}
       </p>
       {zone !== "all" && (

@@ -27,9 +27,10 @@ async function login(page: Page, role = "admin") {
   await page.getByLabel("Email").fill(`security-${role}@example.test`);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
+  // The authenticated landing view includes cold software-GPU scene setup.
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 }
 async function inventory(page: Page, search = "Workspace") {
   await page.goto("/#/inventory?search=" + encodeURIComponent(search));
