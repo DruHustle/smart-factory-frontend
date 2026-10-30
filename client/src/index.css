@@ -720,3 +720,9 @@ input[type="radio"] {
 html:has(.overview-floor) {
   scroll-behavior: auto;
 }
+
+/* Measured factory editing needs room for the floor and its inspector. */
+.overview-floor[data-measured="true"]:not(.floor-expanded)
+  .overview-floor-viewport {
+  height: clamp(24rem, 60vh, 36rem);
+}

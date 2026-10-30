@@ -1,3 +1,6 @@
+import { FactorySelector } from "@/components/workspace/FactorySelector";
+import { FactoryWorkspace } from "@/components/workspace/FactoryWorkspace";
+import { useFactorySelection } from "@/lib/factory-selection";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -33,6 +36,14 @@ import { metrics, type Metric } from "@shared/measurements";
 import type { FloorLink } from "@shared/factory-floor";
 
 export default function Home() {
+  const { id } = useFactorySelection();
+  return id ? (
+    <FactoryWorkspace key={id} id={id} mode="overview" />
+  ) : (
+    <LegacyHome />
+  );
+}
+function LegacyHome() {
   const active = useDocumentActive(),
     { user } = useAuth();
   const [location, navigate] = useWorkspaceLocation(),
@@ -166,6 +177,7 @@ export default function Home() {
         description="Your connected factory, at a glance."
         action={
           <>
+            <FactorySelector />
             <select
               aria-label="Overview time range"
               value={rangeMs === 86400000 ? "24h" : "1h"}

@@ -8,6 +8,8 @@ import { router, viewerProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { deviceFreshnessSql } from "./deviceFreshness";
 export const inventoryFilter = z.object({
+  factoryId: z.uuid().optional(),
+  unassignedOnly: z.boolean().optional(),
   search: z.string().trim().max(100).default(""),
   view: z
     .enum(["all", "assets", "devices", "gateways", "equipment"])
@@ -87,10 +89,16 @@ async function database() {
 export async function listInventory(f: Filter) {
   const db = await database();
   const term = "%" + f.search.replace(/[\\%_]/g, "\\$&") + "%";
-  const scopeWhere = sql`(name ilike ${term} or identifier ilike ${term}) and (${f.zone}='' or zone=${f.zone}) and (${f.status}='all' or status=${f.status}) and (${f.mode}='all' or mode=${f.mode}) and (${f.capability}='all' or (${f.capability}='aas' and aas) or (${f.capability}='3d' and "equipmentId" is not null))`;
+  const factoryWhere = f.factoryId
+    ? sql`exists(select 1 from factory_items fi where fi.factory_id=${f.factoryId} and fi.ref=observed.ref)`
+    : sql`true`;
+  const assignmentWhere = f.unassignedOnly
+    ? sql`not exists(select 1 from factory_items fi where fi.ref=observed.ref)`
+    : sql`true`;
+  const scopeWhere = sql`${factoryWhere} and ${assignmentWhere} and (name ilike ${term} or identifier ilike ${term} or exists(select 1 from factory_items fi where fi.ref=observed.ref and fi.inventory_tag ilike ${term})) and (${f.zone}='' or zone=${f.zone}) and (${f.status}='all' or status=${f.status}) and (${f.mode}='all' or mode=${f.mode}) and (${f.capability}='all' or (${f.capability}='aas' and aas) or (${f.capability}='3d' and "equipmentId" is not null))`;
   const where = sql`${viewCondition(f.view)} and ${scopeWhere}`;
   const [result] = await db.execute(
-    sql`${projection(f.mode)}, filtered as(select * from observed where ${where}), paged as(select * from filtered order by ${f.sort === "recent" ? sql`"sampleAt" desc nulls last,name,ref` : sql`lower(name),ref`} limit ${f.pageSize} offset ${f.page * f.pageSize}), grouped as(select kind,"itemType",("equipmentId" is not null) as equipment,count(*)::int as count from observed where ${scopeWhere} group by kind,"itemType",("equipmentId" is not null)) select coalesce((select jsonb_agg(p) from paged p),'[]'::jsonb) as items,(select count(*)::int from filtered) as total,coalesce((select jsonb_agg(g) from grouped g),'[]'::jsonb) as groups`,
+    sql`${projection(f.mode)}, filtered as(select * from observed where ${where}), paged as(select filtered.*,(select fi.inventory_tag from factory_items fi where fi.ref=filtered.ref) as "factoryTag",(select fi.factory_id from factory_items fi where fi.ref=filtered.ref) as "factoryId" from filtered order by ${f.sort === "recent" ? sql`"sampleAt" desc nulls last,name,ref` : sql`lower(name),ref`} limit ${f.pageSize} offset ${f.page * f.pageSize}), grouped as(select kind,"itemType",("equipmentId" is not null) as equipment,count(*)::int as count from observed where ${scopeWhere} group by kind,"itemType",("equipmentId" is not null)) select coalesce((select jsonb_agg(p) from paged p),'[]'::jsonb) as items,(select count(*)::int from filtered) as total,coalesce((select jsonb_agg(g) from grouped g),'[]'::jsonb) as groups`,
   );
   return {
     items: (result.items as any[]).map(normalize),
@@ -103,6 +111,26 @@ export async function listInventory(f: Filter) {
     }[],
   };
 }
+/** Resolve a bounded set of authoritative typed records under the current visibility policy. */
+export async function inventoryItemsByRefs(
+  refs: string[],
+): Promise<InventoryItem[]> {
+  if (!refs.length) return [];
+  if (refs.length > 5000)
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Select at most 5,000 inventory items.",
+    });
+  const db = await database();
+  const rows = await db.execute(
+    sql`${projection()} select * from observed where ref in (${sql.join(
+      refs.map((ref) => sql`${ref}`),
+      sql`,`,
+    )})`,
+  );
+  return rows.map(normalize);
+}
+
 export const inventoryRouter = router({
   list: viewerProcedure
     .input(inventoryFilter)

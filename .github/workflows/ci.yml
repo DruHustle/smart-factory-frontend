@@ -71,7 +71,9 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with: { python-version: "3.11" }
       - name: Verify local workspace migration preserves user files
-        run: python -m unittest discover -s scripts/tests -p 'test_smart_factory_migration.py' -v
+        run: |
+          python -m unittest discover -s scripts/tests -p 'test_smart_factory_migration.py' -v
+          python -m unittest discover -s scripts/tests -p 'test_oracle_image_cleanup.py' -v
       - name: Validate AAS 3.0 and packaged model/document fixtures
         run: |
           python -m venv "$RUNNER_TEMP/onesa-aas"

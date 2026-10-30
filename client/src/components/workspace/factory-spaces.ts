@@ -18,7 +18,12 @@ export type FactoryArea = {
     rotation: number;
   };
 };
-type Floor = { width: number; depth: number; zones: FloorZone[] };
+type Floor = {
+  width: number;
+  depth: number;
+  zones: FloorZone[];
+  measured?: boolean;
+};
 export const factoryZoneSuggestions = [
   "Inbound / loading",
   "Warehouse / inventory",
@@ -53,6 +58,11 @@ const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
 export function factoryAreas(floor: Floor): FactoryArea[] {
   const { width: w, depth: d } = floor;
+  if (floor.measured)
+    return floor.zones.flatMap((zone) => {
+      const kind = factoryZoneKind(zone.name);
+      return kind ? [{ ...zone, kind, origin: "zone" as const }] : [];
+    });
   const bayWidth = Math.min(5, Math.max(1.2, w * 0.18));
   const defaults: Record<
     FactoryAreaKind,

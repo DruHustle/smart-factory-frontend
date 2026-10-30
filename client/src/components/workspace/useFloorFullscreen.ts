@@ -99,6 +99,8 @@ export function useFloorFullscreen() {
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const key = (event: KeyboardEvent) => {
+      // Confirmation dialogs own Escape and Tab until they close.
+      if (panel.current?.querySelector('[role="alertdialog"]')) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();

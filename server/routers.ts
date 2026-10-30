@@ -1,3 +1,6 @@
+import { isPlannedAsset } from "./planned-assets";
+import { factoriesRouter } from "./factories";
+import { deleteAssetInventoryRecord } from "./inventory-deletion";
 import { requestedDataWorkspace } from "../shared/data-workspace";
 import { publicDemoDeployment } from "../shared/access-policy";
 import {
@@ -196,19 +199,25 @@ async function updateAssetRevision(
   changeNote: string,
 ) {
   try {
+    const current = await db.getAssetRecordById(id);
+    const planned = current && isPlannedAsset(current);
     return await db.updateAsset(
       id,
       expectedVersion,
       identity,
       changedBy,
       changeNote,
-      async (assetId, nextVersion, currentVersion) =>
-        updateProvisionedAas({
+      async (assetId, nextVersion, currentVersion) => {
+        const data = {
           assetId,
           ...identity,
           aasVersion: nextVersion,
           expectedAasVersion: currentVersion,
-        }),
+        };
+        return planned
+          ? (await provisionAas(data)).documents
+          : updateProvisionedAas(data);
+      },
     );
   } catch (error) {
     if (error instanceof Error && error.message.includes("version conflict")) {
@@ -507,6 +516,7 @@ export const appRouter = router({
   inventory: inventoryRouter,
   factory: factoryRouter,
   factoryLayouts: factoryLayoutsRouter,
+  factories: factoriesRouter,
   networkDiagnostics: networkDiagnosticsRouter,
   devices: router({
     heartbeatHistory: viewerProcedure
@@ -891,67 +901,7 @@ export const appRouter = router({
       }),
     delete: adminProcedure
       .input(z.object({ id: z.number().int().positive() }))
-      .mutation(async ({ input }) => {
-        const asset = await db.getAssetRecordById(input.id);
-        if (!asset)
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Asset not found",
-          });
-        if (asset.isDemo)
-          throw new TRPCError({
-            code: "PRECONDITION_FAILED",
-            message: "Demo assets are read-only",
-          });
-        const connections = await db.getAssetConnections(input.id);
-        if (asset.aasxImported) {
-          await removeImportedAasxAsset(asset);
-        } else {
-          await removeProvisionedAas({
-            assetId: asset.assetId,
-            name: asset.name,
-            assetType: asset.assetType,
-            manufacturer: asset.manufacturer ?? undefined,
-            model: asset.model ?? undefined,
-            manufacturerStreet: asset.manufacturerStreet ?? "",
-            manufacturerZipcode: asset.manufacturerZipcode ?? "",
-            manufacturerCityTown: asset.manufacturerCityTown ?? "",
-            manufacturerNationalCode: asset.manufacturerNationalCode ?? "",
-            manufacturerArticleNumber:
-              asset.manufacturerArticleNumber ?? undefined,
-            orderCodeOfManufacturer: asset.orderCodeOfManufacturer ?? undefined,
-            serialNumber: asset.serialNumber ?? undefined,
-            ratedValue: asset.ratedValue ?? undefined,
-            ratedUnit: asset.ratedUnit ?? undefined,
-            aasVersion: asset.aasVersion,
-          });
-        }
-        if (!(await db.deleteAsset(input.id)))
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Asset not found",
-          });
-        const gatewayIds = [
-          ...new Set(
-            connections
-              .filter((item) => item.connectionDeviceType === "gateway")
-              .map((item) => item.gatewayDeviceId),
-          ),
-        ];
-        const edgeSyncFailures: string[] = [];
-        for (const gatewayDeviceId of gatewayIds) {
-          try {
-            await publishEdgeConfiguration({
-              schemaVersion: 1,
-              gatewayDeviceId,
-              assets: await db.getGatewayAssetConnections(gatewayDeviceId),
-            });
-          } catch {
-            edgeSyncFailures.push(gatewayDeviceId);
-          }
-        }
-        return { deleted: true, edgeSyncFailures };
-      }),
+      .mutation(({ input }) => deleteAssetInventoryRecord(input.id)),
     restoreVersion: engineerProcedure
       .input(
         z.object({
@@ -1797,6 +1747,7 @@ export const appRouter = router({
         z.object({
           question: z.string().trim().min(1).max(500),
           demoContext: demoAssistantContext.optional(),
+          factoryId: z.uuid().optional(),
           selectedAssetId: z.string().trim().min(3).max(128).optional(),
           history: z
             .array(
@@ -1821,7 +1772,8 @@ export const appRouter = router({
             input.question,
           ) &&
           !isDefinitionQuestion(input.question) &&
-          !input.demoContext
+          !input.demoContext &&
+          !input.factoryId
         ) {
           if (!(await import("./security/store")).enabled())
             return {
@@ -1869,6 +1821,7 @@ export const appRouter = router({
           selectedAssetId: input.selectedAssetId,
           history: input.history,
           demoContext: input.demoContext,
+          factoryId: demoOnlyRead() ? undefined : input.factoryId,
         });
         return publicResult;
       }),

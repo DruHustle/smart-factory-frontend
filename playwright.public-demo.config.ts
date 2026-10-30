@@ -3,6 +3,7 @@ export default defineConfig({
   testDir: "e2e",
   testMatch: [
     "public-demo.spec.ts",
+    "named-factories.spec.ts",
     "showcase.spec.ts",
     "raspberry-pi.spec.ts",
     "onesa.spec.ts",

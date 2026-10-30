@@ -161,3 +161,23 @@ See [authorization and AAS](authorization-and-aas.md) for the role matrix, templ
 In the Oracle split bundle, `auth.me` delegates to the private IdentityService with the authenticated dashboard account ID and a separate service token; the service reads the current role from PostgreSQL. It never returns an email-provider or AAS access token. `analytics.getCoverage` delegates a bounded selected-asset/time range to AnalyticsService, which aggregates indexed stored samples without treating missing metrics as zero.
 
 Alert writes atomically create the per-user inbox via the database trigger. Account creation queues a password-free welcome message without rolling back the new account if queueing is temporarily unavailable. `notifications.list` and `notifications.markRead` are authenticated owner-only operations. `notifications.retryEmail` requires an engineer/admin owner and an eligible failed/unconfigured/unauthorized incident job. Reading a notification is independent of incident acknowledgment. The UI links incident notifications to event details by ID. NotificationService delivers the durable queue through the configured Gmail SMTP or Resend sender and checks current account role and recipient policy at delivery time.
+
+## Shared named factories and history
+
+`factories.list/get/available` provide authorized team factories and paged unassigned operational inventory. `create/save/add/attach` require Engineer; `deleteItem` requires Admin, the exact factory membership and current version. A layout save cannot add/remove membership. New equipment starts planned and unconfigured, and existing registration completes its AAS publication explicitly. Every inventory mutation uses the existing canonical records.
+
+```mermaid
+sequenceDiagram
+  participant U as Team member
+  participant A as Authorized API
+  participant D as PostgreSQL
+  U->>A: Save measured floor with expected version
+  A->>D: Begin transaction and set authenticated actor
+  A->>D: Lock factory and verify version/membership
+  A->>D: Update definition and placements
+  D->>D: Append safe before/after activity
+  D-->>A: Committed factory version
+  A-->>U: Updated floor and inventory
+```
+
+`factories.activity.list` pages fifty server-attributed entries using a cursor; `activity.get` returns the selected safe before/after detail for the factory. There are no activity update/delete routes. Shared demo sessions cannot write these endpoints; the browser sandbox adapter supplies clearly simulated factory edits/history. Assistant requests carry an optional active factory identity, keeping evidence scoped to that factory. See [named factories](named-factories.md).

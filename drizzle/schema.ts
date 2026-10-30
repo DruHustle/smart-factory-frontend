@@ -1,5 +1,8 @@
 import {
   customType,
+  unique,
+  bigserial,
+  doublePrecision,
   uuid,
   bigint,
   boolean,
@@ -656,5 +659,91 @@ export const assetPassportPublications = pgTable(
   },
   (table) => [
     index("passport_asset_publication").on(table.assetId, table.publishedAt),
+  ],
+);
+
+/** Shared named physical factories; inventory records retain their existing identities. */
+export const factories = pgTable(
+  "factories",
+  {
+    id: uuid("id").primaryKey(),
+    name: varchar("name", { length: 120 }).notNull(),
+    width: doublePrecision("width").notNull(),
+    depth: doublePrecision("depth").notNull(),
+    zones: jsonb("zones").notNull().default([]),
+    version: integer("version").notNull().default(1),
+    createdBy: integer("created_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("factories_updated").on(table.updatedAt, table.id),
+    uniqueIndex("factories_name").on(sql`lower(${table.name})`),
+  ],
+);
+export const factoryItems = pgTable(
+  "factory_items",
+  {
+    ref: varchar("ref", { length: 64 }).primaryKey(),
+    factoryId: uuid("factory_id")
+      .notNull()
+      .references(() => factories.id),
+    assetId: integer("asset_id")
+      .unique()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    deviceId: integer("device_id")
+      .unique()
+      .references(() => devices.id, { onDelete: "cascade" }),
+    origin: varchar("origin", { length: 16 }).notNull(),
+    inventoryTag: varchar("inventory_tag", { length: 128 }).notNull(),
+    inventoryTagKey: text("inventory_tag_key").generatedAlwaysAs(
+      sql`lower(inventory_tag)`,
+    ),
+    x: doublePrecision("x").notNull().default(0),
+    z: doublePrecision("z").notNull().default(0),
+    rotation: doublePrecision("rotation").notNull().default(0),
+    zoneId: uuid("zone_id"),
+    width: doublePrecision("width").notNull(),
+    depth: doublePrecision("depth").notNull(),
+    height: doublePrecision("height").notNull(),
+  },
+  (table) => [
+    index("factory_items_factory").on(table.factoryId, table.ref),
+    unique("factory_items_tag").on(table.factoryId, table.inventoryTagKey),
+  ],
+);
+/** Before/after snapshots and actor are appended by database triggers in the write transaction. */
+export const factoryActivity = pgTable(
+  "factory_activity",
+  {
+    id: bigserial("id", { mode: "bigint" }).primaryKey(),
+    factoryId: uuid("factory_id")
+      .notNull()
+      .references(() => factories.id),
+    changeSet: text("change_set").notNull(),
+    actorId: integer("actor_id"),
+    actorName: varchar("actor_name", { length: 320 }).notNull(),
+    actorRole: varchar("actor_role", { length: 32 }).notNull(),
+    action: varchar("action", { length: 64 }).notNull(),
+    targetRef: varchar("target_ref", { length: 64 }),
+    before: jsonb("before_value"),
+    after: jsonb("after_value"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("factory_activity_page").on(table.factoryId, table.id),
+    index("factory_activity_actor").on(
+      table.factoryId,
+      table.actorId,
+      table.id,
+    ),
   ],
 );

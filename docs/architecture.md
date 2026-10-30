@@ -64,7 +64,9 @@ The Assistant reads only approved current guides and a bounded authorized eviden
 
 Public passports default to private preview. Authorized publication snapshots only selected reviewed fields and asset-appropriate guidance under a revocable public identity. Numeric asset IDs grant no public access. Onesa remains an optional versioned export with distinct external-consumer acceptance.
 
-## Factory layouts, demonstration and industrial diagnostics
+## Named factories, layouts, demonstration and industrial diagnostics
+
+Named factories link measured placements to the canonical assets/devices/equipment records. Engineer/Admin create factories and add inventory; Admin confirms inventory deletion. The team shares saved versions under existing permissions. Atomic database triggers retain attributed factory, inventory, connection and workflow changes in append-only activity. Shared demo identities use a resettable browser adapter. See [named factories](named-factories.md).
 
 The complete authorized floor loads automatically in 3D, with seven illustrative reference-model families and an accessible plan fallback. Original material groups, environment reflections, surface finishes and adaptive shadows improve equipment readability. Geometry represents equipment types; it is not surveyed plant CAD or proof of installed hardware.
 

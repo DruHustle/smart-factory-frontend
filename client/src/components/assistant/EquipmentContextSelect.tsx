@@ -1,3 +1,6 @@
+import { useFactorySelection } from "@/lib/factory-selection";
+import { useDemoSandbox } from "@/lib/demo-sandbox";
+import { sandboxInventory } from "@shared/demo-sandbox";
 import { useState } from "react";
 import { ChevronsUpDown, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -26,24 +29,56 @@ export function EquipmentContextSelect({
   label: string;
   onChange: (assetId: string, name: string | null) => void;
 }) {
+  const { id: factoryId, demo } = useFactorySelection(),
+    sandbox = useDemoSandbox();
   const [open, setOpen] = useState(false),
     [search, setSearch] = useState(""),
     settled = useDebouncedValue(search);
   const assets = trpc.inventory.list.useQuery(
-      { view: "assets", search: settled, page: 0, pageSize: 25 },
-      { enabled: open, staleTime: 30000 },
+      {
+        view: "assets",
+        search: settled,
+        page: 0,
+        pageSize: 25,
+        factoryId: factoryId && !demo ? factoryId : undefined,
+      },
+      { enabled: open && !(demo && factoryId), staleTime: 30000 },
     ),
     models = trpc.inventory.list.useQuery(
-      { view: "equipment", search: settled, page: 0, pageSize: 25 },
-      { enabled: open, staleTime: 30000 },
+      {
+        view: "equipment",
+        search: settled,
+        page: 0,
+        pageSize: 25,
+        factoryId: factoryId && !demo ? factoryId : undefined,
+      },
+      { enabled: open && !(demo && factoryId), staleTime: 30000 },
     );
-  const items = [
+  const serverItems = [
     ...new Map<string, InventoryItem>(
       [...(assets.data?.items ?? []), ...(models.data?.items ?? [])].map(
         (i) => [i.identifier, i],
       ),
     ).values(),
   ];
+  const refs = new Set(
+    sandbox?.factories
+      .find((f) => f.id === factoryId)
+      ?.draft.document.placements.map((p) => p.ref) ?? [],
+  );
+  const items =
+    demo && factoryId
+      ? sandbox
+        ? sandboxInventory(sandbox).filter(
+            (i) =>
+              i.kind !== "device" &&
+              refs.has(i.ref) &&
+              `${i.name} ${i.identifier}`
+                .toLowerCase()
+                .includes(settled.toLowerCase()),
+          )
+        : []
+      : serverItems;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>

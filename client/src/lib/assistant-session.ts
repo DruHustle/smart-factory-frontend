@@ -12,6 +12,7 @@ export type AssistantTurn = {
     selectedAssetId?: string;
     history: Array<{ role: "user" | "assistant"; content: string }>;
     demoContext?: DemoAssistantContext;
+    factoryId?: string;
   };
   status: "pending" | "complete" | "failed";
   result?: AssistantAnswer;

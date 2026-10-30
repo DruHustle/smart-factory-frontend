@@ -55,3 +55,16 @@ do not infer compatibility from a mutable tag or an older deployment record.
 Retain the prior Oracle image and Vercel artifact. Stop the candidate worker before starting the prior worker. Validate the prior application's compatibility with the additive database schema and current session/evidence contracts; then restore the prior API/worker image and UI artifact in API-first order. Do not reverse migrations or delete evidence as an application rollback. Restore data only through a separately approved recovery procedure with verified backups.
 
 Historical Render rollback configuration is not an instruction to reactivate Render. A hosting cutover requires its own reviewed plan and approval.
+
+## Discard superseded container images after deployment
+
+Successful release finalization must run `cleanup-images.py` on Oracle after API, singleton worker, frontend promotion and live verification. Supply the current and qualified rollback **configuration image IDs** (`sha256:` plus 64 hex digits), the qualified API source and the deployed frontend source. First review the default plan, then repeat with `--apply`. Retain its JSON report in the protected release evidence.
+
+```bash
+python3 cleanup-images.py --current-image "$CURRENT_IMAGE_ID" \
+  --rollback-image "$QUALIFIED_ROLLBACK_IMAGE_ID" \
+  --api-source "$QUALIFIED_API_SHA" --frontend-source "$DEPLOYED_FRONTEND_SHA"
+# After successful live verification, use the same exact arguments with --apply.
+```
+
+Cleanup removes superseded, unreferenced Smart Factory images with all three source labels. It always keeps the current release, the verified rollback image, and every image referenced by any running or stopped container. It rechecks the local/proxied API source, schema and worker receipt, the published frontend source, and exactly one current API/worker before removal. No global prune, forced removal, volume deletion, unrelated application cleanup or build-cache purge is used. Retained qualification archives and protected database/configuration recovery evidence remain available. A refused deletion is reported and retained for review.

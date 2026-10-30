@@ -1,3 +1,12 @@
+import {
+  demoFactory,
+  demoFactoryActivity,
+  type DemoFactoryAction,
+} from "./demo-factory-types";
+import {
+  applyDemoFactoryAction,
+  appendDemoFactoryActivity,
+} from "./demo-factories";
 import { z } from "zod";
 import { canonicalUnits, metrics, type Metric } from "./measurements";
 import type { InventoryItem } from "./inventory";
@@ -45,10 +54,13 @@ const incident = z.object({
 });
 export const demoSandbox = z
   .object({
-    version: z.literal(1),
+    version: z.literal(2),
     id: z.uuid(),
     updatedAt: at,
     items: z.array(sandboxItem).max(500),
+    factories: z.array(demoFactory).max(100).default([]),
+    factoryActivity: z.array(demoFactoryActivity).max(5000).default([]),
+    factoryDeletedRefs: z.array(ref).max(5000).default([]),
     samples: z.array(sample).max(1000),
     thresholds: z
       .array(
@@ -110,6 +122,47 @@ export const demoSandbox = z
   })
   .strict()
   .superRefine((s, ctx) => {
+    const assigned = new Set<string>();
+    const factoryIds = new Set(s.factories.map((f) => f.id));
+    if (
+      factoryIds.size !== s.factories.length ||
+      new Set(s.factories.map((f) => f.draft.document.name.toLowerCase()))
+        .size !== s.factories.length
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Factory identities and names must be unique",
+        path: ["factories"],
+      });
+    if (
+      s.factoryActivity.some((e) => !factoryIds.has(e.factoryId)) ||
+      new Set(s.factoryActivity.map((e) => e.id)).size !==
+        s.factoryActivity.length
+    )
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Factory history must have unique entries for existing factories",
+        path: ["factoryActivity"],
+      });
+
+    s.factories.forEach((factory, index) =>
+      factory.draft.document.placements.forEach((p) => {
+        if (!s.items.some((i) => i.ref === p.ref) || assigned.has(p.ref))
+          ctx.addIssue({
+            code: "custom",
+            message: "A factory item must have one available inventory record",
+            path: ["factories", index],
+          });
+        assigned.add(p.ref);
+      }),
+    );
+    if (s.factoryDeletedRefs.some((ref) => s.items.some((i) => i.ref === ref)))
+      ctx.addIssue({
+        code: "custom",
+        message: "Deleted demo inventory cannot remain active",
+        path: ["factoryDeletedRefs"],
+      });
     const refs = new Set(s.items.map((i) => i.ref));
     if (refs.size !== s.items.length)
       ctx.addIssue({
@@ -144,6 +197,7 @@ export const demoSandbox = z
   });
 export type DemoSandbox = z.infer<typeof demoSandbox>;
 export type SandboxAction =
+  | DemoFactoryAction
   | {
       type: "item.save";
       item: Partial<z.infer<typeof sandboxItem>> &
@@ -220,7 +274,7 @@ export function seedDemoSandbox(
     )
     .slice(-1000);
   return demoSandbox.parse({
-    version: 1,
+    version: 2,
     id: crypto.randomUUID(),
     updatedAt: now,
     items,
@@ -250,22 +304,26 @@ export function applySandboxAction(
   action: SandboxAction,
 ): DemoSandbox {
   const minimum: SandboxRole =
-    action.type === "scenario"
-      ? "viewer"
-      : ["user", "settings"].includes(action.type)
-        ? "admin"
-        : [
-              "item.save",
-              "item.connect",
-              "threshold",
-              "firmware",
-              "deploy",
-              "completeDeployment",
-              "finding",
-              "decision",
-            ].includes(action.type)
-          ? "engineer"
-          : "operator";
+    action.type === "factory.deleteItem"
+      ? "admin"
+      : action.type.startsWith("factory.")
+        ? "engineer"
+        : action.type === "scenario"
+          ? "viewer"
+          : ["user", "settings"].includes(action.type)
+            ? "admin"
+            : [
+                  "item.save",
+                  "item.connect",
+                  "threshold",
+                  "firmware",
+                  "deploy",
+                  "completeDeployment",
+                  "finding",
+                  "decision",
+                ].includes(action.type)
+              ? "engineer"
+              : "operator";
   if (!demoRoleAllows(role, minimum))
     throw Error(
       `This demo action requires ${minimum} access. Switch demo role to try it.`,
@@ -277,7 +335,30 @@ export function applySandboxAction(
     if (!row) throw Error("Choose an item in this demo workspace.");
     return row;
   };
-  if (action.type === "item.save") {
+  if (
+    action.type === "factory.create" ||
+    action.type === "factory.save" ||
+    action.type === "factory.add" ||
+    action.type === "factory.attach" ||
+    action.type === "factory.deleteItem"
+  ) {
+    applyDemoFactoryAction(s, role, action as DemoFactoryAction, (input) => {
+      const before = new Set(s.items.map((i) => i.ref));
+      const added = applySandboxAction(s, role, {
+        type: "item.save",
+        item: {
+          name: input.name,
+          kind: input.kind,
+          itemType: input.itemType,
+          zone: null,
+        },
+      });
+      s.items = added.items;
+      const item = s.items.find((i) => !before.has(i.ref))!;
+      if (input.kind === "device") item.identifier = input.identifier;
+      return item;
+    });
+  } else if (action.type === "item.save") {
     const old = action.item.ref
       ? s.items.find((i) => i.ref === action.item.ref)
       : undefined;
@@ -432,6 +513,89 @@ export function applySandboxAction(
     f.state = action.state;
   } else if (action.type === "scenario") s.scenario = action.scenario;
   else if (action.type === "settings") s.settings = action.settings;
+  if (action.type === "item.save" || action.type === "item.connect") {
+    for (const after of s.items) {
+      const before = source.items.find((i) => i.ref === after.ref);
+      if (!before || JSON.stringify(before) === JSON.stringify(after)) continue;
+      for (const factory of s.factories)
+        if (
+          factory.draft.document.placements.some((p) => p.ref === after.ref)
+        ) {
+          appendDemoFactoryActivity(
+            s,
+            role,
+            factory.id,
+            "inventory.updated",
+            after.ref,
+            {
+              name: before.name,
+              identifier: before.identifier,
+              itemType: before.itemType,
+              zone: before.zone,
+              connected: before.connected,
+            },
+            {
+              name: after.name,
+              identifier: after.identifier,
+              itemType: after.itemType,
+              zone: after.zone,
+              connected: after.connected,
+            },
+          );
+        }
+    }
+  }
+  if (
+    !action.type.startsWith("factory.") &&
+    !["item.save", "item.connect"].includes(action.type)
+  ) {
+    const itemRef =
+      "ref" in action && typeof action.ref === "string"
+        ? action.ref
+        : "id" in action && typeof action.id === "string"
+          ? (source.incidents.find((i) => i.id === action.id)?.itemRef ??
+            source.findings.find((i) => i.id === action.id)?.itemRef ??
+            source.deployments.find((i) => i.id === action.id)?.itemRef)
+          : undefined;
+    if (itemRef)
+      for (const factory of s.factories.filter((f) =>
+        f.draft.document.placements.some((p) => p.ref === itemRef),
+      )) {
+        const field =
+          action.type === "threshold"
+            ? "thresholds"
+            : action.type === "incident"
+              ? "incidents"
+              : ["finding", "decision"].includes(action.type)
+                ? "findings"
+                : ["deploy", "completeDeployment"].includes(action.type)
+                  ? "deployments"
+                  : null;
+        if (field) {
+          const rows = (state: DemoSandbox) =>
+            state[
+              field as "thresholds" | "incidents" | "findings" | "deployments"
+            ]
+              .filter((row) => row.itemRef === itemRef)
+              .map((row) =>
+                Object.fromEntries(
+                  Object.entries(row).filter(
+                    ([key]) => !["message", "title", "decision"].includes(key),
+                  ),
+                ),
+              );
+          appendDemoFactoryActivity(
+            s,
+            role,
+            factory.id,
+            action.type + ".changed",
+            itemRef,
+            { records: rows(source) },
+            { records: rows(s) },
+          );
+        }
+      }
+  }
   s.updatedAt = now;
   s.audit = [
     ...s.audit,
@@ -510,4 +674,12 @@ export function sandboxInventory(s: DemoSandbox): InventoryItem[] {
       sandbox: true,
     } as InventoryItem;
   });
+}
+
+/** Read a previous browser workspace without changing the preserved v1 storage key. */
+export function upgradeDemoSandbox(raw: unknown): DemoSandbox {
+  const value = raw as Record<string, unknown> | null;
+  return demoSandbox.parse(
+    value?.version === 1 ? { ...value, version: 2 } : value,
+  );
 }

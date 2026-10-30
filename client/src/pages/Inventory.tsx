@@ -1,3 +1,6 @@
+import { FactorySelector } from "@/components/workspace/FactorySelector";
+import { FactoryWorkspace } from "@/components/workspace/FactoryWorkspace";
+import { useFactorySelection } from "@/lib/factory-selection";
 import { currentSample } from "@shared/measurements";
 import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
@@ -59,6 +62,14 @@ const views = [
   { id: "equipment", label: "3D equipment" },
 ];
 export default function Inventory() {
+  const { id } = useFactorySelection();
+  return id ? (
+    <FactoryWorkspace key={id} id={id} mode="inventory" />
+  ) : (
+    <LegacyInventory />
+  );
+}
+function LegacyInventory() {
   const { user } = useAuth();
   const active = useDocumentActive();
   const [location, navigate] = useHashLocation();
@@ -190,6 +201,7 @@ export default function Inventory() {
         description="Find equipment, inspect observations and open the right workspace."
         action={
           <>
+            <FactorySelector />
             <Button asChild variant="outline">
               <Link
                 href="/models"

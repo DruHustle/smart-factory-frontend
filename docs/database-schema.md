@@ -129,3 +129,51 @@ Scopes precede sample selection and aggregation. Source values, units, conversio
 Migration `0031_factory_layouts` adds `factory_layouts`: UUID identity, owning user (with delete cascade), `live`/`configured` scope, name, JSON document, positive version, archive time and creation/update timestamps. The owner/scope/update index supports bounded layout listing. Saves check the expected version to reject stale updates. Geometry is visualization state, separate from asset identity, physical commissioning and telemetry history. Shared demo layout drafts and editable sandbox changes stay browser-local; they are not rows in this table. See [factory layouts](factory-layouts.md) and [editable demo](editable-demo.md).
 
 FX/TSN reports use the existing `system_settings` JSON storage under a hashed `network-diagnostics:` gateway key; there is no separate diagnostics migration or high-rate packet-history table. The stored envelope contains the validated report, import time and actor. Each registered operational gateway retains one newest report, and an older replacement is rejected. Responses are bounded to 128 gateways and report coverage and staleness explicitly. Demo scenarios are synthetic examples, separate from operational reports. See [the diagnostics store](../server/network-diagnostics/store.ts) and [FX/TSN report contract](fx-tsn.md).
+
+## Named factories and retained activity
+
+Migration `0032_named_factories` adds shared `factories`, canonical membership/placements in `factory_items`, and `factory_activity`. Each member references exactly one existing asset or device; native equipment uses its backing asset. Membership has unique record identity and a per-factory, case-insensitive tag. Physical dimensions, position and rotation are validated before saving. Optimistic factory versions protect concurrent team edits.
+
+Factory, membership and canonical inventory triggers record safe before/after values with a transaction-local authenticated actor. Connection changes omit endpoint/mapping values; related thresholds, incident state, model revisions/scenarios, OTA metadata and passport publication events use explicit safe projections. Ordinary UPDATE/DELETE against retained activity is rejected; no application edit/delete endpoint or automatic purge exists. Canonical inventory deletion cascades its placement while retaining factory history. Operational rows are not backfilled or renamed. Existing personal layout tables remain separate. [Roles and workflow](named-factories.md).
+
+```mermaid
+erDiagram
+  FACTORIES ||--o{ FACTORY_ITEMS : contains
+  FACTORIES ||--o{ FACTORY_ACTIVITY : retains
+  ASSETS ||--o| FACTORY_ITEMS : placed_as
+  DEVICES ||--o| FACTORY_ITEMS : placed_as
+  FACTORIES {
+    uuid id PK
+    string name
+    float width
+    float depth
+    json zones
+    int version
+  }
+  FACTORY_ITEMS {
+    string ref PK
+    uuid factory_id FK
+    int asset_id FK
+    int device_id FK
+    string inventory_tag
+    float x
+    float z
+    float rotation
+    float width
+    float depth
+    float height
+  }
+  FACTORY_ACTIVITY {
+    bigint id PK
+    uuid factory_id FK
+    string change_set
+    int actor_id
+    string actor_name
+    string actor_role
+    string action
+    string target_ref
+    json before_value
+    json after_value
+    timestamp created_at
+  }
+```

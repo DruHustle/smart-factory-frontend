@@ -45,6 +45,11 @@ export type AssistantHistoryMessage = {
 // code, uploaded AASX packages, and arbitrary paths are intentionally excluded.
 const SOURCES: KnowledgeSource[] = [
   {
+    file: "docs/named-factories.md",
+    title: "Named factories, inventory and change history",
+    route: "docs/named-factories.md",
+  },
+  {
     file: "docs/factory-layouts.md",
     title: "Design a factory layout",
     route: "docs/factory-layouts.md",
@@ -343,6 +348,7 @@ async function buildLiveContext(
   role: AssistantRole,
   selectedAssetId?: string,
   includeEvidence = true,
+  factoryId?: string,
 ) {
   if (!includeEvidence || !LIVE_CONTEXT_ENABLED())
     return {
@@ -358,15 +364,39 @@ async function buildLiveContext(
       db.getDevices(),
       db.getAlerts({ limit: 100, openOnly: true }),
     ]);
+    const factory =
+      factoryId && !demoOnlyRead()
+        ? await (await import("./factories")).snapshot(factoryId)
+        : null;
+    const assetPks = factory
+      ? new Set(
+          factory.items
+            .filter((i) => i.kind !== "device")
+            .map((i) => i.identifier),
+        )
+      : null;
+    const devicePks = factory
+      ? new Set(
+          factory.items
+            .filter((i) => i.kind === "device")
+            .map((i) => Number(i.id)),
+        )
+      : null;
     const demoEnabled = isDemoDataEnabled();
-    const visibleAssets = allAssets.filter((record) =>
-      visibleWhenDemoDataEnabled(record),
+    const visibleAssets = allAssets.filter(
+      (record) =>
+        visibleWhenDemoDataEnabled(record) &&
+        (!assetPks || assetPks.has(record.assetId)),
     );
-    const visibleDevices = allDevices.filter((record) =>
-      visibleWhenDemoDataEnabled(record),
+    const visibleDevices = allDevices.filter(
+      (record) =>
+        visibleWhenDemoDataEnabled(record) &&
+        (!devicePks || devicePks.has(record.id)),
     );
     const visibleDeviceByPk = new Map(
-      visibleDevices.map((device) => [device.id, device]),
+      allDevices
+        .filter((record) => visibleWhenDemoDataEnabled(record))
+        .map((device) => [device.id, device]),
     );
     const questionTerms = termsOf(question);
     const explicitAsset = selectedAssetId
@@ -409,7 +439,11 @@ async function buildLiveContext(
     ].slice(0, MAX_DEVICES_IN_CONTEXT);
     const [latestReadings, alertStats] = await Promise.all([
       db.getLatestAssetReadings(relevantAssets.map((asset) => asset.assetId)),
-      db.getAlertStats([...visibleDeviceByPk.keys()]),
+      db.getAlertStats(
+        factory
+          ? [...new Set([...visibleDevices.map((d) => d.id), ...deviceIds])]
+          : [...visibleDeviceByPk.keys()],
+      ),
     ]);
     const readingsByAsset = new Map(
       latestReadings.map((reading) => [reading.assetId, reading]),
@@ -566,6 +600,7 @@ async function buildLiveContext(
     const payload = {
       capturedAt,
       accessRole: role,
+      factoryName: factory?.name ?? null,
       demoDataEnabled: demoEnabled,
       visibleAssetCount: visibleAssets.length,
       visibleGatewayCount: visibleDevices.filter(
@@ -874,6 +909,7 @@ export async function answerFactoryQuestion(
     selectedAssetId?: string;
     history?: AssistantHistoryMessage[];
     demoContext?: DemoAssistantContext;
+    factoryId?: string;
   } = {},
 ) {
   const plan = planAssistantConversation(
@@ -928,6 +964,7 @@ export async function answerFactoryQuestion(
       options.role ?? "viewer",
       options.selectedAssetId,
       plan.includeEvidence,
+      options.factoryId,
     ),
   ]);
   const explanation = plan.concept ? conceptAnswer(plan, sections) : null;

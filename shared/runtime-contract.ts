@@ -16,6 +16,7 @@ export const requiredCapabilities = [
   "inventory-v1",
   "factory-floor-v1",
   "factory-layouts-v1",
+  "named-factories-v1",
   "assistant-conversation-v1",
   "demo-sandbox-v1",
   "fx-tsn-diagnostics-v1",

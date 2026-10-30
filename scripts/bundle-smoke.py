@@ -155,6 +155,26 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     assert all(isinstance(runtime[key],str) and len(runtime[key])==40 for key in ['source','backendSource','edgeSource'])
     assert runtime['worker']['fresh'] is True
     print('PASS: runtime identity, applied schema and fresh compatible singleton worker match the image sources.')
+    named_factory=None
+    if 'named-factories-v1' in runtime['capabilities']:
+        draft={'document':{'name':'Qualified measured factory','width':30,'depth':20,'zones':[],'placements':[]},'dimensions':{},'tags':{}}
+        factory=trpc(engineer,'factories.create',draft)
+        created=trpc(engineer,'factories.add',{'id':factory['id'],'expectedVersion':factory['version'],'item':{'name':'Planned acceptance pump','identifier':'P-01','kind':'asset','itemType':'pump','dimensions':{'width':2,'depth':1,'height':1.5}}})
+        factory=created['factory']; ref=created['ref']
+        draft={key:factory[key] for key in ('document','dimensions','tags')}
+        draft['document']['placements'][0]['x']=3
+        saved=trpc(engineer,'factories.save',{'id':factory['id'],'expectedVersion':factory['version'],'draft':draft})
+        assert saved['document']['placements'][0]['x']==3
+        assert trpc(viewer,'inventory.list',{'factoryId':factory['id']},query=True)['total']==1
+        assert http(viewer,'/api/trpc/factories.save',{'id':factory['id'],'expectedVersion':saved['version'],'draft':draft})[0]==403
+        activity=trpc(viewer,'factories.activity.list',{'factoryId':factory['id']},query=True)['items']
+        assert any(row['action']=='placement.changed' and row['actorId']==engineer_id for row in activity)
+        deleted=trpc(admin,'factories.deleteItem',{'id':factory['id'],'expectedVersion':saved['version'],'ref':ref})
+        assert deleted['items']==[] and trpc(viewer,'inventory.list',{'factoryId':factory['id']},query=True)['total']==0
+        history=trpc(viewer,'factories.activity.list',{'factoryId':factory['id']},query=True)['items']
+        assert any(row['action']=='inventory.deleted' and row['actorId']==admin_id for row in history)
+        named_factory=factory['id']
+        print('PASS: shared named factory, measured placement, canonical inventory deletion, roles and retained authenticated actor history work in the real image.')
     if 'infrastructure-monitor-v1' in runtime['capabilities']:
         def operating_snapshot():
             return trpc(admin,'system.infrastructure',{'range':'2h','scenario':'normal'},query=True)['snapshot']
@@ -200,6 +220,9 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             assert trpc(viewer,'auth.me',query=True)['id']==viewer_id
             assert http(engineer,'/api/trpc/assets.list')[0]==401
             assert sql('SELECT count(*) FROM sensor_readings WHERE "assetId" IS NULL')=='2'
+        if named_factory:
+            assert trpc(viewer,'factories.get',{'id':named_factory},query=True)['items']==[]
+            assert any(row['action']=='inventory.deleted' for row in trpc(viewer,'factories.activity.list',{'factoryId':named_factory},query=True)['items'])
         runtime=http(plain,'/api/runtime/contract')[1]
         rollback_evidence={'qualifiedPriorImage':rollback_image,'restoredCandidateImage':current_image,'revokedAccountStayedRejected':True,'activeViewerPreserved':True,'telemetryIdentitiesPreserved':True,'schemaCompatible':True}
         print('PASS: rollback and roll-forward to a compatible hardened image preserve sessions, revocation, schema and telemetry identities.')

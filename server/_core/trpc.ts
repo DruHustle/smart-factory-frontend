@@ -1,3 +1,4 @@
+import { withMutationActor } from "../database-scope";
 import { requestedDataWorkspace } from "../../shared/data-workspace";
 import { rejectFixtureMutation } from "../demoTarget";
 import { nativeEvent } from "../security/runtime";
@@ -153,9 +154,13 @@ const visibilityBoundary = t.middleware(
       ctx.user,
       requestedDataWorkspace(ctx.req?.headers?.cookie),
     );
-    return withVisibility(await ctx.visibility, () =>
-      next({ ctx: { ...ctx, user } }),
-    );
+    const policy = await ctx.visibility;
+    const run = () =>
+      withVisibility(policy, () => next({ ctx: { ...ctx, user } }));
+    return type === "mutation" &&
+      /^(factories|assets|devices|equipment|thresholds|alerts|ota)\./.test(path)
+      ? withMutationActor(user, run)
+      : run();
   },
 );
 export const publicProcedure = t.procedure

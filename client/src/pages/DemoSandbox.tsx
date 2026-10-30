@@ -251,9 +251,9 @@ export default function DemoSandbox() {
           </h2>
           <p className="text-sm">
             This restores the sample inventory and removes this sandbox’s edits,
-            readings, simulated users and workflow history. Export a backup
-            first if you want to keep them. Saved factory layout drafts remain
-            available.
+            readings, named factories, simulated users and workflow history.
+            Export a backup first if you want to keep them. Personal layout
+            studies remain available.
           </p>
           <div className="flex gap-2">
             <Button

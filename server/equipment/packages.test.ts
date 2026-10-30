@@ -74,7 +74,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         const review = await modelChange(created.id, v.revision, 1);
         await replaceModel(created.id, v.revision, 1, review.reviewToken, 5);
         await closeDatabase();
-        expect(await importedBytes(v.revision)).toEqual(bytes);
+        // Buffer.equals verifies every byte without millions of JavaScript property comparisons.
+        expect((await importedBytes(v.revision)).equals(bytes)).toBe(true);
         const after = await workspace(created.id);
         expect(after.components.map((c) => c.installedComponentId)).toEqual(
           before.components.map((c) => c.installedComponentId),

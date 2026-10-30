@@ -8,9 +8,25 @@ export function buildDemoAssistantContext(
   question: string,
   history: Array<{ role: "user" | "assistant"; content: string }>,
   selectedAssetId?: string,
+  factoryId?: string,
 ) {
   const plan = planAssistantConversation(question, history, selectedAssetId);
   if (!s || !plan.includeEvidence) return undefined;
+  const factory = factoryId
+    ? s.factories.find((f) => f.id === factoryId)
+    : null;
+  if (factoryId && !factory) return undefined;
+  if (factory) {
+    const refs = new Set(factory.draft.document.placements.map((p) => p.ref));
+    s = {
+      ...s,
+      settings: { ...s.settings, name: factory.draft.document.name },
+      items: s.items.filter((i) => refs.has(i.ref)),
+      samples: s.samples.filter((i) => refs.has(i.itemRef)),
+      incidents: s.incidents.filter((i) => refs.has(i.itemRef)),
+      findings: s.findings.filter((i) => refs.has(i.itemRef)),
+    };
+  }
   const terms = plan.resolvedQuestion
     .toLowerCase()
     .split(/[^a-z0-9]+/)

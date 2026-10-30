@@ -1,4 +1,8 @@
 import {
+  currentRequestDatabase,
+  type ApplicationDatabase,
+} from "./database-scope";
+import {
   evidenceSql,
   defaultEvidenceScope,
   metricSql,
@@ -114,7 +118,9 @@ export type InsertOtaDeployment = schema.InsertOtaDeployment;
 let _db: ReturnType<typeof drizzle> | null = null;
 let _sqlClient: ReturnType<typeof postgres> | null = null;
 
-export async function getDb() {
+export async function getDb(): Promise<ApplicationDatabase | null> {
+  const scoped = currentRequestDatabase();
+  if (scoped) return scoped;
   const databaseUrl = process.env.DATABASE_URL || ENV.databaseUrl;
   if (!_db && databaseUrl) {
     try {
@@ -152,7 +158,12 @@ export async function getDb() {
           : { ca: caCert, rejectUnauthorized: true };
       // Share Aiven's small connection budget with the .NET services and with
       // the previous instance retained during zero-downtime deployments.
-      _sqlClient = postgres(databaseUrl, { ssl, max: 2, idle_timeout: 20, connect_timeout: 5 });
+      _sqlClient = postgres(databaseUrl, {
+        ssl,
+        max: 2,
+        idle_timeout: 20,
+        connect_timeout: 5,
+      });
       _db = drizzle(_sqlClient, { schema });
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
@@ -500,6 +511,9 @@ export async function updateDevice(
 
 export async function deleteDevice(id: number): Promise<boolean> {
   return withDb(async (db) => {
+    await db.execute(
+      sql`select f.id from factories f join factory_items i on i.factory_id=f.id where i.device_id=${id} for no key update of f`,
+    );
     const connectedAssets = await db
       .select({ id: assetDevices.id })
       .from(assetDevices)
@@ -714,6 +728,9 @@ export async function getAssetRecordById(id: number) {
 export async function deleteAsset(id: number): Promise<boolean> {
   return withDb(async (db) =>
     db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select f.id from factories f join factory_items i on i.factory_id=f.id where i.asset_id=${id} for no key update of f`,
+      );
       const [current] = await tx
         .select({ id: assets.id, isDemo: assets.isDemo })
         .from(assets)
@@ -727,6 +744,12 @@ export async function deleteAsset(id: number): Promise<boolean> {
         .delete(assetLifecycleEvents)
         .where(eq(assetLifecycleEvents.assetId, id));
       await tx.delete(assetVersions).where(eq(assetVersions.assetId, id));
+      await tx.execute(
+        sql`delete from equipment_scenario_runs where equipment_id in(select id from equipment_workspaces where asset_id=${id})`,
+      );
+      await tx.execute(
+        sql`delete from equipment_workspaces where asset_id=${id}`,
+      );
       await tx.delete(assets).where(eq(assets.id, id));
       return true;
     }),

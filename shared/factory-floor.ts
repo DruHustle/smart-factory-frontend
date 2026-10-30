@@ -28,6 +28,9 @@ export function floorModel(
   item: Pick<InventoryItem, "itemType" | "name">,
 ): string | null {
   const type = `${item.itemType} ${item.name}`.toLowerCase();
+  if (/warehouse_rack/.test(type)) return "warehouse-rack";
+  if (/loading_door/.test(type)) return "loading-door";
+  if (/exit_door/.test(type)) return "exit-door";
   if (/conveyor|infeed|outfeed/.test(type)) return "conveyor";
   if (/robot|palletiz/.test(type)) return "robot-arm";
   if (/tank|vessel|mixer/.test(type)) return "storage-tank";

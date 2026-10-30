@@ -2,6 +2,8 @@
 
 The v4 expansion adds 20 model-backed assets and 20 gateways, controllers, sensors and network devices across process utilities, assembly, packaging and network zones. Every native reference family is represented; existing evidence and original timestamps are retained.
 
+Named factories can be created from Overview, populated with measured equipment/doors/racks, saved, and inspected through attributed history. Confirmed bin deletion updates the simulated inventory. [Factory workflow and roles](named-factories.md).
+
 The [editable demo](editable-demo.md) lets each visitor create and reset simulated equipment, telemetry, incidents and administrative workflows in their own browser. [Factory layouts](factory-layouts.md) can be designed, saved and reopened. The shared reference dataset remains protected.
 
 The explicit showcase provides fifteen linked chapters through **Demo guide**. It uses authored simulation and historical replay; it never asserts that physical equipment is receiving or moving. The acquisition window stays fixed and is displayed on charts, so the demonstration remains useful without rewriting timestamps as time passes.

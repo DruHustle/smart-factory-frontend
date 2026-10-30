@@ -516,3 +516,25 @@ describe("Smart Factory documentation assistant", () => {
     });
   });
 });
+
+it("never resolves a private named factory from a forged demo assistant identity", async () => {
+  const factories = await import("./factories"),
+    { withVisibility } = await import("./demoData");
+  const read = vi
+    .spyOn(factories, "snapshot")
+    .mockResolvedValue({
+      name: "Private factory must stay private",
+      items: [],
+    } as any);
+  try {
+    await withVisibility({ demoOnly: true, includeDemo: true }, () =>
+      answerFactoryQuestion("How many factory assets are visible?", {
+        role: "viewer",
+        factoryId: "00000000-0000-4000-8000-000000000032",
+      }),
+    );
+    expect(read).not.toHaveBeenCalled();
+  } finally {
+    read.mockRestore();
+  }
+});

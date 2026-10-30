@@ -6,7 +6,8 @@ import {
   factoryAreaColors,
   factoryWallSpans,
 } from "./factory-spaces";
-import type { layoutFactory } from "@shared/factory-floor";
+import type { FloorLayout } from "./floor-arrangement";
+import type { FactoryArea } from "./factory-spaces";
 
 /** Architectural context is illustrative; only inventory nodes are selectable. */
 class WorkshopBuilder {
@@ -73,14 +74,15 @@ const surface = (
   roughness = 0.5,
 ) => new THREE.MeshStandardMaterial({ color, metalness, roughness });
 
-export function createWorkshop(
-  layout: ReturnType<typeof layoutFactory>,
-  dark: boolean,
-) {
+export function createWorkshop(layout: FloorLayout, dark: boolean) {
   const b = new WorkshopBuilder();
   const concrete = surface(dark ? 0x3d454b : 0xb9b8b1, 0.02, 0.88);
   const grain = createSurfaceGrain("concrete");
-  grain.repeat.set((layout.width + 3) / 2.5, (layout.depth + 3) / 2.5);
+  const padding = layout.measured ? 0 : 3;
+  grain.repeat.set(
+    (layout.width + padding) / 2.5,
+    (layout.depth + padding) / 2.5,
+  );
   grain.anisotropy = 4;
   concrete.roughnessMap = grain;
   concrete.bumpMap = grain;
@@ -95,8 +97,8 @@ export function createWorkshop(
   const yellow = surface(0xe8b746, 0.15, 0.5);
   const seams = surface(dark ? 0x2a363f : 0xaab2b3, 0, 1);
   const orange = surface(0xc95d24, 0.45, 0.38);
-  const w = layout.width + 3,
-    d = layout.depth + 3;
+  const w = layout.width + padding,
+    d = layout.depth + padding;
   b.box(concrete, [w, 0.3, d], [0, -0.15, 0]);
   // Quiet expansion joints replace the engineering grid.
   for (let x = -w / 2 + 4; x < w / 2; x += 4)
@@ -121,7 +123,9 @@ export function createWorkshop(
     }
   }
   // Door openings follow named layout zones; the two near walls remain cut away.
-  const areas = factoryAreas(layout),
+  const areas = layout.measured
+      ? measuredDoorAreas(layout)
+      : factoryAreas(layout),
     north = factoryWallSpans(areas, "north", w),
     west = factoryWallSpans(areas, "west", d);
   const solid = (spans: [number, number][], point: number) =>
@@ -148,9 +152,9 @@ export function createWorkshop(
   }
   for (const area of areas) {
     const door = area.door;
-    if (door?.edge === "north")
+    if (!layout.measured && door?.edge === "north")
       b.box(wall, [door.width + 0.32, 1.1, 0.16], [door.x, 3.75, -d / 2]);
-    if (door?.edge === "west")
+    if (!layout.measured && door?.edge === "west")
       b.box(wall, [0.16, 1.1, door.width + 0.32], [-w / 2, 3.75, door.z]);
   }
   for (let x = -w / 2 + 0.2; x < w / 2; x += 5) {
@@ -221,7 +225,54 @@ export function createEquipmentProxy(model: string | null, itemType = "") {
     carton = surface(0xad8658, 0, 0.95);
   const pipe = (r: number, h: number, at: number[], rotation = [0, 0, 0]) =>
     b.cylinder(steel, r, h, at, rotation);
-  if (model === "pump-motor") {
+  if (model === "warehouse-rack") {
+    for (const x of [-1.36, 0, 1.36])
+      for (const z of [-0.43, 0.43]) {
+        b.box(blue, [0.07, 3, 0.07], [x, 1.5, z]);
+        b.box(steel, [0.18, 0.04, 0.18], [x, 0.02, z]);
+      }
+    for (const y of [0.15, 1.05, 1.95, 2.85]) {
+      for (const z of [-0.42, 0.42])
+        b.box(orange, [2.8, 0.09, 0.08], [0, y, z]);
+      b.box(steel, [2.7, 0.035, 0.8], [0, y + 0.06, 0]);
+    }
+    for (const x of [-0.68, 0.68])
+      for (const y of [0.48, 1.38, 2.28]) {
+        b.box(carton, [1.05, 0.56, 0.7], [x, y, 0]);
+        b.box(casing, [0.25, 0.16, 0.008], [x, y, 0.355]);
+        b.box(black, [0.02, 0.16, 0.01], [x - 0.07, y, 0.36]);
+      }
+  } else if (model === "loading-door" || model === "exit-door") {
+    const loading = model === "loading-door",
+      w = loading ? 3.5 : 1,
+      h = loading ? 3.2 : 2.1,
+      depth = loading ? 0.35 : 0.2;
+    for (const side of [-1, 1])
+      b.box(steel, [0.08, h, depth], [side * (w / 2 - 0.04), h / 2, 0]);
+    b.box(steel, [w, 0.12, depth], [0, h - 0.06, 0]);
+    if (loading) {
+      // Rolled-up shutter leaves the aperture open; empty space is never a hit target.
+      for (let y = h - 0.58; y < h - 0.15; y += 0.075)
+        b.box(casing, [w - 0.16, 0.065, depth * 0.65], [0, y, 0]);
+      b.box(yellow, [w, 0.025, depth], [0, 0.0125, 0]);
+      for (const side of [-1, 1])
+        for (let y = 0.15; y < 1; y += 0.14)
+          b.box(
+            black,
+            [0.085, 0.06, depth * 1.01],
+            [side * (w / 2 - 0.04), y, 0],
+          );
+    } else {
+      b.box(blue, [w - 0.16, h - 0.3, depth * 0.6], [0, (h - 0.3) / 2, 0]);
+      b.box(glass, [w * 0.5, 0.45, depth * 0.63], [0, h * 0.62, 0]);
+      b.box(steel, [w * 0.55, 0.035, depth * 0.85], [0, h * 0.45, 0]);
+      const sign = surface(0x168857, 0, 0.65);
+      sign.emissive.set(0x0a5730);
+      sign.emissiveIntensity = 0.3;
+      b.box(sign, [w * 0.65, 0.16, depth * 0.7], [0, h - 0.22, 0]);
+      b.box(casing, [w * 0.3, 0.025, depth * 0.75], [0, h - 0.22, 0]);
+    }
+  } else if (model === "pump-motor") {
     b.box(black, [2.55, 0.16, 1.15], [0, 0.12, 0]);
     for (const x of [-0.9, 0.85]) b.box(steel, [0.14, 0.3, 0.9], [x, 0.3, 0]);
     b.cylinder(blue, 0.34, 0.95, [-0.58, 0.7, 0], [0, 0, Math.PI / 2]);
@@ -352,10 +403,7 @@ export function createEquipmentProxy(model: string | null, itemType = "") {
 }
 
 /** Architectural layout features; these are not registered inventory or stock records. */
-export function createFactorySpaces(
-  layout: ReturnType<typeof layoutFactory>,
-  dark: boolean,
-) {
+export function createFactorySpaces(layout: FloorLayout, dark: boolean) {
   const root = new THREE.Group();
   root.name = "factory-loading-storage-and-exit";
   const steel = surface(dark ? 0x81939d : 0x8397a0, 0.72, 0.33);
@@ -443,7 +491,7 @@ export function createFactorySpaces(
         [cx, 0.016, cz],
       );
     }
-    if (area.kind === "storage") {
+    if (!layout.measured && area.kind === "storage") {
       const width = Math.max(0.7, Math.min(8, area.width - 0.3));
       const bays = Math.max(1, Math.min(3, Math.floor(width / 2.2))),
         bayWidth = width / bays;
@@ -494,4 +542,57 @@ export function createFactorySpaces(
     root.add(group);
   }
   return root;
+}
+
+/** Only actual door inventory cuts openings in a measured factory's context walls. */
+export function measuredDoorAreas(layout: FloorLayout): FactoryArea[] {
+  return layout.placements.flatMap((p) => {
+    if (!p.dimensions || !["loading-door", "exit-door"].includes(p.model ?? ""))
+      return [];
+    const halfW = layout.width / 2,
+      halfD = layout.depth / 2;
+    const a = ((p.rotation ?? 0) * Math.PI) / 180;
+    const extentX =
+      (Math.abs(Math.cos(a)) * p.dimensions.width +
+        Math.abs(Math.sin(a)) * p.dimensions.depth) /
+      2;
+    const extentZ =
+      (Math.abs(Math.sin(a)) * p.dimensions.width +
+        Math.abs(Math.cos(a)) * p.dimensions.depth) /
+      2;
+    const candidates = [
+      {
+        edge: "north" as const,
+        gap: Math.abs(p.z + halfD) - extentZ,
+        axis: p.x,
+        width: extentX * 2,
+      },
+      {
+        edge: "west" as const,
+        gap: Math.abs(p.x + halfW) - extentX,
+        axis: p.z,
+        width: extentZ * 2,
+      },
+    ].sort((a, b) => a.gap - b.gap);
+    const door = candidates[0];
+    if (door.gap > 0.25) return [];
+    return [
+      {
+        kind: p.model === "exit-door" ? "outbound" : "inbound",
+        name: p.item.name,
+        x: p.x - extentX,
+        z: p.z - extentZ,
+        width: extentX * 2,
+        depth: extentZ * 2,
+        origin: "zone",
+        door: {
+          edge: door.edge,
+          x: door.edge === "north" ? door.axis : -halfW,
+          z: door.edge === "west" ? door.axis : -halfD,
+          width: door.width,
+          rotation: door.edge === "north" ? 0 : Math.PI / 2,
+        },
+      },
+    ];
+  });
 }

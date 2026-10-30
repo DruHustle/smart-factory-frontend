@@ -4,7 +4,10 @@ import { defineConfig, devices } from "@playwright/test";
 // They can run independently of the database/broker integration fixtures.
 export default defineConfig({
   testDir: "e2e",
-  testMatch: "layout-editor-review.spec.ts",
+  testMatch: [
+    "layout-editor-review.spec.ts",
+    "named-factory-concurrency.spec.ts",
+  ],
   outputDir: "test-results/layout-review",
   workers: 1,
   retries: 0,
