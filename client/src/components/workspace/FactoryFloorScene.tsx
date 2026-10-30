@@ -10,6 +10,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createWorkshop, createEquipmentProxy } from "./FactoryEnvironment";
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
+import { floorItemAtRay } from "./floor-picking";
 import {
   optimizeFactoryReference,
   instantiateFactoryReference,
@@ -314,8 +315,6 @@ export default function FactoryFloorScene({
       renderer.domElement.dataset.shadowResolution = String(shadowSize);
       scene.add(createWorkshop(layout, dark));
       const objects = new Map<string, THREE.Group>(),
-        hits: THREE.Object3D[] = [],
-        grabTargets: THREE.Object3D[] = [],
         indicators = new Map<string, THREE.Mesh>(),
         markers = new Map<
           string,
@@ -342,22 +341,6 @@ export default function FactoryFloorScene({
         group.position.set(p.x, 0, p.z);
         group.rotation.y = THREE.MathUtils.degToRad(p.rotation ?? 0);
         group.userData.ref = p.item.ref;
-        // Keep small equipment easy to grab without masking a neighboring visible model.
-        const footprint = p.item.kind === "device" ? 1.2 : 2.8;
-        const grabTarget = new THREE.Mesh(
-          new THREE.BoxGeometry(footprint, 3.2, footprint),
-          new THREE.MeshBasicMaterial({
-            transparent: true,
-            opacity: 0,
-            depthWrite: false,
-            colorWrite: false,
-          }),
-        );
-        grabTarget.visible = false;
-        grabTarget.position.y = 1.6;
-        grabTarget.userData.grabTarget = true;
-        group.add(grabTarget);
-        grabTargets.push(grabTarget);
         const contact = new THREE.Mesh(contactGeometry, contactMaterial);
         contact.rotation.x = -Math.PI / 2;
         contact.position.y = 0.018;
@@ -369,6 +352,7 @@ export default function FactoryFloorScene({
         contact.userData.nonSelectable = true;
         group.add(contact);
         const body = createEquipmentProxy(p.model, p.item.itemType);
+        body.userData.floorItemRef = p.item.ref;
         group.add(body);
         const name = label(p.item.name, "#203c4b");
         name.position.set(0, 3.05, 0);
@@ -382,6 +366,7 @@ export default function FactoryFloorScene({
           }),
         );
         marker.position.set(-0.64, 2.55, 0);
+        marker.userData.nonSelectable = true;
         const rim = new THREE.Mesh(
           new THREE.TorusGeometry(0.16, 0.035, 8, 16),
           new THREE.MeshBasicMaterial({ color: 0xf7fafc }),
@@ -402,11 +387,11 @@ export default function FactoryFloorScene({
         halo.rotation.x = -Math.PI / 2;
         halo.position.y = 0.025;
         halo.visible = false;
+        halo.userData.nonSelectable = true;
         group.add(halo);
         indicators.set(p.item.ref, halo);
         scene.add(group);
         objects.set(p.item.ref, group);
-        hits.push(group);
         if (p.model && (p.model !== "raspberry-pi-4b" || p.item.equipmentId))
           void referenceModel(p.model)
             .then((model) => {
@@ -425,6 +410,7 @@ export default function FactoryFloorScene({
                 Math.max(size.x, size.y, size.z, 0.001);
               copy.position.sub(center);
               const normalized = new THREE.Group();
+              normalized.userData.floorItemRef = p.item.ref;
               normalized.add(copy);
               normalized.scale.setScalar(scale);
               normalized.position.y = (size.y * scale) / 2 + 0.025;
@@ -436,12 +422,6 @@ export default function FactoryFloorScene({
                 height + 0.32,
                 0,
               );
-              grabTarget.scale.set(
-                Math.max(footprint, size.x * scale) / footprint,
-                Math.max(1, height + 0.5) / 3.2,
-                Math.max(footprint, size.z * scale) / footprint,
-              );
-              grabTarget.position.y = Math.max(1, height + 0.5) / 2;
               normalized.traverse((o) => {
                 if (o instanceof THREE.Mesh) {
                   o.castShadow = true;
@@ -641,31 +621,7 @@ export default function FactoryFloorScene({
         );
         ray.setFromCamera(point, camera);
       };
-      const picked = () => {
-        const visible = (object: THREE.Object3D) => {
-          for (
-            let node: THREE.Object3D | null = object;
-            node;
-            node = node.parent
-          )
-            if (!node.visible) return false;
-          return true;
-        };
-        const body = ray
-          .intersectObjects(hits, true)
-          .find(
-            (hit) =>
-              !hit.object.userData.grabTarget &&
-              !hit.object.userData.nonSelectable &&
-              visible(hit.object),
-          );
-        let node: THREE.Object3D | null =
-          body?.object ??
-          ray.intersectObjects(grabTargets, false)[0]?.object ??
-          null;
-        while (node && !node.userData.ref) node = node.parent;
-        return node?.userData.ref as string | undefined;
-      };
+      const picked = () => floorItemAtRay(scene, ray);
       const unlockView = () => {
         controls.enablePan = controls.enableRotate = controls.enableZoom = true;
       };

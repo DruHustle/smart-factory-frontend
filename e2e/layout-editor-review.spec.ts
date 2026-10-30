@@ -418,10 +418,29 @@ async function grabFixture(page: Page, plan = false) {
   await canvas.scrollIntoViewIfNeeded();
   await canvas.hover({ position: { x: 15, y: 15 } });
   const bounds = (await canvas.boundingBox())!;
-  const item = {
-    x: bounds.x + bounds.width / 2,
-    y: bounds.y + bounds.height / 2 - 10,
-  };
+  // Aim at the visible proxy itself, rather than relying on an expanded hit box.
+  let item: { x: number; y: number } | undefined;
+  if (plan)
+    item = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  for (const dy of plan ? [] : [-5, -10, 0, -15, 5]) {
+    for (const dx of [0, -5, 5, -10, 10]) {
+      await page.mouse.move(bounds.x - 10, bounds.y - 10);
+      const point = {
+        x: bounds.x + bounds.width / 2 + dx,
+        y: bounds.y + bounds.height / 2 + dy,
+      };
+      await page.mouse.move(point.x, point.y);
+      if ((await canvas.getAttribute("data-grab-target")) === "asset:1") {
+        item = point;
+        break;
+      }
+    }
+    if (item) break;
+  }
+  if (!item)
+    throw new Error(
+      "The visible equipment surface must be directly grabbable.",
+    );
   const placement = async () =>
     (await readDrafts(page))[0].document.placements[0];
   return { canvas, bounds, item, placement };
@@ -491,6 +510,30 @@ test("mouse movement rotates 3D without grabbing, stops at rest and resets acros
   await page
     .getByRole("button", { name: "Exit fullscreen", exact: true })
     .click();
+});
+
+test("space beside equipment cannot start an item grab", async ({ page }) => {
+  const { canvas, bounds, placement } = await grabFixture(page);
+  const original = await placement();
+  await page.mouse.move(bounds.x - 10, bounds.y - 10);
+  const point = {
+    x: bounds.x + bounds.width / 2 + 8,
+    y: bounds.y + bounds.height / 2 - 16,
+  };
+  await page.mouse.move(point.x, point.y);
+  await expect(canvas).toHaveAttribute("data-grab-target", "floor");
+  const camera = JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+  await canvas.screenshot({
+    path: "test-results/direct-floor-grab/precise-empty-point.png",
+  });
+  await page.mouse.down();
+  await expect(canvas).toHaveAttribute("data-grab-state", "floor");
+  await page.mouse.move(point.x + 30, point.y + 15, { steps: 8 });
+  await page.mouse.up();
+  expect(await placement()).toEqual(original);
+  expect(
+    JSON.parse((await canvas.getAttribute("data-camera-view"))!).target,
+  ).not.toEqual(camera.target);
 });
 
 test("3D hand grabs empty floor or equipment directly; camera stays fixed during item movement", async ({
