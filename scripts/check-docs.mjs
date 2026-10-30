@@ -36,7 +36,7 @@ for (const { filename, content } of files) {
     try { await stat(target); } catch { failures.push(`${path.relative(root, filename)}: missing link ${url}`); }
   }
 }
-const expectedPdfs = ['api-flows.pdf', 'architecture.pdf', 'database-schema.pdf'];
+const expectedPdfs = ['api-flows.pdf', 'architecture.pdf', 'database-schema.pdf', 'fx-tsn.pdf'];
 const hash = content => createHash('sha256').update(content).digest('hex');
 try {
   const manifest = JSON.parse(await readFile(path.join(root, 'docs/pdf-manifest.json'), 'utf8'));
@@ -46,6 +46,31 @@ try {
   const actualNames = Object.keys(manifest.documents ?? {}).sort();
   if (JSON.stringify(actualNames) !== JSON.stringify(expectedPdfs)) {
     failures.push(`docs/pdf-manifest.json: expected ${expectedPdfs.join(', ')}`);
+  }
+  const expectedDiagrams = ['architecture', 'fx-tsn'];
+  if (JSON.stringify(Object.keys(manifest.diagrams ?? {}).sort()) !== JSON.stringify(expectedDiagrams)) {
+    failures.push('docs/pdf-manifest.json: expected architecture and fx-tsn diagram exports');
+  }
+  for (const name of expectedDiagrams) {
+    const entry = manifest.diagrams?.[name];
+    if (!entry || entry.source !== `${name}.md`) {
+      failures.push(`docs/diagrams/${name}: missing canonical source`);
+      continue;
+    }
+    if (entry.sourceSha256 !== hash(await readFile(path.join(root, 'docs', entry.source)))) {
+      failures.push(`docs/diagrams/${name}: stale; regenerate with pnpm docs:pdf`);
+    }
+    for (const format of ['svg', 'png']) {
+      const filename = `diagrams/${name}.${format}`;
+      if (entry[format] !== filename) {
+        failures.push(`docs/diagrams/${name}: invalid ${format} path`);
+        continue;
+      }
+      const content = await readFile(path.join(root, 'docs', filename));
+      if (entry[`${format}Sha256`] !== hash(content)) failures.push(`docs/${filename}: differs from manifest`);
+      if (format === 'svg' && !content.toString().includes('<svg')) failures.push(`docs/${filename}: invalid SVG`);
+      if (format === 'png' && !content.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) failures.push(`docs/${filename}: invalid PNG`);
+    }
   }
   for (const pdfName of expectedPdfs) {
     const entry = manifest.documents?.[pdfName];

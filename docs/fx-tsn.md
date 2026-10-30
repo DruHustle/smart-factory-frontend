@@ -4,6 +4,27 @@ OPC UA Field eXchange (UAFX) supplies an interoperable model for AutomationCompo
 
 Time-Sensitive Networking is a family of Ethernet capabilities. Time synchronization (802.1AS), scheduled traffic (802.1Qbv), frame preemption (802.1Qbu/802.3br), policing (802.1Qci) and redundancy (802.1CB) address different requirements. Support depends on the selected industrial profile and hardware. [IEC/IEEE 60802-2026](https://1.ieee802.org/tsn/iec-ieee-60802/) defines the industrial automation TSN profile. UAFX can also use best-effort or prioritized Ethernet; an FX model does not prove a deterministic network.
 
+## Communication and monitoring boundaries
+
+```mermaid
+flowchart TB
+  subgraph LAN[Factory LAN: commissioned hardware]
+    A[Controller A: AutomationComponent] -->|OPC UA PubSub process data| B[Controller B: AutomationComponent]
+    T[TSN-capable end stations and switches] -.->|Clock and traffic capabilities| A
+    T -.-> B
+    A -.->|Read-only model and connection evidence| C[Vendor diagnostics collector]
+    B -.-> C
+    T -.->|Clock and port counters| C
+    P[Ordinary OPC UA Client/Server polling] --> G[Pi gateway and MQTT telemetry]
+  end
+  C -->|Bounded authenticated HTTPS reports| D[Smart Factory FX and TSN diagnostics]
+  G --> E[Telemetry worker and dashboard evidence]
+  D --> U[UI: reported / configured / verified / unknown]
+  S[Four labelled demo scenarios] -->|Simulated browser experience| U
+```
+
+The diagram describes supported boundaries, not an installed controller network. FX data connections and TSN timing stay on the factory LAN. The cloud receives diagnostic summaries; the separate polling/MQTT path does not establish an FX connection or a hardware deadline. Download the [SVG](diagrams/fx-tsn.svg), [PNG](diagrams/fx-tsn.png) or [PDF guide](fx-tsn.pdf). See the [current workspace screenshot](evidence/release-20261030/README.md).
+
 ## Product workflow
 
 Overview shows a complete factory floor with brief network indicators. Open **Operations → FX & TSN** for AutomationComponents, FunctionalEntities, logical PubSub connections, monitoring coverage, clock state/domain/grandmaster, timing graphs, packet loss and deadline results. Reported capabilities, configured schedules and verified hardware enforcement are separate fields.

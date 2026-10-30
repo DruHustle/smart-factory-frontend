@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "images": [
+    {
+      "file": "equipment-detail.png",
+      "sha256": "93c5dacd7c76b59873d90e43198fb9ed74903e00d01ac07ee3731b71f1c0d875",
+      "width": 1440,
+      "height": 960,
+      "source": "88a0e778fe5ea4d7adb45208d23fee4a9d28dc47",
+      "mode": "simulated demo"
+    },
+    {
+      "file": "factory-dark.png",
+      "sha256": "036c5cda3de236174f973306e3e8dd784d92faf4f638ef803b50b5a7b123e06a",
+      "width": 1440,
+      "height": 960,
+      "source": "88a0e778fe5ea4d7adb45208d23fee4a9d28dc47",
+      "mode": "simulated demo"
+    },
+    {
+      "file": "factory-layout-editor.png",
+      "sha256": "6e1d18fa77d6f5c521645330d470529ad2b4d0cc9748eddf33cd69f17eb362c2",
+      "width": 1440,
+      "height": 1050,
+      "source": "88a0e778fe5ea4d7adb45208d23fee4a9d28dc47",
+      "mode": "simulated demo"
+    },
+    {
+      "file": "factory-light.png",
+      "sha256": "02325c3d69ff62bd3ef8638bdd773bf774d55199b90a28043bb206409a39bb70",
+      "width": 1440,
+      "height": 960,
+      "source": "88a0e778fe5ea4d7adb45208d23fee4a9d28dc47",
+      "mode": "simulated demo"
+    },
+    {
+      "file": "factory-mobile.png",
+      "sha256": "d328e13e6730865b886e90a653a2ffd7b71072da9960595814e8bcae479e5111",
+      "width": 390,
+      "height": 844,
+      "source": "88a0e778fe5ea4d7adb45208d23fee4a9d28dc47",
+      "mode": "simulated demo"
+    },
+    {
+      "file": "fx-tsn-clock-loss.png",
+      "sha256": "fe03722efe32239e7a576395ee868c09c3abf92164eabcc268c7de725a5e11a0",
+      "width": 1440,
+      "height": 1161,
+      "source": "88a0e778fe5ea4d7adb45208d23fee4a9d28dc47",
+      "mode": "simulated demo"
+    },
+    {
+      "file": "fx-tsn-normal-timing.png",
+      "sha256": "4a586365a19ae8c2bc20d4fac19e978362840b8df4c676fe0b2880a8d07c8d58",
+      "width": 1440,
+      "height": 1257,
+      "source": "88a0e778fe5ea4d7adb45208d23fee4a9d28dc47",
+      "mode": "simulated demo"
+    },
+    {
+      "file": "fx-tsn-normal.png",
+      "sha256": "0ca8edbc3a0a9e0f301a51410e4789ceb884f10e15fe8305e4caea78242ccc8c",
+      "width": 1440,
+      "height": 1114,
+      "source": "88a0e778fe5ea4d7adb45208d23fee4a9d28dc47",
+      "mode": "simulated demo"
+    }
+  ]
+}

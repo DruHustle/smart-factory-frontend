@@ -1,17 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const documentNames = ["architecture", "api-flows", "database-schema"];
+const documentNames = ["architecture", "api-flows", "database-schema", "fx-tsn"];
 const docsDirectory = path.join(repositoryRoot, "docs");
 const pdfManifest = {
   schemaVersion: 1,
   generator: "scripts/render-pdfs.mjs",
   documents: {},
+  diagrams: {},
 };
 
 const sha256 = (content) => createHash("sha256").update(content).digest("hex");
@@ -92,6 +93,43 @@ try {
     });
     if (diagramCount.error) throw new Error(`${documentName}: ${diagramCount.error} ${diagramCount.message ?? ""} ${diagramCount.stack ?? ""}`);
     await page.evaluate(() => document.fonts.ready);
+    // Export the exact canonical diagram as scalable SVG and a high-resolution PNG.
+    if (["architecture", "fx-tsn"].includes(documentName)) {
+      const svg = await page.locator(".mermaid svg").first().evaluate(node => node.outerHTML);
+      const directory = path.join(docsDirectory, "diagrams");
+      await mkdir(directory, { recursive: true });
+      const svgName = `diagrams/${documentName}.svg`;
+      const pngName = `diagrams/${documentName}.png`;
+      await writeFile(path.join(docsDirectory, svgName), svg);
+      const imagePage = await browser.newPage({ viewport: { width: 1800, height: 1600 }, deviceScaleFactor: 2 });
+      await imagePage.setContent(`<html><body style="margin:0;padding:24px;background:#fff">${svg}</body></html>`);
+      await imagePage.addStyleTag({ content: "svg { width: 1600px !important; max-width: none !important; height: auto !important; }" });
+      await imagePage.evaluate(() => document.fonts.ready);
+      await imagePage.locator("svg").screenshot({ path: path.join(docsDirectory, pngName) });
+      await imagePage.close();
+      pdfManifest.diagrams[documentName] = {
+        source: `${documentName}.md`,
+        sourceSha256: sha256(await readFile(source)),
+        svg: svgName,
+        svgSha256: sha256(svg),
+        png: pngName,
+        pngSha256: sha256(await readFile(path.join(docsDirectory, pngName))),
+      };
+    }
+    // Keep cross-guide links usable when the PDF is opened outside the checkout.
+    const links = await page.locator("a[href]").evaluateAll(nodes => nodes.map(node => node.getAttribute("href")));
+    const replacements = Object.fromEntries(links.filter(href => href && !/^[a-z][a-z0-9+.-]*:|^#|^\/\//i.test(href)).map(href => {
+      const [filename, anchor] = href.split("#");
+      const relative = path.relative(repositoryRoot, path.resolve(docsDirectory, decodeURIComponent(filename)));
+      if (relative.startsWith("..")) throw new Error(`PDF link escapes repository: ${href}`);
+      return [href, `https://github.com/DruHustle/smart-factory-frontend/blob/main/${relative.split(path.sep).map(encodeURIComponent).join("/")}${anchor ? `#${anchor}` : ""}`];
+    }));
+    await page.locator("a[href]").evaluateAll((nodes, replacements) => {
+      for (const node of nodes) {
+        const value = replacements[node.getAttribute("href")];
+        if (value) node.setAttribute("href", value);
+      }
+    }, replacements);
     await page.emulateMedia({ media: "print" });
     await page.pdf({
       path: output,

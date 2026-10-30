@@ -43,6 +43,8 @@ Open `http://localhost:3000`. Create the first individual administrator using th
 
 Registration saves identity, explicit links and a reviewed software route. It does not install credentials, publish a gateway profile or establish physical commissioning. Protocol secrets stay outside browser records and published mappings. Native OTA remains unavailable until a verified updater is installed.
 
+The [OPC UA FX and TSN guide](docs/fx-tsn.md) explains industrial communication and the diagnostics workspace. See [factory layouts](docs/factory-layouts.md) for hand grabbing and fullscreen, the [editable demo sandbox](docs/editable-demo.md) for resettable workflows, and the [current screenshots](docs/evidence/release-20261030/README.md). The [documentation index](DOCUMENTATION_INDEX.md) includes current PDF guides and diagram images.
+
 ## Access and evidence
 
 Individual viewer/operator/engineer/admin roles apply on private installations. Shared reserved demo identities and public-demo deployments are read-only and see approved demonstration records only. They cannot mutate operational data, create privileged users, issue commands, export private data or retry email. Fixture targets also remain read-only for individual users.

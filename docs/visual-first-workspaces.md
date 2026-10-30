@@ -14,6 +14,10 @@ Each workspace has a purposeful visual: equipment symbols in inventory, one sele
 
 An individual item's linked-model preview loads automatically when opened and has a reset action and an accessible component link. The full native workspace retains its detailed component identities, explosion/reassembly, sections, ghost housings, internal inspection, observations, saved views and security-to-component focus. The preview does not project parent readings onto components.
 
+## Released interaction and graphics update - 30 October 2026
+
+The floor now uses direct hand grabbing for items and empty-floor panning, with compact labelled icon controls and fullscreen. Original GLB material groups retain steel, painted surfaces, glass and rubber; environment reflections, floor finishes and adaptive shadows ground the equipment. The supported plan remains available when WebGL cannot render. See [factory layout gestures](factory-layouts.md) and the [current production gallery](evidence/release-20261030/README.md). The older screenshots below record their original revisions.
+
 ## Brand, motion and access
 
 The sign-in page again uses its original industrial photograph and dark overlay. Theme-aware opaque form surfaces remain readable. The five uppercase sidebar labels share one 12px, medium-weight, normal-spacing, 16px-line-height style. Active colour/background changes preserve that typography; subtopic casing remains unchanged. Actual desktop and mobile drawer checks compare all five computed styles, including after changing the active destination.
