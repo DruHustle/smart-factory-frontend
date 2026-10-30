@@ -58,7 +58,7 @@ Historical Render rollback configuration is not an instruction to reactivate Ren
 
 ## Discard superseded container images after deployment
 
-Successful release finalization must run `cleanup-images.py` on Oracle after API, singleton worker, frontend promotion and live verification. Supply the current and qualified rollback **configuration image IDs** (`sha256:` plus 64 hex digits), the qualified API source and the deployed frontend source. First review the default plan, then repeat with `--apply`. Retain its JSON report in the protected release evidence.
+Successful release finalization must run `cleanup-images.py` on Oracle after API, singleton worker, frontend promotion and live verification. Supply the current and qualified rollback **Docker image IDs reported by the production engine** (`sha256:` plus 64 hex digits; inspect the current and rollback references with `docker image inspect`), the qualified API source and the deployed frontend source. First review the default plan, then repeat with `--apply`. Retain its JSON report in the protected release evidence.
 
 ```bash
 python3 cleanup-images.py --current-image "$CURRENT_IMAGE_ID" \
