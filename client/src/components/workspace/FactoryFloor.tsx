@@ -12,8 +12,20 @@ import { Link } from "wouter";
 import { Box, Expand, Layers, ArrowUpRight } from "lucide-react";
 import { layoutFactory, type FloorLink } from "@shared/factory-floor";
 import { currentSample } from "@shared/measurements";
+import {
+  factoryLayoutGeometry,
+  type FactoryLayoutDocument,
+} from "@shared/factory-layout";
 import { itemHref, type InventoryItem } from "@shared/inventory";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { safeLocalStorage } from "@/lib/storage";
+import {
+  arrangeFloor,
+  readFloorOffsets,
+  type FloorInteraction,
+  type FloorOffsets,
+} from "./floor-arrangement";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FloorPlan } from "./FactoryFloorPlan";
@@ -40,6 +52,9 @@ export function FactoryFloor({
   onSelect,
   returnTo,
   demo,
+  layoutDocument,
+  onLayoutMove,
+  arrangementKey,
 }: {
   items: InventoryItem[];
   links: FloorLink[];
@@ -47,8 +62,31 @@ export function FactoryFloor({
   onSelect: (ref: string) => void;
   returnTo: string;
   demo: boolean;
+  layoutDocument?: FactoryLayoutDocument;
+  onLayoutMove?: (ref: string, x: number, z: number) => void;
+  arrangementKey?: string;
 }) {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const preferenceKey =
+    arrangementKey ??
+    `smart-factory:floor-arrangement:v1:${user?.id ?? "anonymous"}:${user?.access?.workspaceView ?? (demo ? "demo" : "live")}`;
+  const [saved, setSaved] = useState<{ key: string; offsets: FloorOffsets }>(
+    () => ({
+      key: preferenceKey,
+      offsets: readFloorOffsets(safeLocalStorage.getItem(preferenceKey)),
+    }),
+  );
+  const offsets = useMemo(
+    () =>
+      saved.key === preferenceKey
+        ? saved.offsets
+        : readFloorOffsets(safeLocalStorage.getItem(preferenceKey)),
+    [saved, preferenceKey],
+  );
+  const [interaction, setInteraction] = useState<FloorInteraction>(
+    layoutDocument ? "item" : "orbit",
+  );
   const [view, setView] = useState<"3d" | "plan">("3d"),
     [zone, setZone] = useState("all"),
     [reset, setReset] = useState(0),
@@ -70,7 +108,32 @@ export function FactoryFloor({
           ),
     [items, zone],
   );
-  const layout = useMemo(() => layoutFactory(visible), [visible]);
+  const baseLayout = useMemo(
+    () =>
+      layoutDocument
+        ? factoryLayoutGeometry(layoutDocument, visible)
+        : layoutFactory(visible),
+    [visible, layoutDocument],
+  );
+  const layout = useMemo(
+    () => (layoutDocument ? baseLayout : arrangeFloor(baseLayout, offsets)),
+    [baseLayout, offsets, layoutDocument],
+  );
+  const moveItem = (ref: string, x: number, z: number) => {
+    if (onLayoutMove) {
+      onLayoutMove(ref, x, z);
+      return;
+    }
+    const original = baseLayout.placements.find((p) => p.item.ref === ref);
+    if (!original || !Number.isFinite(x) || !Number.isFinite(z)) return;
+    const currentRefs = new Set(items.map((i) => i.ref));
+    const next = Object.fromEntries(
+      Object.entries(offsets).filter(([id]) => currentRefs.has(id)),
+    );
+    next[ref] = { x: x - original.x, z: z - original.z };
+    setSaved({ key: preferenceKey, offsets: next });
+    safeLocalStorage.setItem(preferenceKey, JSON.stringify(next));
+  };
   const active = items.find((item) => item.ref === selected);
   const details = useRef<HTMLDivElement>(null);
   const related = active
@@ -159,6 +222,56 @@ export function FactoryFloor({
         Tap or click equipment to view its details. Choose a zone to inspect
         that section.
       </p>
+      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
+        <div
+          role="group"
+          aria-label="Floor interaction"
+          className="flex flex-wrap gap-1"
+        >
+          {(
+            [
+              ["orbit", "Rotate view"],
+              ["pan", "Move floor"],
+              ["item", "Move item"],
+            ] as const
+          ).map(([mode, label]) => (
+            <Button
+              key={mode}
+              size="sm"
+              variant={interaction === mode ? "default" : "outline"}
+              aria-pressed={interaction === mode}
+              onClick={() => setInteraction(mode)}
+              className="min-h-11"
+            >
+              {mode === "orbit" && view === "plan" ? "Select items" : label}
+            </Button>
+          ))}
+        </div>
+        {!layoutDocument && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="min-h-11"
+            disabled={!Object.keys(offsets).length}
+            onClick={() => {
+              safeLocalStorage.removeItem(preferenceKey);
+              setSaved({ key: preferenceKey, offsets: {} });
+              setReset((n) => n + 1);
+            }}
+          >
+            Reset arrangement
+          </Button>
+        )}
+        <p className="basis-full text-xs text-muted-foreground">
+          {interaction === "item"
+            ? "Drag an item to rearrange this view. Keyboard: select an item, focus the floor and use arrow keys."
+            : interaction === "pan"
+              ? "Grab and drag to move the whole floor view. Use Fit to return to the factory."
+              : view === "plan"
+                ? "Tap or click an item for details."
+                : "Drag to rotate the view. Tap or click an item for details."}
+        </p>
+      </div>
       {zone !== "all" && (
         <div
           className="border-b bg-info/5 px-4 py-3"
@@ -208,6 +321,9 @@ export function FactoryFloor({
             links={links}
             selected={selected}
             onSelect={onSelect}
+            interaction={interaction}
+            onMove={moveItem}
+            reset={reset}
           />
         ) : (
           <FloorSceneBoundary
@@ -217,6 +333,9 @@ export function FactoryFloor({
                 links={links}
                 selected={selected}
                 onSelect={onSelect}
+                interaction={interaction}
+                onMove={moveItem}
+                reset={reset}
               />
             }
           >
@@ -227,6 +346,9 @@ export function FactoryFloor({
                   links={links}
                   selected={selected}
                   onSelect={onSelect}
+                  interaction={interaction}
+                  onMove={moveItem}
+                  reset={reset}
                 />
               }
             >
@@ -238,6 +360,8 @@ export function FactoryFloor({
                 dark={theme === "dark"}
                 reset={reset}
                 zone={zone}
+                interaction={interaction}
+                onMove={moveItem}
               />
             </Suspense>
           </FloorSceneBoundary>
@@ -288,8 +412,15 @@ export function FactoryFloor({
             <Badge variant="outline">{active.mode} evidence</Badge>
             <StatusBadge status={active.status} />
             <Button asChild size="sm">
-              <Link href={itemHref(active.ref, "overview", returnTo)}>
-                Open item <ArrowUpRight className="size-3.5" />
+              <Link
+                href={
+                  active.sandbox
+                    ? `/sandbox?tab=inventory&item=${encodeURIComponent(active.ref)}`
+                    : itemHref(active.ref, "overview", returnTo)
+                }
+              >
+                {active.sandbox ? "Open demo item" : "Open item"}{" "}
+                <ArrowUpRight className="size-3.5" />
               </Link>
             </Button>
             {active.equipmentId && (

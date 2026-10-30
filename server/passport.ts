@@ -8,6 +8,7 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getAssetRecordById, getDb, type Asset } from "./db";
+import { demoOnlyRead } from "./demoData";
 export const passportField = z.enum(
   Object.keys(passportFields) as [
     keyof typeof passportFields,
@@ -56,7 +57,7 @@ async function database() {
 }
 export async function previewPassport(id: number) {
   const asset = await getAssetRecordById(id);
-  if (!asset) throw missing();
+  if (!asset || (demoOnlyRead() && !asset.isDemo)) throw missing();
   return {
     ...document(
       asset,
@@ -65,6 +66,7 @@ export async function previewPassport(id: number) {
     ),
     assetVersion: asset.aasVersion,
     assetId: asset.id,
+    isDemo: asset.isDemo,
   };
 }
 export async function publishPassport(

@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 export E2E_DATABASE_PORT="${E2E_DATABASE_PORT:-55446}" E2E_REDIS_PORT="${E2E_REDIS_PORT:-56393}" PORT="${WORKSPACE_E2E_PORT:-3118}"
-compose=(docker compose --env-file /dev/null -p smart-factory-workspace-e2e -f docker-compose.e2e.yml)
+compose=(docker compose --env-file /dev/null -p "${WORKSPACE_COMPOSE_PROJECT:-smart-factory-workspace-e2e}" -f docker-compose.e2e.yml)
 server_pid=""
 cleanup(){ if [[ -n "$server_pid" ]]; then kill "$server_pid" >/dev/null 2>&1 || true; wait "$server_pid" 2>/dev/null || true; fi; "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true; }
 trap cleanup EXIT

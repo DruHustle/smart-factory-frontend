@@ -18,6 +18,7 @@ export type InventoryItem = {
   zone: string | null;
   configured: boolean;
   isDemo?: boolean;
+  sandbox?: boolean;
   route: string;
   status: InventoryStatus;
   lastObserved: string | null;

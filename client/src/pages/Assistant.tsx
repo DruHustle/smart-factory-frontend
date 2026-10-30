@@ -15,6 +15,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { captureDemoAssistantContext } from "@/lib/demo-sandbox";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { trpc } from "@/lib/trpc";
@@ -87,7 +88,7 @@ export default function Assistant() {
     inspectorOpener = useRef<HTMLElement | null>(null);
   latest.current = session;
   const busy = session.turns.some((t) => t.status === "pending"),
-    invalid = session.draft.length > 500 || session.draft.trim().length < 3;
+    invalid = session.draft.length > 500 || session.draft.trim().length < 1;
   const contextQuery = trpc.assistant.context.useQuery(
     { assetId: session.selectedAssetId },
     { enabled: session.selectedAssetId !== "automatic", staleTime: 60000 },
@@ -269,7 +270,7 @@ export default function Assistant() {
       raw = suggestion ?? current.draft,
       question = raw.trim();
     setAttempted(true);
-    if (raw.length > 500 || question.length < 3) return;
+    if (raw.length > 500 || question.length < 1) return;
     const history = current.turns
       .filter((t) => t.status === "complete" && t.result)
       .slice(-6)
@@ -295,7 +296,20 @@ export default function Assistant() {
       question,
       submittedAt: new Date().toISOString(),
       context,
-      request: { question, selectedAssetId: context?.assetId, history },
+      request: {
+        question,
+        selectedAssetId: context?.assetId,
+        history,
+        ...(user?.access?.demoOnly
+          ? {
+              demoContext: captureDemoAssistantContext(
+                question,
+                history,
+                context?.assetId,
+              ),
+            }
+          : {}),
+      },
       status: "pending",
     };
     setSession((s) => ({
@@ -719,8 +733,8 @@ export default function Assistant() {
             >
               {session.draft.length > 500
                 ? "Use no more than 500 characters. Your draft is retained."
-                : attempted && session.draft.trim().length < 3
-                  ? "Enter at least 3 characters."
+                : attempted && session.draft.trim().length < 1
+                  ? "Enter a question."
                   : "Enter to send · Shift+Enter for a new line · Advisory and read-only"}
             </p>
           </form>

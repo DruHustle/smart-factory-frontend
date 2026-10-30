@@ -265,7 +265,7 @@ function DashboardLayoutContent({
   function renderGroup(group: (typeof groups)[number]) {
     const items = group.items.filter(
       (i) =>
-        (i.path !== "/demo" || user?.access?.demoOnly) &&
+        (!["/demo", "/sandbox"].includes(i.path) || user?.access?.demoOnly) &&
         (user?.access?.demoOnly ||
           !i.minRole ||
           hasMinimumRole(user?.role, i.minRole)),

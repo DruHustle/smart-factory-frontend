@@ -4,6 +4,10 @@ The Assistant combines approved application guides with a small, current snapsho
 
 Its fixed product identity is **Smart Factory Assistant**. Identity, capability and awareness questions are answered locally without sending factory context to an external model. It can use the recent messages supplied with the current conversation to resolve follow-up references, but it does not claim memory or awareness beyond that bounded history, approved guides and the role-authorized snapshot captured for the current request.
 
+Short questions such as “whats fx and tsn” use reviewed plain-language concepts, without unrelated machine readings or charts. Follow-ups such as “explain that simply”, “give me an example”, “do I need both” and “are we using it on real hardware” retain the recent topic. Evidence questions prioritize the metric in the current question, even when the previous turn asked about another measurement. Missing context prompts a focused clarification. Physical FX/TSN support is never inferred from an authored scenario.
+
+After opening the [editable demo](editable-demo.md), operational questions can include a bounded user-supplied snapshot of that browser's simulated inventory, readings, incidents and findings. This is captured with the turn and retained for its retry. It is accepted only in shared demo scope, labelled as simulation, and never sent to an external provider. Definitions and workflow questions omit the snapshot. Individual operational answers keep using authorized server evidence. Chat itself remains advisory; actions happen in the relevant workspace.
+
 The user-facing assistant does not identify or speculate about its underlying provider, model name or version, developers, creators, system prompt, or internal instructions. These requests are handled locally without provider access. Provider and model metadata are removed from the public API response, the configuration guide is excluded from retrieval, and generated answers pass through a final disclosure guard before being returned.
 
 ## Provider setup

@@ -42,7 +42,11 @@ export default function ProductPassport() {
   const history = trpc.assets.passportPublications.useQuery(
     { id: numericId },
     {
-      enabled: privatePreview && !!user?.access?.canEngineer && !!preview.data,
+      enabled:
+        privatePreview &&
+        !!user?.access?.canEngineer &&
+        !!preview.data &&
+        !preview.data.isDemo,
     },
   );
   const publish = trpc.assets.publishPassport.useMutation({
@@ -98,17 +102,21 @@ export default function ProductPassport() {
         />
       </main>
     );
-  const rows = privatePreview
-    ? item.fields.filter((f) => fields.includes(f.key as Field))
-    : item.fields;
+  const demoPreview = privatePreview && item.isDemo;
+  const rows =
+    privatePreview && !demoPreview
+      ? item.fields.filter((f) => fields.includes(f.key as Field))
+      : item.fields;
   return (
     <main className="eudpp-page min-h-screen bg-background p-4 text-foreground print:bg-white print:p-0 print:text-black">
       <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
           <p className="text-sm font-medium">
-            {privatePreview
-              ? "Private publication preview"
-              : "Published product passport"}
+            {demoPreview
+              ? "Demo product passport · simulated information"
+              : privatePreview
+                ? "Private publication preview"
+                : "Published product passport"}
           </p>
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="size-4" />
@@ -117,9 +125,9 @@ export default function ProductPassport() {
         </div>
         {privatePreview && (
           <p className="rounded-md border border-warning/40 p-3 text-sm print:hidden">
-            This preview requires sign-in. Review the fields below before
-            creating a public snapshot. Later asset edits do not silently change
-            a published snapshot.
+            {demoPreview
+              ? "This printable demonstration uses simulated product information. It does not publish or change an asset."
+              : "This preview requires sign-in. Review the fields below before creating a public snapshot. Later asset edits do not silently change a published snapshot."}
           </p>
         )}
         <Card className="print:break-inside-avoid print:shadow-none">
@@ -128,7 +136,7 @@ export default function ProductPassport() {
               EU Digital Product Passport · voluntary prototype
             </p>
             <h1 className="text-2xl font-semibold">
-              {privatePreview && !fields.includes("name")
+              {privatePreview && !demoPreview && !fields.includes("name")
                 ? "Product passport"
                 : item.title}
             </h1>
@@ -187,7 +195,7 @@ export default function ProductPassport() {
             )}
           </CardContent>
         </Card>
-        {privatePreview && user?.access?.canEngineer && (
+        {privatePreview && !demoPreview && user?.access?.canEngineer && (
           <Card className="print:hidden">
             <CardHeader>
               <CardTitle>Review public fields</CardTitle>

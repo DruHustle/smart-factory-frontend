@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AssistantAnswer } from "@shared/assistant";
+import type { DemoAssistantContext } from "@shared/demo-assistant";
 export type TurnContext = { assetId: string; name: string } | null;
 export type AssistantTurn = {
   id: string;
@@ -10,6 +11,7 @@ export type AssistantTurn = {
     question: string;
     selectedAssetId?: string;
     history: Array<{ role: "user" | "assistant"; content: string }>;
+    demoContext?: DemoAssistantContext;
   };
   status: "pending" | "complete" | "failed";
   result?: AssistantAnswer;

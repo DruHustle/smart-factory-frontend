@@ -218,6 +218,13 @@
       "when": 1793053000002,
       "tag": "0030_infrastructure_monitor",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793053000003,
+      "tag": "0031_factory_layouts",
+      "breakpoints": true
     }
   ]
 }

@@ -97,6 +97,114 @@ afterEach(() => {
 });
 
 describe("Smart Factory documentation assistant", () => {
+  it.each([
+    "whats fx and tsn",
+    "What's FX and TSN?",
+    "What are UAFX and Time-Sensitive Networking?",
+  ])("explains %s without unrelated factory readings", async (question) => {
+    const result = await answerFactoryQuestion(question);
+    expect(result.answer).toContain("OPC UA Field eXchange");
+    expect(result.answer).toContain("Time-Sensitive Networking");
+    expect(result.answer).toContain("different parts");
+    expect(result.answer).not.toMatch(
+      /visible assets|temperature=|Authorized evidence snapshot|matching guide/,
+    );
+    expect(result.sources.every((s) => s.kind === "documentation")).toBe(true);
+    expect(result.sources.map((s) => s.section)).toEqual([
+      "FX",
+      "TSN",
+      "FX and TSN together",
+    ]);
+    expect(database.getAssets).not.toHaveBeenCalled();
+  });
+
+  it("keeps a coherent multi-turn explanation, example and application boundary", async () => {
+    const history: Array<{ role: "user" | "assistant"; content: string }> = [];
+    const ask = async (question: string) => {
+      const result = await answerFactoryQuestion(question, { history });
+      history.push(
+        { role: "user", content: question },
+        { role: "assistant", content: result.answer.slice(0, 1200) },
+      );
+      return result;
+    };
+    const first = await ask("whats fx and tsn");
+    const simple = await ask("explain that simply");
+    expect(simple.answer).toContain("OPC UA Field eXchange");
+    expect(simple.answer).toContain("Time-Sensitive Networking");
+    expect(simple.answer.length).toBeLessThan(first.answer.length);
+    const example = await ask("give me an example");
+    expect(example.answer).toMatch(/conveyor.to.robot/);
+    expect(example.answer).toContain("timing requirements");
+    const together = await ask("do I need both?");
+    expect(together.answer).toContain("best-effort");
+    const application = await ask("does that mean our factory is using it?");
+    expect(application.answer).toContain("Demo data is authored simulation");
+    expect(application.answer).toContain("measured evidence");
+    expect(application.answer).not.toContain("visible assets");
+    expect(database.getAssets).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["What is AAS?", "Asset Administration Shell"],
+    ["what is AASX", "package"],
+    ["Explain MQTT", "publish/subscribe"],
+    ["Explain OPC UA FX", "Field eXchange"],
+    ["What is a gateway?", "connects equipment"],
+    ["What is telemetry?", "recorded measurement"],
+    ["What does unknown status mean?", "cannot establish a current state"],
+    ["What is cybersecurity?", "unauthorized access"],
+  ])("answers a concept question naturally: %s", async (question, expected) => {
+    const result = await answerFactoryQuestion(question, {
+      selectedAssetId: "urn:factory:compressor:01",
+    });
+    expect(result.answer).toContain(expected);
+    expect(result.sources.every((s) => s.kind === "documentation")).toBe(true);
+    expect(result.answer).not.toContain("Compressor 01");
+    expect(database.getAssets).not.toHaveBeenCalled();
+  });
+
+  it("handles greetings, thanks and missing conversation context without a database dump", async () => {
+    expect((await answerFactoryQuestion("Hello!")).answer).toContain("Hello!");
+    expect((await answerFactoryQuestion("thank you")).answer).toContain(
+      "welcome",
+    );
+    expect(
+      (await answerFactoryQuestion("give me an example")).answer,
+    ).toContain("What would you like me to explain");
+    expect((await answerFactoryQuestion("stop the robot")).answer).toContain(
+      "can’t operate equipment",
+    );
+    expect(database.getAssets).not.toHaveBeenCalled();
+  });
+
+  it("distinguishes a named equipment measurement from a general metric definition", async () => {
+    const definition = await answerFactoryQuestion("What is temperature?");
+    expect(definition.answer).toContain("how hot or cold");
+    expect(database.getAssets).not.toHaveBeenCalled();
+    await answerFactoryQuestion("What is Compressor 01 temperature?");
+    expect(database.getAssets).toHaveBeenCalled();
+    expect(database.getLatestAssetReadings).toHaveBeenCalledWith([
+      "urn:factory:compressor:01",
+    ]);
+  });
+
+  it("preserves a real equipment subject across an operational follow-up", async () => {
+    const result = await answerFactoryQuestion("and the latest vibration?", {
+      history: [
+        {
+          role: "user",
+          content: "What is the latest temperature on Compressor 01?",
+        },
+        { role: "assistant", content: "A stored measurement was available." },
+      ],
+    });
+    expect(result.answer).toContain("Compressor 01");
+    expect(result.answer).toContain("vibration=3.4");
+    expect(result.answer).not.toContain("temperature=");
+    expect(result.sources.some((s) => s.kind === "live-data")).toBe(true);
+  });
+
   it("answers identity questions directly without retrieval or provider noise", async () => {
     vi.stubEnv("ASSISTANT_PROVIDER", "openai_compatible");
     vi.stubEnv("ASSISTANT_GEMINI_API_KEY", "unit-test-key");
@@ -190,10 +298,15 @@ describe("Smart Factory documentation assistant", () => {
   });
 
   it.each(["stale", "unknown", "offline", "live"])(
-    "uses observed %s connectivity instead of the legacy online field", async (observedStatus) => {
+    "uses observed %s connectivity instead of the legacy online field",
+    async (observedStatus) => {
       const device = (await database.getDevices())[0];
-      database.getDevices.mockResolvedValue([{ ...device, status: "online", observedStatus }]);
-      const result = await answerFactoryQuestion("What is the status of Compressor 01?");
+      database.getDevices.mockResolvedValue([
+        { ...device, status: "online", observedStatus },
+      ]);
+      const result = await answerFactoryQuestion(
+        "What is the status of Compressor 01?",
+      );
       expect(result.answer).toContain(`observed connection ${observedStatus}`);
       expect(result.answer).not.toContain("gateway-01 online");
       expect(JSON.stringify(result.sources)).not.toContain("gateway-01 online");
