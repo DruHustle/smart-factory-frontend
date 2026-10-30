@@ -172,6 +172,8 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - name: Verify Demo/Live and factory overview UI contracts
         run: pnpm exec playwright test --config=playwright.overview-contract.config.ts
+      - name: Verify layout editing under delayed account responses and draft capacity
+        run: pnpm exec playwright test --config=playwright.layout-review.config.ts
       - name: Verify graphical navigation, source scope, typography and model preview
         run: pnpm e2e:experience --grep 'Overview graphics'
         env:
