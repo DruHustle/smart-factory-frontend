@@ -852,23 +852,51 @@ for (const width of [390, 1440]) {
         page.getByRole("status").filter({ hasText: "57 items on floor" }),
       ).toBeVisible();
       const details = page.getByLabel("Selected floor item", { exact: true });
-      // Hit the actual rendered floor, exercising raycasting rather than the item list.
-      for (const y of [0.5, 0.4, 0.6, 0.3, 0.7]) {
-        for (const x of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
-          if (await details.count()) break;
-          const bounds = await canvas.boundingBox();
-          if (!bounds) throw new Error("Factory canvas has no bounds");
-          const position = { x: bounds.width * x, y: bounds.height * y };
-          if (width < 768) await canvas.tap({ position });
-          else await canvas.click({ position });
+      // Aim at a visible surface, not the old enlarged invisible hit volumes.
+      // Re-enter between probes so hover rotation does not move the target while aiming.
+      let pickedRef: string | undefined;
+      if (width >= 768) {
+        await canvas.scrollIntoViewIfNeeded();
+        const bounds = (await canvas.boundingBox())!;
+        const offsets = [
+          0, -0.02, 0.02, -0.04, 0.04, -0.06, 0.06, -0.08, 0.08, -0.1, 0.1,
+        ];
+        outer: for (const dy of offsets) {
+          for (const dx of offsets) {
+            await page.mouse.move(bounds.x - 5, bounds.y - 5);
+            const x = bounds.x + bounds.width * (0.5 + dx),
+              y = bounds.y + bounds.height * (0.5 + dy);
+            await page.mouse.move(x, y);
+            const ref = await canvas.getAttribute("data-grab-target");
+            if (ref && ref !== "floor") {
+              pickedRef = ref;
+              await page.mouse.click(x, y);
+              break outer;
+            }
+          }
         }
-        if (await details.count()) break;
+        expect(
+          pickedRef,
+          "A visible rendered item must be directly selectable",
+        ).toBeTruthy();
+      } else {
+        for (const y of [0.5, 0.4, 0.6, 0.3, 0.7]) {
+          for (const x of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+            if (await details.count()) break;
+            const bounds = (await canvas.boundingBox())!;
+            await canvas.tap({
+              position: { x: bounds.width * x, y: bounds.height * y },
+            });
+          }
+          if (await details.count()) break;
+        }
       }
       await expect(details).toBeVisible();
       const ref = new URLSearchParams(
         new URL(page.url()).hash.split("?")[1],
       ).get("source");
       expect(ref).toBeTruthy();
+      if (pickedRef) expect(ref).toBe(pickedRef);
       const n = ref?.startsWith("equipment:") ? 17 : Number(ref?.split(":")[1]);
       await expect(details.getByRole("heading")).toHaveText(
         `Live system ${String(n).padStart(2, "0")}`,

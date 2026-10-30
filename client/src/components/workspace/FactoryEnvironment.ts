@@ -1,6 +1,11 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { createSurfaceGrain } from "./factory-graphics";
+import {
+  factoryAreas,
+  factoryAreaColors,
+  factoryWallSpans,
+} from "./factory-spaces";
 import type { layoutFactory } from "@shared/factory-floor";
 
 /** Architectural context is illustrative; only inventory nodes are selectable. */
@@ -115,52 +120,92 @@ export function createWorkshop(
       );
     }
   }
-  // Cutaway hall: the two far walls keep the floor and selection unobstructed.
-  b.box(wall, [w, 4.5, 0.16], [0, 2.05, -d / 2]);
-  b.box(wall, [0.16, 4.5, d], [-w / 2, 2.05, 0]);
-  b.box(window, [w - 0.4, 1.1, 0.03], [0, 2.95, -d / 2 + 0.095]);
-  b.box(window, [0.03, 1.1, d - 0.4], [-w / 2 + 0.095, 2.95, 0]);
+  // Door openings follow named layout zones; the two near walls remain cut away.
+  const areas = factoryAreas(layout),
+    north = factoryWallSpans(areas, "north", w),
+    west = factoryWallSpans(areas, "west", d);
+  const solid = (spans: [number, number][], point: number) =>
+    spans.some(([a, c]) => point >= a && point <= c);
+  for (const [a, c] of north) {
+    const length = c - a,
+      x = (a + c) / 2;
+    b.box(wall, [length, 4.5, 0.16], [x, 2.05, -d / 2]);
+    b.box(
+      window,
+      [Math.max(0.02, length - 0.08), 1.1, 0.03],
+      [x, 2.95, -d / 2 + 0.095],
+    );
+  }
+  for (const [a, c] of west) {
+    const length = c - a,
+      z = (a + c) / 2;
+    b.box(wall, [0.16, 4.5, length], [-w / 2, 2.05, z]);
+    b.box(
+      window,
+      [0.03, 1.1, Math.max(0.02, length - 0.08)],
+      [-w / 2 + 0.095, 2.95, z],
+    );
+  }
+  for (const area of areas) {
+    const door = area.door;
+    if (door?.edge === "north")
+      b.box(wall, [door.width + 0.32, 1.1, 0.16], [door.x, 3.75, -d / 2]);
+    if (door?.edge === "west")
+      b.box(wall, [0.16, 1.1, door.width + 0.32], [-w / 2, 3.75, door.z]);
+  }
   for (let x = -w / 2 + 0.2; x < w / 2; x += 5) {
+    if (!solid(north, x)) continue;
     b.box(steel, [0.15, 4.7, 0.25], [x, 2.1, -d / 2 + 0.13]);
     b.box(orange, [0.22, 0.65, 0.32], [x, 0.2, -d / 2 + 0.13]);
   }
   for (let z = -d / 2 + 0.2; z < d / 2; z += 5) {
+    if (!solid(west, z)) continue;
     b.box(steel, [0.25, 4.7, 0.15], [-w / 2 + 0.13, 2.1, z]);
     b.box(orange, [0.32, 0.65, 0.22], [-w / 2 + 0.13, 0.2, z]);
   }
   for (const y of [0.8, 3.9]) {
-    b.cylinder(
-      steel,
-      0.07,
-      w - 0.5,
-      [0, y, -d / 2 + 0.35],
-      [0, 0, Math.PI / 2],
-    );
-    b.cylinder(
-      steel,
-      0.07,
-      d - 0.5,
-      [-w / 2 + 0.35, y, 0],
-      [Math.PI / 2, 0, 0],
-    );
+    for (const [a, c] of north)
+      if (c - a > 0.1)
+        b.cylinder(
+          steel,
+          0.07,
+          c - a,
+          [(a + c) / 2, y, -d / 2 + 0.35],
+          [0, 0, Math.PI / 2],
+        );
+    for (const [a, c] of west)
+      if (c - a > 0.1)
+        b.cylinder(
+          steel,
+          0.07,
+          c - a,
+          [-w / 2 + 0.35, y, (a + c) / 2],
+          [Math.PI / 2, 0, 0],
+        );
   }
   const lamp = surface(0xf7f7ed, 0, 0.45);
   lamp.emissive.set(0xffefcf);
   lamp.emissiveIntensity = 1.4;
   const scuff = surface(dark ? 0x26333d : 0x839399, 0.1, 0.78);
-  b.box(scuff, [w, 0.48, 0.03], [0, 0.24, -d / 2 + 0.1]);
-  b.box(scuff, [0.03, 0.48, d], [-w / 2 + 0.1, 0.24, 0]);
+  for (const [a, c] of north)
+    b.box(scuff, [c - a, 0.48, 0.03], [(a + c) / 2, 0.24, -d / 2 + 0.1]);
+  for (const [a, c] of west)
+    b.box(scuff, [0.03, 0.48, c - a], [-w / 2 + 0.1, 0.24, (a + c) / 2]);
   for (let x = -w / 2 + 1; x < w / 2; x += 2)
-    b.box(seams, [0.022, 1.5, 0.02], [x, 1.25, -d / 2 + 0.1]);
+    if (solid(north, x))
+      b.box(seams, [0.022, 1.5, 0.02], [x, 1.25, -d / 2 + 0.1]);
   for (let z = -d / 2 + 1; z < d / 2; z += 2)
-    b.box(seams, [0.02, 1.5, 0.022], [-w / 2 + 0.1, 1.25, z]);
+    if (solid(west, z))
+      b.box(seams, [0.02, 1.5, 0.022], [-w / 2 + 0.1, 1.25, z]);
   b.box(steel, [w - 0.5, 0.08, 0.38], [0, 4.1, -d / 2 + 0.55]);
   b.box(steel, [0.38, 0.08, d - 0.5], [-w / 2 + 0.55, 4.1, 0]);
   for (let x = -w / 2 + 2; x < w / 2; x += 5) {
     b.box(lamp, [1.3, 0.04, 0.2], [x, 3.75, -d / 2 + 0.7]);
     b.box(steel, [0.04, 0.32, 0.04], [x, 3.95, -d / 2 + 0.7]);
   }
-  return b.finish();
+  const workshop = b.finish();
+  workshop.add(createFactorySpaces(layout, dark));
+  return workshop;
 }
 
 /** Detailed immediate geometry remains usable while reference GLBs load. */
@@ -303,5 +348,150 @@ export function createEquipmentProxy(model: string | null, itemType = "") {
     carton,
   ])
     if (!used.has(material)) material.dispose();
+  return root;
+}
+
+/** Architectural layout features; these are not registered inventory or stock records. */
+export function createFactorySpaces(
+  layout: ReturnType<typeof layoutFactory>,
+  dark: boolean,
+) {
+  const root = new THREE.Group();
+  root.name = "factory-loading-storage-and-exit";
+  const steel = surface(dark ? 0x81939d : 0x8397a0, 0.72, 0.33);
+  const yellow = surface(0xd9a53b, 0.1, 0.65);
+  const black = surface(0x293b43, 0.04, 0.78);
+  const carton = surface(dark ? 0xa58259 : 0xb99469, 0, 0.88);
+  const label = surface(0xe6e6d9, 0, 0.75);
+  for (const area of factoryAreas(layout)) {
+    const b = new WorkshopBuilder();
+    const color = new THREE.Color(factoryAreaColors[area.kind]);
+    const paint = surface(
+      color.clone().lerp(new THREE.Color(dark ? 0x384b54 : 0xe0e5df), 0.75),
+      0,
+      0.86,
+    );
+    const line = surface(color, 0, 0.7);
+    const cx = area.x + area.width / 2,
+      cz = area.z + area.depth / 2;
+    b.box(paint, [area.width, 0.006, area.depth], [cx, 0.004, cz]);
+    for (const side of [-1, 1]) {
+      b.box(
+        line,
+        [area.width, 0.008, 0.045],
+        [cx, 0.009, cz + (side * area.depth) / 2],
+      );
+      b.box(
+        line,
+        [0.045, 0.008, area.depth],
+        [cx + (side * area.width) / 2, 0.009, cz],
+      );
+    }
+    if (area.door) {
+      const door = area.door;
+      const at = (x: number, y: number, z = 0) => {
+        const point = new THREE.Vector3(x, y, z).applyAxisAngle(
+          new THREE.Vector3(0, 1, 0),
+          door.rotation,
+        );
+        return [point.x + door.x, point.y, point.z + door.z];
+      };
+      for (const side of [-1, 1]) {
+        b.box(
+          steel,
+          [0.14, 3.2, 0.28],
+          at(side * (door.width / 2 + 0.07), 1.6),
+          door.rotation,
+        );
+        b.box(
+          yellow,
+          [0.24, 0.55, 0.34],
+          at(side * (door.width / 2 + 0.07), 0.28, 0.05),
+          door.rotation,
+        );
+        b.box(
+          black,
+          [0.25, 0.09, 0.35],
+          at(side * (door.width / 2 + 0.07), 0.2, 0.05),
+          door.rotation,
+        );
+      }
+      b.box(steel, [door.width + 0.28, 0.18, 0.3], at(0, 3.15), door.rotation);
+      b.box(
+        line,
+        [Math.max(0.8, door.width * 0.7), 0.28, 0.06],
+        at(0, 3.45),
+        door.rotation,
+      );
+      // Raised roller shutter leaves a genuinely clear loading/exit opening.
+      b.cylinder(steel, 0.2, door.width, at(0, 3.36, 0.03), [
+        0,
+        door.rotation,
+        Math.PI / 2,
+      ]);
+      const dx = area.kind === "inbound" ? cx - door.x : door.x - cx;
+      const dz = area.kind === "inbound" ? cz - door.z : door.z - cz;
+      const heading = Math.atan2(dx, dz);
+      const arrow = new THREE.Shape();
+      arrow.moveTo(-0.22, 0);
+      arrow.lineTo(0.22, 0);
+      arrow.lineTo(0, -0.5);
+      arrow.closePath();
+      b.add(
+        new THREE.ShapeGeometry(arrow).rotateX(-Math.PI / 2).rotateY(heading),
+        line,
+        [cx, 0.016, cz],
+      );
+    }
+    if (area.kind === "storage") {
+      const width = Math.max(0.7, Math.min(8, area.width - 0.3));
+      const bays = Math.max(1, Math.min(3, Math.floor(width / 2.2))),
+        bayWidth = width / bays;
+      const rackDepth = Math.min(0.9, Math.max(0.45, area.depth - 0.2));
+      const z = area.z + Math.min(area.depth / 2, 0.8);
+      for (const side of [-1, 1])
+        b.box(
+          steel,
+          [0.055, 0.95, 0.055],
+          [cx + side * width * 0.37, 2.85, z + rackDepth * 0.52],
+        );
+      for (let bay = 0; bay < bays; bay++) {
+        const x = cx - width / 2 + bayWidth * (bay + 0.5);
+        for (const side of [-1, 1])
+          for (const front of [-1, 1])
+            b.box(
+              steel,
+              [0.065, 2.4, 0.065],
+              [
+                x + side * (bayWidth / 2 - 0.04),
+                1.2,
+                z + (front * rackDepth) / 2,
+              ],
+            );
+        for (const y of [0.2, 0.95, 1.7]) {
+          b.box(yellow, [bayWidth, 0.07, rackDepth], [x, y, z]);
+          const bw = Math.min(0.68, bayWidth * 0.36),
+            bh = 0.48;
+          for (const side of [-1, 1]) {
+            const bx = x + side * bayWidth * 0.24;
+            b.box(
+              carton,
+              [bw, bh, rackDepth * 0.8],
+              [bx, y + bh / 2 + 0.04, z],
+            );
+            b.box(
+              label,
+              [bw * 0.4, 0.15, 0.012],
+              [bx, y + bh / 2 + 0.04, z + rackDepth * 0.4 + 0.007],
+            );
+          }
+        }
+      }
+    }
+    const group = b.finish();
+    group.name = `factory-area-${area.kind}`;
+    group.userData.factoryArea = area;
+    root.add(group);
+  }
   return root;
 }

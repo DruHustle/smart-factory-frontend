@@ -446,6 +446,103 @@ async function grabFixture(page: Page, plan = false) {
   return { canvas, bounds, item, placement };
 }
 
+test("loading, warehouse, production and exit areas follow saved named zones in 3D and plan", async ({
+  page,
+}) => {
+  await fixture(page);
+  const canvas = page.getByRole("img", {
+    name: "Interactive 3D factory floor",
+    exact: true,
+  });
+  await expect(canvas).toBeVisible();
+  const areas = async () =>
+    JSON.parse((await canvas.getAttribute("data-factory-areas"))!);
+  await expect
+    .poll(async () => (await areas()).map((a: any) => a.kind))
+    .toEqual(["inbound", "storage", "production", "outbound"]);
+  await page.getByRole("button", { name: "Add zone", exact: true }).click();
+  await page
+    .getByLabel("Zone 1 name", { exact: true })
+    .fill("Warehouse / inventory");
+  await expect
+    .poll(
+      async () =>
+        (await areas()).find((a: any) => a.kind === "storage")?.origin,
+    )
+    .toBe("zone");
+  await page
+    .getByLabel("Warehouse / inventory Left (m)", { exact: true })
+    .fill("3");
+  await page
+    .getByLabel("Warehouse / inventory Left (m)", { exact: true })
+    .press("Tab");
+  await expect
+    .poll(async () => (await areas()).find((a: any) => a.kind === "storage")?.x)
+    .toBe(-17);
+  await page.getByRole("button", { name: "Add zone", exact: true }).click();
+  await page
+    .getByLabel("Zone 2 name", { exact: true })
+    .fill("Inbound / loading");
+  await expect
+    .poll(
+      async () =>
+        (await areas()).find((a: any) => a.kind === "inbound")?.door?.edge,
+    )
+    .toBe("north");
+  await page
+    .getByRole("button", { name: "Enter fullscreen", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Factory floor overview", exact: true }),
+  ).toContainText("2 zones");
+  await expect
+    .poll(async () => (await canvas.boundingBox())!.height)
+    .toBeGreaterThan(500);
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/factory-flow-areas.png",
+    animations: "disabled",
+  });
+  await page
+    .getByRole("button", { name: "Exit fullscreen", exact: true })
+    .click();
+  await page.reload();
+  await expect
+    .poll(async () => (await areas()).find((a: any) => a.kind === "storage")?.x)
+    .toBe(-17);
+  await page.getByRole("button", { name: "Floor plan", exact: true }).click();
+  const plan = page.getByRole("img", {
+    name: "Accessible factory floor plan",
+    exact: true,
+  });
+  await expect(
+    plan.getByRole("img", {
+      name: "Warehouse / inventory: Warehouse / inventory",
+      exact: true,
+    }),
+  ).toBeAttached();
+  await expect(
+    plan.getByRole("img", {
+      name: "Inbound / loading: Inbound / loading",
+      exact: true,
+    }),
+  ).toBeAttached();
+  expect(
+    JSON.parse((await plan.getAttribute("data-factory-areas"))!).find(
+      (a: any) => a.kind === "storage",
+    ).x,
+  ).toBe(-17);
+  await page
+    .getByRole("button", { name: "Enter fullscreen", exact: true })
+    .click();
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/factory-flow-plan.png",
+    animations: "disabled",
+  });
+  await page
+    .getByRole("button", { name: "Exit fullscreen", exact: true })
+    .click();
+});
+
 test("mouse movement rotates 3D without grabbing, stops at rest and resets across leaving/fullscreen", async ({
   page,
 }) => {

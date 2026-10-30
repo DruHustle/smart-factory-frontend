@@ -7,3 +7,12 @@ In 3D, move the mouse over the floor without pressing to rotate the view. Rotati
 An individual account's **Save layout** stores a version owned by that user and data workspace. Reopen a saved layout to continue, save a separate copy, or archive and restore it. Concurrent saves reject stale versions so another tab's newer work is preserved. Only currently authorized equipment can be saved. Layouts do not alter inventory identities, telemetry or commissioning records.
 
 Shared demo visitors save personal drafts in their own browser. These drafts survive refresh and demo role switches, can be reopened and downloaded as JSON, and include equipment created in the [editable demo](editable-demo.md). Browser drafts are limited to 50 layouts. Remove a browser draft to free space, and use Undo to restore it if needed; removing a browser draft does not delete an account save. Use Download layout if browser storage is unavailable or before clearing site data. Clearing site data removes local drafts; a different browser starts a separate workspace. Resetting demo equipment retains layout drafts and marks removed custom equipment unavailable.
+
+
+## Loading, storage, production and exits
+
+The 3D floor and accessible plan include inbound/loading, warehouse/inventory storage, production and outbound/exit areas. Loading and exit bays have open door frames and directional markings; storage uses illustrative racks and cartons. These are layout context, separate from registered equipment and stock records.
+
+Use **Add zone**, then choose or type a suggested purpose such as **Inbound / loading**, **Warehouse / inventory**, **Production / assembly** or **Outbound / dispatch**. Adjust the existing zone position and dimensions to match the factory. The matching area follows those saved coordinates; loading/exit doors use the nearest boundary, including a real opening in the cutaway wall. Zone names stay editable. If a purpose has no named zone, a reference area supplies context at the perimeter. Default storage avoids configured loading openings.
+
+The architectural graphics illustrate the layout and add no equipment records or stock quantities.

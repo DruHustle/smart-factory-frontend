@@ -17,6 +17,7 @@ import { sandboxInventory } from "@shared/demo-sandbox";
 import { Button } from "@/components/ui/button";
 import { PageHeader, EmptyState } from "@/components/workspace/Primitives";
 import { FactoryFloor } from "@/components/workspace/FactoryFloor";
+import { factoryZoneSuggestions } from "@/components/workspace/factory-spaces";
 import {
   factoryLayoutDocument,
   layoutFromInventory,
@@ -506,6 +507,15 @@ function FactoryLayoutsEditor() {
             >
               Add zone
             </Button>
+            <datalist id="factory-zone-names">
+              {factoryZoneSuggestions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+            <p className="text-xs text-muted-foreground">
+              Name a zone for loading, warehouse storage, production or dispatch
+              to place its layout features.
+            </p>
             {draft.document.zones.map((zone, index) => (
               <fieldset
                 key={zone.id}
@@ -515,6 +525,7 @@ function FactoryLayoutsEditor() {
                 <input
                   className="workspace-control w-full"
                   aria-label={`Zone ${index + 1} name`}
+                  list="factory-zone-names"
                   maxLength={80}
                   value={zone.name}
                   onChange={(e) =>

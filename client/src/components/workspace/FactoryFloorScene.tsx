@@ -11,6 +11,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createWorkshop, createEquipmentProxy } from "./FactoryEnvironment";
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
 import { floorItemAtRay } from "./floor-picking";
+import { factoryAreas, factoryAreaColors } from "./factory-spaces";
 import {
   optimizeFactoryReference,
   instantiateFactoryReference,
@@ -111,6 +112,31 @@ function label(text: string, color: string, size = 3.4) {
   );
   sprite.scale.set(size, (size * 72) / 512, 1);
   return sprite;
+}
+
+function areaSign(text: string, color: string, width: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 128;
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = color;
+  context.fillRect(0, 0, 512, 128);
+  context.fillStyle = "#ffffff";
+  context.textAlign = "center";
+  const [title, ...rest] = text.split(/\s*\/\s*/);
+  const subtitle = rest.join(" / ");
+  context.font = `600 ${Math.min(subtitle ? 78 : 112, 456 / Math.max(1, title.length * 0.64))}px sans-serif`;
+  context.fillText(title, 256, subtitle ? 77 : 101, 472);
+  if (subtitle) {
+    context.font = `500 ${Math.min(34, 456 / Math.max(1, subtitle.length * 0.6))}px sans-serif`;
+    context.fillText(subtitle, 256, 116, 472);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(width, width / 4),
+    new THREE.MeshBasicMaterial({ map: texture, toneMapped: false }),
+  );
 }
 
 export default function FactoryFloorScene({
@@ -238,6 +264,8 @@ export default function FactoryFloorScene({
       renderer.domElement.dataset.floorNodeCount = String(
         layout.placements.length,
       );
+      const flowAreas = factoryAreas(layout);
+      renderer.domElement.dataset.factoryAreas = JSON.stringify(flowAreas);
       element.appendChild(renderer.domElement);
       const camera = new THREE.OrthographicCamera(
         -20,
@@ -314,6 +342,54 @@ export default function FactoryFloorScene({
         : "high-pbr";
       renderer.domElement.dataset.shadowResolution = String(shadowSize);
       scene.add(createWorkshop(layout, dark));
+      for (const area of flowAreas) {
+        const color = factoryAreaColors[area.kind];
+        if (area.door) {
+          const door = area.door;
+          for (const side of [-1, 1]) {
+            const sign = areaSign(
+              area.kind === "inbound" ? "IN" : "EXIT",
+              color,
+              door.width * 0.7,
+            );
+            const offset = new THREE.Vector3(
+              0,
+              3.45,
+              side * 0.22,
+            ).applyAxisAngle(new THREE.Vector3(0, 1, 0), door.rotation);
+            sign.position.set(door.x + offset.x, offset.y, door.z + offset.z);
+            sign.rotation.y = door.rotation + (side < 0 ? Math.PI : 0);
+            scene.add(sign);
+          }
+        }
+        if (area.origin === "reference" || area.kind === "storage") {
+          const sign = areaSign(
+            area.kind === "storage"
+              ? `WAREHOUSE / ${area.origin === "zone" ? area.name : "Inventory"}`
+              : area.name,
+            color,
+            Math.min(5, Math.max(1, area.width * 0.9)),
+          );
+          if (area.kind === "storage") {
+            sign.position.set(
+              area.x + area.width / 2,
+              3.1,
+              area.z +
+                Math.min(area.depth / 2, 0.8) +
+                Math.min(0.9, Math.max(0.45, area.depth - 0.2)) / 2 +
+                0.02,
+            );
+          } else {
+            sign.rotation.x = -Math.PI / 2;
+            sign.position.set(
+              area.x + area.width / 2,
+              0.017,
+              area.z + area.depth * 0.8,
+            );
+          }
+          scene.add(sign);
+        }
+      }
       const objects = new Map<string, THREE.Group>(),
         indicators = new Map<string, THREE.Mesh>(),
         markers = new Map<
