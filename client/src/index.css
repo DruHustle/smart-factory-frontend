@@ -715,3 +715,8 @@ input[type="radio"] {
   max-width: none;
   max-height: none;
 }
+
+/* Direct floor manipulation needs a stationary page while acquiring a grab. */
+html:has(.overview-floor) {
+  scroll-behavior: auto;
+}

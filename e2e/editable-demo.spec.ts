@@ -277,20 +277,6 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
   await expect(canvas).toHaveAttribute("data-interaction", "grab");
   await canvas.scrollIntoViewIfNeeded();
   await canvas.hover({ position: { x: 20, y: 20 } });
-  const before = await canvas.getAttribute("data-camera-view"),
-    box = (await canvas.boundingBox())!;
-  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.65, box.y + box.height * 0.7, {
-    steps: 12,
-  });
-  await page.mouse.up();
-  await expect
-    .poll(() => canvas.getAttribute("data-camera-view"))
-    .not.toBe(before);
-  await page
-    .getByRole("button", { name: "Fit whole factory floor", exact: true })
-    .click();
   const readPlacement = () =>
     page.evaluate(
       () =>
@@ -298,6 +284,26 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
           localStorage.getItem("smart-factory:layout-drafts:v1:demo-visitor")!,
         )[0].document.placements[0],
     );
+  const originalPlacement = await readPlacement();
+  const before = await canvas.getAttribute("data-camera-view"),
+    box = (await canvas.boundingBox())!;
+  await canvas.hover({ position: { x: box.width * 0.5, y: box.height * 0.6 } });
+  await expect(canvas).toHaveAttribute("data-grab-target", "floor");
+  await page.mouse.down();
+  await expect(canvas).toHaveAttribute("data-grab-state", "floor");
+  expect((await canvas.boundingBox())!.y).toBe(box.y);
+  await page.mouse.move(box.x + box.width * 0.65, box.y + box.height * 0.7, {
+    steps: 12,
+  });
+  await page.mouse.up();
+  expect(await readPlacement()).toEqual(originalPlacement);
+  expect((await canvas.boundingBox())!.y).toBe(box.y);
+  await expect
+    .poll(() => canvas.getAttribute("data-camera-view"))
+    .not.toBe(before);
+  await page
+    .getByRole("button", { name: "Fit whole factory floor", exact: true })
+    .click();
   const placement = await readPlacement();
   const fixedCamera = await canvas.getAttribute("data-camera-view");
   await expect(canvas).toHaveAttribute("data-interaction", "grab");
@@ -308,7 +314,9 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
     bounds.x + bounds.width / 2,
     bounds.y + bounds.height / 2 - 10,
   );
+  await expect(canvas).toHaveAttribute("data-grab-target", placement.ref);
   await page.mouse.down();
+  await expect(canvas).toHaveAttribute("data-grab-state", "item");
   await page.mouse.move(
     bounds.x + bounds.width / 2 + 60,
     bounds.y + bounds.height / 2 + 20,
