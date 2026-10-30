@@ -4,7 +4,9 @@
 
 - [README](README.md): prerequisites, local setup, roles, assets, and verification
 - [Implementation guide](IMPLEMENTATION_GUIDE.md)
-- [Complete local and Vercel/Render release guide](RENDER_DEPLOYMENT.md)
+- [Oracle API/worker and Vercel production release](deploy/oracle/README.md)
+- [Operating and recovery guide](docs/operations.md)
+- [Historical local/Render reference](RENDER_DEPLOYMENT.md)
 - [Production readiness review and acceptance evidence](docs/production-readiness-review.md)
 - [Factory troubleshooting](docs/troubleshooting.md)
 
@@ -14,11 +16,20 @@
 - [Authentication and roles](AUTHENTICATION.md)
 - [Login troubleshooting](LOGIN_TROUBLESHOOTING.md)
 - [Smart Factory Assistant configuration and data boundaries](docs/assistant.md)
+- [Factory layouts, mouse grabbing and fullscreen](docs/factory-layouts.md)
+- [Editable, resettable demo sandbox](docs/editable-demo.md)
+- [Complete demonstration and capability boundaries](docs/complete-demonstration.md)
+- [Digital passport publication and printing](docs/access-and-publication.md)
+- [Current screenshots](docs/evidence/release-20261030/README.md)
 - [Architecture](docs/architecture.md)
 - [Request flows](docs/api-flows.md)
 - [Database and migrations](docs/database-schema.md)
 
 ## Industrial interoperability
+
+- [OPC UA FX and TSN: concepts, diagnostics and commissioning](docs/fx-tsn.md)
+- [Assistant explanations of FX, TSN and evidence](docs/assistant-concepts.md)
+- [System diagrams and image downloads](SYSTEM_DIAGRAMS.md)
 
 - [Authorization, assets, and AAS](docs/authorization-and-aas.md)
 - [AASX import and edge synchronization](docs/AASX-and-Edge-Configuration.md)
@@ -33,5 +44,6 @@
 - [Architecture](docs/architecture.pdf)
 - [API flows](docs/api-flows.pdf)
 - [Database schema](docs/database-schema.pdf)
+- [OPC UA FX and TSN](docs/fx-tsn.pdf)
 
-Edit Markdown sources and regenerate PDFs with `pnpm docs:pdf`. The generator updates `docs/pdf-manifest.json`; `pnpm docs:check` rejects missing, modified or stale PDF/source pairs.
+Edit Markdown sources and regenerate PDFs with `pnpm docs:pdf`. The generator updates `docs/pdf-manifest.json`; `pnpm docs:check` rejects missing, modified or stale PDF/source pairs and diagram images. The same command exports the architecture and FX/TSN diagrams as SVG and PNG.

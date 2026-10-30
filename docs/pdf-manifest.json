@@ -4,18 +4,41 @@
   "documents": {
     "architecture.pdf": {
       "source": "architecture.md",
-      "sourceSha256": "23753f978369db5b57c9fd99648941258b4e689f88a394eb743a0bd87124934f",
-      "pdfSha256": "df9adfa005ad22605ddaa3341539bfcdd9edea76bb6a5e28b2765502f516d0bd"
+      "sourceSha256": "cd82eedc7a56f203f66697bcd28de93a38f8931aa2440f54123105d27d22c178",
+      "pdfSha256": "07dc95f32c727ba4d6ed7d1b65de670deffa335c5cc876bc4afe4dbcb682e48d"
     },
     "api-flows.pdf": {
       "source": "api-flows.md",
-      "sourceSha256": "2c7531a0875089a12802ec2670b91a2a9f3b53d441ccf73907ee86e673201803",
-      "pdfSha256": "3053d49cb88bfeb4d9b0d59be0863f8302209ada6ecbcb938d6040fc0eaac6e5"
+      "sourceSha256": "be1a46e4b4548eca384ac96a9b6d6b1e2644c9e561acb5f028a644a7785cdf38",
+      "pdfSha256": "aac80cd07b0a822b3b0486a68ce7d0a36e4df43ec2e90a1f47ab017c741fda08"
     },
     "database-schema.pdf": {
       "source": "database-schema.md",
-      "sourceSha256": "73348809ee7f8c36ffb15949a5452ad086c67d0f4adc981d327a119527fee1b5",
-      "pdfSha256": "d46becff0c3679603ebabd2e47e168e45bc3c9472d01fe46ca8e90a4ba47488e"
+      "sourceSha256": "9901b0701d113cf594cf5e5412089b88aa1a5c0009c8480a1961c945bcebd1d4",
+      "pdfSha256": "d63822f1d40568c6d7727c52d28b298aca315c5ac154756a5e0ed179cb0fde01"
+    },
+    "fx-tsn.pdf": {
+      "source": "fx-tsn.md",
+      "sourceSha256": "811bf977c163cfdab7ee35aa77f81b246bfe32048e06d6225bf8a3eee3b45b7a",
+      "pdfSha256": "d5d851caff45a3dd124e339789cfdcdeb32538bcef3f86272d85e379a0879fae"
+    }
+  },
+  "diagrams": {
+    "architecture": {
+      "source": "architecture.md",
+      "sourceSha256": "cd82eedc7a56f203f66697bcd28de93a38f8931aa2440f54123105d27d22c178",
+      "svg": "diagrams/architecture.svg",
+      "svgSha256": "fd61291afa69056eeb169b4a4c8323134aedde33b9f0de623ea3dbcfff99b36f",
+      "png": "diagrams/architecture.png",
+      "pngSha256": "f8bd6d088e09c53086327b38d8256f29e92129a07fe9ff2bf9d87ae2738dc1bd"
+    },
+    "fx-tsn": {
+      "source": "fx-tsn.md",
+      "sourceSha256": "811bf977c163cfdab7ee35aa77f81b246bfe32048e06d6225bf8a3eee3b45b7a",
+      "svg": "diagrams/fx-tsn.svg",
+      "svgSha256": "a8e7efa4bbd49a4fc8bd9e74960316047b546144fe067256a09faed299919a00",
+      "png": "diagrams/fx-tsn.png",
+      "pngSha256": "ff4c677b9c0d4a60f59e2b58763be2655df27df985def93fd198dbb7c87167e2"
     }
   }
 }

@@ -105,7 +105,7 @@ Start the live local BaSyx stack from this repository with `docker compose --env
 
 BaSyx Go 1.1.0 currently returns AASX package downloads with `Content-Type: application/aasx+json`, although its own OpenAPI declares the binary `application/asset-administration-shell-package` response. The Node gateway normalizes successful `GET /api/aas/packages/{packageId}` responses to the declared media type and streams the package bytes unchanged. The direct BaSyx URL remains private; consumers should use the authenticated gateway.
 
-With those variables absent, tRPC asset workflows and JSON export continue to use the application database, while `/api/aas/*` returns `503 AAS Repository service is not configured`. This is intentional: the Node app does not pretend its tRPC asset routes are the standardized repository API. See [deployment](../RENDER_DEPLOYMENT.md) and [API flow](api-flows.md).
+With those variables absent, tRPC asset workflows and JSON export continue to use the application database, while `/api/aas/*` returns `503 AAS Repository service is not configured`. This is intentional: the Node app does not pretend its tRPC asset routes are the standardized repository API. See [production deployment](../deploy/oracle/README.md) and [API flow](api-flows.md).
 
 ## Submodel templates
 

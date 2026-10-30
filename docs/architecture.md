@@ -1,6 +1,6 @@
 # Smart Factory Architecture
 
-Maintained 27 October 2026 for the product-experience candidate. Exact runtime and qualification identities are separate from this architecture description.
+Updated 30 October 2026 for the released factory layout, Assistant, demo sandbox and FX/TSN experience. Exact runtime and qualification identities are separate from this architecture description.
 
 ## Repositories and ownership
 
@@ -48,7 +48,7 @@ The [Oracle runbook](../deploy/oracle/README.md) owns deployment, image identity
 
 The Node API checks bcrypt passwords and issues eight-hour HttpOnly cookie sessions. Protected requests reload current role, disabled state, session generation, recovery restriction and revocation. Sockets retain identity and expiry; delegated .NET routes independently enforce the persisted session. Unsafe cookie requests enforce exact allowed origins. Secrets never enter browser state or published profiles.
 
-Individually authenticated operational roles apply on private installations. Shared demo identities and public-demo deployments are read-only and limited to explicitly approved fixtures. Central actor checks run before writes and publishers. Raw HTTP, exports, downloads and delegated services follow the same boundary. Fixture targets remain read-only for individual users too. The [access guide](access-and-publication.md) documents bootstrap, recovery, disable/revoke and public passport publication.
+Individually authenticated operational roles apply on private installations. Shared demo identities and public-demo deployments read explicitly approved server fixtures. Their editable sandbox stores simulated changes in the browser; it does not write operational inventory or shared fixtures. Central actor checks run before writes and publishers. Raw HTTP, exports, downloads and delegated services follow the same boundary. Fixture targets remain read-only for individual users too. The [access guide](access-and-publication.md) documents bootstrap, recovery, disable/revoke and public passport publication.
 
 Assets, independent devices, gateways and equipment share one typed inventory. AAS, source, gateway and representation links are explicit and separate. Registration saves identity and software configuration; broker credentials, profile application and physical commissioning are distinct outcomes. Incoming samples never rewrite commissioned topology or automatically create operational inventory.
 
@@ -63,6 +63,16 @@ AAS provisioning and package import preserve vendor documents, revisions, concep
 The Assistant reads only approved current guides and a bounded authorized evidence snapshot. It uses the same visibility and units policy and links to actual items/incidents. Local fallback remains available. It cannot control equipment or infer a physical cause from a threshold observation. Optional external-provider use is separately configured; UI qualification uses no provider.
 
 Public passports default to private preview. Authorized publication snapshots only selected reviewed fields and asset-appropriate guidance under a revocable public identity. Numeric asset IDs grant no public access. Onesa remains an optional versioned export with distinct external-consumer acceptance.
+
+## Factory layouts, demonstration and industrial diagnostics
+
+The complete authorized floor loads automatically in 3D, with seven illustrative reference-model families and an accessible plan fallback. Original material groups, environment reflections, surface finishes and adaptive shadows improve equipment readability. Geometry represents equipment types; it is not surveyed plant CAD or proof of installed hardware.
+
+Users grab an item to move its layout position and grab empty floor to pan. Space pans over items; right-drag or Shift-drag rotates; scrolling/pinching zooms. Fullscreen retains the scene and placement. Layouts record floor dimensions, zones, positions and rotations. Individual accounts save versioned, scoped layouts with stale-save protection; demo drafts and simulated edits remain browser-local. See [factory layouts](factory-layouts.md), [editable sandbox](editable-demo.md) and [current screenshots](evidence/release-20261030/README.md).
+
+OPC UA FX describes interoperable AutomationComponents, FunctionalEntities and logical connections, with OPC UA PubSub process-data exchange. TSN provides profile-dependent Ethernet timing and traffic capabilities. **Operations → FX & TSN** shows bounded reported diagnostics and four labelled demo scenarios; missing or stale timing stays unknown. A commissioned collector or authorized manual import supplies reports. The dashboard does not configure controllers or network schedules, carry the local control loop, or certify deterministic delivery. Existing OPC UA polling and MQTT ingestion remain separate telemetry paths. See the [FX/TSN guide and diagram](fx-tsn.md).
+
+Digital passports support printing the reviewed public reference or a locally simulated demo passport. Operational publication still requires explicit authorization and selected-field review; private administration/deployment details stay outside public passports. See [access and publication](access-and-publication.md).
 
 ## Operations and acceptance
 

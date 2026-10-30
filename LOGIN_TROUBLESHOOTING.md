@@ -16,4 +16,4 @@ Forgot Password is a UI placeholder. No reset email or token workflow is impleme
 
 Run pnpm check and pnpm test. Run pnpm e2e with Docker available to exercise migrations, database-backed login and authorization, the telemetry bridge, and Chromium flows using a disposable PostgreSQL container. It does not use the developer .env.local database.
 
-See [authentication](AUTHENTICATION.md) and [deployment troubleshooting](RENDER_DEPLOYMENT.md#troubleshooting).
+See [authentication](AUTHENTICATION.md) and [production deployment and recovery](deploy/oracle/README.md).

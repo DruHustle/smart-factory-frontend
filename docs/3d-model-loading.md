@@ -1,5 +1,11 @@
 # Native 3D delivery and loading
 
+## Released factory floor graphics and interaction
+
+The whole-factory floor preserves the bundled GLBs' original material groups rather than flattening all parts to one material. Steel, painted surfaces, glass and rubber use their corresponding finishes; studio reflections, floor texture, contact shadows and adaptive shadow quality improve depth and equipment separation. Reference footprints and the surrounding warehouse remain illustrative. The [30 October production gallery](evidence/release-20261030/README.md) shows the released light/dark/mobile floor and an equipment close view.
+
+Items and empty floor use direct hand grabbing. Compact labelled icons fit the scene, switch 3D/plan and enter fullscreen; the scene and placement stay mounted across fullscreen changes. Model downloads begin automatically and immediate proxies keep the complete inventory represented while loading. A usable plan replaces unavailable WebGL. See [layout controls and persistence](factory-layouts.md) and [visual workspace boundaries](visual-first-workspaces.md).
+
 ## Studio rendering and first image
 
 The viewer uses a prefiltered HDR studio atlas rather than rebuilding reflection lighting for every viewer. The 396,143-byte public asset contains the pinned Three.js CubeUV roughness levels as linear RGBA16F data. Its decoded public pixels can be reused across viewers; each viewer owns and disposes its GPU texture. Failed asset delivery or an unsupported native gzip decoder uses direct lighting so inspection can continue without runtime environment generation. Private model delivery still uses the authorized same-origin route with no-store responses.
