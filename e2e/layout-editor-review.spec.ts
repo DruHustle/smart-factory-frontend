@@ -848,6 +848,70 @@ test("floor-plan fallback uses the same hand gesture and preserves cancelled edi
   await expect(canvas).toHaveCSS("cursor", "grab");
 });
 
+for (const missedEnter of [false, true]) {
+  test(`fullscreen cancellation survives ${missedEnter ? "a native Escape before the enter event" : "a delayed native entry"}`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      ({ missedEnter }) => {
+        let active: Element | null = null;
+        Object.defineProperty(document, "fullscreenElement", {
+          configurable: true,
+          get: () => active,
+        });
+        Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+          configurable: true,
+          value: function (this: HTMLElement) {
+            const element = this;
+            return new Promise<void>((resolve) => {
+              (window as any).completeFloorEntry = () => {
+                active = missedEnter ? null : element;
+                document.dispatchEvent(new Event("fullscreenchange"));
+                resolve();
+              };
+            });
+          },
+        });
+        Object.defineProperty(document, "exitFullscreen", {
+          configurable: true,
+          value: async () => {
+            active = null;
+            document.dispatchEvent(new Event("fullscreenchange"));
+          },
+        });
+      },
+      { missedEnter },
+    );
+    const { placement } = await grabFixture(page);
+    const original = await placement();
+    await page
+      .getByRole("button", { name: "Enter fullscreen", exact: true })
+      .click();
+    const panel = page.getByRole("dialog", {
+      name: "Factory floor overview",
+      exact: true,
+    });
+    await expect(panel).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => document.body.style.overflow))
+      .toBe("hidden");
+    if (!missedEnter) {
+      await page.keyboard.press("Escape");
+      await expect(panel).toHaveCount(0);
+    }
+    await page.evaluate(() => (window as any).completeFloorEntry());
+    await expect(
+      page.getByRole("button", { name: "Enter fullscreen", exact: true }),
+    ).toBeEnabled();
+    await expect(panel).toHaveCount(0);
+    expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+    expect(await page.evaluate(() => document.body.style.overflow)).not.toBe(
+      "hidden",
+    );
+    expect(await placement()).toEqual(original);
+  });
+}
+
 for (const fallback of [false, true]) {
   test(`fullscreen enlarges the live floor and exits safely (${fallback ? "page fallback" : "native"})`, async ({
     page,

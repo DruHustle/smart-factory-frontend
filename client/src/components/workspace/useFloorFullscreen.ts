@@ -5,9 +5,13 @@ export function useFloorFullscreen() {
   const panel = useRef<HTMLElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const native = useRef(false);
+  const wanted = useRef(false);
+  const enteringNative = useRef(false);
   const [expanded, setExpanded] = useState(false);
   const [pending, setPending] = useState(false);
   const exit = async () => {
+    wanted.current = false;
+    enteringNative.current = false;
     if (document.fullscreenElement === panel.current) {
       try {
         await document.exitFullscreen();
@@ -28,11 +32,31 @@ export function useFloorFullscreen() {
       }
       const element = panel.current;
       if (!element) return;
+      wanted.current = true;
       setExpanded(true);
       try {
-        if (element.requestFullscreen) await element.requestFullscreen();
+        if (element.requestFullscreen) {
+          enteringNative.current = true;
+          await element.requestFullscreen();
+        }
       } catch {
+        enteringNative.current = false;
         /* Full-window page view remains available when native fullscreen is blocked. */
+      }
+      if (!wanted.current) {
+        if (document.fullscreenElement === element)
+          await document.exitFullscreen().catch(() => {});
+        return;
+      }
+      if (document.fullscreenElement === element) {
+        native.current = true;
+        enteringNative.current = false;
+      } else if (enteringNative.current) {
+        // The browser can consume Escape before delivering its enter event.
+        enteringNative.current = false;
+        wanted.current = false;
+        setExpanded(false);
+        return;
       }
       element
         .querySelector<HTMLElement>(".overview-floor-viewport [tabindex='0']")
@@ -45,15 +69,26 @@ export function useFloorFullscreen() {
     const element = panel.current;
     const changed = () => {
       if (document.fullscreenElement === element) {
+        if (!wanted.current) {
+          native.current = false;
+          enteringNative.current = false;
+          setExpanded(false);
+          void document.exitFullscreen().catch(() => {});
+          return;
+        }
         native.current = true;
+        enteringNative.current = false;
         setExpanded(true);
-      } else if (native.current) {
+      } else if (native.current || enteringNative.current) {
         native.current = false;
+        enteringNative.current = false;
+        wanted.current = false;
         setExpanded(false);
       }
     };
     document.addEventListener("fullscreenchange", changed);
     return () => {
+      wanted.current = false;
       document.removeEventListener("fullscreenchange", changed);
       if (document.fullscreenElement === element)
         void document.exitFullscreen().catch(() => {});
