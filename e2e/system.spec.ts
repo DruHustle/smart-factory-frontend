@@ -141,7 +141,7 @@ test("Overview, Monitoring, Analytics, alerts and Assistant expose focused evide
     page
       .getByText("Authorized factory evidence snapshot", { exact: true })
       .first(),
-  ).toBeVisible();
+  ).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -173,7 +173,7 @@ test("Assistant answers from approved guides and the current API snapshot", asyn
     page
       .getByText("Authorized factory evidence snapshot", { exact: true })
       .first(),
-  ).toBeVisible();
+  ).toHaveCount(0);
 
   await page
     .getByLabel("Ask the Smart Factory Assistant")
@@ -187,6 +187,11 @@ test("Assistant answers from approved guides and the current API snapshot", asyn
   await expect(
     page.getByTestId("assistant-answer-content").last(),
   ).toContainText(/visible assets/i);
+  await expect(
+    page
+      .getByText("Authorized factory evidence snapshot", { exact: true })
+      .first(),
+  ).toBeVisible();
   await expect(
     page.locator('section[aria-label="Conversation"] time[datetime]').last(),
   ).toBeVisible();
