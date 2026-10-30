@@ -45,6 +45,27 @@ describe("editable browser demo boundaries and workflows", () => {
     expect(seedDemoSandbox([]).id).not.toBe(s.id);
     expect(seedDemoSandbox([]).audit).toEqual([]);
   });
+  it("does not reuse custom item references after reset and preserves restored identities", () => {
+    const first = seeded();
+    const afterReset = seeded();
+    expect(first.items[0].ref).not.toBe(afterReset.items[0].ref);
+    expect(first.items[0].identifier).not.toBe(afterReset.items[0].identifier);
+    const restored = demoSandbox.parse(JSON.parse(JSON.stringify(first)));
+    expect(restored.items[0].ref).toBe(first.items[0].ref);
+    const edited = applySandboxAction(restored, "engineer", {
+      ...create,
+      item: {
+        ...create.item,
+        ref: restored.items[0].ref,
+        name: "Renamed pump",
+      },
+    });
+    expect(edited.items[0].ref).toBe(first.items[0].ref);
+    expect(edited.items[0].identifier).toBe(first.items[0].identifier);
+    expect(Number.isSafeInteger(Number(first.items[0].ref.split(":")[1]))).toBe(
+      true,
+    );
+  });
   it("creates an incident using canonical units and keeps acknowledgement separate from resolution", () => {
     let s = seeded();
     const ref = s.items[0].ref;

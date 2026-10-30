@@ -285,15 +285,22 @@ export function applySandboxAction(
     if (!old && s.items.length >= 500)
       throw Error("This sandbox supports 500 items.");
     const kind = old?.kind ?? action.item.kind;
-    const id = 2000000000 + s.items.filter((i) => i.custom).length;
+    // Keep references distinct across resets so a retained layout draft cannot
+    // silently attach an old position to a different custom item.
+    let identity: string, ref: string;
+    do {
+      identity = crypto.randomUUID();
+      const id = (
+        3000000000n + BigInt(`0x${identity.replaceAll("-", "").slice(-13)}`)
+      ).toString();
+      ref = `${kind}:${kind === "equipment" ? identity : id}`;
+    } while (s.items.some((i) => i.ref === ref));
     const data = sandboxItem.parse({
       ...old,
       ...action.item,
       kind,
-      ref:
-        old?.ref ??
-        `${kind}:${kind === "equipment" ? crypto.randomUUID() : id}`,
-      identifier: old?.identifier ?? `urn:demo:sandbox:${crypto.randomUUID()}`,
+      ref: old?.ref ?? ref,
+      identifier: old?.identifier ?? `urn:demo:sandbox:${identity}`,
       custom: old?.custom ?? true,
     });
     s.items = old
