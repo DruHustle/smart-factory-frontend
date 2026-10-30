@@ -34,9 +34,13 @@ test("individual accounts save and reopen layouts from account storage", async (
     .click();
   await expect(page.getByLabel("Layout name", { exact: true })).toHaveValue(
     "Owned account layout",
+    // Opening a populated layout compiles its automatic 3D scene. The software
+    // renderer can pause the UI beyond five seconds; keep the exact saved value.
+    { timeout: 15000 },
   );
   await page.reload();
   await expect(page.getByLabel("Layout name", { exact: true })).toHaveValue(
     "Owned account layout",
+    { timeout: 15000 },
   );
 });

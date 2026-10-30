@@ -143,13 +143,19 @@ async function typography(page: Page, width: number) {
   return actual;
 }
 async function capture(page: Page, name: string, metadata: unknown) {
-  await page.evaluate(() => {
-    if (document.activeElement instanceof HTMLElement)
-      document.activeElement.blur();
-    window.scrollTo(0, 0);
-  });
-  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   await page.waitForLoadState("networkidle");
+  // Returning from an item and switching renderers can trigger scroll anchoring.
+  // Position the capture after loading, and correct any late anchor adjustment.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        if (document.activeElement instanceof HTMLElement)
+          document.activeElement.blur();
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        return scrollY;
+      }),
+    )
+    .toBe(0);
   await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
   expect(
     await page.evaluate(
