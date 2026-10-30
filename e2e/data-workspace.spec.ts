@@ -968,3 +968,54 @@ test("Factory floor details follow registered connections and preserve the facto
     "57",
   );
 });
+
+test("direct overview grabs move equipment and its links without moving the view or changing totals", async ({
+  page,
+}) => {
+  await workspaceFixture(page);
+  await page.goto("/#/");
+  await page.getByRole("button", { name: "Floor plan", exact: true }).click();
+  const plan = page.getByRole("img", {
+    name: "Accessible factory floor plan",
+    exact: true,
+  });
+  await plan.scrollIntoViewIfNeeded();
+  const symbol = plan.locator('[data-floor-ref="asset:1"]');
+  await symbol.hover();
+  const geometry = symbol.locator(":scope > g[transform]").first();
+  const initial = await geometry.getAttribute("transform"),
+    view = await plan.getAttribute("viewBox");
+  const connection = plan.locator("line").first(),
+    endpoint = await connection.getAttribute("x2");
+  const box = (await symbol.boundingBox())!,
+    scroll = await page.evaluate(() => scrollY);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(symbol).toHaveCSS("cursor", "grabbing");
+  await page.mouse.move(
+    box.x + box.width / 2 + 30,
+    box.y + box.height / 2 + 15,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(geometry).not.toHaveAttribute("transform", initial!);
+  await expect(connection).not.toHaveAttribute("x2", endpoint!);
+  await expect(plan).toHaveAttribute("viewBox", view!);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  expect(await page.evaluate(() => scrollY)).toBe(scroll);
+  await expect(page.getByTestId("factory-floor")).toHaveAttribute(
+    "data-total-items",
+    "57",
+  );
+  const moved = await geometry.getAttribute("transform");
+  await page.reload();
+  await page.getByRole("button", { name: "Floor plan", exact: true }).click();
+  await expect(
+    page.locator('[data-floor-ref="asset:1"] > g[transform]').first(),
+  ).toHaveAttribute("transform", moved!);
+});

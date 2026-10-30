@@ -7,7 +7,7 @@ import {
 } from "react";
 import {
   constrainFloorPosition,
-  type FloorInteraction,
+  type FloorSelect,
   type FloorMove,
 } from "./floor-arrangement";
 type Layout = ReturnType<typeof layoutFactory>;
@@ -96,18 +96,19 @@ export function FloorPlan({
   links,
   selected,
   onSelect,
-  interaction = "orbit",
   onMove,
   reset = 0,
 }: {
   layout: Layout;
   links: FloorLink[];
   selected: string | null;
-  onSelect: (ref: string) => void;
-  interaction?: FloorInteraction;
+  onSelect: FloorSelect;
   onMove?: FloorMove;
   reset?: number;
 }) {
+  const canvas = useRef<SVGSVGElement>(null);
+  const panModifier = useRef(false);
+  const [grabbed, setGrabbed] = useState<"item" | "floor" | null>(null);
   const [pan, setPan] = useState({ x: 0, z: 0 });
   const [preview, setPreview] = useState<{
     ref: string;
@@ -125,19 +126,60 @@ export function FloorPlan({
   const suppressClick = useRef(false);
   const zoneKey = JSON.stringify(layout.zones);
   useEffect(() => {
+    cancel();
     setPan({ x: 0, z: 0 });
-    setPreview(null);
-    drag.current = null;
   }, [reset, layout.width, layout.depth, zoneKey]);
   const placements = layout.placements.map((p) =>
     preview?.ref === p.item.ref ? { ...p, x: preview.x, z: preview.z } : p,
   );
   const byRef = new Map(placements.map((p) => [p.item.ref, p]));
   const cancel = () => {
-    if (drag.current && !drag.current.ref) setPan(drag.current.origin);
-    setPreview(null);
+    const ended = drag.current;
     drag.current = null;
+    if (ended) suppressClick.current = true;
+    if (ended && !ended.ref) setPan(ended.origin);
+    setPreview(null);
+    setGrabbed(null);
+    if (ended && canvas.current?.hasPointerCapture(ended.pointerId))
+      canvas.current.releasePointerCapture(ended.pointerId);
   };
+  useEffect(() => {
+    const blur = () => {
+      panModifier.current = false;
+      cancel();
+    };
+    const spaceDown = (e: KeyboardEvent) => {
+      const target = e.target;
+      if (
+        e.code === "Space" &&
+        canvas.current?.matches(":hover") &&
+        !(
+          target instanceof HTMLElement &&
+          (target.isContentEditable ||
+            ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+        )
+      ) {
+        e.preventDefault();
+        panModifier.current = true;
+      }
+    };
+    const keyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") panModifier.current = false;
+    };
+    const observer = new ResizeObserver(() => {
+      if (drag.current) cancel();
+    });
+    if (canvas.current) observer.observe(canvas.current);
+    window.addEventListener("blur", blur);
+    window.addEventListener("keydown", spaceDown);
+    window.addEventListener("keyup", keyUp);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("blur", blur);
+      window.removeEventListener("keydown", spaceDown);
+      window.removeEventListener("keyup", keyUp);
+    };
+  }, []);
   const moveKey = (ref: string, key: string) => {
     const p = byRef.get(ref);
     if (!p || !onMove) return;
@@ -149,7 +191,11 @@ export function FloorPlan({
     onMove(ref, next.x, next.z);
   };
   const down = (e: ReactPointerEvent<SVGSVGElement>) => {
-    if (interaction === "orbit" || !e.isPrimary || e.button !== 0) return;
+    if (!e.isPrimary) {
+      cancel();
+      return;
+    }
+    if (e.button !== 0) return;
     const matrix = e.currentTarget.getScreenCTM()?.inverse();
     if (!matrix) return;
     const ref =
@@ -157,31 +203,37 @@ export function FloorPlan({
         ? e.target.closest("[data-floor-ref]")?.getAttribute("data-floor-ref")
         : null;
     const p = ref && byRef.get(ref);
-    if (interaction === "item" && (!p || !onMove)) return;
+    const moveItem = !!p && !!onMove && !panModifier.current && !e.shiftKey;
     const point = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix);
-    const origin = interaction === "item" && p ? { x: p.x, z: p.z } : pan;
+    const origin = moveItem && p ? { x: p.x, z: p.z } : pan;
     drag.current = {
       pointerId: e.pointerId,
       matrix,
       start: point,
       origin,
-      ref: interaction === "item" && ref ? ref : undefined,
+      ref: moveItem && ref ? ref : undefined,
       next: origin,
     };
     suppressClick.current = false;
+    setGrabbed(moveItem ? "item" : "floor");
+    e.currentTarget.focus({ preventScroll: true });
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
   };
   return (
     <svg
+      ref={canvas}
+      data-interaction="grab"
+      data-grab-state={grabbed ?? "idle"}
+      aria-description="Grab equipment to move it, or empty floor to pan. Release to drop. Select equipment and use arrow keys for precise placement; Escape cancels a grab or clears selection. Hold Space or Shift to pan over equipment."
       viewBox={`${-layout.width / 2 - 2 + pan.x} ${-layout.depth / 2 - 2 + pan.z} ${layout.width + 4} ${layout.depth + 4}`}
       className="h-full w-full bg-muted/30 text-foreground"
       role="img"
       aria-label="Accessible factory floor plan"
       tabIndex={0}
       style={{
-        touchAction: interaction === "orbit" ? "auto" : "none",
-        cursor: interaction === "orbit" ? "default" : "grab",
+        touchAction: "none",
+        cursor: grabbed ? "grabbing" : "grab",
       }}
       onPointerDown={down}
       onPointerMove={(e) => {
@@ -193,6 +245,7 @@ export function FloorPlan({
           dx = point.x - d.start.x,
           dz = point.y - d.start.y;
         if (Math.hypot(dx, dz) > 0.05) suppressClick.current = true;
+        if (!suppressClick.current) return;
         d.next = d.ref
           ? constrainFloorPosition(layout, d.origin.x + dx, d.origin.z + dz)
           : { x: d.origin.x - dx, z: d.origin.z - dz };
@@ -207,15 +260,25 @@ export function FloorPlan({
           e.currentTarget.releasePointerCapture(e.pointerId);
         if (d.ref) {
           if (suppressClick.current) onMove?.(d.ref, d.next.x, d.next.z);
-          onSelect(d.ref);
+          onSelect(d.ref, !suppressClick.current);
+          // Pointer capture retargets click to the SVG; selection is handled here.
+          suppressClick.current = true;
         }
         setPreview(null);
+        setGrabbed(null);
       }}
       onPointerCancel={cancel}
+      onLostPointerCapture={cancel}
       onKeyDown={(e) => {
-        if (e.key === "Escape" && drag.current) {
+        if (e.code === "Space" && e.target === e.currentTarget) {
           e.preventDefault();
-          cancel();
+          panModifier.current = true;
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          if (drag.current) cancel();
+          else onSelect("");
           return;
         }
         if (
@@ -225,10 +288,10 @@ export function FloorPlan({
           e.target !== e.currentTarget
         )
           return;
-        if (interaction === "item" && selected) {
+        if (selected) {
           e.preventDefault();
           moveKey(selected, e.key);
-        } else if (interaction === "pan") {
+        } else {
           e.preventDefault();
           setPan((p) => ({
             x:
@@ -295,12 +358,11 @@ export function FloorPlan({
           aria-pressed={selected === p.item.ref}
           tabIndex={0}
           onClick={() => {
-            if (interaction !== "pan" && !suppressClick.current)
-              onSelect(p.item.ref);
+            if (!suppressClick.current) onSelect(p.item.ref);
+            suppressClick.current = false;
           }}
           onKeyDown={(e) => {
             if (
-              interaction === "item" &&
               ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
                 e.key,
               )
@@ -315,7 +377,8 @@ export function FloorPlan({
               onSelect(p.item.ref);
             }
           }}
-          className="group cursor-pointer outline-none"
+          className="group outline-none"
+          style={{ cursor: "inherit" }}
         >
           <title>
             {p.item.name} · {p.item.status} · {p.item.mode} evidence
