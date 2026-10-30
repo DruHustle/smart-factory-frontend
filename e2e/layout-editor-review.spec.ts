@@ -329,4 +329,27 @@ test("placing and selecting equipment in the editor keeps the floor in view", as
   );
   expect(await page.evaluate(() => scrollY)).toBe(before);
   await expect(canvas).toBeInViewport();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const longName = "Factory".repeat(17);
+  await page.getByLabel("Layout name", { exact: true }).fill(longName);
+  const remove = page.getByRole("button", {
+    name: `Remove browser draft ${longName}`,
+    exact: true,
+  });
+  await expect(remove).toBeAttached();
+  const row = await remove.evaluate((button) => {
+    const container = button.closest("li")!.getBoundingClientRect();
+    return [...button.parentElement!.querySelectorAll("button")].map(
+      (child) => ({
+        left: child.getBoundingClientRect().left - container.left,
+        right: child.getBoundingClientRect().right - container.right,
+      }),
+    );
+  });
+  expect(row.every(({ left, right }) => left >= -1 && right <= 1)).toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

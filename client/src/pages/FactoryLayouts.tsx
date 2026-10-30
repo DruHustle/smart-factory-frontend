@@ -677,7 +677,7 @@ function FactoryLayoutsEditor() {
                   <Button
                     size="sm"
                     variant={d.key === draft.key ? "secondary" : "ghost"}
-                    className="h-auto min-h-11 w-full justify-start whitespace-normal text-left"
+                    className="h-auto min-h-11 min-w-0 flex-1 shrink justify-start whitespace-normal text-left [overflow-wrap:anywhere]"
                     onClick={() => {
                       activate(d);
                     }}
