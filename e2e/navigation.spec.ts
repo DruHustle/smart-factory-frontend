@@ -165,7 +165,8 @@ for (const persona of personas)
         "Analytics",
         ...(infrastructure ? ["Service health"] : []),
         "Assistant",
-        ...(persona.demo ? ["Demo guide"] : []),
+        "Factory layouts",
+        ...(persona.demo ? ["Editable demo", "Demo guide"] : []),
         ...(engineering ? ["Administration"] : []),
       ];
       await expect(nav.locator("[data-sidebar=menu-button]")).toHaveCount(
