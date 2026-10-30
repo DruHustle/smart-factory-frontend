@@ -15,6 +15,9 @@ vi.mock("./db", () => database);
 const now = new Date("2026-10-04T12:00:00.000Z");
 
 beforeEach(() => {
+  // Snapshot timestamps must not accidentally contain a forbidden sample value.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(now);
   vi.stubEnv("ASSISTANT_PROVIDER", "disabled");
   vi.stubEnv("ASSISTANT_INCLUDE_LIVE_CONTEXT", "true");
   vi.stubEnv("ENABLE_DEMO_DATA", "false");
@@ -91,6 +94,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
