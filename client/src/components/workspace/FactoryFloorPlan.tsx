@@ -166,10 +166,15 @@ export function FloorPlan({
     const keyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") panModifier.current = false;
     };
+    const observer = new ResizeObserver(() => {
+      if (drag.current) cancel();
+    });
+    if (canvas.current) observer.observe(canvas.current);
     window.addEventListener("blur", blur);
     window.addEventListener("keydown", spaceDown);
     window.addEventListener("keyup", keyUp);
     return () => {
+      observer.disconnect();
       window.removeEventListener("blur", blur);
       window.removeEventListener("keydown", spaceDown);
       window.removeEventListener("keyup", keyUp);

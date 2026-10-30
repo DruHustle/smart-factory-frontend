@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { createSurfaceGrain } from "./factory-graphics";
 import type { layoutFactory } from "@shared/factory-floor";
 
 /** Architectural context is illustrative; only inventory nodes are selectable. */
@@ -72,8 +73,17 @@ export function createWorkshop(
   dark: boolean,
 ) {
   const b = new WorkshopBuilder();
-  const concrete = surface(dark ? 0x35414b : 0xbfc5c6, 0.05, 0.88);
+  const concrete = surface(dark ? 0x3d454b : 0xb9b8b1, 0.02, 0.88);
+  const grain = createSurfaceGrain("concrete");
+  grain.repeat.set((layout.width + 3) / 2.5, (layout.depth + 3) / 2.5);
+  grain.anisotropy = 4;
+  concrete.roughnessMap = grain;
+  concrete.bumpMap = grain;
+  concrete.bumpScale = 0.004;
   const tile = surface(dark ? 0x3b4852 : 0xd0d3d0, 0.08, 0.73);
+  tile.roughnessMap = grain;
+  tile.bumpMap = grain;
+  tile.bumpScale = 0.002;
   const steel = surface(dark ? 0x72828a : 0x99a5ab, 0.72, 0.32);
   const wall = surface(dark ? 0x344451 : 0xdce1e2, 0.08, 0.85);
   const window = surface(dark ? 0x172e3b : 0x97b2bd, 0.38, 0.25);
@@ -82,26 +92,26 @@ export function createWorkshop(
   const orange = surface(0xc95d24, 0.45, 0.38);
   const w = layout.width + 3,
     d = layout.depth + 3;
-  b.box(concrete, [w, 0.24, d], [0, -0.24, 0]);
+  b.box(concrete, [w, 0.3, d], [0, -0.15, 0]);
   // Quiet expansion joints replace the engineering grid.
   for (let x = -w / 2 + 4; x < w / 2; x += 4)
-    b.box(seams, [0.018, 0.008, d], [x, -0.114, 0]);
+    b.box(seams, [0.018, 0.008, d], [x, 0.002, 0]);
   for (let z = -d / 2 + 4; z < d / 2; z += 4)
-    b.box(seams, [w, 0.008, 0.018], [0, -0.114, z]);
+    b.box(seams, [w, 0.008, 0.018], [0, 0.002, z]);
   for (const area of layout.zones) {
     const x = area.x + area.width / 2,
       z = area.z + area.depth / 2;
-    b.box(tile, [area.width - 0.35, 0.025, area.depth - 0.35], [x, -0.09, z]);
+    b.box(tile, [area.width - 0.35, 0.012, area.depth - 0.35], [x, 0.006, z]);
     for (const edge of [-1, 1]) {
       b.box(
         yellow,
         [area.width - 0.4, 0.016, 0.065],
-        [x, -0.065, z + edge * (area.depth / 2 - 0.2)],
+        [x, 0.025, z + edge * (area.depth / 2 - 0.2)],
       );
       b.box(
         yellow,
         [0.065, 0.016, area.depth - 0.4],
-        [x + edge * (area.width / 2 - 0.2), -0.065, z],
+        [x + edge * (area.width / 2 - 0.2), 0.025, z],
       );
     }
   }
@@ -134,6 +144,22 @@ export function createWorkshop(
       [Math.PI / 2, 0, 0],
     );
   }
+  const lamp = surface(0xf7f7ed, 0, 0.45);
+  lamp.emissive.set(0xffefcf);
+  lamp.emissiveIntensity = 1.4;
+  const scuff = surface(dark ? 0x26333d : 0x839399, 0.1, 0.78);
+  b.box(scuff, [w, 0.48, 0.03], [0, 0.24, -d / 2 + 0.1]);
+  b.box(scuff, [0.03, 0.48, d], [-w / 2 + 0.1, 0.24, 0]);
+  for (let x = -w / 2 + 1; x < w / 2; x += 2)
+    b.box(seams, [0.022, 1.5, 0.02], [x, 1.25, -d / 2 + 0.1]);
+  for (let z = -d / 2 + 1; z < d / 2; z += 2)
+    b.box(seams, [0.02, 1.5, 0.022], [-w / 2 + 0.1, 1.25, z]);
+  b.box(steel, [w - 0.5, 0.08, 0.38], [0, 4.1, -d / 2 + 0.55]);
+  b.box(steel, [0.38, 0.08, d - 0.5], [-w / 2 + 0.55, 4.1, 0]);
+  for (let x = -w / 2 + 2; x < w / 2; x += 5) {
+    b.box(lamp, [1.3, 0.04, 0.2], [x, 3.75, -d / 2 + 0.7]);
+    b.box(steel, [0.04, 0.32, 0.04], [x, 3.95, -d / 2 + 0.7]);
+  }
   return b.finish();
 }
 
@@ -141,10 +167,10 @@ export function createWorkshop(
 export function createEquipmentProxy(model: string | null, itemType = "") {
   const b = new WorkshopBuilder();
   const steel = surface(0xaab6bc, 0.8, 0.27),
-    casing = surface(0xe0e5e6, 0.32, 0.38);
-  const black = surface(0x24343e, 0.35, 0.53),
-    blue = surface(0x286482, 0.55, 0.35);
-  const orange = surface(0xd76526, 0.32, 0.35),
+    casing = surface(0xe0e5e6, 0.06, 0.42);
+  const black = surface(0x24343e, 0.01, 0.72),
+    blue = surface(0x286482, 0.06, 0.38);
+  const orange = surface(0xd76526, 0.06, 0.4),
     yellow = surface(0xd3a032, 0.35, 0.4);
   const glass = surface(0x163d4f, 0.45, 0.23),
     carton = surface(0xad8658, 0, 0.95);

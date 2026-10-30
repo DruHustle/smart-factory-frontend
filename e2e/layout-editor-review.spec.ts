@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import superjson from "superjson";
+import { readFile } from "node:fs/promises";
 import {
   requiredCapabilities,
   runtimeContractVersion,
@@ -30,7 +31,7 @@ function gate() {
   return { promise, release };
 }
 // Synthetic API delays exercise the actual editor without changing production accounts.
-async function fixture(page: Page) {
+async function fixture(page: Page, graphics = false) {
   const control = {
     saveGate: undefined as ReturnType<typeof gate> | undefined,
     getGate: undefined as ReturnType<typeof gate> | undefined,
@@ -91,32 +92,74 @@ async function fixture(page: Page) {
             break;
           case "factory.floor":
             value = {
-              items: [
-                {
-                  ref: "asset:1",
-                  id: "1",
-                  kind: "asset",
-                  name: "Review pump",
-                  identifier: "review-pump",
-                  itemType: "pump",
-                  location: "Assembly",
-                  zone: "Assembly",
-                  configured: false,
-                  isDemo: false,
-                  route: "Not configured",
-                  status: "unknown",
-                  lastObserved: null,
-                  sampleAt: null,
-                  mode: "live",
-                  quality: "unknown",
-                  freshnessMs: null,
-                  lifecycle: null,
-                  aas: true,
-                  equipmentId: null,
-                  firmware: null,
-                },
-              ],
-              total: 1,
+              items: graphics
+                ? [
+                    "pump",
+                    "conveyor",
+                    "robot",
+                    "control cabinet",
+                    "valve",
+                    "tank",
+                    "gateway",
+                  ].map((itemType, index) => ({
+                    ...{
+                      ref: "asset:1",
+                      id: "1",
+                      kind: "asset",
+                      name: "Review pump",
+                      identifier: "review-pump",
+                      itemType: "pump",
+                      location: "Assembly",
+                      zone: "Assembly",
+                      configured: false,
+                      isDemo: false,
+                      route: "Not configured",
+                      status: "unknown",
+                      lastObserved: null,
+                      sampleAt: null,
+                      mode: "live",
+                      quality: "unknown",
+                      freshnessMs: null,
+                      lifecycle: null,
+                      aas: true,
+                      equipmentId: null,
+                      firmware: null,
+                    },
+                    ref: `asset:${index + 1}`,
+                    id: String(index + 1),
+                    name: `Reference ${itemType}`,
+                    itemType,
+                    equipmentId:
+                      index === 6
+                        ? "00000000-0000-4000-8000-000000000007"
+                        : null,
+                  }))
+                : [
+                    {
+                      ref: "asset:1",
+                      id: "1",
+                      kind: "asset",
+                      name: "Review pump",
+                      identifier: "review-pump",
+                      itemType: "pump",
+                      location: "Assembly",
+                      zone: "Assembly",
+                      configured: false,
+                      isDemo: false,
+                      route: "Not configured",
+                      status: "unknown",
+                      lastObserved: null,
+                      sampleAt: null,
+                      mode: "live",
+                      quality: "unknown",
+                      freshnessMs: null,
+                      lifecycle: null,
+                      aas: true,
+                      equipmentId: null,
+                      firmware: null,
+                    },
+                  ],
+              total: graphics ? 7 : 1,
               groups: [],
               links: [],
               complete: true,
@@ -597,4 +640,228 @@ test("floor-plan fallback uses the same hand gesture and preserves cancelled edi
   await expect.poll(placement).not.toEqual(original);
   await expect(canvas).toHaveAttribute("viewBox", fixed!);
   await expect(canvas).toHaveCSS("cursor", "grab");
+});
+
+for (const fallback of [false, true]) {
+  test(`fullscreen enlarges the live floor and exits safely (${fallback ? "page fallback" : "native"})`, async ({
+    page,
+  }) => {
+    if (fallback)
+      await page.addInitScript(() => {
+        Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+          configurable: true,
+          value: undefined,
+        });
+      });
+    const { canvas, placement } = await grabFixture(page, fallback);
+    const before = await placement();
+    const initialHeight = (await canvas.boundingBox())!.height;
+    await page
+      .getByRole("button", { name: "Enter fullscreen", exact: true })
+      .click();
+    const panel = page.getByRole("dialog", {
+      name: "Factory floor overview",
+      exact: true,
+    });
+    await expect(panel).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Exit fullscreen", exact: true }),
+    ).toBeEnabled();
+    await expect
+      .poll(async () => (await canvas.boundingBox())!.height)
+      .toBeGreaterThan(initialHeight + 150);
+    const bounds = (await panel.boundingBox())!,
+      viewport = page.viewportSize()!;
+    expect(Math.abs(bounds.width - viewport.width)).toBeLessThan(2);
+    expect(Math.abs(bounds.height - viewport.height)).toBeLessThan(2);
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe(
+      "hidden",
+    );
+    if (!fallback)
+      expect(await page.evaluate(() => !!document.fullscreenElement)).toBe(
+        true,
+      );
+    expect(await placement()).toEqual(before);
+    await page
+      .getByRole("button", { name: "Exit fullscreen", exact: true })
+      .click();
+    await expect(panel).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Enter fullscreen", exact: true }),
+    ).toBeFocused();
+    await page
+      .getByRole("button", { name: "Enter fullscreen", exact: true })
+      .click();
+    await expect(
+      page.getByRole("dialog", { name: "Factory floor overview", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("dialog", { name: "Factory floor overview", exact: true }),
+    ).toHaveCount(0);
+    expect(await page.evaluate(() => document.body.style.overflow)).not.toBe(
+      "hidden",
+    );
+    expect(await placement()).toEqual(before);
+  });
+}
+
+test("detailed equipment retains physical materials in the fullscreen factory", async ({
+  page,
+}) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.route("**/api/equipment/reference/*/model?**", async (route) => {
+    const slug = new URL(route.request().url()).pathname.split("/").at(-2)!;
+    const file =
+      slug === "pump-motor"
+        ? "fixtures/equipment/pump-motor.glb"
+        : slug === "raspberry-pi-4b"
+          ? `fixtures/equipment/${slug}/model.glb`
+          : `fixtures/equipment/factory/${slug}/model.glb`;
+    await route.fulfill({
+      contentType: "model/gltf-binary",
+      body: await readFile(file),
+    });
+  });
+  await fixture(page, true);
+  for (const [name, value] of [
+    ["Floor width in metres", "18"],
+    ["Floor depth in metres", "12"],
+  ]) {
+    await page.getByLabel(name, { exact: true }).fill(value);
+    await page.getByLabel(name, { exact: true }).press("Tab");
+  }
+  for (const type of [
+    "pump",
+    "conveyor",
+    "robot",
+    "control cabinet",
+    "valve",
+    "tank",
+    "gateway",
+  ])
+    await page
+      .getByRole("button", {
+        name: `Place Reference ${type} (asset)`,
+        exact: true,
+      })
+      .click();
+  // Arrange the synthetic scene before reopening it; this check concerns real GLB rendering.
+  await page.evaluate((key) => {
+    const drafts = JSON.parse(localStorage.getItem(key)!);
+    const coordinates = [
+      [-6, -2],
+      [-2, -2],
+      [3, -2],
+      [6, -2],
+      [-5, 3],
+      [0, 3],
+      [5, 3],
+    ];
+    drafts[0].document.placements.forEach((p: any, index: number) => {
+      [p.x, p.z] = coordinates[index];
+    });
+    localStorage.setItem(key, JSON.stringify(drafts));
+  }, storageKey);
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Enter fullscreen", exact: true })
+    .click();
+  const canvas = page.getByRole("img", {
+    name: "Interactive 3D factory floor",
+    exact: true,
+  });
+  await expect(
+    page.getByText("7 items on floor · 7 detailed models ready", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(canvas).toHaveAttribute(
+    "data-graphics-environment",
+    "baked-hdr-studio",
+  );
+  await expect
+    .poll(async () =>
+      Number(await canvas.getAttribute("data-reference-material-count")),
+    )
+    .toBeGreaterThan(10);
+  await page
+    .getByRole("button", { name: "Fit whole factory floor", exact: true })
+    .click();
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/realistic-factory-fullscreen.png",
+  });
+  // Close focus uses the same live scene, without moving or saving any equipment.
+  const before = (await readDrafts(page))[0].document.placements;
+  const bounds = (await canvas.boundingBox())!;
+  // Find a real model using the public hover hit target, then double-click it.
+  let found = false;
+  for (let y = 0.25; y < 0.8 && !found; y += 0.12)
+    for (let x = 0.25; x < 0.8; x += 0.08) {
+      await page.mouse.move(
+        bounds.x + bounds.width * x,
+        bounds.y + bounds.height * y,
+      );
+      if (
+        (await canvas.getAttribute("data-grab-target"))?.startsWith("asset:")
+      ) {
+        const camera = await canvas.getAttribute("data-camera-view");
+        await page.mouse.dblclick(
+          bounds.x + bounds.width * x,
+          bounds.y + bounds.height * y,
+        );
+        await expect(canvas).not.toHaveAttribute("data-camera-view", camera!);
+        found = true;
+        break;
+      }
+    }
+  expect(found).toBe(true);
+  expect((await readDrafts(page))[0].document.placements).toEqual(before);
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/realistic-equipment-close.png",
+  });
+  await page
+    .getByRole("button", { name: "Exit fullscreen", exact: true })
+    .click();
+  await page.getByRole("button", { name: /^Theme settings/ }).click();
+  await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Enter fullscreen", exact: true })
+    .click();
+  await expect(
+    page.getByText("7 items on floor · 7 detailed models ready", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(canvas).toHaveAttribute(
+    "data-graphics-environment",
+    "baked-hdr-studio",
+  );
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/realistic-factory-dark.png",
+  });
+  await page
+    .getByRole("button", { name: "Exit fullscreen", exact: true })
+    .click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("button", { name: "Enter fullscreen", exact: true })
+    .click();
+  await expect(canvas).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Factory floor overview", exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await canvas.boundingBox())!.height)
+    .toBeGreaterThan(500);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/realistic-factory-mobile.png",
+  });
+  expect(failures).toEqual([]);
 });

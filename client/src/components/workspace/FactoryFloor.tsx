@@ -9,7 +9,15 @@ import {
   type ReactNode,
 } from "react";
 import { Link } from "wouter";
-import { Box, Expand, Layers, ArrowUpRight, RotateCcw } from "lucide-react";
+import {
+  Box,
+  Focus,
+  Layers,
+  ArrowUpRight,
+  RotateCcw,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import { layoutFactory, type FloorLink } from "@shared/factory-floor";
 import { currentSample } from "@shared/measurements";
 import {
@@ -28,6 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FloorPlan } from "./FactoryFloorPlan";
+import { useFloorFullscreen } from "./useFloorFullscreen";
 import { SampleTime, StatusBadge } from "./Primitives";
 import { ObservationValues } from "./ObservationValues";
 const Scene = lazy(() => import("./FactoryFloorScene"));
@@ -66,6 +75,7 @@ export function FactoryFloor({
   arrangementKey?: string;
 }) {
   const { theme } = useTheme();
+  const fullscreen = useFloorFullscreen();
   const { user } = useAuth();
   const preferenceKey =
     arrangementKey ??
@@ -150,13 +160,22 @@ export function FactoryFloor({
   useEffect(() => {
     const changed = previousSelection.current !== selected;
     previousSelection.current = selected;
-    if (changed && selected && !layoutDocument && !suppressDetails.current)
+    if (
+      changed &&
+      selected &&
+      !layoutDocument &&
+      !fullscreen.expanded &&
+      !suppressDetails.current
+    )
       details.current?.scrollIntoView({ block: "nearest" });
     suppressDetails.current = false;
-  }, [selected, !!layoutDocument]);
+  }, [selected, !!layoutDocument, fullscreen.expanded]);
   return (
     <section
-      className="overview-floor min-w-0 overflow-hidden rounded-lg border bg-card"
+      ref={fullscreen.panel}
+      className={`overview-floor min-w-0 overflow-hidden rounded-lg border bg-card ${fullscreen.expanded ? "floor-expanded" : ""}`}
+      role={fullscreen.expanded ? "dialog" : undefined}
+      aria-modal={fullscreen.expanded || undefined}
       aria-label="Factory floor overview"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
@@ -170,7 +189,7 @@ export function FactoryFloor({
             zones {demo && "· Simulated installation"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1">
           <select
             aria-label="Factory floor zone"
             value={zone}
@@ -178,7 +197,7 @@ export function FactoryFloor({
               setZone(e.target.value);
               onSelect("");
             }}
-            className="workspace-control h-9 w-auto max-w-44"
+            className="workspace-control h-9 w-32 max-w-36"
           >
             <option value="all">Whole factory</option>
             {zones.map((name) => (
@@ -222,7 +241,29 @@ export function FactoryFloor({
               setReset((n) => n + 1);
             }}
           >
-            <Expand className="size-4" />
+            <Focus className="size-4" />
+          </Button>
+          <Button
+            ref={fullscreen.button}
+            size="icon"
+            variant="outline"
+            className="size-9"
+            aria-label={
+              fullscreen.expanded ? "Exit fullscreen" : "Enter fullscreen"
+            }
+            title={
+              fullscreen.expanded ? "Exit fullscreen (Esc)" : "Enter fullscreen"
+            }
+            aria-pressed={fullscreen.expanded}
+            aria-busy={fullscreen.pending}
+            disabled={fullscreen.pending}
+            onClick={() => void fullscreen.toggle()}
+          >
+            {fullscreen.expanded ? (
+              <Minimize2 className="size-4" />
+            ) : (
+              <Maximize2 className="size-4" />
+            )}
           </Button>
           {!layoutDocument && (
             <Button
@@ -246,10 +287,11 @@ export function FactoryFloor({
       <p className="border-b px-4 py-2 text-xs text-muted-foreground">
         Grab an item to move it, or empty floor to move the view.{" "}
         {view === "3d" && "Right-drag to rotate · Scroll to zoom."}
+        {fullscreen.expanded && " · Esc to exit fullscreen."}
       </p>
       {zone !== "all" && (
         <div
-          className="border-b bg-info/5 px-4 py-3"
+          className="floor-secondary border-b bg-info/5 px-4 py-3"
           aria-label="Selected factory section"
         >
           <h3 className="text-sm font-semibold">{zone}</h3>
@@ -337,6 +379,14 @@ export function FactoryFloor({
             </Suspense>
           </FloorSceneBoundary>
         )}
+        {fullscreen.expanded && active && (
+          <p
+            aria-live="polite"
+            className="pointer-events-none absolute bottom-12 left-3 max-w-[calc(100%-1.5rem)] rounded-md border bg-background/95 px-2 py-1 text-xs font-medium"
+          >
+            {active.name}
+          </p>
+        )}
         <div
           className="pointer-events-none absolute bottom-3 left-3 right-3 flex w-fit max-w-[calc(100%-1.5rem)] flex-wrap gap-x-3 gap-y-1 rounded-md border bg-background/95 px-2 py-1 text-[10px] text-muted-foreground"
           aria-label="Floor indicator legend"
@@ -361,7 +411,7 @@ export function FactoryFloor({
       {active && (
         <div
           ref={details}
-          className="scroll-mt-20 space-y-3 border-t bg-info/5 px-4 py-3"
+          className="floor-secondary scroll-mt-20 space-y-3 border-t bg-info/5 px-4 py-3"
           aria-label="Selected floor item"
         >
           <div className="min-w-0">
@@ -460,7 +510,7 @@ export function FactoryFloor({
           </div>
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2 text-[11px] text-muted-foreground">
+      <div className="floor-secondary flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2 text-[11px] text-muted-foreground">
         <span>
           {visible.length} of {items.length} items shown · Illustrative layout
         </span>
@@ -471,7 +521,7 @@ export function FactoryFloor({
           Explore assets <ArrowUpRight className="size-3" />
         </Link>
       </div>
-      <details className="border-t px-4 py-2">
+      <details className="floor-secondary border-t px-4 py-2">
         <summary className="cursor-pointer text-xs font-medium">
           Find an item · {items.length} available
         </summary>

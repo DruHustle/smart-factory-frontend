@@ -145,6 +145,7 @@ function FactoryLayoutsEditor() {
     if (localRef.current.length < 50) return true;
     toast.error(
       "This browser has 50 drafts. Download and remove a draft before starting another.",
+      { id: "factory-layout-draft-feedback" },
     );
     return false;
   };
@@ -162,6 +163,8 @@ function FactoryLayoutsEditor() {
       setSelected(null);
     }
     toast.success("Browser draft removed. Account saves are retained.", {
+      id: "factory-layout-draft-feedback",
+      duration: 12000,
       action: {
         label: "Undo",
         onClick: () => {

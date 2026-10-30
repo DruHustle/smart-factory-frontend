@@ -8,9 +8,15 @@ import {
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { createWorkshop, createEquipmentProxy } from "./FactoryEnvironment";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { createStudioEnvironment } from "../equipment/studioEnvironment";
+import {
+  optimizeFactoryReference,
+  instantiateFactoryReference,
+  createSurfaceGrain,
+  createContactShadow,
+  factoryModelSize,
+} from "./factory-graphics";
 import {
   floorModelUrl,
   type FloorLink,
@@ -40,7 +46,7 @@ function disposeObject(root: THREE.Object3D) {
       object instanceof THREE.Line ||
       object instanceof THREE.Sprite
     ) {
-      if ("geometry" in object)
+      if ("geometry" in object && !object.userData.sharedReferenceGeometry)
         geometries.add(object.geometry as THREE.BufferGeometry);
       for (const material of Array.isArray(object.material)
         ? object.material
@@ -57,66 +63,6 @@ function disposeObject(root: THREE.Object3D) {
   geometries.forEach((g) => g.dispose());
 }
 const models = new Map<string, Promise<THREE.Group>>();
-// The overview uses one draw per reference instance. Full component/material
-// structure remains in the dedicated inspection workspace.
-function compactReference(root: THREE.Group) {
-  root.updateMatrixWorld(true);
-  const parts: THREE.BufferGeometry[] = [];
-  root.traverse((object) => {
-    if (
-      !(object instanceof THREE.Mesh) ||
-      !object.geometry?.attributes.position
-    )
-      return;
-    const source = object.geometry as THREE.BufferGeometry;
-    const expanded = source.index ? source.toNonIndexed() : source.clone();
-    const part = new THREE.BufferGeometry();
-    part.setAttribute("position", expanded.attributes.position.clone());
-    if (expanded.attributes.normal)
-      part.setAttribute("normal", expanded.attributes.normal.clone());
-    else part.computeVertexNormals();
-    const count = part.attributes.position.count;
-    const colors = new Float32Array(count * 3);
-    const materials = Array.isArray(object.material)
-      ? object.material
-      : [object.material];
-    const first =
-      (materials[0] as THREE.MeshStandardMaterial).color ??
-      new THREE.Color(0x879da6);
-    for (let n = 0; n < count; n++) first.toArray(colors, n * 3);
-    for (const group of expanded.groups) {
-      const color =
-        (materials[group.materialIndex ?? 0] as THREE.MeshStandardMaterial)
-          ?.color ?? first;
-      for (
-        let n = group.start;
-        n < Math.min(count, group.start + group.count);
-        n++
-      )
-        color.toArray(colors, n * 3);
-    }
-    part.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    part.applyMatrix4(object.matrixWorld);
-    parts.push(part);
-    expanded.dispose();
-  });
-  const geometry = mergeGeometries(parts, false);
-  parts.forEach((part) => part.dispose());
-  disposeObject(root);
-  if (!geometry) throw Error("Reference geometry unavailable");
-  const result = new THREE.Group();
-  result.add(
-    new THREE.Mesh(
-      geometry,
-      new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.38,
-        metalness: 0.5,
-      }),
-    ),
-  );
-  return result;
-}
 function referenceModel(slug: string) {
   if (!models.has(slug)) {
     const url = floorModelUrl(slug);
@@ -130,7 +76,7 @@ function referenceModel(slug: string) {
         return r.arrayBuffer();
       })
       .then((bytes) => new GLTFLoader().parseAsync(bytes, ""))
-      .then((gltf) => compactReference(gltf.scene))
+      .then((gltf) => optimizeFactoryReference(gltf.scene))
       .catch((error) => {
         models.delete(slug);
         throw error;
@@ -234,23 +180,50 @@ export default function FactoryFloorScene({
         setFailed(true);
         return;
       }
+      let cancelForResize = () => {};
       let disposed = false,
         dirty = true,
         frame = 0;
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(dark ? "#182532" : "#dce3e6");
-      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+      const gl = renderer.getContext(),
+        debug = gl.getExtension("WEBGL_debug_renderer_info");
+      const software = debug
+        ? /swiftshader|llvmpipe|software/i.test(
+            String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)),
+          )
+        : false;
+      renderer.setPixelRatio(
+        Math.min(
+          devicePixelRatio || 1,
+          software ? 1 : innerWidth < 768 ? 1.5 : 2,
+        ),
+      );
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = dark ? 0.95 : 1.05;
-      const environment = new RoomEnvironment();
-      const pmrem = new THREE.PMREMGenerator(renderer);
-      const roomMap = pmrem.fromScene(environment, 0.04);
-      scene.environment = roomMap.texture;
-      environment.dispose();
-      pmrem.dispose();
+      let studio: THREE.Texture | undefined;
+      void createStudioEnvironment()
+        .then((texture) => {
+          if (disposed) {
+            texture.dispose();
+            return;
+          }
+          studio = texture;
+          scene.environment = texture;
+          scene.environmentIntensity = 0.85;
+          renderer.domElement.dataset.graphicsEnvironment = "baked-hdr-studio";
+          dirty = true;
+        })
+        .catch(() => {
+          if (disposed) return;
+          renderer.domElement.dataset.graphicsEnvironment =
+            "direct-light-fallback";
+        });
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.autoUpdate = false;
+      renderer.shadowMap.needsUpdate = true;
       renderer.domElement.setAttribute(
         "aria-label",
         "Interactive 3D factory floor",
@@ -283,21 +256,56 @@ export default function FactoryFloorScene({
       controls.minZoom = 0.4;
       controls.maxZoom = 10;
       controls.screenSpacePanning = true;
-      scene.add(new THREE.HemisphereLight(0xdcefff, 0x566674, 1.8));
-      const sun = new THREE.DirectionalLight(0xfff5e8, 3.2);
-      sun.position.set(12, 28, 18);
+      scene.add(new THREE.HemisphereLight(0xdceaff, 0x4b535b, 0.75));
+      const span = Math.max(layout.width, layout.depth, 20);
+      const sun = new THREE.DirectionalLight(0xfff1de, 3.1);
+      sun.position.set(span * 0.45, span * 0.9, span * 0.55);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(
-        innerWidth < 768 ? 1024 : 2048,
-        innerWidth < 768 ? 1024 : 2048,
-      );
-      sun.shadow.normalBias = 0.025;
-      sun.shadow.bias = -0.00015;
-      sun.shadow.camera.left = -40;
-      sun.shadow.camera.right = 40;
-      sun.shadow.camera.top = 40;
-      sun.shadow.camera.bottom = -40;
+      const shadowSize = software ? 1024 : innerWidth >= 1400 ? 4096 : 2048;
+      sun.shadow.mapSize.set(shadowSize, shadowSize);
+      sun.shadow.normalBias = 0.015;
+      sun.shadow.bias = -0.00008;
+      sun.shadow.radius = 3;
+      sun.shadow.camera.left = sun.shadow.camera.bottom = -span * 0.8;
+      sun.shadow.camera.right = sun.shadow.camera.top = span * 0.8;
+      sun.shadow.camera.near = 1;
+      sun.shadow.camera.far = span * 4;
       scene.add(sun);
+      const fill = new THREE.DirectionalLight(0xc5d9f4, 0.65);
+      fill.position.set(-span * 0.5, span * 0.5, -span * 0.4);
+      scene.add(fill);
+      const viewerMaterials = new Map<THREE.Material, THREE.Material>();
+      const viewerTextures = new Map<THREE.Texture, THREE.Texture>();
+      const metalGrain = createSurfaceGrain("metal");
+      metalGrain.repeat.set(24, 24);
+      const finishMaterial = (material: THREE.Material) => {
+        if (!(material instanceof THREE.MeshStandardMaterial)) return;
+        if (/enamel|paint|powder|ceramic blue/i.test(material.name)) {
+          material.metalness = 0.06;
+          material.roughness = Math.max(material.roughness, 0.32);
+        }
+        if (/rubber|elastomer|polymer/i.test(material.name)) {
+          material.metalness = 0.01;
+          material.roughness = Math.max(material.roughness, 0.65);
+        }
+        if (
+          /steel|copper|brass|lamination/i.test(material.name) &&
+          !material.roughnessMap
+        )
+          material.roughnessMap = metalGrain;
+        if (/glass/i.test(material.name)) {
+          material.transparent = true;
+          material.opacity = Math.min(material.opacity, 0.4);
+          material.depthWrite = false;
+        }
+        material.envMapIntensity = 0.9;
+      };
+      const contactMaterial = createContactShadow();
+      const contactGeometry = new THREE.PlaneGeometry(1, 1);
+      renderer.domElement.dataset.graphicsQuality = software
+        ? "efficient-pbr"
+        : "high-pbr";
+      renderer.domElement.dataset.shadowResolution = String(shadowSize);
       scene.add(createWorkshop(layout, dark));
       const objects = new Map<string, THREE.Group>(),
         hits: THREE.Object3D[] = [],
@@ -344,6 +352,16 @@ export default function FactoryFloorScene({
         grabTarget.userData.grabTarget = true;
         group.add(grabTarget);
         grabTargets.push(grabTarget);
+        const contact = new THREE.Mesh(contactGeometry, contactMaterial);
+        contact.rotation.x = -Math.PI / 2;
+        contact.position.y = 0.018;
+        const footprintSize =
+          p.item.kind === "device"
+            ? 0.9
+            : (factoryModelSize[p.model ?? ""] ?? 2.7) * 1.05;
+        contact.scale.set(footprintSize, footprintSize * 0.8, 1);
+        contact.userData.nonSelectable = true;
+        group.add(contact);
         const body = createEquipmentProxy(p.model, p.item.itemType);
         group.add(body);
         const name = label(p.item.name, "#203c4b");
@@ -387,16 +405,37 @@ export default function FactoryFloorScene({
           void referenceModel(p.model)
             .then((model) => {
               if (disposed) return;
-              const copy = model.clone(true),
+              const copy = instantiateFactoryReference(
+                  model,
+                  viewerMaterials,
+                  viewerTextures,
+                  finishMaterial,
+                ),
                 box = new THREE.Box3().setFromObject(copy),
                 size = box.getSize(new THREE.Vector3()),
                 center = box.getCenter(new THREE.Vector3());
-              const scale = 2.7 / Math.max(size.x, size.y, size.z, 0.001);
+              const scale =
+                (factoryModelSize[p.model!] ?? 2.7) /
+                Math.max(size.x, size.y, size.z, 0.001);
               copy.position.sub(center);
               const normalized = new THREE.Group();
               normalized.add(copy);
               normalized.scale.setScalar(scale);
-              normalized.position.y = (size.y * scale) / 2 + 0.1;
+              normalized.position.y = (size.y * scale) / 2 + 0.025;
+              const height = size.y * scale;
+              group.userData.modelHeight = height;
+              name.position.y = height + 0.8;
+              marker.position.set(
+                -Math.min((size.x * scale) / 2, 0.64),
+                height + 0.32,
+                0,
+              );
+              grabTarget.scale.set(
+                Math.max(footprint, size.x * scale) / footprint,
+                Math.max(1, height + 0.5) / 3.2,
+                Math.max(footprint, size.z * scale) / footprint,
+              );
+              grabTarget.position.y = Math.max(1, height + 0.5) / 2;
               normalized.traverse((o) => {
                 if (o instanceof THREE.Mesh) {
                   o.castShadow = true;
@@ -407,6 +446,10 @@ export default function FactoryFloorScene({
               retired.push(body);
               group.add(normalized);
               setLoaded((n) => n + 1);
+              renderer.shadowMap.needsUpdate = true;
+              renderer.domElement.dataset.referenceMaterialCount = String(
+                viewerMaterials.size,
+              );
               dirty = true;
             })
             .catch(() => {
@@ -437,6 +480,7 @@ export default function FactoryFloorScene({
         connectionLines.push({ link, line });
       }
       const updateConnections = () => {
+        renderer.shadowMap.needsUpdate = true;
         for (const { link, line } of connectionLines) {
           const from = objects.get(link.from),
             to = objects.get(link.to);
@@ -451,6 +495,7 @@ export default function FactoryFloorScene({
         dirty = true;
       };
       const size = () => {
+        cancelForResize();
         const width = element.clientWidth,
           height = element.clientHeight,
           aspect = width / Math.max(height, 1);
@@ -601,7 +646,10 @@ export default function FactoryFloorScene({
         const body = ray
           .intersectObjects(hits, true)
           .find(
-            (hit) => !hit.object.userData.grabTarget && visible(hit.object),
+            (hit) =>
+              !hit.object.userData.grabTarget &&
+              !hit.object.userData.nonSelectable &&
+              visible(hit.object),
           );
         let node: THREE.Object3D | null =
           body?.object ??
@@ -729,6 +777,28 @@ export default function FactoryFloorScene({
         }
         hand();
       };
+      const focusEquipment = (e: MouseEvent) => {
+        setRay(e as PointerEvent);
+        const ref = picked(),
+          object = ref && objects.get(ref);
+        if (!object) return;
+        e.preventDefault();
+        const target = object.position.clone();
+        target.y += (object.userData.modelHeight ?? 2.7) * 0.45;
+        camera.position.add(target.clone().sub(controls.target));
+        controls.target.copy(target);
+        camera.zoom = Math.min(
+          10,
+          Math.max(
+            1,
+            (camera.top - camera.bottom) /
+              Math.max(4, (object.userData.modelHeight ?? 2.7) * 1.8),
+          ),
+        );
+        camera.updateProjectionMatrix();
+        controls.update();
+        dirty = true;
+      };
       const pointerCancel = (e: PointerEvent) => {
         pointers.delete(e.pointerId);
         cancel();
@@ -740,6 +810,9 @@ export default function FactoryFloorScene({
         controls.disconnect();
         controls.connect(renderer.domElement);
         controls.cursorStyle = "grab";
+      };
+      cancelForResize = () => {
+        if (pointers.size || dragging) blur();
       };
       const spaceDown = (e: KeyboardEvent) => {
         const target = e.target;
@@ -812,6 +885,7 @@ export default function FactoryFloorScene({
           controls.update();
         }
       };
+      renderer.domElement.addEventListener("dblclick", focusEquipment);
       renderer.domElement.addEventListener("pointercancel", pointerCancel);
       renderer.domElement.addEventListener("lostpointercapture", pointerCancel);
       renderer.domElement.addEventListener("pointermove", pointerMove);
@@ -848,6 +922,7 @@ export default function FactoryFloorScene({
         observer.disconnect();
         controls.dispose();
         runtime.current = null;
+        renderer.domElement.removeEventListener("dblclick", focusEquipment);
         renderer.domElement.removeEventListener("pointercancel", pointerCancel);
         renderer.domElement.removeEventListener(
           "lostpointercapture",
@@ -864,7 +939,11 @@ export default function FactoryFloorScene({
         // Disposing GPU resources preserves the cached CPU references for reuse.
         retired.forEach(disposeObject);
         disposeObject(scene);
-        roomMap.dispose();
+        studio?.dispose();
+        metalGrain.dispose();
+        contactMaterial.map?.dispose();
+        contactMaterial.dispose();
+        contactGeometry.dispose();
         renderer.dispose();
         renderer.domElement.remove();
       };
