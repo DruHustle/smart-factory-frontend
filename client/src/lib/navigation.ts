@@ -15,6 +15,7 @@ import {
   Server,
   HeartPulse,
   Network,
+  LayoutTemplate,
   type LucideIcon,
 } from "lucide-react";
 
@@ -73,6 +74,8 @@ export const navigationGroups: NavigationGroup[] = [
     label: "Tools & settings",
     items: [
       { icon: Bot, label: "Assistant", path: "/assistant" },
+      { icon: LayoutTemplate, label: "Factory layouts", path: "/layouts" },
+      { icon: Factory, label: "Editable demo", path: "/sandbox" },
       { icon: Factory, label: "Demo guide", path: "/demo" },
       {
         icon: Plug,

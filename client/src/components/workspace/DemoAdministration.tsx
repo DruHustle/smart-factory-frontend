@@ -1,5 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 import { EmptyState, PageHeader, SectionNav } from "./Primitives";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -22,6 +23,11 @@ export function DemoAdministration({ section }: { section: string }) {
       <Badge variant="outline">
         Authored simulation · private configuration is hidden
       </Badge>
+      <Button asChild>
+        <Link href="/sandbox?tab=administration">
+          Try editable demo administration
+        </Link>
+      </Button>
       <p className="text-sm text-muted-foreground">
         Use an individual engineering or administrator account on a private
         installation to read private configuration or make changes.
@@ -64,9 +70,8 @@ export function DemoAdministration({ section }: { section: string }) {
                 ))}
               </ul>
               <p className="mt-3 rounded-md border border-info/40 bg-info/5 p-3 text-sm">
-                Every shared demo role remains read-only. These are role
-                descriptions; no private accounts, sessions or recovery tokens
-                are displayed.
+                These reference examples are read-only. Open editable demo
+                administration to try role-based changes in this browser.
               </p>
             </CardContent>
           </Card>

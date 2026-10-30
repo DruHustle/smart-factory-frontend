@@ -204,6 +204,14 @@ export default function Home() {
                 : "Live data requires an individual account on your operational installation."}
             </span>
           </span>
+          {demo && (
+            <Link
+              href="/sandbox"
+              className="inline-flex min-h-11 items-center gap-1 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
+            >
+              Open editable demo
+            </Link>
+          )}
           <Link
             href="/demo"
             className="inline-flex min-h-7 items-center gap-1 underline"

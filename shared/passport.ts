@@ -24,4 +24,5 @@ export type PassportDocument = {
   disclaimer: string;
   publishedAt: string | null;
   publicId?: string;
+  isDemo?: boolean;
 };

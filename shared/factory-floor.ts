@@ -12,6 +12,7 @@ export type FloorPlacement = {
   x: number;
   z: number;
   model: string | null;
+  rotation?: number;
 };
 export type FloorZone = {
   name: string;

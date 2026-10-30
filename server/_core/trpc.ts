@@ -67,6 +67,7 @@ const walkthroughQueries = new Set([
   "devices.getConnectedAssets",
   "devices.getStats",
   "assets.getPublishedPassport",
+  "assets.getPassport",
   "assets.list",
   "assets.getById",
   "assets.getAllForDevice",

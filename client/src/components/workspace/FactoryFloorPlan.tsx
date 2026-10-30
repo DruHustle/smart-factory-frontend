@@ -1,4 +1,15 @@
 import type { FloorLink, layoutFactory } from "@shared/factory-floor";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import {
+  constrainFloorPosition,
+  type FloorInteraction,
+  type FloorMove,
+} from "./floor-arrangement";
 type Layout = ReturnType<typeof layoutFactory>;
 
 function EquipmentSymbol({ model }: { model: string | null }) {
@@ -85,19 +96,148 @@ export function FloorPlan({
   links,
   selected,
   onSelect,
+  interaction = "orbit",
+  onMove,
+  reset = 0,
 }: {
   layout: Layout;
   links: FloorLink[];
   selected: string | null;
   onSelect: (ref: string) => void;
+  interaction?: FloorInteraction;
+  onMove?: FloorMove;
+  reset?: number;
 }) {
-  const byRef = new Map(layout.placements.map((p) => [p.item.ref, p]));
+  const [pan, setPan] = useState({ x: 0, z: 0 });
+  const [preview, setPreview] = useState<{
+    ref: string;
+    x: number;
+    z: number;
+  } | null>(null);
+  const drag = useRef<{
+    pointerId: number;
+    matrix: DOMMatrix;
+    start: DOMPoint;
+    origin: { x: number; z: number };
+    ref?: string;
+    next: { x: number; z: number };
+  } | null>(null);
+  const suppressClick = useRef(false);
+  const zoneKey = JSON.stringify(layout.zones);
+  useEffect(() => {
+    setPan({ x: 0, z: 0 });
+    setPreview(null);
+    drag.current = null;
+  }, [reset, layout.width, layout.depth, zoneKey]);
+  const placements = layout.placements.map((p) =>
+    preview?.ref === p.item.ref ? { ...p, x: preview.x, z: preview.z } : p,
+  );
+  const byRef = new Map(placements.map((p) => [p.item.ref, p]));
+  const cancel = () => {
+    if (drag.current && !drag.current.ref) setPan(drag.current.origin);
+    setPreview(null);
+    drag.current = null;
+  };
+  const moveKey = (ref: string, key: string) => {
+    const p = byRef.get(ref);
+    if (!p || !onMove) return;
+    const next = constrainFloorPosition(
+      layout,
+      p.x + (key === "ArrowLeft" ? -0.5 : key === "ArrowRight" ? 0.5 : 0),
+      p.z + (key === "ArrowUp" ? -0.5 : key === "ArrowDown" ? 0.5 : 0),
+    );
+    onMove(ref, next.x, next.z);
+  };
+  const down = (e: ReactPointerEvent<SVGSVGElement>) => {
+    if (interaction === "orbit" || !e.isPrimary || e.button !== 0) return;
+    const matrix = e.currentTarget.getScreenCTM()?.inverse();
+    if (!matrix) return;
+    const ref =
+      e.target instanceof Element
+        ? e.target.closest("[data-floor-ref]")?.getAttribute("data-floor-ref")
+        : null;
+    const p = ref && byRef.get(ref);
+    if (interaction === "item" && (!p || !onMove)) return;
+    const point = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix);
+    const origin = interaction === "item" && p ? { x: p.x, z: p.z } : pan;
+    drag.current = {
+      pointerId: e.pointerId,
+      matrix,
+      start: point,
+      origin,
+      ref: interaction === "item" && ref ? ref : undefined,
+      next: origin,
+    };
+    suppressClick.current = false;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
   return (
     <svg
-      viewBox={`${-layout.width / 2 - 2} ${-layout.depth / 2 - 2} ${layout.width + 4} ${layout.depth + 4}`}
+      viewBox={`${-layout.width / 2 - 2 + pan.x} ${-layout.depth / 2 - 2 + pan.z} ${layout.width + 4} ${layout.depth + 4}`}
       className="h-full w-full bg-muted/30 text-foreground"
       role="img"
       aria-label="Accessible factory floor plan"
+      tabIndex={0}
+      style={{
+        touchAction: interaction === "orbit" ? "auto" : "none",
+        cursor: interaction === "orbit" ? "default" : "grab",
+      }}
+      onPointerDown={down}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d || d.pointerId !== e.pointerId) return;
+        const point = new DOMPoint(e.clientX, e.clientY).matrixTransform(
+            d.matrix,
+          ),
+          dx = point.x - d.start.x,
+          dz = point.y - d.start.y;
+        if (Math.hypot(dx, dz) > 0.05) suppressClick.current = true;
+        d.next = d.ref
+          ? constrainFloorPosition(layout, d.origin.x + dx, d.origin.z + dz)
+          : { x: d.origin.x - dx, z: d.origin.z - dz };
+        if (d.ref) setPreview({ ref: d.ref, ...d.next });
+        else setPan(d.next);
+      }}
+      onPointerUp={(e) => {
+        const d = drag.current;
+        if (!d || d.pointerId !== e.pointerId) return;
+        drag.current = null;
+        if (e.currentTarget.hasPointerCapture(e.pointerId))
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        if (d.ref) {
+          if (suppressClick.current) onMove?.(d.ref, d.next.x, d.next.z);
+          onSelect(d.ref);
+        }
+        setPreview(null);
+      }}
+      onPointerCancel={cancel}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && drag.current) {
+          e.preventDefault();
+          cancel();
+          return;
+        }
+        if (
+          !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+            e.key,
+          ) ||
+          e.target !== e.currentTarget
+        )
+          return;
+        if (interaction === "item" && selected) {
+          e.preventDefault();
+          moveKey(selected, e.key);
+        } else if (interaction === "pan") {
+          e.preventDefault();
+          setPan((p) => ({
+            x:
+              p.x +
+              (e.key === "ArrowLeft" ? 1 : e.key === "ArrowRight" ? -1 : 0),
+            z: p.z + (e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0),
+          }));
+        }
+      }}
     >
       {layout.zones.map((z) => (
         <g key={z.name}>
@@ -145,16 +285,31 @@ export function FloorPlan({
           />
         ) : null;
       })}
-      {layout.placements.map((p) => (
+      {placements.map((p) => (
         <g
           key={p.item.ref}
+          data-floor-ref={p.item.ref}
           role="button"
           aria-label={`Select ${p.item.name}`}
           aria-description={`${p.item.status} · ${p.item.mode} evidence`}
           aria-pressed={selected === p.item.ref}
           tabIndex={0}
-          onClick={() => onSelect(p.item.ref)}
+          onClick={() => {
+            if (interaction !== "pan" && !suppressClick.current)
+              onSelect(p.item.ref);
+          }}
           onKeyDown={(e) => {
+            if (
+              interaction === "item" &&
+              ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+                e.key,
+              )
+            ) {
+              e.preventDefault();
+              e.stopPropagation();
+              moveKey(p.item.ref, e.key);
+              return;
+            }
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               onSelect(p.item.ref);
@@ -166,7 +321,7 @@ export function FloorPlan({
             {p.item.name} · {p.item.status} · {p.item.mode} evidence
           </title>
           <g
-            transform={`translate(${p.x} ${p.z}) scale(${p.item.kind === "device" ? 0.42 : 1})`}
+            transform={`translate(${p.x} ${p.z}) rotate(${p.rotation ?? 0}) scale(${p.item.kind === "device" ? 0.42 : 1})`}
           >
             <rect
               x="-1.1"

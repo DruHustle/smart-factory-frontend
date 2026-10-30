@@ -197,7 +197,7 @@ describe.skipIf(!sourceUrl)("persistent account and session boundaries", () => {
       });
       await expect(
         api.assets.getPassport({ id: privateAsset.id }),
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
       await expect(
         api.export.deviceReport({
           deviceId: privateDevice.id,

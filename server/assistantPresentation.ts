@@ -1,4 +1,5 @@
 import { observationTrend } from "./trends";
+import { requestedAssistantMetric } from "../shared/assistant-conversation";
 /** These bounded descriptors come only from authorized stored records, never completion text. */
 import { sql } from "drizzle-orm";
 import * as db from "./db";
@@ -122,7 +123,7 @@ export async function buildAssistantPresentation(
       ];
   } else if (asset) {
     const observed = asset.latestObservation?.telemetry,
-      requestedMetric = metrics.find((m) => question.toLowerCase().includes(m)),
+      requestedMetric = requestedAssistantMetric(question),
       measurement = observed?.measurements.find(
         (m) =>
           (!requestedMetric || m.metric === requestedMetric) &&

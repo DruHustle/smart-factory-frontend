@@ -15,6 +15,7 @@ import * as passports from "./passport";
 import { demoOnlyRead } from "./demoData";
 import { inventoryRouter } from "./inventory";
 import { factoryRouter } from "./factory";
+import { factoryLayoutsRouter } from "./factory-layouts";
 import { networkDiagnosticsRouter } from "./network-diagnostics/router";
 import {
   registerDeviceInput,
@@ -70,6 +71,8 @@ import {
 } from "../shared/demo-accounts";
 import { edgeTagMappingsSchema } from "../shared/edge-configuration";
 import { answerFactoryQuestion } from "./assistantKnowledge";
+import { isDefinitionQuestion } from "../shared/assistant-conversation";
+import { demoAssistantContext } from "../shared/demo-assistant";
 import {
   AccountAccessError,
   changeUserAccess,
@@ -503,6 +506,7 @@ export const appRouter = router({
 
   inventory: inventoryRouter,
   factory: factoryRouter,
+  factoryLayouts: factoryLayoutsRouter,
   networkDiagnostics: networkDiagnosticsRouter,
   devices: router({
     heartbeatHistory: viewerProcedure
@@ -1791,7 +1795,8 @@ export const appRouter = router({
     ask: viewerProcedure
       .input(
         z.object({
-          question: z.string().trim().min(3).max(500),
+          question: z.string().trim().min(1).max(500),
+          demoContext: demoAssistantContext.optional(),
           selectedAssetId: z.string().trim().min(3).max(128).optional(),
           history: z
             .array(
@@ -1805,10 +1810,18 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ input, ctx }) => {
+        if (input.demoContext && !demoOnlyRead())
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Browser simulation context is accepted only in the shared demo workspace.",
+          });
         if (
           /\b(security|cybersecurity|vulnerabilit(?:y|ies)|cyber)\b/i.test(
             input.question,
-          )
+          ) &&
+          !isDefinitionQuestion(input.question) &&
+          !input.demoContext
         ) {
           if (!(await import("./security/store")).enabled())
             return {
@@ -1855,6 +1868,7 @@ export const appRouter = router({
           role: ctx.user.role,
           selectedAssetId: input.selectedAssetId,
           history: input.history,
+          demoContext: input.demoContext,
         });
         return publicResult;
       }),

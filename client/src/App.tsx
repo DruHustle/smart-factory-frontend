@@ -21,6 +21,8 @@ const ItemWorkspace = lazy(() => import("./pages/ItemWorkspace"));
 const Cybersecurity = lazy(() => import("./pages/Cybersecurity"));
 const EquipmentView = lazy(() => import("./pages/EquipmentView"));
 const FactoryModels = lazy(() => import("./pages/FactoryModels"));
+const FactoryLayouts = lazy(() => import("./pages/FactoryLayouts"));
+const DemoSandbox = lazy(() => import("./pages/DemoSandbox"));
 const OnesaIntegration = lazy(() => import("./pages/OnesaIntegration"));
 const Demonstration = lazy(() => import("./pages/Demonstration"));
 const Home = lazy(() => import("./pages/Home"));
@@ -158,6 +160,8 @@ function AppRouter() {
                   <Route path="/demo" component={Demonstration} />
                   <Route path="/monitoring" component={Monitoring} />
                   <Route path="/network" component={NetworkDiagnostics} />
+                  <Route path="/layouts" component={FactoryLayouts} />
+                  <Route path="/sandbox" component={DemoSandbox} />
                   <Route path="/devices">
                     <Redirect to="/inventory?view=devices" />
                   </Route>

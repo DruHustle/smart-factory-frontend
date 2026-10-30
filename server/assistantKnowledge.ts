@@ -13,6 +13,12 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import * as db from "./db";
 import { generateAssistantCompletion } from "./assistantProvider";
+import { answerDemoQuestion } from "./demo-assistant";
+import type { DemoAssistantContext } from "../shared/demo-assistant";
+import {
+  planAssistantConversation,
+  requestedAssistantMetric,
+} from "../shared/assistant-conversation";
 
 type KnowledgeSource = { file: string; title: string; route: string };
 type KnowledgeSection = {
@@ -39,6 +45,26 @@ export type AssistantHistoryMessage = {
 // code, uploaded AASX packages, and arbitrary paths are intentionally excluded.
 const SOURCES: KnowledgeSource[] = [
   {
+    file: "docs/factory-layouts.md",
+    title: "Design a factory layout",
+    route: "docs/factory-layouts.md",
+  },
+  {
+    file: "docs/editable-demo.md",
+    title: "Editable, resettable demo",
+    route: "docs/editable-demo.md",
+  },
+  {
+    file: "docs/assistant-concepts.md",
+    title: "Factory concepts in plain language",
+    route: "docs/assistant-concepts.md",
+  },
+  {
+    file: "docs/fx-tsn.md",
+    title: "OPC UA FX and TSN guide",
+    route: "docs/fx-tsn.md",
+  },
+  {
     file: "docs/service-health.md",
     title: "Service health, infrastructure and recovery evidence",
     route: "docs/service-health.md",
@@ -52,11 +78,6 @@ const SOURCES: KnowledgeSource[] = [
     file: "docs/operations.md",
     title: "Current operating and recovery guide",
     route: "docs/operations.md",
-  },
-  {
-    file: "deploy/oracle/README.md",
-    title: "Current Oracle and Vercel deployment",
-    route: "deploy/oracle/README.md",
   },
   {
     file: "API_DOCUMENTATION.md",
@@ -159,6 +180,11 @@ const STOP_WORDS = new Set([
   "this",
   "to",
   "what",
+  "whats",
+  "explain",
+  "please",
+  "tell",
+  "give",
   "when",
   "where",
   "which",
@@ -316,8 +342,9 @@ async function buildLiveContext(
   question: string,
   role: AssistantRole,
   selectedAssetId?: string,
+  includeEvidence = true,
 ) {
-  if (!LIVE_CONTEXT_ENABLED())
+  if (!includeEvidence || !LIVE_CONTEXT_ENABLED())
     return {
       capturedAt: new Date().toISOString(),
       status: "disabled" as const,
@@ -353,7 +380,7 @@ async function buildLiveContext(
           left.asset.name.localeCompare(right.asset.name),
       );
     const matching = ranked
-      .filter((item) => item.score > 0)
+      .filter((item) => item.score > 0 && item.score === ranked[0]?.score)
       .map((item) => item.asset);
     const relevantAssets = selectedAssetId
       ? explicitAsset
@@ -611,7 +638,7 @@ function buildSources(
         excerpt: observed.measurements
           .map(
             (m) =>
-              `${m.metric}: ${m.value ?? "unavailable"} ${m.unit ?? "unit unverified"} (${m.quality})`,
+              `${m.metric}: ${displayValue(m.value)} ${m.unit ?? "unit unverified"} (${m.quality})`,
           )
           .join(" · "),
         kind: "live-data",
@@ -633,6 +660,83 @@ function buildSources(
   return sources;
 }
 
+function displayValue(value: number | null) {
+  return value == null
+    ? "unavailable"
+    : new Intl.NumberFormat("en", { maximumFractionDigits: 2 }).format(value);
+}
+
+function guideAnswer(section: KnowledgeSection) {
+  const paragraphs = section.content.split(/\n\s*\n/);
+  let answer = "";
+  for (const paragraph of paragraphs) {
+    if (answer.length && answer.length + paragraph.length > 2400) break;
+    answer += (answer ? "\n\n" : "") + paragraph;
+  }
+  return answer;
+}
+
+function conceptAnswer(
+  plan: ReturnType<typeof planAssistantConversation>,
+  sections: KnowledgeSection[],
+) {
+  const pair = plan.topics.includes("FX") && plan.topics.includes("TSN");
+  if (
+    plan.style === "detail" &&
+    plan.topics.some((t) => t === "FX" || t === "TSN")
+  ) {
+    const matches = sections
+      .filter(
+        (s) =>
+          s.source.file === "docs/fx-tsn.md" &&
+          ["OPC UA FX and TSN in Smart Factory", "Product workflow"].includes(
+            s.heading,
+          ),
+      )
+      .map((section) => ({ section, score: 1 }));
+    if (matches.length)
+      return {
+        answer: matches.map(({ section }) => guideAnswer(section)).join("\n\n"),
+        matches,
+      };
+  }
+  const headings = pair
+    ? plan.style === "overview" || plan.style === "simple"
+      ? [
+          "FX",
+          "TSN",
+          ...(plan.style === "overview" ? ["FX and TSN together"] : []),
+        ]
+      : ["FX and TSN together"]
+    : plan.topics;
+  const selected = headings.flatMap((heading) => {
+    const section = sections.find(
+      (s) =>
+        s.source.file === "docs/assistant-concepts.md" && s.heading === heading,
+    );
+    return section ? [{ section, score: 1 }] : [];
+  });
+  if (!selected.length) return null;
+  const paragraphs = selected.flatMap(({ section }) => {
+    const parts = section.content
+      .split(/\n\s*\n/)
+      .filter((p) => plan.style === "simple" || !p.startsWith("Simply:"));
+    if (plan.style === "example")
+      return parts.filter((p) => p.startsWith("Example:"));
+    if (plan.style === "application")
+      return parts.filter((p) => p.startsWith("In this app:"));
+    if (plan.style === "simple") {
+      const simple = parts.filter((p) => p.startsWith("Simply:"));
+      return simple.length
+        ? simple.map((p) => p.replace(/^Simply:\s*/, ""))
+        : parts.slice(0, 1);
+    }
+    if (pair || selected.length > 1) return parts.slice(0, 1);
+    return parts;
+  });
+  return { answer: paragraphs.join("\n\n"), matches: selected };
+}
+
 function localGroundedAnswer(
   question: string,
   matches: Array<{ section: KnowledgeSection; score: number }>,
@@ -646,7 +750,7 @@ function localGroundedAnswer(
       ]
     : [];
   const asksForState =
-    /\b(latest|current|right now|how many|reading|evidence|observations?|attention|stale|incidents? need|alerts? need)\b/i.test(
+    /\b(latest|current|right now|how many|reading|status|state|evidence|observations?|attention|stale|incidents? need|alerts? need)\b/i.test(
       question,
     );
   if (!asksForState)
@@ -655,23 +759,34 @@ function localGroundedAnswer(
         .slice(0, 2)
         .map(
           ({ section }) =>
-            `### ${section.heading}\n\n${section.source.file === "docs/troubleshooting.md" ? section.content : excerptFor(section, terms)}`,
+            `### ${section.heading}\n\n${section.source.file === "docs/troubleshooting.md" ? section.content : guideAnswer(section)}`,
         ),
     );
   if (runtime.status === "available" && runtime.payload) {
-    paragraphs.push(
-      `### Authorized evidence snapshot · ${runtime.capturedAt}\n\n${runtime.payload.visibleAssetCount} visible assets; ${runtime.payload.visibleGatewayCount} gateways, ${runtime.payload.gatewaysOnline} online; ${runtime.payload.activeAlertStats.activeCritical} open critical incidents; ${runtime.payload.activeAlertStats.activeWarning} open warnings; ${runtime.payload.activeAlertStats.activeDowntime} confirmed downtime incidents. Acknowledgement does not resolve an incident.`,
-    );
+    const metric = requestedAssistantMetric(question);
+    if (metric && runtime.payload.selectionReason === "overview-sample")
+      return `Which equipment’s ${metric} would you like me to check? Select an item or include its name so I can use the right stored observation.`;
+    if (metric)
+      paragraphs.push(
+        `The latest stored ${metric} evidence for ${runtime.payload.assets.map((a) => a.name).join(", ") || "the requested equipment"} is below. A stored reading is not proof that the equipment is receiving now.`,
+      );
+    else
+      paragraphs.push(
+        `${runtime.payload.visibleAssetCount} visible assets; ${runtime.payload.visibleGatewayCount} gateways, ${runtime.payload.gatewaysOnline} online; ${runtime.payload.activeAlertStats.activeCritical} open critical incidents; ${runtime.payload.activeAlertStats.activeWarning} open warnings; ${runtime.payload.activeAlertStats.activeDowntime} confirmed downtime incidents.`,
+      );
     const latest = runtime.payload.assets.slice(0, 4).map((asset) => {
       const device = asset.connectedDevices[0];
       const telemetry = asset.latestObservation?.telemetry;
       const measurementText = telemetry
         ? telemetry.measurements
+            .filter((m) => !metric || m.metric === metric)
+            .slice(0, metric ? 1 : 3)
             .map(
               (m) =>
-                `${m.metric}=${m.value ?? "unavailable"} ${m.unit ?? "unit unverified"} (${m.quality})`,
+                `${m.metric}=${displayValue(m.value)} ${m.unit ?? "unit unverified"} (${m.quality})`,
             )
-            .join(", ")
+            .join(", ") ||
+          `no ${metric ?? "requested"} measurement in this sample`
         : "no telemetry sample";
       const incidents = device?.recentIncidents
         .map(
@@ -682,6 +797,9 @@ function localGroundedAnswer(
       return `- **${asset.name}${asset.demoData ? " (simulated)" : ""}**: ${asset.lifecycleStage}, AAS revision ${asset.aasRevision}${device ? `; gateway/device ${device.gatewayId ?? "direct"}/${device.deviceId}; observed connection ${device.status}; observation source ${asset.latestObservation?.sourceDeviceId ?? "unobserved"}; ${measurementText}${telemetry ? `; sample recorded ${telemetry.timestamp} (${telemetry.mode} evidence; quality ${telemetry.sourceQuality}; stored observation)` : ""}${incidents ? `\n  Open incidents: ${incidents}` : ""}` : "; no linked device"}`;
     });
     if (latest.length) paragraphs.push(latest.join("\n"));
+    paragraphs.push(
+      `Snapshot captured ${runtime.capturedAt}. Acknowledgement does not resolve an incident.`,
+    );
   } else if (runtime.status === "unavailable") {
     paragraphs.push(
       "### Current system data\n\nThe live database snapshot could not be loaded, so I cannot verify current asset or telemetry state.",
@@ -689,7 +807,7 @@ function localGroundedAnswer(
   }
   if (matches.length === 0)
     paragraphs.push(
-      "I could not find a matching guide. Try asking about assets, AASX import, gateway connectivity, analytics, incidents, roles, or deployment.",
+      "I don’t have enough relevant guidance to answer that reliably. Which factory feature, equipment item or workflow would you like to understand?",
     );
   if (asksForState && runtime.payload)
     paragraphs.push(
@@ -755,9 +873,16 @@ export async function answerFactoryQuestion(
     role?: AssistantRole;
     selectedAssetId?: string;
     history?: AssistantHistoryMessage[];
+    demoContext?: DemoAssistantContext;
   } = {},
 ) {
-  const metaAnswer = assistantMetaAnswer(question);
+  const plan = planAssistantConversation(
+    question,
+    options.history,
+    options.selectedAssetId,
+  );
+  const metaAnswer =
+    assistantMetaAnswer(question) ?? assistantMetaAnswer(plan.resolvedQuestion);
   if (metaAnswer)
     return {
       answer: metaAnswer,
@@ -766,7 +891,25 @@ export async function answerFactoryQuestion(
       model: null,
       contextAt: new Date().toISOString(),
     };
-  const terms = termsOf(question);
+  if (plan.direct || plan.needsSubject)
+    return {
+      answer:
+        plan.direct ??
+        "What would you like me to explain? Name the topic or equipment, and I’ll keep the answer focused.",
+      sources: [],
+      provider: "local" as const,
+      model: null,
+      contextAt: new Date().toISOString(),
+    };
+  const terms = termsOf(plan.resolvedQuestion);
+  if (plan.includeEvidence && options.demoContext && demoOnlyRead()) {
+    return {
+      ...answerDemoQuestion(plan.resolvedQuestion, options.demoContext),
+      provider: "local" as const,
+      model: null,
+      contextAt: new Date().toISOString(),
+    };
+  }
   if (terms.length === 0)
     return {
       answer:
@@ -781,11 +924,21 @@ export async function answerFactoryQuestion(
   const [sections, runtime] = await Promise.all([
     sectionsPromise,
     buildLiveContext(
-      question,
+      plan.resolvedQuestion,
       options.role ?? "viewer",
       options.selectedAssetId,
+      plan.includeEvidence,
     ),
   ]);
+  const explanation = plan.concept ? conceptAnswer(plan, sections) : null;
+  if (explanation)
+    return {
+      answer: explanation.answer,
+      sources: buildSources(explanation.matches, terms, runtime),
+      provider: "local" as const,
+      model: null,
+      contextAt: runtime.capturedAt,
+    };
   const matches = sections
     .map((section) => ({ section, score: scoreSection(section, terms) }))
     .filter((item) => item.score > 0)
@@ -793,7 +946,7 @@ export async function answerFactoryQuestion(
     .slice(0, 4);
   const sources = buildSources(matches, terms, runtime);
   const presentation = await buildAssistantPresentation(
-    question,
+    plan.resolvedQuestion,
     runtime,
     sources,
   );
@@ -804,6 +957,8 @@ export async function answerFactoryQuestion(
       .slice(0, 1200),
   }));
   const context = {
+    conversationSubject: plan.topics,
+    requestedStyle: plan.style,
     accessRole: options.role ?? "viewer",
     selectedAssetId: options.selectedAssetId ?? null,
     contextStatus: runtime.status,
@@ -858,7 +1013,7 @@ export async function answerFactoryQuestion(
 
   return {
     answer: localGroundedAnswer(
-      question,
+      plan.resolvedQuestion,
       matches,
       terms,
       runtime,
