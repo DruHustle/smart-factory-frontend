@@ -427,6 +427,72 @@ async function grabFixture(page: Page, plan = false) {
   return { canvas, bounds, item, placement };
 }
 
+test("mouse movement rotates 3D without grabbing, stops at rest and resets across leaving/fullscreen", async ({
+  page,
+}) => {
+  const { canvas, bounds, placement } = await grabFixture(page);
+  const original = await placement();
+  const view = async () =>
+    JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+  const before = await view();
+  await page.mouse.move(bounds.x + 100, bounds.y + 65, { steps: 8 });
+  const rotated = await view();
+  expect(rotated.position).not.toEqual(before.position);
+  expect(rotated.target).toEqual(before.target);
+  expect(rotated.zoom).toBe(before.zoom);
+  const distance = (v: typeof before) =>
+    Math.hypot(
+      ...v.position.map((value: number, i: number) => value - v.target[i]),
+    );
+  expect(distance(rotated)).toBeCloseTo(distance(before), 8);
+  await expect(canvas).toHaveCSS("cursor", "grab");
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  expect(await placement()).toEqual(original);
+  // A motionless hand must not leave the factory spinning between frames.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let frames = 0;
+        const next = () =>
+          ++frames === 8 ? resolve() : requestAnimationFrame(next);
+        requestAnimationFrame(next);
+      }),
+  );
+  expect(await view()).toEqual(rotated);
+  await page.mouse.move(bounds.x - 10, bounds.y + 30);
+  await page.mouse.move(bounds.x + bounds.width - 20, bounds.y + 30);
+  expect(await view()).toEqual(rotated); // Re-entering at a distant point cannot jump.
+  await page.keyboard.down("Space");
+  await page.mouse.move(bounds.x + bounds.width - 100, bounds.y + 70, {
+    steps: 8,
+  });
+  expect(await view()).toEqual(rotated);
+  await page.keyboard.up("Space");
+  await canvas.dispatchEvent("pointermove", {
+    pointerType: "touch",
+    buttons: 0,
+    clientX: bounds.x + 50,
+    clientY: bounds.y + 50,
+  });
+  expect(await view()).toEqual(rotated);
+  await page
+    .getByRole("button", { name: "Enter fullscreen", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Factory floor overview", exact: true }),
+  ).toBeVisible();
+  const full = (await canvas.boundingBox())!;
+  await page.mouse.move(full.x + 30, full.y + 30);
+  const fullBefore = await view();
+  await page.mouse.move(full.x + 150, full.y + 90, { steps: 8 });
+  expect((await view()).position).not.toEqual(fullBefore.position);
+  expect((await view()).target).toEqual(fullBefore.target);
+  expect(await placement()).toEqual(original);
+  await page
+    .getByRole("button", { name: "Exit fullscreen", exact: true })
+    .click();
+});
+
 test("3D hand grabs empty floor or equipment directly; camera stays fixed during item movement", async ({
   page,
 }) => {

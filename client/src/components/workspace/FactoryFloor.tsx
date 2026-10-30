@@ -286,7 +286,7 @@ export function FactoryFloor({
       </div>
       <p className="border-b px-4 py-2 text-xs text-muted-foreground">
         Grab an item to move it, or empty floor to move the view.{" "}
-        {view === "3d" && "Right-drag to rotate · Scroll to zoom."}
+        {view === "3d" && "Move mouse to rotate · Scroll or pinch to zoom."}
         {fullscreen.expanded && " · Esc to exit fullscreen."}
       </p>
       {zone !== "all" && (

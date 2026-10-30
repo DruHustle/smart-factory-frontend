@@ -232,7 +232,7 @@ export default function FactoryFloorScene({
       renderer.domElement.tabIndex = 0;
       renderer.domElement.setAttribute(
         "aria-description",
-        "Press and hold equipment to grab it; drag empty floor to pan. Release to drop. Right-drag or Shift-drag rotates; scroll or pinch zooms. Hold Space to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.",
+        "Move the mouse without pressing to rotate the view; stop moving to stop rotation. Press and hold equipment to grab it; drag empty floor to pan. Rotation pauses while grabbing. Release to drop. Right-drag or Shift-drag also rotates; scroll or pinch zooms. Hold Space to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.",
       );
       renderer.domElement.dataset.floorNodeCount = String(
         layout.placements.length,
@@ -256,6 +256,12 @@ export default function FactoryFloorScene({
       controls.minZoom = 0.4;
       controls.maxZoom = 10;
       controls.screenSpacePanning = true;
+      let hoverPoint: { x: number; y: number } | undefined;
+      const resetHover = () => {
+        hoverPoint = undefined;
+      };
+      const hoverOffset = new THREE.Vector3(),
+        hoverRotation = new THREE.Spherical();
       scene.add(new THREE.HemisphereLight(0xdceaff, 0x4b535b, 0.75));
       const span = Math.max(layout.width, layout.depth, 20);
       const sun = new THREE.DirectionalLight(0xfff1de, 3.1);
@@ -495,6 +501,7 @@ export default function FactoryFloorScene({
         dirty = true;
       };
       const size = () => {
+        resetHover();
         cancelForResize();
         const width = element.clientWidth,
           height = element.clientHeight,
@@ -626,6 +633,7 @@ export default function FactoryFloorScene({
       renderer.domElement.dataset.interaction = "grab";
       hand();
       const setRay = (e: PointerEvent) => {
+        camera.updateMatrixWorld();
         const rect = renderer.domElement.getBoundingClientRect();
         point.set(
           ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -662,6 +670,7 @@ export default function FactoryFloorScene({
         controls.enablePan = controls.enableRotate = controls.enableZoom = true;
       };
       const cancel = (releaseCapture = true) => {
+        resetHover();
         start = undefined;
         if (dragging) {
           const ended = dragging;
@@ -679,6 +688,7 @@ export default function FactoryFloorScene({
         hand();
       };
       const down = (e: PointerEvent) => {
+        resetHover();
         if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
         pointers.add(e.pointerId);
         if (!e.isPrimary || pointers.size > 1) {
@@ -718,6 +728,44 @@ export default function FactoryFloorScene({
         }
         hand();
       };
+      const hoverOrbit = (e: PointerEvent) => {
+        if (
+          e.pointerType !== "mouse" ||
+          e.buttons !== 0 ||
+          pointers.size ||
+          panModifier ||
+          !controls.enabled ||
+          document.hidden
+        ) {
+          resetHover();
+          return;
+        }
+        const previous = hoverPoint;
+        hoverPoint = { x: e.clientX, y: e.clientY };
+        if (!previous) return;
+        const rect = renderer.domElement.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const x = (e.clientX - previous.x) / rect.width,
+          y = (e.clientY - previous.y) / rect.height;
+        if (!x && !y) return;
+        // Follow actual mouse motion only: no idle spin, inertia, pan or zoom.
+        // Bound an individual event so re-entry/device jumps cannot swing the view.
+        hoverOffset.copy(camera.position).sub(controls.target);
+        hoverRotation.setFromVector3(hoverOffset);
+        hoverRotation.theta -=
+          THREE.MathUtils.clamp(x, -0.1, 0.1) * Math.PI * 0.8;
+        hoverRotation.phi = THREE.MathUtils.clamp(
+          hoverRotation.phi -
+            THREE.MathUtils.clamp(y, -0.1, 0.1) * Math.PI * 0.4,
+          Math.max(controls.minPolarAngle, 0.12),
+          controls.maxPolarAngle,
+        );
+        hoverRotation.makeSafe();
+        camera.position
+          .copy(controls.target)
+          .add(hoverOffset.setFromSpherical(hoverRotation));
+        controls.update();
+      };
       const pointerMove = (e: PointerEvent) => {
         if (dragging && dragging.pointerId === e.pointerId) {
           if (
@@ -742,15 +790,17 @@ export default function FactoryFloorScene({
           updateConnections();
           e.preventDefault();
         } else if (!pointers.size) {
+          hoverOrbit(e);
           setRay(e);
           const ref = panModifier ? undefined : picked();
           renderer.domElement.dataset.grabTarget = ref ?? "floor";
           renderer.domElement.title = ref
             ? `Grab ${layout.placements.find((p) => p.item.ref === ref)?.item.name ?? "equipment"}`
-            : "Grab to move the floor";
+            : "Move the mouse to rotate; grab to move the floor";
         }
       };
       const up = (e: PointerEvent) => {
+        resetHover();
         pointers.delete(e.pointerId);
         const began = start;
         start = undefined;
@@ -778,6 +828,7 @@ export default function FactoryFloorScene({
         hand();
       };
       const focusEquipment = (e: MouseEvent) => {
+        resetHover();
         setRay(e as PointerEvent);
         const ref = picked(),
           object = ref && objects.get(ref);
@@ -810,6 +861,10 @@ export default function FactoryFloorScene({
         controls.disconnect();
         controls.connect(renderer.domElement);
         controls.cursorStyle = "grab";
+      };
+      const visibility = () => {
+        if (document.hidden) blur();
+        else resetHover();
       };
       cancelForResize = () => {
         if (pointers.size || dragging) blur();
@@ -889,12 +944,15 @@ export default function FactoryFloorScene({
       renderer.domElement.addEventListener("pointercancel", pointerCancel);
       renderer.domElement.addEventListener("lostpointercapture", pointerCancel);
       renderer.domElement.addEventListener("pointermove", pointerMove);
+      renderer.domElement.addEventListener("pointerenter", resetHover);
+      renderer.domElement.addEventListener("pointerleave", resetHover);
       renderer.domElement.addEventListener("keydown", keyDown);
       renderer.domElement.addEventListener("pointerdown", down, true);
       renderer.domElement.addEventListener("pointerup", up, true);
       window.addEventListener("keydown", spaceDown);
       window.addEventListener("keyup", keyUp);
       window.addEventListener("blur", blur);
+      document.addEventListener("visibilitychange", visibility);
       const lost = (event: Event) => {
         event.preventDefault();
         cancelAnimationFrame(frame);
@@ -931,7 +989,10 @@ export default function FactoryFloorScene({
         window.removeEventListener("keydown", spaceDown);
         window.removeEventListener("keyup", keyUp);
         window.removeEventListener("blur", blur);
+        document.removeEventListener("visibilitychange", visibility);
         renderer.domElement.removeEventListener("pointermove", pointerMove);
+        renderer.domElement.removeEventListener("pointerenter", resetHover);
+        renderer.domElement.removeEventListener("pointerleave", resetHover);
         renderer.domElement.removeEventListener("keydown", keyDown);
         renderer.domElement.removeEventListener("pointerdown", down, true);
         renderer.domElement.removeEventListener("pointerup", up, true);
