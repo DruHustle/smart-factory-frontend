@@ -440,11 +440,23 @@ export function applySandboxAction(
   return demoSandbox.parse(s);
 }
 
+/** Latest per metric, including unsorted backups; a later appended sample wins ties. */
+export function latestSandboxSamples(s: DemoSandbox, itemRef: string) {
+  const latest = new Map<Metric, DemoSandbox["samples"][number]>();
+  for (const sample of s.samples) {
+    if (sample.itemRef !== itemRef) continue;
+    const previous = latest.get(sample.metric);
+    if (!previous || Date.parse(sample.at) >= Date.parse(previous.at))
+      latest.set(sample.metric, sample);
+  }
+  return [...latest.values()].sort(
+    (a, b) => Date.parse(b.at) - Date.parse(a.at),
+  );
+}
+
 export function sandboxInventory(s: DemoSandbox): InventoryItem[] {
   return s.items.map((i) => {
-    const samples = s.samples
-      .filter((p) => p.itemRef === i.ref)
-      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+    const samples = latestSandboxSamples(s, i.ref);
     const readings = Object.fromEntries(
       metrics.flatMap((m) => {
         const p = samples.find((p) => p.metric === m);

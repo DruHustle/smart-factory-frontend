@@ -8,6 +8,7 @@ import {
 } from "../shared/demo-sandbox";
 import { demoAssistantContext } from "../shared/demo-assistant";
 import { answerDemoQuestion } from "./demo-assistant";
+import { buildDemoAssistantContext } from "../client/src/lib/demo-assistant-context";
 const create: SandboxAction = {
   type: "item.save",
   item: { name: "My pump", kind: "asset", itemType: "pump", zone: "Assembly" },
@@ -108,6 +109,47 @@ describe("editable browser demo boundaries and workflows", () => {
       sandbox: true,
     });
   });
+  it.each(["ascending", "restored out of order", "same timestamp"])(
+    "uses the newest reading in inventory and frozen assistant context: %s",
+    (order) => {
+      const s = seeded(),
+        ref = s.items[0].ref;
+      const at = "2026-10-30T07:00:00.000Z";
+      const first = {
+        id: crypto.randomUUID(),
+        itemRef: ref,
+        metric: "temperature" as const,
+        value: 85,
+        unit: "°C",
+        at,
+      };
+      s.samples = [first];
+      const frozen = buildDemoAssistantContext(
+        s,
+        "What is My pump temperature?",
+        [],
+      );
+      const newer = {
+        ...first,
+        id: crypto.randomUUID(),
+        value: 95,
+        at: order === "same timestamp" ? at : "2026-10-30T07:01:00.000Z",
+      };
+      s.samples =
+        order === "restored out of order" ? [newer, first] : [first, newer];
+      expect(sandboxInventory(s)[0].values?.temperature).toBe(95);
+      const context = buildDemoAssistantContext(
+        s,
+        "What is My pump temperature?",
+        [],
+      );
+      expect(context?.items[0].samples[0].value).toBe(95);
+      expect(frozen?.items[0].samples[0].value).toBe(85);
+      expect(
+        answerDemoQuestion("What is My pump temperature?", context!).answer,
+      ).toContain("95");
+    },
+  );
   it("rejects an inverted rule, missing equipment and non-finite readings", () => {
     const s = seeded(),
       ref = s.items[0].ref;

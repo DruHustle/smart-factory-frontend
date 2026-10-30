@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
-import { Plus, Save, Download, RotateCcw } from "lucide-react";
+import { Plus, Save, Download, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
@@ -78,6 +78,12 @@ function FactoryLayoutsEditor() {
     [search, setSearch] = useState(""),
     [archived, setArchived] = useState(false);
   const [storageError, setStorageError] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const openRequest = useRef(0);
+  const cancelOpen = () => {
+    openRequest.current++;
+    setOpening(false);
+  };
   const localRef = useRef(local);
   localRef.current = local;
   const floor = trpc.factory.floor.useQuery({ zone: "" }, { staleTime: 30000 });
@@ -87,13 +93,7 @@ function FactoryLayoutsEditor() {
   );
   const utils = trpc.useUtils();
   const save = trpc.factoryLayouts.save.useMutation({
-    onSuccess: async (result) => {
-      setDraft((d) => ({
-        ...d,
-        sourceId: result.id,
-        version: result.version,
-        document: result.document,
-      }));
+    onSuccess: async () => {
       await utils.factoryLayouts.list.invalidate();
       toast.success("Layout saved to your account");
     },
@@ -118,15 +118,55 @@ function FactoryLayoutsEditor() {
       return;
     }
     setLocal(next);
+  }, [draft, storageKey]);
+  useEffect(() => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
+      const raw = JSON.stringify(local);
+      if (raw.length > 4000000) throw Error("Browser draft capacity reached");
+      localStorage.setItem(storageKey, raw);
       setStorageError(false);
     } catch {
       setStorageError(true);
     }
-  }, [draft, storageKey]);
-  const update = (document: FactoryLayoutDocument) =>
+  }, [local, storageKey]);
+  const update = (document: FactoryLayoutDocument) => {
+    cancelOpen();
     setDraft((d) => ({ ...d, document }));
+  };
+  const hasDraftRoom = () => {
+    if (localRef.current.length < 50) return true;
+    toast.error(
+      "This browser has 50 drafts. Download and remove a draft before starting another.",
+    );
+    return false;
+  };
+  const activate = (next: Draft) => {
+    cancelOpen();
+    setDraft(next);
+    setSelected(null);
+  };
+  const removeDraft = (removed: Draft) => {
+    cancelOpen();
+    const next = localRef.current.filter((d) => d.key !== removed.key);
+    setLocal(next);
+    if (draft.key === removed.key) {
+      setDraft(next[0] ?? fresh());
+      setSelected(null);
+    }
+    toast.success("Browser draft removed. Account saves are retained.", {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          if (!hasDraftRoom()) return;
+          setLocal((current) => [
+            removed,
+            ...current.filter((d) => d.key !== removed.key),
+          ]);
+          activate(removed);
+        },
+      },
+    });
+  };
   const items = useMemo(
       () =>
         demo && sandbox ? sandboxInventory(sandbox) : (floor.data?.items ?? []),
@@ -201,14 +241,22 @@ function FactoryLayoutsEditor() {
     });
   };
   const openSaved = async (id: string) => {
+    const request = ++openRequest.current;
+    const fromArchive = archived;
+    setOpening(true);
     try {
-      const result = await utils.factoryLayouts.get.fetch({ id });
-      const existing = local.find((d) => d.sourceId === id);
+      const result = await utils.factoryLayouts.get.fetch(
+        { id },
+        { staleTime: 0 },
+      );
+      if (request !== openRequest.current) return;
+      const existing = localRef.current.find((d) => d.sourceId === id);
+      if (!existing && !hasDraftRoom()) return;
       setDraft({
         key: existing?.key ?? crypto.randomUUID(),
         document: result.document,
-        sourceId: archived ? undefined : result.id,
-        version: archived ? 0 : result.version,
+        sourceId: fromArchive ? undefined : result.id,
+        version: fromArchive ? 0 : result.version,
         updatedAt: result.updatedAt,
       });
       setSelected(null);
@@ -217,7 +265,10 @@ function FactoryLayoutsEditor() {
           `${result.omittedItems} items are unavailable in this workspace and are omitted from this view.`,
         );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Layout unavailable");
+      if (request === openRequest.current)
+        toast.error(e instanceof Error ? e.message : "Layout unavailable");
+    } finally {
+      if (request === openRequest.current) setOpening(false);
     }
   };
   const persist = () => {
@@ -231,12 +282,27 @@ function FactoryLayoutsEditor() {
           "Browser storage is unavailable. Download this layout to retain a copy.",
         );
       else toast.success("Demo layout saved in this browser");
-    } else
-      save.mutate({
-        id: draft.sourceId,
-        expectedVersion: draft.sourceId ? draft.version : 0,
-        document: valid.data,
-      });
+    } else {
+      const submittedKey = draft.key;
+      save.mutate(
+        {
+          id: draft.sourceId,
+          expectedVersion: draft.sourceId ? draft.version : 0,
+          document: valid.data,
+        },
+        {
+          onSuccess: (result) => {
+            // Acknowledgements belong to the submitted draft. Keep edits made while saving.
+            const acknowledge = (d: Draft) =>
+              d.key === submittedKey
+                ? { ...d, sourceId: result.id, version: result.version }
+                : d;
+            setLocal((current) => current.map(acknowledge));
+            setDraft(acknowledge);
+          },
+        },
+      );
+    }
   };
   const download = () => {
     if (!valid.success) return;
@@ -269,14 +335,7 @@ function FactoryLayoutsEditor() {
       <div className="flex flex-wrap items-center gap-2">
         <Button
           onClick={() => {
-            if (local.length >= 50) {
-              toast.error(
-                "This browser already has 50 drafts. Download a copy before starting another.",
-              );
-              return;
-            }
-            setDraft(fresh());
-            setSelected(null);
+            if (hasDraftRoom()) activate(fresh());
           }}
         >
           <Plus className="mr-2 size-4" />
@@ -285,13 +344,16 @@ function FactoryLayoutsEditor() {
         <Button
           variant="outline"
           onClick={() => {
-            setDraft((d) => ({ ...d, document: layoutFromInventory(items) }));
+            update(layoutFromInventory(items));
             setSelected(null);
           }}
         >
           Use current factory arrangement
         </Button>
-        <Button onClick={persist} disabled={save.isPending || !valid.success}>
+        <Button
+          onClick={persist}
+          disabled={save.isPending || opening || !valid.success}
+        >
           <Save className="mr-2 size-4" />
           {save.isPending
             ? "Saving…"
@@ -302,14 +364,15 @@ function FactoryLayoutsEditor() {
         {!demo && draft.sourceId && (
           <Button
             variant="outline"
-            onClick={() =>
-              setDraft((d) => ({
-                ...d,
-                sourceId: undefined,
-                version: 0,
-                key: crypto.randomUUID(),
-              }))
-            }
+            onClick={() => {
+              if (hasDraftRoom())
+                activate({
+                  ...draft,
+                  sourceId: undefined,
+                  version: 0,
+                  key: crypto.randomUUID(),
+                });
+            }}
           >
             Save as new layout
           </Button>
@@ -610,17 +673,25 @@ function FactoryLayoutsEditor() {
             <h2 className="font-semibold">Browser drafts</h2>
             <ul className="space-y-1">
               {local.map((d) => (
-                <li key={d.key}>
+                <li key={d.key} className="flex items-center gap-1">
                   <Button
                     size="sm"
                     variant={d.key === draft.key ? "secondary" : "ghost"}
-                    className="h-auto min-h-11 w-full justify-start whitespace-normal text-left"
+                    className="h-auto min-h-11 min-w-0 flex-1 shrink justify-start whitespace-normal text-left [overflow-wrap:anywhere]"
                     onClick={() => {
-                      setDraft(d);
-                      setSelected(null);
+                      activate(d);
                     }}
                   >
                     {d.document.name} · {d.document.placements.length} items
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={save.isPending}
+                    aria-label={`Remove browser draft ${d.document.name}`}
+                    onClick={() => removeDraft(d)}
+                  >
+                    <Trash2 className="size-4" />
                   </Button>
                 </li>
               ))}
@@ -653,6 +724,7 @@ function FactoryLayoutsEditor() {
                         size="sm"
                         variant="ghost"
                         className="h-auto min-h-11 w-full justify-start whitespace-normal"
+                        disabled={save.isPending || archive.isPending}
                         onClick={() => void openSaved(d.id)}
                       >
                         {d.name} · v{d.version}
@@ -660,7 +732,9 @@ function FactoryLayoutsEditor() {
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={archive.isPending}
+                        disabled={
+                          archive.isPending || save.isPending || opening
+                        }
                         onClick={() =>
                           archive.mutate({
                             id: d.id,

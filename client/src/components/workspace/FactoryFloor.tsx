@@ -145,9 +145,13 @@ export function FactoryFloor({
         ),
       )
     : [];
+  const previousSelection = useRef<string | null>(null);
   useEffect(() => {
-    if (selected) details.current?.scrollIntoView({ block: "nearest" });
-  }, [selected]);
+    const changed = previousSelection.current !== selected;
+    previousSelection.current = selected;
+    if (changed && selected && !layoutDocument && interaction !== "item")
+      details.current?.scrollIntoView({ block: "nearest" });
+  }, [selected, !!layoutDocument, interaction]);
   return (
     <section
       className="overview-floor min-w-0 overflow-hidden rounded-lg border bg-card"

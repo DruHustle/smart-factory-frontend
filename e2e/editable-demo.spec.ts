@@ -85,6 +85,18 @@ test("editable demo persists, respects roles, informs the assistant, prints and 
   await expect(answer).toContainText("85 °C");
   await expect(answer).toContainText("Acceptance pump");
   await expect(answer).toContainText("simulation");
+  await page.goto("/#/sandbox?tab=telemetry");
+  await page
+    .getByLabel("Demo equipment", { exact: true })
+    .selectOption({ label: "Acceptance pump · asset" });
+  await page.getByLabel("Simulated reading value", { exact: true }).fill("95");
+  await page
+    .getByRole("button", { name: "Generate simulated reading", exact: true })
+    .click();
+  await page.goto("/#/assistant");
+  const latest = await ask(page, "What is Acceptance pump temperature?");
+  await expect(latest).toContainText("95 °C");
+  await expect(latest).not.toContainText("85 °C");
   await page.goto("/#/sandbox?tab=passport");
   await page
     .getByLabel("Demo equipment", { exact: true })
@@ -263,6 +275,9 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
   await expect(canvas).toBeVisible();
   await expect(canvas).toHaveAttribute("data-camera-view", /.+/);
   await page.getByRole("button", { name: "Move floor", exact: true }).click();
+  await expect(canvas).toHaveAttribute("data-interaction", "pan");
+  await canvas.scrollIntoViewIfNeeded();
+  await canvas.hover({ position: { x: 20, y: 20 } });
   const before = await canvas.getAttribute("data-camera-view"),
     box = (await canvas.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
@@ -287,6 +302,9 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
     );
   const placement = await readPlacement();
   const fixedCamera = await canvas.getAttribute("data-camera-view");
+  await expect(canvas).toHaveAttribute("data-interaction", "item");
+  await canvas.scrollIntoViewIfNeeded();
+  await canvas.hover({ position: { x: 20, y: 20 } });
   const bounds = (await canvas.boundingBox())!;
   await page.mouse.move(
     bounds.x + bounds.width / 2,
