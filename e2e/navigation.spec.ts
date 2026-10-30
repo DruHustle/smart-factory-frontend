@@ -89,12 +89,17 @@ async function checkLayout(
   // The collapse attribute and computed width can update before the nested list
   // has finished repositioning. Require the same exact final geometry, with a
   // bounded wait, before checking the complete typography/icon contract.
+  // Entering the editable demo also initializes its automatic full-floor 3D
+  // references: a software-GPU CI trace took 6.3 seconds for one DOM evaluation.
   await expect
-    .poll(async () => {
-      rows = await measure();
-      const origin = rows.find((row) => row.text === "Overview")!.x;
-      return rows.map((row) => row.x - origin);
-    })
+    .poll(
+      async () => {
+        rows = await measure();
+        const origin = rows.find((row) => row.text === "Overview")!.x;
+        return rows.map((row) => row.x - origin);
+      },
+      { timeout: 15000 },
+    )
     .toEqual(rows.map((row) => (collapsed || row.heading ? 0 : 12)));
   const baseX = rows.find((row) => row.text === "Overview")!.x;
   for (const row of rows) {
