@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FloorPlan } from "./FactoryFloorPlan";
 import {
   constrainFloorPosition,
-  type FloorInteraction,
+  type FloorSelect,
   type FloorMove,
 } from "./floor-arrangement";
 import * as THREE from "three";
@@ -174,23 +174,20 @@ export default function FactoryFloorScene({
   dark,
   reset,
   zone,
-  interaction,
   onMove,
 }: {
   layout: Layout;
   links: FloorLink[];
   selected: string | null;
-  onSelect: (ref: string) => void;
+  onSelect: FloorSelect;
   dark: boolean;
   reset: number;
   zone: string;
-  interaction: FloorInteraction;
   onMove: FloorMove;
 }) {
   const host = useRef<HTMLDivElement>(null),
     choose = useRef(onSelect),
     selection = useRef(selected),
-    mode = useRef(interaction),
     move = useRef(onMove);
   const runtime = useRef<{
     focus: (ref: string | null) => void;
@@ -198,14 +195,12 @@ export default function FactoryFloorScene({
     statuses: (items: Layout["placements"]) => void;
     positions: (items: Layout["placements"]) => void;
     zones: (zones: Layout["zones"]) => void;
-    interaction: (mode: FloorInteraction) => void;
   } | null>(null);
   const [failed, setFailed] = useState(false),
     [ready, setReady] = useState(false),
     [loaded, setLoaded] = useState(0);
   choose.current = onSelect;
   selection.current = selected;
-  mode.current = interaction;
   move.current = onMove;
   const key =
     layout.placements.map((p) => `${p.item.ref}:${p.model}`).join("|") +
@@ -264,7 +259,7 @@ export default function FactoryFloorScene({
       renderer.domElement.tabIndex = 0;
       renderer.domElement.setAttribute(
         "aria-description",
-        "Use the floor interaction controls to rotate, move the floor, or rearrange an item. Arrow keys move the selected item in Move item mode.",
+        "Press and hold equipment to grab it; drag empty floor to pan. Release to drop. Right-drag or Shift-drag rotates; scroll or pinch zooms. Hold Space to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.",
       );
       renderer.domElement.dataset.floorNodeCount = String(
         layout.placements.length,
@@ -279,7 +274,11 @@ export default function FactoryFloorScene({
         Math.max(500, Math.max(layout.width, layout.depth) * 8),
       );
       const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
+      controls.enableDamping = false;
+      controls.cursorStyle = "grab";
+      controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+      controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+      controls.touches.ONE = THREE.TOUCH.PAN;
       controls.maxPolarAngle = Math.PI * 0.48;
       controls.minZoom = 0.4;
       controls.maxZoom = 10;
@@ -302,6 +301,7 @@ export default function FactoryFloorScene({
       scene.add(createWorkshop(layout, dark));
       const objects = new Map<string, THREE.Group>(),
         hits: THREE.Object3D[] = [],
+        grabTargets: THREE.Object3D[] = [],
         indicators = new Map<string, THREE.Mesh>(),
         markers = new Map<
           string,
@@ -328,6 +328,22 @@ export default function FactoryFloorScene({
         group.position.set(p.x, 0, p.z);
         group.rotation.y = THREE.MathUtils.degToRad(p.rotation ?? 0);
         group.userData.ref = p.item.ref;
+        // Keep small equipment easy to grab without masking a neighboring visible model.
+        const footprint = p.item.kind === "device" ? 1.2 : 2.8;
+        const grabTarget = new THREE.Mesh(
+          new THREE.BoxGeometry(footprint, 3.2, footprint),
+          new THREE.MeshBasicMaterial({
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            colorWrite: false,
+          }),
+        );
+        grabTarget.visible = false;
+        grabTarget.position.y = 1.6;
+        grabTarget.userData.grabTarget = true;
+        group.add(grabTarget);
+        grabTargets.push(grabTarget);
         const body = createEquipmentProxy(p.model, p.item.itemType);
         group.add(body);
         const name = label(p.item.name, "#203c4b");
@@ -509,19 +525,6 @@ export default function FactoryFloorScene({
           }
           updateConnections();
         },
-        interaction: (next) => {
-          cancel();
-          controls.enableDamping = false;
-          controls.update();
-          controls.enableDamping = next !== "item";
-          controls.enabled = next !== "item";
-          controls.mouseButtons.LEFT =
-            next === "pan" ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
-          controls.touches.ONE =
-            next === "pan" ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
-          renderer.domElement.style.cursor = next === "item" ? "move" : "grab";
-          renderer.domElement.dataset.interaction = next;
-        },
         statuses: (placements) => {
           placements.forEach((p) =>
             markers
@@ -549,20 +552,34 @@ export default function FactoryFloorScene({
         });
       };
       controls.addEventListener("change", change);
-      controls.listenToKeyEvents(renderer.domElement);
       change();
       const ray = new THREE.Raycaster(),
         point = new THREE.Vector2();
-      let start: { x: number; y: number; pointerId: number } | undefined;
+      const pointers = new Set<number>();
+      let panModifier = false;
+      let start:
+        | { x: number; y: number; pointerId: number; select: boolean }
+        | undefined;
       let dragging:
         | {
             ref: string;
             point: THREE.Vector3;
             original: THREE.Vector3;
             pointerId: number;
+            moved: boolean;
           }
         | undefined;
       const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const hand = () => {
+        renderer.domElement.style.cursor = pointers.size ? "grabbing" : "grab";
+        renderer.domElement.dataset.grabState = dragging
+          ? "item"
+          : pointers.size
+            ? "floor"
+            : "idle";
+      };
+      renderer.domElement.dataset.interaction = "grab";
+      hand();
       const setRay = (e: PointerEvent) => {
         const rect = renderer.domElement.getBoundingClientRect();
         point.set(
@@ -572,22 +589,65 @@ export default function FactoryFloorScene({
         ray.setFromCamera(point, camera);
       };
       const picked = () => {
+        const visible = (object: THREE.Object3D) => {
+          for (
+            let node: THREE.Object3D | null = object;
+            node;
+            node = node.parent
+          )
+            if (!node.visible) return false;
+          return true;
+        };
+        const body = ray
+          .intersectObjects(hits, true)
+          .find(
+            (hit) => !hit.object.userData.grabTarget && visible(hit.object),
+          );
         let node: THREE.Object3D | null =
-          ray.intersectObjects(hits, true)[0]?.object ?? null;
+          body?.object ??
+          ray.intersectObjects(grabTargets, false)[0]?.object ??
+          null;
         while (node && !node.userData.ref) node = node.parent;
         return node?.userData.ref as string | undefined;
       };
+      const unlockView = () => {
+        controls.enablePan = controls.enableRotate = controls.enableZoom = true;
+      };
+      const cancel = (releaseCapture = true) => {
+        start = undefined;
+        if (dragging) {
+          const ended = dragging;
+          dragging = undefined;
+          objects.get(ended.ref)?.position.copy(ended.original);
+          updateConnections();
+          if (
+            releaseCapture &&
+            renderer.domElement.hasPointerCapture(ended.pointerId)
+          )
+            renderer.domElement.releasePointerCapture(ended.pointerId);
+        }
+        unlockView();
+        runtime.current?.focus(selection.current);
+        hand();
+      };
       const down = (e: PointerEvent) => {
-        if (!e.isPrimary || e.button !== 0) {
-          cancel();
+        if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
+        pointers.add(e.pointerId);
+        if (!e.isPrimary || pointers.size > 1) {
+          // OrbitControls has tracked the first touch, so two fingers can take over for pinch/pan.
+          cancel(false);
+          hand();
           return;
         }
-        // A second finger starts an orbit/zoom gesture, never a selection.
-        start = e.isPrimary
-          ? { x: e.clientX, y: e.clientY, pointerId: e.pointerId }
-          : undefined;
-        renderer.domElement.style.cursor = "grabbing";
-        if (mode.current === "item") {
+        renderer.domElement.focus({ preventScroll: true });
+        const select =
+          e.button === 0 &&
+          !e.shiftKey &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !panModifier;
+        start = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, select };
+        if (select) {
           setRay(e);
           const ref = picked(),
             ground = ray.ray.intersectPlane(floorPlane, new THREE.Vector3());
@@ -598,81 +658,126 @@ export default function FactoryFloorScene({
               point: ground.clone(),
               original: object.position.clone(),
               pointerId: e.pointerId,
+              moved: false,
             };
+            // Allow OrbitControls to track pointer lifetimes while suppressing camera motion.
+            controls.enablePan =
+              controls.enableRotate =
+              controls.enableZoom =
+                false;
             runtime.current?.focus(ref);
-            renderer.domElement.setPointerCapture(e.pointerId);
-            e.preventDefault();
           }
         }
+        hand();
       };
       const pointerMove = (e: PointerEvent) => {
-        if (!dragging || dragging.pointerId !== e.pointerId) return;
-        setRay(e);
-        const ground = ray.ray.intersectPlane(floorPlane, new THREE.Vector3());
-        if (!ground) return;
-        const next = constrainFloorPosition(
-          layout,
-          dragging.original.x + ground.x - dragging.point.x,
-          dragging.original.z + ground.z - dragging.point.z,
-        );
-        objects.get(dragging.ref)?.position.set(next.x, 0, next.z);
-        updateConnections();
-        e.preventDefault();
+        if (dragging && dragging.pointerId === e.pointerId) {
+          if (
+            !start ||
+            (!dragging.moved &&
+              Math.hypot(e.clientX - start.x, e.clientY - start.y) <= 6)
+          )
+            return;
+          setRay(e);
+          const ground = ray.ray.intersectPlane(
+            floorPlane,
+            new THREE.Vector3(),
+          );
+          if (!ground) return;
+          dragging.moved = true;
+          const next = constrainFloorPosition(
+            layout,
+            dragging.original.x + ground.x - dragging.point.x,
+            dragging.original.z + ground.z - dragging.point.z,
+          );
+          objects.get(dragging.ref)?.position.set(next.x, 0, next.z);
+          updateConnections();
+          e.preventDefault();
+        } else if (!pointers.size) {
+          setRay(e);
+          const ref = panModifier ? undefined : picked();
+          renderer.domElement.dataset.grabTarget = ref ?? "floor";
+          renderer.domElement.title = ref
+            ? `Grab ${layout.placements.find((p) => p.item.ref === ref)?.item.name ?? "equipment"}`
+            : "Grab to move the floor";
+        }
       };
       const up = (e: PointerEvent) => {
+        pointers.delete(e.pointerId);
         const began = start;
         start = undefined;
-        renderer.domElement.style.cursor =
-          mode.current === "item" ? "move" : "grab";
         if (dragging && dragging.pointerId === e.pointerId) {
           const ended = dragging;
           dragging = undefined;
-          if (renderer.domElement.hasPointerCapture(e.pointerId))
-            renderer.domElement.releasePointerCapture(e.pointerId);
+          unlockView();
           const position = objects.get(ended.ref)?.position;
-          if (position && position.distanceTo(ended.original) > 0.001)
+          if (
+            ended.moved &&
+            position &&
+            position.distanceTo(ended.original) > 0.001
+          )
             move.current(ended.ref, position.x, position.z);
-          choose.current(ended.ref);
-          return;
+          choose.current(ended.ref, !ended.moved);
+        } else if (
+          began?.select &&
+          began.pointerId === e.pointerId &&
+          Math.hypot(e.clientX - began.x, e.clientY - began.y) <= 6
+        ) {
+          setRay(e);
+          const ref = picked();
+          if (ref) choose.current(ref);
         }
-        if (mode.current === "pan") return;
-        if (
-          !began ||
-          began.pointerId !== e.pointerId ||
-          Math.hypot(e.clientX - began.x, e.clientY - began.y) > 6
-        )
-          return;
-        setRay(e);
-        const ref = picked();
-        if (ref) choose.current(ref);
+        hand();
       };
-      const cancel = () => {
-        start = undefined;
-        if (dragging) {
-          objects.get(dragging.ref)?.position.copy(dragging.original);
-          const id = dragging.pointerId;
-          dragging = undefined;
-          if (renderer.domElement.hasPointerCapture(id))
-            renderer.domElement.releasePointerCapture(id);
-          updateConnections();
+      const pointerCancel = (e: PointerEvent) => {
+        pointers.delete(e.pointerId);
+        cancel();
+      };
+      const blur = () => {
+        pointers.clear();
+        panModifier = false;
+        cancel();
+        controls.disconnect();
+        controls.connect(renderer.domElement);
+        controls.cursorStyle = "grab";
+      };
+      const spaceDown = (e: KeyboardEvent) => {
+        const target = e.target;
+        if (
+          e.code === "Space" &&
+          renderer.domElement.matches(":hover") &&
+          !(
+            target instanceof HTMLElement &&
+            (target.isContentEditable ||
+              ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+          )
+        ) {
+          e.preventDefault();
+          panModifier = true;
         }
-        renderer.domElement.style.cursor =
-          mode.current === "item" ? "move" : "grab";
+      };
+      const keyUp = (e: KeyboardEvent) => {
+        if (e.code === "Space") panModifier = false;
       };
       const keyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape" && dragging) {
+        if (e.code === "Space") {
           e.preventDefault();
-          cancel();
+          panModifier = true;
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          if (dragging) cancel();
+          else choose.current("");
           return;
         }
         if (
-          mode.current !== "item" ||
-          !selection.current ||
-          !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)
+          !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+            e.key,
+          ) ||
+          dragging
         )
           return;
-        const object = objects.get(selection.current);
-        if (!object) return;
         e.preventDefault();
         const direction = new THREE.Vector3();
         camera.getWorldDirection(direction);
@@ -691,21 +796,31 @@ export default function FactoryFloorScene({
                 ? direction
                 : direction.multiplyScalar(-1)
         ).multiplyScalar(e.shiftKey ? 2 : 0.5);
-        const next = constrainFloorPosition(
-          layout,
-          object.position.x + offset.x,
-          object.position.z + offset.z,
-        );
-        object.position.set(next.x, 0, next.z);
-        updateConnections();
-        move.current(selection.current, next.x, next.z);
+        const object = selection.current && objects.get(selection.current);
+        if (object) {
+          const next = constrainFloorPosition(
+            layout,
+            object.position.x + offset.x,
+            object.position.z + offset.z,
+          );
+          object.position.set(next.x, 0, next.z);
+          updateConnections();
+          move.current(selection.current!, next.x, next.z);
+        } else {
+          camera.position.add(offset);
+          controls.target.add(offset);
+          controls.update();
+        }
       };
-      renderer.domElement.addEventListener("pointercancel", cancel);
+      renderer.domElement.addEventListener("pointercancel", pointerCancel);
+      renderer.domElement.addEventListener("lostpointercapture", pointerCancel);
       renderer.domElement.addEventListener("pointermove", pointerMove);
       renderer.domElement.addEventListener("keydown", keyDown);
-      renderer.domElement.addEventListener("pointerdown", down);
-      renderer.domElement.addEventListener("pointerup", up);
-      runtime.current.interaction(mode.current);
+      renderer.domElement.addEventListener("pointerdown", down, true);
+      renderer.domElement.addEventListener("pointerup", up, true);
+      window.addEventListener("keydown", spaceDown);
+      window.addEventListener("keyup", keyUp);
+      window.addEventListener("blur", blur);
       const lost = (event: Event) => {
         event.preventDefault();
         cancelAnimationFrame(frame);
@@ -733,11 +848,18 @@ export default function FactoryFloorScene({
         observer.disconnect();
         controls.dispose();
         runtime.current = null;
-        renderer.domElement.removeEventListener("pointercancel", cancel);
+        renderer.domElement.removeEventListener("pointercancel", pointerCancel);
+        renderer.domElement.removeEventListener(
+          "lostpointercapture",
+          pointerCancel,
+        );
+        window.removeEventListener("keydown", spaceDown);
+        window.removeEventListener("keyup", keyUp);
+        window.removeEventListener("blur", blur);
         renderer.domElement.removeEventListener("pointermove", pointerMove);
         renderer.domElement.removeEventListener("keydown", keyDown);
-        renderer.domElement.removeEventListener("pointerdown", down);
-        renderer.domElement.removeEventListener("pointerup", up);
+        renderer.domElement.removeEventListener("pointerdown", down, true);
+        renderer.domElement.removeEventListener("pointerup", up, true);
         renderer.domElement.removeEventListener("webglcontextlost", lost);
         // Disposing GPU resources preserves the cached CPU references for reuse.
         retired.forEach(disposeObject);
@@ -764,9 +886,6 @@ export default function FactoryFloorScene({
   useEffect(() => {
     runtime.current?.reset();
   }, [reset, zone]);
-  useEffect(() => {
-    runtime.current?.interaction(interaction);
-  }, [interaction]);
   return (
     <div className="relative h-full w-full">
       <div ref={host} className={`h-full w-full ${failed ? "hidden" : ""}`} />
@@ -777,7 +896,6 @@ export default function FactoryFloorScene({
             links={links}
             selected={selected}
             onSelect={onSelect}
-            interaction={interaction}
             onMove={onMove}
             reset={reset}
           />
@@ -790,13 +908,6 @@ export default function FactoryFloorScene({
         </>
       ) : (
         <>
-          <span className="pointer-events-none absolute right-3 top-3 rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground">
-            {interaction === "pan"
-              ? "Drag to move the floor · scroll to zoom"
-              : interaction === "item"
-                ? "Drag an item to move it"
-                : "Drag to orbit · scroll to zoom"}
-          </span>
           <span
             className="pointer-events-none absolute top-3 left-3 rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground"
             role="status"

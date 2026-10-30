@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
-import { Plus, Save, Download, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Save,
+  Download,
+  Trash2,
+  CopyPlus,
+  LayoutTemplate,
+  ArrowLeft,
+} from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
@@ -334,36 +342,45 @@ function FactoryLayoutsEditor() {
       />
       <div className="flex flex-wrap items-center gap-2">
         <Button
+          aria-label="New layout"
+          title="New layout"
           onClick={() => {
             if (hasDraftRoom()) activate(fresh());
           }}
         >
           <Plus className="mr-2 size-4" />
-          New layout
+          New
         </Button>
         <Button
           variant="outline"
+          size="icon"
+          aria-label="Use current factory arrangement"
+          title="Use current factory arrangement"
           onClick={() => {
             update(layoutFromInventory(items));
             setSelected(null);
           }}
         >
-          Use current factory arrangement
+          <LayoutTemplate className="size-4" />
         </Button>
         <Button
+          aria-label={demo ? "Save demo layout" : "Save layout"}
+          title={
+            demo ? "Save layout in this browser" : "Save layout to your account"
+          }
+          aria-busy={save.isPending}
           onClick={persist}
           disabled={save.isPending || opening || !valid.success}
         >
           <Save className="mr-2 size-4" />
-          {save.isPending
-            ? "Saving…"
-            : demo
-              ? "Save demo layout"
-              : "Save layout"}
+          {save.isPending ? "Saving…" : "Save"}
         </Button>
         {!demo && draft.sourceId && (
           <Button
             variant="outline"
+            size="icon"
+            aria-label="Save as new layout"
+            title="Save as new layout"
             onClick={() => {
               if (hasDraftRoom())
                 activate({
@@ -374,15 +391,23 @@ function FactoryLayoutsEditor() {
                 });
             }}
           >
-            Save as new layout
+            <CopyPlus className="size-4" />
           </Button>
         )}
-        <Button variant="outline" onClick={download} disabled={!valid.success}>
-          <Download className="mr-2 size-4" />
-          Download layout
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Download layout"
+          title="Download layout"
+          onClick={download}
+          disabled={!valid.success}
+        >
+          <Download className="size-4" />
         </Button>
-        <Button asChild variant="ghost">
-          <Link href="/">Factory overview</Link>
+        <Button asChild variant="ghost" size="icon">
+          <Link href="/" aria-label="Factory overview" title="Factory overview">
+            <ArrowLeft className="size-4" />
+          </Link>
         </Button>
       </div>
       <p className="rounded-md border bg-muted/30 p-3 text-sm">
@@ -784,8 +809,8 @@ function FactoryLayoutsEditor() {
             />
           )}
           <p className="text-xs text-muted-foreground">
-            Use Move floor to reposition the view. Use Move item to drag
-            equipment; its connection lines follow. Floor size and zones
+            Grab equipment to move it; its connection lines follow. Grab empty
+            floor to move the view, and release to drop. Floor size and zones
             describe this drawing, while source records retain their original
             identities and evidence.
           </p>

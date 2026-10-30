@@ -353,3 +353,248 @@ test("placing and selecting equipment in the editor keeps the floor in view", as
     ),
   ).toBe(true);
 });
+
+async function grabFixture(page: Page, plan = false) {
+  await fixture(page);
+  await page
+    .getByRole("button", { name: "Place Review pump (asset)", exact: true })
+    .click();
+  if (plan)
+    await page.getByRole("button", { name: "Floor plan", exact: true }).click();
+  const canvas = page.getByRole("img", {
+    name: plan
+      ? "Accessible factory floor plan"
+      : "Interactive 3D factory floor",
+    exact: true,
+  });
+  await expect(canvas).toBeVisible();
+  await expect(canvas).toHaveAttribute("data-interaction", "grab");
+  await expect(
+    page.getByRole("group", { name: "Floor interaction", exact: true }),
+  ).toHaveCount(0);
+  await canvas.scrollIntoViewIfNeeded();
+  await canvas.hover({ position: { x: 15, y: 15 } });
+  const bounds = (await canvas.boundingBox())!;
+  const item = {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2 - 10,
+  };
+  const placement = async () =>
+    (await readDrafts(page))[0].document.placements[0];
+  return { canvas, bounds, item, placement };
+}
+
+test("3D hand grabs empty floor or equipment directly; camera stays fixed during item movement", async ({
+  page,
+}) => {
+  const { canvas, bounds, item, placement } = await grabFixture(page);
+  await expect(canvas).toHaveCSS("cursor", "grab");
+  const original = await placement(),
+    camera = await canvas.getAttribute("data-camera-view");
+  await page.mouse.move(
+    bounds.x + bounds.width * 0.5,
+    bounds.y + bounds.height * 0.7,
+  );
+  await page.mouse.down();
+  await expect(canvas).toHaveCSS("cursor", "grabbing");
+  await expect(canvas).toHaveAttribute("data-grab-state", "floor");
+  await page.mouse.move(
+    bounds.x + bounds.width * 0.65,
+    bounds.y + bounds.height * 0.8,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(canvas).toHaveCSS("cursor", "grab");
+  await expect
+    .poll(() => canvas.getAttribute("data-camera-view"))
+    .not.toBe(camera);
+  expect(await placement()).toEqual(original);
+  await page
+    .getByRole("button", { name: "Fit whole factory floor", exact: true })
+    .click();
+  await canvas.scrollIntoViewIfNeeded();
+  await page.mouse.move(item.x, item.y);
+  await expect(canvas).toHaveAttribute("data-grab-target", "asset:1");
+  await page.keyboard.down("Space");
+  const beforeSpace = await canvas.getAttribute("data-camera-view");
+  await page.mouse.down();
+  await expect(canvas).toHaveAttribute("data-grab-state", "floor");
+  await page.mouse.move(item.x + 45, item.y + 25, { steps: 8 });
+  await page.mouse.up();
+  await page.keyboard.up("Space");
+  await expect
+    .poll(() => canvas.getAttribute("data-camera-view"))
+    .not.toBe(beforeSpace);
+  expect(await placement()).toEqual(original);
+  await page
+    .getByRole("button", { name: "Fit whole factory floor", exact: true })
+    .click();
+  await page.mouse.move(item.x, item.y);
+  const fixedCamera = await canvas.getAttribute("data-camera-view");
+  await page.mouse.down();
+  await expect(canvas).toHaveAttribute("data-grab-state", "item");
+  await expect(canvas).toHaveCSS("cursor", "grabbing");
+  await page.mouse.move(item.x + 60, item.y + 25, { steps: 8 });
+  expect(await placement()).toEqual(original); // Only dropping commits a layout edit.
+  expect(await canvas.getAttribute("data-camera-view")).toBe(fixedCamera);
+  await page.mouse.up();
+  await expect.poll(placement).not.toEqual(original);
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  const moved = await placement();
+  await canvas.press("ArrowRight");
+  await expect.poll(placement).not.toEqual(moved);
+  expect(await canvas.getAttribute("data-camera-view")).toBe(fixedCamera);
+  const beforeRotate = await canvas.getAttribute("data-camera-view"),
+    beforeView = await placement();
+  await page.mouse.move(item.x, item.y);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(item.x + 60, item.y + 25, { steps: 8 });
+  await page.mouse.up({ button: "right" });
+  await expect
+    .poll(() => canvas.getAttribute("data-camera-view"))
+    .not.toBe(beforeRotate);
+  const zoom = JSON.parse(
+    (await canvas.getAttribute("data-camera-view"))!,
+  ).zoom;
+  await page.mouse.wheel(0, -180);
+  await expect
+    .poll(
+      async () =>
+        JSON.parse((await canvas.getAttribute("data-camera-view"))!).zoom,
+    )
+    .toBeGreaterThan(zoom);
+  expect(await placement()).toEqual(beforeView);
+  await page
+    .getByLabel("Layout name", { exact: true })
+    .fill("Direct grab factory");
+  await page
+    .getByRole("button", { name: "Fit whole factory floor", exact: true })
+    .click();
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/desktop.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Fit whole factory floor", exact: true })
+    .click();
+  await page.screenshot({
+    path: "test-results/direct-floor-grab/mobile.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+});
+
+test("3D grabs cancel safely and release outside the canvas; a pinch never moves equipment", async ({
+  page,
+  context,
+}) => {
+  const { canvas, bounds, item, placement } = await grabFixture(page);
+  const original = await placement();
+  await page.mouse.move(item.x, item.y);
+  await page.mouse.down();
+  await page.mouse.move(item.x + 35, item.y + 15, { steps: 6 });
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  expect(await placement()).toEqual(original);
+  await expect(canvas).toHaveCSS("cursor", "grab");
+  await page.mouse.move(item.x, item.y);
+  await page.mouse.down();
+  await page.mouse.move(item.x + 20, item.y + 15, { steps: 6 });
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await page.mouse.up();
+  expect(await placement()).toEqual(original);
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  const cdp = await context.newCDPSession(page);
+  const touch = (id: number, x: number, y: number) => ({
+    id,
+    x,
+    y,
+    radiusX: 2,
+    radiusY: 2,
+    force: 1,
+  });
+  const camera = await canvas.getAttribute("data-camera-view");
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [touch(1, item.x, item.y)],
+  });
+  await expect(canvas).toHaveAttribute("data-grab-state", "item");
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [touch(1, item.x, item.y), touch(2, item.x + 60, item.y)],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [touch(1, item.x - 30, item.y), touch(2, item.x + 90, item.y)],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await expect
+    .poll(() => canvas.getAttribute("data-camera-view"))
+    .not.toBe(camera);
+  expect(await placement()).toEqual(original);
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  await page
+    .getByRole("button", { name: "Fit whole factory floor", exact: true })
+    .click();
+  await page.mouse.move(item.x, item.y);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x - 25, bounds.y + bounds.height / 2, {
+    steps: 10,
+  });
+  await page.mouse.up();
+  await expect.poll(placement).not.toEqual(original);
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  await expect(canvas).toHaveCSS("cursor", "grab");
+});
+
+test("floor-plan fallback uses the same hand gesture and preserves cancelled edits", async ({
+  page,
+}) => {
+  const { canvas, bounds, placement } = await grabFixture(page, true);
+  const original = await placement(),
+    view = await canvas.getAttribute("viewBox");
+  await page.mouse.move(bounds.x + 30, bounds.y + 30);
+  await page.mouse.down();
+  await expect(canvas).toHaveCSS("cursor", "grabbing");
+  await page.mouse.move(bounds.x + 80, bounds.y + 50, { steps: 8 });
+  await page.mouse.up();
+  await expect(canvas).not.toHaveAttribute("viewBox", view!);
+  expect(await placement()).toEqual(original);
+  const symbol = canvas.locator('[data-floor-ref="asset:1"]');
+  await symbol.hover();
+  await expect(symbol).toHaveCSS("cursor", "grab");
+  const box = (await symbol.boundingBox())!;
+  const fixed = await canvas.getAttribute("viewBox");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(canvas).toHaveAttribute("data-grab-state", "item");
+  await page.mouse.move(
+    box.x + box.width / 2 + 40,
+    box.y + box.height / 2 + 15,
+    { steps: 8 },
+  );
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  expect(await placement()).toEqual(original);
+  await symbol.hover();
+  const b = (await symbol.boundingBox())!;
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + 40, b.y + b.height / 2 + 15, {
+    steps: 8,
+  });
+  await page.mouse.up();
+  await expect.poll(placement).not.toEqual(original);
+  await expect(canvas).toHaveAttribute("viewBox", fixed!);
+  await expect(canvas).toHaveCSS("cursor", "grab");
+});

@@ -274,8 +274,7 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
   });
   await expect(canvas).toBeVisible();
   await expect(canvas).toHaveAttribute("data-camera-view", /.+/);
-  await page.getByRole("button", { name: "Move floor", exact: true }).click();
-  await expect(canvas).toHaveAttribute("data-interaction", "pan");
+  await expect(canvas).toHaveAttribute("data-interaction", "grab");
   await canvas.scrollIntoViewIfNeeded();
   await canvas.hover({ position: { x: 20, y: 20 } });
   const before = await canvas.getAttribute("data-camera-view"),
@@ -292,7 +291,6 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
   await page
     .getByRole("button", { name: "Fit whole factory floor", exact: true })
     .click();
-  await page.getByRole("button", { name: "Move item", exact: true }).click();
   const readPlacement = () =>
     page.evaluate(
       () =>
@@ -302,7 +300,7 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
     );
   const placement = await readPlacement();
   const fixedCamera = await canvas.getAttribute("data-camera-view");
-  await expect(canvas).toHaveAttribute("data-interaction", "item");
+  await expect(canvas).toHaveAttribute("data-interaction", "grab");
   await canvas.scrollIntoViewIfNeeded();
   await canvas.hover({ position: { x: 20, y: 20 } });
   const bounds = (await canvas.boundingBox())!;
@@ -320,7 +318,6 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
   await expect.poll(readPlacement).not.toEqual(placement);
   expect(await canvas.getAttribute("data-camera-view")).toBe(fixedCamera);
   await page.getByRole("button", { name: "Floor plan", exact: true }).click();
-  await page.getByRole("button", { name: "Move item", exact: true }).click();
   const symbol = page.locator("[data-floor-ref]").first();
   const geometry = symbol.locator(":scope > g[transform]").first();
   const transform = await geometry.getAttribute("transform");

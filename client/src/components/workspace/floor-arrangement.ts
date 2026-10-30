@@ -1,7 +1,7 @@
 import type { layoutFactory } from "@shared/factory-floor";
 
 export type FloorLayout = ReturnType<typeof layoutFactory>;
-export type FloorInteraction = "orbit" | "pan" | "item";
+export type FloorSelect = (ref: string, revealDetails?: boolean) => void;
 export type FloorMove = (ref: string, x: number, z: number) => void;
 export type FloorOffsets = Record<string, { x: number; z: number }>;
 
