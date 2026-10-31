@@ -119,7 +119,7 @@ export function FactoryConnectionEditor({ links, layout, controller }: {
           Illustrative routing, not surveyed pipework or verified wiring. Appearance is saved in this browser for this account and factory/layout; it does not change operational connections or floor-plan lines. Routes are not collision-checked.
         </p>
         {controller.error && <p role="alert" className="text-xs text-destructive">{controller.error}</p>}
-        {controller.blocked && <Button size="sm" variant="outline" onClick={controller.resetUnreadable}>Reset unreadable 3D routing</Button>}
+        {controller.blocked && <Button size="sm" variant="outline" aria-label="Reset unreadable 3D routing" onClick={controller.resetUnreadable}>Reset unreadable 3D routing</Button>}
         <label className="block text-xs text-muted-foreground">
           Connection
           <select aria-label="3D connection" className="workspace-control mt-1 w-full" value={id}
@@ -175,14 +175,14 @@ export function FactoryConnectionEditor({ links, layout, controller }: {
                 <Button size="icon" variant="ghost" aria-label={`Remove point ${index + 1}`} onClick={() => set({ points: appearance.points.filter((_, i) => i !== index) })}><Trash2 className="size-4" /></Button>
               </div>
             </div>)}
-            <Button size="sm" variant="outline" disabled={appearance.points.length >= MAX_ROUTE_POINTS} onClick={() => {
+            <Button size="sm" variant="outline" aria-label="Add bend point" disabled={appearance.points.length >= MAX_ROUTE_POINTS} onClick={() => {
               const from = layout.placements.find((p) => p.item.ref === link.from)!;
               const to = layout.placements.find((p) => p.item.ref === link.to)!;
               const previous = appearance.points.at(-1) ?? { x: from.x, z: from.z };
               set({ points: [...appearance.points, { x: (previous.x + to.x) / 2, y: appearance.height, z: (previous.z + to.z) / 2 }] });
             }}><Plus className="mr-1 size-4" />Add bend point</Button>
           </div>}
-          <Button size="sm" variant="outline" onClick={() => controller.reset(link)}>Reset this route</Button>
+          <Button size="sm" variant="outline" aria-label="Reset this route" onClick={() => controller.reset(link)}>Reset this route</Button>
         </fieldset>
       </div>
     </details>
