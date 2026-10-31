@@ -353,7 +353,7 @@ function DashboardLayoutContent({
       >
         Skip to main content
       </a>
-      <div className="relative" ref={sidebarRef}>
+      <div className="relative dark" ref={sidebarRef}>
         <Sidebar
           aria-label="Primary navigation"
           role="navigation"
@@ -443,7 +443,7 @@ function DashboardLayoutContent({
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="dark w-48" data-theme-scope="fixed-dark">
                 {!user?.access?.demoOnly && (
                   <DropdownMenuItem asChild>
                     <Link href="/account/password">Change password</Link>

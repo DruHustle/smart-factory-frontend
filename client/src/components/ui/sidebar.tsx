@@ -170,12 +170,14 @@ function Sidebar({
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
+  // Navigation is a local dark surface; never change the document's saved theme.
   if (collapsible === "none") {
     return (
       <div
         data-slot="sidebar"
+        data-theme-scope="fixed-dark"
         className={cn(
-          "bg-sidebar text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col",
+          "dark bg-sidebar text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col",
           className,
         )}
         {...props}
@@ -192,6 +194,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
+          data-theme-scope="fixed-dark"
           onCloseAutoFocus={(event) => {
             onMobileCloseAutoFocus?.(event);
             if (event.defaultPrevented) return;
@@ -200,7 +203,7 @@ function Sidebar({
               .querySelector<HTMLButtonElement>('[data-sidebar="trigger"]')
               ?.focus();
           }}
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className="dark bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -220,7 +223,8 @@ function Sidebar({
 
   return (
     <div
-      className="group peer text-sidebar-foreground hidden md:block"
+      className="dark group peer text-sidebar-foreground hidden md:block"
+      data-theme-scope="fixed-dark"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-variant={variant}
@@ -559,6 +563,7 @@ function SidebarMenuButton({
         align="center"
         hidden={state !== "collapsed" || isMobile}
         {...tooltip}
+        className={cn("dark", tooltip.className)}
       />
     </Tooltip>
   );
