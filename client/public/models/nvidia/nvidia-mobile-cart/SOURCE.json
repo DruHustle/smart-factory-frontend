@@ -1,0 +1,291 @@
+{
+  "dataset": "nvidia/simready-assets",
+  "revision": "4763fbfaa4f8e97658e68b57d01b4c86659e08b5",
+  "packagingSha256": "77b6407a516e598bd2656f313adbd2a9996d8667c837bdc0ce89b14de1b0ae20",
+  "license": "CC-BY-4.0",
+  "files": [
+    {
+      "path": "cart_mobile_e01/.metadata/LICENSE.txt",
+      "bytes": 18657,
+      "sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411"
+    },
+    {
+      "path": "cart_mobile_e01/.metadata/com.nvidia.simready.conformance.Package-Candidate@1.0.0.json",
+      "bytes": 883,
+      "sha256": "3ba592be8f679fd71e48ba1fffddbeb461887beb5531f80f182dfc88f7a0b757"
+    },
+    {
+      "path": "cart_mobile_e01/.metadata/com.nvidia.simready.conformance.Package@1.0.0.json",
+      "bytes": 763,
+      "sha256": "1e85b974b067c05a8dec910ed452ba40c65b1ea40ea34c2948dafbb5108692d5"
+    },
+    {
+      "path": "cart_mobile_e01/.metadata/com.nvidia.simready.packaging.bom.json",
+      "bytes": 13949,
+      "sha256": "5cc1bd2075dcb8653a8780e8b266ec517fabc3d42ee637344026c2bfc41a7ca2"
+    },
+    {
+      "path": "cart_mobile_e01/.metadata/com.nvidia.simready.root_usds.json",
+      "bytes": 95,
+      "sha256": "7ea9f7d00d689c278a661792e869309f73d1ccda16f4206c62fa65e16882f116"
+    },
+    {
+      "path": "cart_mobile_e01/com.nvidia.simready.packaging.json",
+      "bytes": 560,
+      "sha256": "77b6407a516e598bd2656f313adbd2a9996d8667c837bdc0ce89b14de1b0ae20"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_metal_aluminiumBrushed_a01_tile_alb.png",
+      "bytes": 3444684,
+      "sha256": "27f7cbc9e584a808e47bfc1fe8101f4f061f44da67de2d457e49ef83525d8892"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_metal_aluminiumBrushed_a01_tile_nor.png",
+      "bytes": 2273010,
+      "sha256": "c3f57cd1107cebd878ad0e374a2e59b4fc0ce4e7e981bc47a312dc2dd793adf7"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_metal_aluminiumBrushed_a01_tile_orm.png",
+      "bytes": 2074427,
+      "sha256": "66178e5699df07bf2a140dfa9b22335204d07496af39734d9c2cdd75e8adc405"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_metal_aluminiumBrushed_c01_tile_alb.png",
+      "bytes": 596449,
+      "sha256": "18619c5c3e45d8451b0352914b8feb1a1047e2fa064dea5a1c32e66756fec15d"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_metal_aluminiumBrushed_c01_tile_nor.png",
+      "bytes": 7515230,
+      "sha256": "9148f81b66e36d30c7f38e0bd8f22040060b388113eda0bc284bc01010a33933"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_metal_aluminiumBrushed_c01_tile_orm.png",
+      "bytes": 11174181,
+      "sha256": "01b1363cb89b9447b533ed38e22067fb3a69f7325051d1a9cb0dd7b0d5c0dc46"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_plastic_fiberglassGlossy_white_a01_tile_alb.png",
+      "bytes": 9301167,
+      "sha256": "0c4781844990a3a68bd27c5d607ea92745cf35becd937d652373e0fdb26232b3"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_plastic_fiberglassGlossy_white_a01_tile_nor.png",
+      "bytes": 15318185,
+      "sha256": "44b186ba054ba9eb746d31d09d23905ca2f77b87c3b54acc597d5b5b8d5fab7e"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_plastic_fiberglassGlossy_white_a01_tile_orm.png",
+      "bytes": 16715448,
+      "sha256": "c3235eca1aa708814fa076d627a01cc02e34f187c651258601e3867bc5c8576e"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_plastic_gray_a01_tile_nor.png",
+      "bytes": 21099024,
+      "sha256": "51c9e8aa2c9293233131d203792b5c4432375d9930657c09d723311fd38d5f62"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_plastic_gray_a01_tile_orm.png",
+      "bytes": 13452682,
+      "sha256": "8f2fecd0faff1f28426d6402944290f96b0302969582ff6fc4fc312b6de20b11"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_rubber_glossy_black_a01_tile_alb.png",
+      "bytes": 11969165,
+      "sha256": "747fdfb0184e6b15f41f97e13f8d2befa3fc6e043d300221601abb8c5d3a235f"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_rubber_glossy_black_a01_tile_nor.png",
+      "bytes": 8688651,
+      "sha256": "8e3e8e904c19d77a070953b8712d22a532b2d25c95dc2fa755884337d1dfc4a0"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/Textures/t_rubber_glossy_black_a01_tile_orm.png",
+      "bytes": 18410263,
+      "sha256": "380c45c7a96f18c5778cbe9dd5dd07c2ef095a6ef43489058d91936a9af8d9cd"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/MuJoCo/disabled.usda",
+      "bytes": 4190,
+      "sha256": "414e95f0036526646cb0c3b594b554d04e7600679dc5750201fab23578294445"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/MuJoCo/enabled.usda",
+      "bytes": 8058,
+      "sha256": "c9757f7da36b7ed85dc8efaff7ac169b62214cb75bf5f18a5294dd09d6c8dd23"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/Newton/disabled.usda",
+      "bytes": 4190,
+      "sha256": "414e95f0036526646cb0c3b594b554d04e7600679dc5750201fab23578294445"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/Newton/enabled.usda",
+      "bytes": 7153,
+      "sha256": "1f9ed8d48d3a8d7b637616d5c0629b4f732884b797e14c7dd2614a111cb66109"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/PhysX/disabled.usda",
+      "bytes": 4190,
+      "sha256": "414e95f0036526646cb0c3b594b554d04e7600679dc5750201fab23578294445"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/PhysX/enabled.usda",
+      "bytes": 5854,
+      "sha256": "55eb2c4e053750f662d9f195fab9e2b7dc10d6f262768c89478a8aad2ad5d78f"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/Physics/physics.usda",
+      "bytes": 13559,
+      "sha256": "2c99111b305265d652fe13c0842846436924d84733028f97388f3d771ea1b4d5"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/base.usda",
+      "bytes": 28768,
+      "sha256": "e983e62ea351a5bd52ab78f7f3a4f61fc104efcb8b9793c548ad84707730ad73"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/geometries.usd",
+      "bytes": 10718646,
+      "sha256": "98364b334a431a94547c55c8301e63c682b4690d017a22d499ec32b5de692980"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/instances.usda",
+      "bytes": 22089,
+      "sha256": "80e201017c3f50b2965c7ac0c37e159d055c0f1e38f8a9c65607db58e974d674"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/instances_mujoco.usda",
+      "bytes": 24537,
+      "sha256": "af4f9bf2f5208531889751b79c080c37e866a9372a3fc0f08360b049e4ad9de1"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/instances_newton.usda",
+      "bytes": 23196,
+      "sha256": "a9d4d4a75f2a3b363fe8988376229aec7173b94e5e98ed562481e741f940966b"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/instances_physx.usda",
+      "bytes": 23349,
+      "sha256": "3210c0630e85da2ab4e34452c5b0b15f8619f6bdbd97ca464eb5b7cf595eec67"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/payloads/materials.usda",
+      "bytes": 32800,
+      "sha256": "9c6d18e0d0771c11440215387dced7ab6410ceb7913176685690059deeeaf47c"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/sm_cart_mobile_e01_01.usd",
+      "bytes": 21428,
+      "sha256": "bda00d3df1dd3459f6f7908aec83b08941115eff47512b4840b6806c174bc00e"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/OmniPBR.mdl",
+      "bytes": 16010,
+      "sha256": "6e6b3acbccd236e21a6c29964a431d2a53e77251cc6b8b1bc975eb1c62da1781"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/OmniPBRBase.mdl",
+      "bytes": 19369,
+      "sha256": "a8fd9fe174e91892e94d06da90ba453a124024c2ce2c033be9d82c9e2f76a3b7"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/OmniPBR_ClearCoat.mdl",
+      "bytes": 29789,
+      "sha256": "d84c5ba482561c0eaea2e0c5b607358af549e36cd921773462f92dbc4f32cbc3"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_metal_aluminiumBrushed_a01_tile_alb.png",
+      "bytes": 3444684,
+      "sha256": "27f7cbc9e584a808e47bfc1fe8101f4f061f44da67de2d457e49ef83525d8892"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_metal_aluminiumBrushed_a01_tile_nor.png",
+      "bytes": 2273010,
+      "sha256": "c3f57cd1107cebd878ad0e374a2e59b4fc0ce4e7e981bc47a312dc2dd793adf7"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_metal_aluminiumBrushed_a01_tile_orm.png",
+      "bytes": 2074427,
+      "sha256": "66178e5699df07bf2a140dfa9b22335204d07496af39734d9c2cdd75e8adc405"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_metal_aluminiumBrushed_c01_tile_alb.png",
+      "bytes": 596449,
+      "sha256": "18619c5c3e45d8451b0352914b8feb1a1047e2fa064dea5a1c32e66756fec15d"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_metal_aluminiumBrushed_c01_tile_nor.png",
+      "bytes": 7515230,
+      "sha256": "9148f81b66e36d30c7f38e0bd8f22040060b388113eda0bc284bc01010a33933"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_metal_aluminiumBrushed_c01_tile_orm.png",
+      "bytes": 11174181,
+      "sha256": "01b1363cb89b9447b533ed38e22067fb3a69f7325051d1a9cb0dd7b0d5c0dc46"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_plastic_fiberglassGlossy_white_a01_tile_alb.png",
+      "bytes": 9301167,
+      "sha256": "0c4781844990a3a68bd27c5d607ea92745cf35becd937d652373e0fdb26232b3"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_plastic_fiberglassGlossy_white_a01_tile_nor.png",
+      "bytes": 15318185,
+      "sha256": "44b186ba054ba9eb746d31d09d23905ca2f77b87c3b54acc597d5b5b8d5fab7e"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_plastic_fiberglassGlossy_white_a01_tile_orm.png",
+      "bytes": 16715448,
+      "sha256": "c3235eca1aa708814fa076d627a01cc02e34f187c651258601e3867bc5c8576e"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_plastic_gray_a01_tile_nor.png",
+      "bytes": 21099024,
+      "sha256": "51c9e8aa2c9293233131d203792b5c4432375d9930657c09d723311fd38d5f62"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_plastic_gray_a01_tile_orm.png",
+      "bytes": 13452682,
+      "sha256": "8f2fecd0faff1f28426d6402944290f96b0302969582ff6fc4fc312b6de20b11"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_rubber_glossy_black_a01_tile_alb.png",
+      "bytes": 11969165,
+      "sha256": "747fdfb0184e6b15f41f97e13f8d2befa3fc6e043d300221601abb8c5d3a235f"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_rubber_glossy_black_a01_tile_nor.png",
+      "bytes": 8688651,
+      "sha256": "8e3e8e904c19d77a070953b8712d22a532b2d25c95dc2fa755884337d1dfc4a0"
+    },
+    {
+      "path": "cart_mobile_e01/simready_usd/source_assets/t_rubber_glossy_black_a01_tile_orm.png",
+      "bytes": 18410263,
+      "sha256": "380c45c7a96f18c5778cbe9dd5dd07c2ef095a6ef43489058d91936a9af8d9cd"
+    }
+  ],
+  "assetId": "cart_mobile_e01",
+  "entrypoint": "simready_usd/sm_cart_mobile_e01_01.usd",
+  "author": "NVIDIA",
+  "modifiedBy": "Smart Factory (Onesa UG)",
+  "converter": "Blender 4.5.15 LTS",
+  "originalTriangles": 298146,
+  "limitations": [
+    "Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred.",
+    "Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD.",
+    "Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials.",
+    "Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+  ],
+  "sourceObjectPaths": {
+    "part_7adc72ef9ff152de": "/Geometry/body_01_obj_00/body_01_mesh_00",
+    "part_d65b2ce887dc5a11": "/Geometry/tire_01_obj_00/tire_01_mesh_00",
+    "part_c8ab6f6f40ca5dfc": "/Geometry/tire_02_obj_00/tire_02_mesh_00",
+    "part_1bef021ede9e5da3": "/Geometry/tire_03_obj_00/tire_03_mesh_00",
+    "part_41e6f6c7f6485981": "/Geometry/tire_04_obj_00/tire_04_mesh_00",
+    "part_028b9a8de9aa594c": "/Geometry/wheel_01_obj_00/wheel_01_mesh_00",
+    "part_77ed8f6d94895e87": "/Geometry/wheel_02_obj_00/wheel_02_mesh_00",
+    "part_6bc218b3bff454aa": "/Geometry/wheel_03_obj_00/wheel_03_mesh_00",
+    "part_71e5facf0f46533e": "/Geometry/wheel_04_obj_00/wheel_04_mesh_00"
+  }
+}

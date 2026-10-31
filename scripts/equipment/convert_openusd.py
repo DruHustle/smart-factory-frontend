@@ -109,7 +109,7 @@ def convert(asset: dict, config: dict, source_root: Path, public_root: Path) -> 
     result = bpy.ops.wm.usd_import(
         filepath=str(entry), import_cameras=False, import_lights=False,
         import_curves=False, import_volumes=False, import_skeletons=False,
-        import_blendshapes=False, import_subdivision=False,
+        import_blendshapes=False, import_subdiv=False,
         support_scene_instancing=False, import_guide=False, import_proxy=False,
         import_materials=True, import_usd_preview=True,
         apply_unit_conversion_scale=True, merge_parent_xform=False,
