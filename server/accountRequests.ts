@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { accountRequests, users } from "../drizzle/schema";
 import { getDb } from "./db";
 import { isDemoAccount } from "../shared/demo-accounts";
+import { audit } from "./security/store";
 
 async function database() {
   const db = await getDb();
@@ -49,11 +50,15 @@ export async function requestPasswordReset(emailInput: string) {
   const email = normalized(emailInput);
   if (isDemoAccount(email)) return;
   const [user] = await db
-    .select({ id: users.id, disabledAt: users.disabledAt })
+    .select({
+      id: users.id,
+      openId: users.openId,
+      disabledAt: users.disabledAt,
+    })
     .from(users)
     .where(sql`lower(${users.email}) = ${email}`)
     .limit(1);
-  if (!user || user.disabledAt) return;
+  if (!user || user.disabledAt || user.openId.startsWith("demo-")) return;
   await db
     .insert(accountRequests)
     .values({ kind: "password_reset", email })
@@ -78,7 +83,11 @@ export async function pendingAccountRequests() {
     .limit(200);
 }
 
-export async function approveRegistration(id: string, reviewerId: number) {
+export async function approveRegistration(
+  id: string,
+  reviewerId: number,
+  role: "viewer" | "operator" | "engineer" | "admin" = "viewer",
+) {
   const db = await database();
   return db.transaction(async (tx) => {
     const [request] = await tx
@@ -113,9 +122,14 @@ export async function approveRegistration(id: string, reviewerId: number) {
         email: request.email,
         name: request.name,
         password: request.passwordHash!,
-        role: "viewer",
+        role,
       })
-      .returning({ id: users.id, email: users.email, name: users.name });
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+      });
     await tx
       .update(accountRequests)
       .set({
@@ -125,6 +139,11 @@ export async function approveRegistration(id: string, reviewerId: number) {
         reviewedBy: reviewerId,
       })
       .where(eq(accountRequests.id, id));
+    await audit(tx, "account_registration_approved", reviewerId, {
+      requestId: id,
+      userId: user.id,
+      role: user.role,
+    });
     return user;
   });
 }

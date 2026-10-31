@@ -42,6 +42,7 @@ async function fixture(fail = false) {
       changePassword: t.procedure.mutation(checked),
       requestRegistration: t.procedure.mutation(checked),
       requestPasswordReset: t.procedure.mutation(checked),
+      resetPassword: t.procedure.mutation(checked),
     }),
   });
   app.use("/trpc", createExpressMiddleware({ router }));
@@ -61,6 +62,39 @@ async function fixture(fail = false) {
 }
 
 describe("credential throttling at the HTTP tRPC boundary", () => {
+  it("limits reset attempts across IPs without storing the recovery credential", async () => {
+    const { post, checked, record } = await fixture();
+    const token = "a".repeat(43);
+    for (let attempt = 0; attempt < 5; attempt++)
+      expect(
+        (
+          await post(
+            "auth.resetPassword",
+            { json: { token, newPassword: "Synthetic-new-password-2026!" } },
+            `192.0.2.${attempt + 1}`,
+          )
+        ).status,
+      ).toBe(200);
+    expect(
+      (
+        await post(
+          "auth.resetPassword",
+          { json: { token, newPassword: "Synthetic-new-password-2026!" } },
+          "192.0.2.8",
+        )
+      ).status,
+    ).toBe(429);
+    expect(checked).toHaveBeenCalledTimes(5);
+    const tokenHash = createHash("sha256")
+      .update(`reset-token:${token}`)
+      .digest("hex");
+    expect(record.mock.calls.filter(([key]) => key === tokenHash)).toHaveLength(
+      6,
+    );
+    expect(record.mock.calls.every(([key]) => /^[a-f0-9]{64}$/.test(key))).toBe(
+      true,
+    );
+  });
   it("throttles public registration and recovery requests by account", async () => {
     const { post, checked } = await fixture();
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -160,7 +194,11 @@ describe("credential throttling at the HTTP tRPC boundary", () => {
     expect(counts.get(emailHash)).toBe(1);
   });
 
-  it.each(["auth.login,auth.login", "auth%2Elogin%2Cauth.changePassword"])(
+  it.each([
+    "auth.login,auth.login",
+    "auth%2Elogin%2Cauth.changePassword",
+    "auth.resetPassword,auth.login",
+  ])(
     "rejects multiple credential checks in %s before any check executes",
     async (path) => {
       const { post, checked, record } = await fixture();

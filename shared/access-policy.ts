@@ -11,7 +11,7 @@ export type AccountCapabilities = {
 };
 export type DeploymentEnvironment = Record<string, string | undefined>;
 
-/** Existing shared-account deployments retain their stronger private-data guard. */
+/** Deployment flag controls showcase setup and global integration policy. */
 export function publicDemoDeployment(
   env: DeploymentEnvironment = process.env,
 ): boolean {
@@ -29,19 +29,19 @@ export function sharedDemoIdentity(
 
 export function demonstrationOnly(
   user: AccessIdentity | null | undefined,
-  env: DeploymentEnvironment = process.env,
 ): boolean {
-  return publicDemoDeployment(env) || sharedDemoIdentity(user);
+  // A shared demo identity stays isolated even when individual accounts use
+  // the same origin. Anonymous requests never inherit operational visibility.
+  return !user || sharedDemoIdentity(user);
 }
 
 export const DEMONSTRATION_READ_ONLY =
-  "This shared product walkthrough is read-only. Use an individual account on a private installation for operational changes.";
+  "This demonstration view is read-only. Sign in with an approved individual account and select Live data for operational changes.";
 
 export function operationalWritesAllowed(
   user: AccessIdentity | null | undefined,
-  env: DeploymentEnvironment = process.env,
 ): boolean {
-  return !!user && !demonstrationOnly(user, env);
+  return !!user && !demonstrationOnly(user);
 }
 
 /** UI hints mirror the server boundary; clients never grant their own authority. */

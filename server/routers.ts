@@ -86,12 +86,16 @@ import {
 import { wsManager } from "./websocket";
 import {
   requestRegistration,
-  requestPasswordReset,
   pendingAccountRequests,
   approveRegistration,
   dismissAccountRequest,
   completePasswordResetRequests,
 } from "./accountRequests";
+import {
+  issuePasswordReset,
+  passwordResetPolicy,
+  resetPasswordWithToken,
+} from "./passwordRecovery";
 import {
   accountCapabilities,
   demonstrationOnly,
@@ -342,6 +346,7 @@ export const appRouter = router({
   onesa: onesaRouter,
   system: systemRouter,
   auth: router({
+    passwordResetPolicy: publicProcedure.query(() => passwordResetPolicy()),
     registrationPolicy: publicProcedure.query(() => ({
       enabled: true,
       requiresApproval: true,
@@ -370,8 +375,25 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ input }) => {
-        await requestPasswordReset(input.email);
+        await issuePasswordReset(input.email);
         return { submitted: true };
+      }),
+    resetPassword: publicProcedure
+      .input(
+        z
+          .object({
+            token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+            newPassword: newPasswordInput,
+          })
+          .strict(),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const result = await accountAction(() =>
+          resetPasswordWithToken(input.token, input.newPassword),
+        );
+        await wsManager.invalidateUser(result.id);
+        ctx.res.clearCookie(COOKIE_NAME, getSessionCookieOptions(ctx.req));
+        return { reset: true };
       }),
     me: publicProcedure.query(async ({ ctx }) => {
       if (
@@ -1047,9 +1069,20 @@ export const appRouter = router({
     list: adminProcedure.query(() => db.listUsers()),
     pendingRequests: adminProcedure.query(() => pendingAccountRequests()),
     approveRegistration: adminProcedure
-      .input(z.object({ id: z.string().uuid() }))
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          role: z
+            .enum(["viewer", "operator", "engineer", "admin"])
+            .default("viewer"),
+        }),
+      )
       .mutation(async ({ input, ctx }) => {
-        const user = await approveRegistration(input.id, ctx.user.id);
+        const user = await approveRegistration(
+          input.id,
+          ctx.user.id,
+          input.role,
+        );
         await db
           .enqueueWelcomeEmail(user)
           .catch((error) =>
@@ -1062,9 +1095,9 @@ export const appRouter = router({
           "config.changed",
           {
             configRevision: randomUUID(),
-            changedKeys: ["users.approval"],
+            changedKeys: ["users.approval", "users.role"],
           },
-          "An administrator approved an account request.",
+          `An administrator approved an account request with ${user.role} access.`,
         );
         return user;
       }),

@@ -242,4 +242,8 @@ export async function pruneExpiredAccountTokens() {
   await db.execute(
     sql`delete from session_revocations where session_hash in (select session_hash from session_revocations where expires_at<now() order by expires_at limit 1000)`,
   );
+  // Remove expired reset secrets even when the mail worker is unavailable.
+  await db.execute(
+    sql`delete from password_reset_tokens where id in (select id from password_reset_tokens where expires_at<now() order by expires_at limit 1000)`,
+  );
 }

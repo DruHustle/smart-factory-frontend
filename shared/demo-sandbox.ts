@@ -7,6 +7,7 @@ import {
   applyDemoFactoryAction,
   appendDemoFactoryActivity,
 } from "./demo-factories";
+import { buildPiBenchPreset, findPiBenchFactory } from "./pi-bench";
 import { z } from "zod";
 import { canonicalUnits, metrics, type Metric } from "./measurements";
 import type { InventoryItem } from "./inventory";
@@ -254,90 +255,22 @@ export function seedDemoSandbox(
     );
   // This preset represents the observed bench topology. Browser-demo values
   // remain simulated and never read the private operational sensor records.
-  const used = new Set(items.map((i) => i.ref));
-  const newRef = () => {
-    let candidate: string;
-    do {
-      candidate = `device:${(
-        3000000000n +
-        BigInt(`0x${crypto.randomUUID().replaceAll("-", "").slice(-13)}`)
-      ).toString()}`;
-    } while (used.has(candidate));
-    used.add(candidate);
-    return candidate;
-  };
-  const bench =
+  const preset =
     items.length <= 498 &&
     items.some((item) => item.identifier === "smart-factory-public-simulator")
-      ? [
-          sandboxItem.parse({
-            ref: newRef(),
-            identifier: "pi-edge-01",
-            name: "Raspberry Pi 5 gateway",
-            kind: "device",
-            itemType: "gateway",
-            zone: "Hardware bench",
-            model: "Raspberry Pi 5 Model B",
-            manufacturer: "Raspberry Pi",
-            serial: "DEMO-TOPOLOGY",
-          }),
-          sandboxItem.parse({
-            ref: newRef(),
-            identifier: "esp32-wrover-01",
-            name: "ESP32 WROVER + DHT11 sensor",
-            kind: "device",
-            itemType: "edge_device",
-            zone: "Hardware bench",
-            gatewayId: "pi-edge-01",
-            model: "ESP-WROVER-KIT with DHT11",
-            manufacturer: "Espressif",
-            serial: "DEMO-TOPOLOGY",
-          }),
-        ]
-      : [];
-  items.push(...bench);
-  const benchFactory =
-    bench.length === 2
-      ? [
-          {
-            id: crypto.randomUUID(),
-            version: 1,
-            updatedAt: now,
-            draft: {
-              document: {
-                name: "Current Pi + DHT11 setup",
-                width: 4,
-                depth: 4,
-                zones: [],
-                placements: [
-                  {
-                    ref: bench[0].ref,
-                    x: -0.9,
-                    z: 0,
-                    rotation: 0,
-                    zoneId: null,
-                  },
-                  {
-                    ref: bench[1].ref,
-                    x: 0.9,
-                    z: 0,
-                    rotation: 0,
-                    zoneId: null,
-                  },
-                ],
-              },
-              dimensions: {
-                [bench[0].ref]: { width: 0.09, depth: 0.06, height: 0.05 },
-                [bench[1].ref]: { width: 0.18, depth: 0.1, height: 0.06 },
-              },
-              tags: {
-                [bench[0].ref]: "Pi gateway",
-                [bench[1].ref]: "WROVER / DHT11",
-              },
-            },
-          },
-        ]
-      : [];
+      ? buildPiBenchPreset({ items, factories: [], factoryDeletedRefs: [] })
+      : null;
+  if (preset) items.push(...preset.items);
+  const benchFactory = preset
+    ? [
+        {
+          id: crypto.randomUUID(),
+          version: 1,
+          updatedAt: now,
+          draft: preset.draft,
+        },
+      ]
+    : [];
   const samples = inventory
     .filter((i) => items.some((s) => s.ref === i.ref))
     .flatMap((i) =>
@@ -417,6 +350,9 @@ export function applySandboxAction(
     throw Error(
       `This demo action requires ${minimum} access. Switch demo role to try it.`,
     );
+  // Concurrent/repeated requests open the same saved preset without adding history.
+  if (action.type === "factory.addPiBench" && findPiBenchFactory(source))
+    return structuredClone(source);
   const s = structuredClone(source),
     now = new Date().toISOString();
   const item = (id: string) => {
@@ -426,6 +362,7 @@ export function applySandboxAction(
   };
   if (
     action.type === "factory.create" ||
+    action.type === "factory.addPiBench" ||
     action.type === "factory.save" ||
     action.type === "factory.add" ||
     action.type === "factory.attach" ||

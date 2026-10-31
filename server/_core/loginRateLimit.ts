@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import type { RequestHandler } from "express";
 import { recordLoginAttempt, pruneExpiredLoginAttempts } from "../db";
+import { pruneExpiredAccountTokens } from "../accountAccess";
 
 type Store = {
   record: typeof recordLoginAttempt;
-  prune: typeof pruneExpiredLoginAttempts;
+  prune: (now: Date) => Promise<unknown>;
 };
 
 /** Match the Express tRPC adapter's final path segment and single decoding pass. */
@@ -19,7 +20,10 @@ function procedures(path: string) {
 export function createLoginRateLimit(
   store: Store = {
     record: recordLoginAttempt,
-    prune: pruneExpiredLoginAttempts,
+    prune: async (now) => {
+      await pruneExpiredLoginAttempts(now);
+      await pruneExpiredAccountTokens();
+    },
   },
 ): RequestHandler {
   let lastPrune = 0;
@@ -34,6 +38,7 @@ export function createLoginRateLimit(
           "auth.register",
           "auth.requestRegistration",
           "auth.requestPasswordReset",
+          "auth.resetPassword",
         ].includes(path),
       )
     )
@@ -84,10 +89,16 @@ export function createLoginRateLimit(
     const identifiers = [
       `ip:${req.ip || "unknown"}`,
       ...(email ? [`email:${email}`] : []),
+      ...(paths[0] === "auth.resetPassword" &&
+      typeof input?.token === "string" &&
+      /^[A-Za-z0-9_-]{43}$/.test(input.token)
+        ? [`reset-token:${input.token}`]
+        : []),
     ];
     const requestPath = [
       "auth.requestRegistration",
       "auth.requestPasswordReset",
+      "auth.resetPassword",
       "auth.register",
     ].includes(paths[0]);
     try {

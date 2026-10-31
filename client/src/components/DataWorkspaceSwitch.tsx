@@ -28,7 +28,7 @@ export function DataWorkspaceSwitch() {
         title={
           canSwitch
             ? "Switch between isolated demonstration and operational data"
-            : "Live data requires an individual operational account on a private installation"
+            : "Live data requires an approved individual account"
         }
         value={
           user?.access?.demoOnly
@@ -99,7 +99,7 @@ export function DataWorkspaceSwitch() {
                 You are signed in as{" "}
                 {user?.name || user?.email || "a demo user"}. This session is
                 restricted to demonstration data. Use an individual account on
-                your operational installation to view live systems.
+                this site to view live systems.
               </p>
               <Button onClick={() => void logout()}>
                 Sign out and switch account

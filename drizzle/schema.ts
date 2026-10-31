@@ -6,6 +6,8 @@ import {
   uuid,
   bigint,
   boolean,
+  char,
+  check,
   index,
   integer,
   json,
@@ -150,6 +152,45 @@ export const accountRequests = pgTable(
     uniqueIndex("account_requests_pending_identity")
       .on(sql`lower(${table.email})`, table.kind)
       .where(sql`${table.status} = 'pending'`),
+  ],
+);
+
+/** Bearer tokens are hashed; the worker's delivery copy is encrypted and short-lived. */
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    email: varchar("email", { length: 320 }).notNull(),
+    tokenHash: char("token_hash", { length: 64 }).notNull().unique(),
+    authVersion: integer("auth_version").notNull(),
+    deliveryPayload: text("delivery_payload").default("").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    deliveryStatus: varchar("delivery_status", { length: 24 })
+      .default("pending")
+      .notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastError: varchar("last_error", { length: 96 }),
+  },
+  (table) => [
+    check(
+      "password_reset_tokens_delivery_status_check",
+      sql`${table.deliveryStatus} in ('pending','accepted','failed','unconfigured','blocked','expired')`,
+    ),
+    index("password_reset_tokens_user").on(table.userId),
+    index("password_reset_tokens_delivery")
+      .on(table.deliveryStatus, table.nextAttemptAt, table.id)
+      .where(sql`${table.usedAt} is null`),
+    index("password_reset_tokens_expiry").on(table.expiresAt),
   ],
 );
 

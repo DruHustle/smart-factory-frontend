@@ -1,0 +1,58 @@
+name: Render engineering documentation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**/*.md"
+      - "scripts/render-pdfs.mjs"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/documentation-artifacts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: engineering-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with: { version: 10.34.5 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Install document converter
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes pandoc
+      - name: Render canonical guides and diagrams
+        run: pnpm docs:pdf
+      # Artifacts are review outputs only. The existing docs:check still checks
+      # committed PDFs and their source hashes before any release can pass.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rendered-engineering-docs
+          path: |
+            docs/architecture.pdf
+            docs/api-flows.pdf
+            docs/database-schema.pdf
+            docs/fx-tsn.pdf
+            docs/pdf-manifest.json
+            docs/diagrams/architecture.svg
+            docs/diagrams/architecture.png
+            docs/diagrams/fx-tsn.svg
+            docs/diagrams/fx-tsn.png
+          if-no-files-found: error
+          retention-days: 7

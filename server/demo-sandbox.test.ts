@@ -1,4 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { z } from "zod";
+import { namedFactoryDraft } from "../shared/named-factory";
 import {
   applySandboxAction,
   seedDemoSandbox,
@@ -10,6 +12,11 @@ import { demoAssistantContext } from "../shared/demo-assistant";
 import { gatewayLinksForFloor } from "../shared/factory-floor";
 import { answerDemoQuestion } from "./demo-assistant";
 import { buildDemoAssistantContext } from "../client/src/lib/demo-assistant-context";
+import {
+  buildPiBenchPreset,
+  findPiBenchFactory,
+  PI_BENCH_NAME,
+} from "../shared/pi-bench";
 const create: SandboxAction = {
   type: "item.save",
   item: { name: "My pump", kind: "asset", itemType: "pump", zone: "Assembly" },
@@ -46,6 +53,15 @@ describe("editable browser demo boundaries and workflows", () => {
       { from: bench[0].ref, to: bench[1].ref, kind: "gateway" },
     ]);
     expect(bench.every((item) => item.isDemo && item.sandbox)).toBe(true);
+    expect(state.factoryActivity).toEqual([]);
+    expect(state.audit).toEqual([]);
+    expect(
+      buildDemoAssistantContext(
+        state,
+        "Why does Showcase simulator need attention?",
+        [],
+      ),
+    ).toBeUndefined();
   });
   it("does not admit private inventory into its reference seed", () => {
     expect(
@@ -353,6 +369,212 @@ describe("editable browser demo boundaries and workflows", () => {
       "one-way latency is unavailable",
     );
   });
+});
+
+describe("adding the Pi bench to a saved browser demo", () => {
+  const add: SandboxAction = { type: "factory.addPiBench" };
+  const emptyFloor = (name = "Saved factory") => ({
+    document: { name, width: 6, depth: 6, zones: [], placements: [] },
+    dimensions: {},
+    tags: {},
+  });
+  const saved = () =>
+    applySandboxAction(seeded(), "engineer", {
+      type: "factory.create",
+      draft: emptyFloor(),
+    });
+
+  it("preserves saved inventory, samples and factory history while recording the new floor", () => {
+    let source = saved();
+    source = applySandboxAction(source, "operator", {
+      type: "sample",
+      ref: source.items[0].ref,
+      metric: "temperature",
+      value: 25,
+    });
+    const before = structuredClone(source);
+    const added = applySandboxAction(source, "engineer", add);
+    const bench = findPiBenchFactory(added)!;
+    expect(source).toEqual(before);
+    expect(added.items.slice(0, before.items.length)).toEqual(before.items);
+    expect(added.factories.slice(0, before.factories.length)).toEqual(
+      before.factories,
+    );
+    expect(added.samples).toEqual(before.samples);
+    expect(
+      added.factoryActivity.slice(0, before.factoryActivity.length),
+    ).toEqual(before.factoryActivity);
+    expect(
+      added.factoryActivity
+        .slice(before.factoryActivity.length)
+        .map((row) => row.action),
+    ).toEqual(["factory.created", "inventory.attached", "inventory.attached"]);
+    expect(bench.draft.document.placements).toHaveLength(2);
+    expect(added.audit.at(-1)).toMatchObject({
+      role: "engineer",
+      action: add.type,
+    });
+    expect(demoSandbox.parse(JSON.parse(JSON.stringify(added)))).toEqual(added);
+  });
+
+  it("reuses a renamed preset and legacy bench without adding equipment or duplicate history", () => {
+    const added = applySandboxAction(saved(), "admin", add);
+    const bench = findPiBenchFactory(added)!;
+    const draft = structuredClone(bench.draft);
+    draft.document.name = "My renamed hardware bench";
+    const renamed = applySandboxAction(added, "engineer", {
+      type: "factory.save",
+      id: bench.id,
+      expectedVersion: bench.version,
+      draft,
+    });
+    expect(applySandboxAction(renamed, "admin", add)).toEqual(renamed);
+    const legacy = structuredClone(renamed);
+    for (const entry of legacy.factoryActivity)
+      if (entry.after) delete entry.after.preset;
+    expect(applySandboxAction(legacy, "admin", add)).toEqual(legacy);
+    const edited = structuredClone(renamed);
+    const gateway = edited.items.find(
+      (item) => item.identifier === "pi-edge-01",
+    )!;
+    gateway.identifier = "renamed-gateway";
+    expect(findPiBenchFactory(edited)?.id).toBe(bench.id);
+    expect(applySandboxAction(edited, "admin", add)).toEqual(edited);
+  });
+
+  it("keeps newly saved preset factories readable by the prior strict v2 factory schema", () => {
+    // A rollback still reads these exact factory fields. Extra metadata belongs
+    // in the already-extensible history payload rather than the strict record.
+    const previousFactorySchema = z
+      .object({
+        id: z.uuid(),
+        version: z.number().int().positive(),
+        updatedAt: z.string().datetime(),
+        draft: namedFactoryDraft,
+      })
+      .strict();
+    const added = applySandboxAction(saved(), "admin", add);
+    const restored = demoSandbox.parse(JSON.parse(JSON.stringify(added)));
+    for (const factory of restored.factories)
+      expect(previousFactorySchema.parse(factory)).toEqual(factory);
+    const bench = findPiBenchFactory(restored)!;
+    expect(
+      restored.factoryActivity.find(
+        (entry) =>
+          entry.factoryId === bench.id && entry.action === "factory.created",
+      )?.after,
+    ).toMatchObject({ name: PI_BENCH_NAME, preset: "pi-dht11" });
+  });
+
+  it("keeps existing device identities and factory names when choosing distinct preset values", () => {
+    let source = saved();
+    source.factories[0].draft.document.name = PI_BENCH_NAME;
+    source.items = ["pi-edge-01", "ESP32-WROVER-01"].map(
+      (identifier, index) => ({
+        ...source.items[0],
+        ref: `device:${index + 1}`,
+        identifier,
+        kind: "device" as const,
+      }),
+    );
+    source = demoSandbox.parse(source);
+    const added = applySandboxAction(source, "admin", add);
+    const bench = findPiBenchFactory(added)!;
+    const refs = new Set(bench.draft.document.placements.map((p) => p.ref));
+    const items = sandboxInventory(added).filter((item) => refs.has(item.ref));
+    expect(bench.draft.document.name).toBe(PI_BENCH_NAME + " (2)");
+    expect(items.map((item) => item.identifier)).toEqual([
+      "pi-edge-01-2",
+      "esp32-wrover-01-2",
+    ]);
+    expect(gatewayLinksForFloor(items)).toMatchObject([
+      { from: items[0].ref, to: items[1].ref },
+    ]);
+    expect(added.items.slice(0, source.items.length)).toEqual(source.items);
+    expect(applySandboxAction(added, "admin", add)).toEqual(added);
+  });
+
+  it("recognizes a fresh seed with colliding device identifiers without marking it edited", () => {
+    const reference = sandboxInventory(seeded())[0];
+    const state = seedDemoSandbox(
+      ["smart-factory-public-simulator", "pi-edge-01", "esp32-wrover-01"].map(
+        (identifier, index) => ({
+          ...reference,
+          ref: `device:${index + 1}`,
+          identifier,
+          kind: "device" as const,
+        }),
+      ),
+    );
+    expect(findPiBenchFactory(state)?.draft.document.name).toBe(PI_BENCH_NAME);
+    expect(
+      state.items
+        .filter((item) => item.serial === "DEMO-TOPOLOGY")
+        .map((item) => item.identifier),
+    ).toEqual(["pi-edge-01-2", "esp32-wrover-01-2"]);
+    expect(state.audit).toEqual([]);
+    expect(state.factoryActivity).toEqual([]);
+    expect(applySandboxAction(state, "engineer", add)).toEqual(state);
+  });
+
+  it("does not reuse deleted inventory references", () => {
+    const source = saved();
+    source.factoryDeletedRefs.push("device:3000000001");
+    const random = vi
+      .spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000001");
+    try {
+      const preset = buildPiBenchPreset(source);
+      expect(
+        preset.items.every(
+          (item) => !source.factoryDeletedRefs.includes(item.ref),
+        ),
+      ).toBe(true);
+    } finally {
+      random.mockRestore();
+    }
+  });
+
+  it.each(["viewer", "operator"] as const)(
+    "requires engineering permission for %s",
+    (role) => {
+      expect(() => applySandboxAction(saved(), role, add)).toThrow(/engineer/);
+    },
+  );
+
+  it.each(["items", "factories", "history"] as const)(
+    "leaves saved data intact when %s capacity is exhausted",
+    (capacity) => {
+      const source = saved();
+      if (capacity === "items")
+        source.items = Array.from({ length: 499 }, (_, index) => ({
+          ...source.items[0],
+          ref: `device:${index + 1}`,
+          identifier: `saved-${index}`,
+          kind: "device" as const,
+        }));
+      else if (capacity === "factories")
+        source.factories.push(
+          ...Array.from({ length: 99 }, (_, index) => ({
+            id: crypto.randomUUID(),
+            version: 1,
+            updatedAt: source.updatedAt,
+            draft: emptyFloor(`Saved floor ${index}`),
+          })),
+        );
+      else
+        source.factoryActivity = Array.from({ length: 4998 }, (_, index) => ({
+          ...source.factoryActivity[0],
+          id: String(index + 1),
+        }));
+      demoSandbox.parse(source);
+      const before = structuredClone(source);
+      expect(() => applySandboxAction(source, "admin", add)).toThrow(
+        /500-item|100 factories|5,000 activity/,
+      );
+      expect(source).toEqual(before);
+    },
+  );
 });
 
 describe("named demo factories, inventory and attributed history", () => {

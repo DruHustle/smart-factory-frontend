@@ -48,7 +48,7 @@ The qualified rollback sources are pinned in [rollback-sources.json](../rollback
 The pinned API rollback is the currently deployed named-factory source, paired
 with its deployed backend and edge revisions. The currently deployed frontend
 remains compatible with that API. Qualify this rollback against additive
-`0033_account_requests` in a disposable restore before promoting the candidate.
+`0033_account_requests` and `0034_password_reset_tokens` in a disposable restore before promoting the candidate. The UI requires `account-requests-v1`, `account-role-approval-v1` and `password-reset-v1`; the live API and matching worker must support them before frontend promotion. Set the same non-secret `PASSWORD_RESET_ORIGIN` to the canonical frontend origin on the API and worker. Reuse their existing matching `DASHBOARD_SERVICE_TOKEN` and leave SMTP/Resend/SES credentials on the worker. Verify delivery configuration and recipient policy without broadening allowed recipients.
 The pinned backend retains administrator-only infrastructure access, the reduced
 connection budget and authenticated worker receipts. ARM64 qualification retains
 both tested image archives, image inspection and archive checksums in the same

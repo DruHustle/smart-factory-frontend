@@ -41,22 +41,24 @@ test("account routes and the signed-out flow render", async ({ page }) => {
   await page.getByRole("link", { name: "Register", exact: true }).click();
   await expect(page).toHaveURL(/#\/register/);
   await expect(
-    page.getByRole("heading", { name: "Create Account", exact: true }),
+    page.getByRole("heading", { name: "Request an account", exact: true }),
   ).toBeVisible();
   await expect(page.getByLabel("Full Name", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Factory or organization")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Register Now", exact: true }),
+    page.getByRole("button", { name: "Request approval", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
   await expect(page).toHaveURL(/#\/login/);
   await page.goto("/#/forgot-password");
   await expect(
-    page.getByRole("heading", { name: /password assistance/i }),
+    page.getByRole("heading", { name: "Forgot password?", exact: true }),
   ).toBeVisible();
+  await expect(page.getByLabel("Account email", { exact: true })).toBeVisible();
   await expect(
-    page.getByText(/temporary password and revoke existing sessions/i),
+    page.getByRole("button", { name: "Request password help", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /back to login/i }).click();
+  await page.getByRole("link", { name: /back to login/i }).click();
   await expect(page).toHaveURL(/#\/login/);
 });
 

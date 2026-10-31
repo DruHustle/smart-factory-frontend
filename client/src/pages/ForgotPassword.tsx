@@ -16,6 +16,11 @@ import { Label } from "@/components/ui/label";
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const policy = trpc.auth.passwordResetPolicy.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const emailDelivery = policy.data?.delivery === "email";
   const request = trpc.auth.requestPasswordReset.useMutation();
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-background p-4 sm:p-6">
@@ -26,17 +31,17 @@ export default function ForgotPassword() {
           </div>
           <h1 className="text-2xl font-bold">Forgot password?</h1>
           <CardDescription>
-            Request help from your factory administrator.
+            {emailDelivery
+              ? "Enter your account email to receive a password reset link."
+              : "Request help from your factory administrator."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           {submitted ? (
             <p role="status" className="text-sm text-muted-foreground">
-              If this address belongs to an active individual account, its
-              administrator can review your request. After verifying your
-              identity, they will provide a temporary password through your
-              approved private channel. It expires after 30 minutes and must be
-              changed at sign-in.
+              {emailDelivery
+                ? "If this address belongs to an active individual account, you will receive a password reset link. It expires after 30 minutes and can be used once. Check your spam folder; if the message does not arrive, your administrator can review the recovery request."
+                : "If this address belongs to an active individual account, its administrator can review your request. After verifying your identity, they will provide a temporary password through your approved private channel. It expires after 30 minutes and must be changed at sign-in."}
             </p>
           ) : (
             <form
@@ -55,6 +60,21 @@ export default function ForgotPassword() {
                 }
               }}
             >
+              {policy.isError && (
+                <div
+                  role="alert"
+                  className="space-y-2 text-sm text-destructive"
+                >
+                  <p>Password recovery is temporarily unavailable.</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void policy.refetch()}
+                  >
+                    Try again
+                  </Button>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="recovery-email">Account email</Label>
                 <Input
@@ -70,11 +90,15 @@ export default function ForgotPassword() {
               <Button
                 className="w-full"
                 type="submit"
-                disabled={request.isPending}
+                disabled={
+                  request.isPending || policy.isPending || policy.isError
+                }
               >
                 {request.isPending
                   ? "Sending request..."
-                  : "Request password help"}
+                  : emailDelivery
+                    ? "Send reset link"
+                    : "Request password help"}
               </Button>
             </form>
           )}
