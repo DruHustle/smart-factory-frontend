@@ -59,16 +59,27 @@ try:
     run(bootstrap)
     refused = subprocess.run(bootstrap, cwd=ROOT, capture_output=True, text=True)
     assert refused.returncode != 0 and 'administrator already exists' in refused.stderr
-    sql("DELETE FROM users WHERE email='bootstrap@example.com'")
     print('PASS: private first-admin bootstrap works and refuses a second bootstrap.')
-    # Seed isolated accounts via the real API and elevate test roles in the disposable DB.
+    # Exercise the reviewed registration boundary with the disposable administrator.
+    bootstrap_admin=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+    trpc(bootstrap_admin,'auth.login',{'email':'bootstrap@example.com','password':'Bootstrap-test-Password-123!'})
+    status,_=http(plain,'/api/trpc/auth.register',{'email':'legacy@example.com','password':'Bundle-test-Password-123!','name':'Legacy'})
+    assert status==403
+    # Elevate only the isolated smoke identities after normal approval.
     accounts={}
     for role in ('engineer','viewer','admin'):
+        email=role+'@example.com'
+        trpc(plain,'auth.requestRegistration',{'email':email,'password':'Bundle-test-Password-123!','name':role.title()+' reviewer','organization':'Bundle smoke factory'})
+        queue=trpc(bootstrap_admin,'users.pendingRequests',query=True)
+        request=next(item for item in queue if item['email']==email and item['kind']=='registration')
+        user=trpc(bootstrap_admin,'users.approveRegistration',{'id':request['id']})
         opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
-        user=trpc(opener,'auth.register',{'email':role+'@example.com','password':'Bundle-test-Password-123!','name':role})['user']
         sql(f"UPDATE users SET role='{role}' WHERE id={user['id']}")
+        trpc(opener,'auth.login',{'email':email,'password':'Bundle-test-Password-123!'})
         accounts[role]=(opener,user['id'])
         assert trpc(opener,'auth.me',query=True)['role'] == role
+    sql("DELETE FROM users WHERE email='bootstrap@example.com'")
+    print('PASS: open registration is denied; reviewed requests create individual accounts and sessions only after approval.')
     admin,admin_id=accounts['admin']; engineer,engineer_id=accounts['engineer']; viewer,viewer_id=accounts['viewer']
     assert trpc(viewer,'system.demoData',query=True)['enabled'] is False
     status,_=http(viewer,'/api/trpc/system.setDemoData',{'enabled':True}); assert status==403
