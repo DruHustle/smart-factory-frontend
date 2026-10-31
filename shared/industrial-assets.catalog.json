@@ -1,0 +1,3218 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "conveyor_belt_a61",
+      "slug": "nvidia-transfer-conveyor",
+      "name": "Transfer conveyor",
+      "category": "Material handling",
+      "description": "NVIDIA conveyor transfer station, with its authored industrial geometry adapted for browser inspection.",
+      "sourceUrl": "https://huggingface.co/datasets/nvidia/simready-assets/tree/4763fbfaa4f8e97658e68b57d01b4c86659e08b5/conveyor_belt_a61",
+      "sourceRevision": "4763fbfaa4f8e97658e68b57d01b4c86659e08b5",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "attribution": "conveyor_belt_a61 by NVIDIA, CC BY 4.0. Modified by Smart Factory (Onesa UG).",
+      "previewUrl": "/models/nvidia/nvidia-transfer-conveyor/preview.png",
+      "licenseFileUrl": "/models/nvidia/nvidia-transfer-conveyor/LICENSE.txt",
+      "sourceReceiptUrl": "/models/nvidia/nvidia-transfer-conveyor/SOURCE.json",
+      "limitations": [
+        "Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred.",
+        "Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD.",
+        "Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials.",
+        "Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+      ],
+      "models": {
+        "detail": {
+          "url": "/models/nvidia/nvidia-transfer-conveyor/detail.c69759f2116fa20c.glb",
+          "sha256": "c69759f2116fa20cba44a2cd3d8b3792fa782f4d2d90b8621cfdef1e86a26b46",
+          "bytes": 4950208,
+          "triangles": 106621,
+          "revision": "nvidia:nvidia-transfer-conveyor:c69759f2116fa20cba44a2cd3d8b3792fa782f4d2d90b8621cfdef1e86a26b46",
+          "manifest": {
+            "schemaVersion": "smart-factory-model-1",
+            "name": "NVIDIA Transfer conveyor",
+            "provenance": "NVIDIA conveyor_belt_a61; https://huggingface.co/datasets/nvidia/simready-assets/tree/4763fbfaa4f8e97658e68b57d01b4c86659e08b5/conveyor_belt_a61; adapted by Smart Factory (Onesa UG).",
+            "license": "CC-BY-4.0; NVIDIA. Modified for Smart Factory browser visualization.",
+            "units": "m",
+            "handedness": "right",
+            "upAxis": "+Y",
+            "components": [
+              {
+                "templateComponentId": "0b1b2f4a-5328-54c9-9fb8-3208a4f855b9",
+                "name": "sm button01 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 0,
+                "nodePath": "/part_0b1b2f4a532854c9",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.4094584584236145,
+                    0.2504667043685913,
+                    0.5366954803466797
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "818873e2-dbbd-51a1-b1a4-1832242e20d7",
+                "name": "sm button02 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 1,
+                "nodePath": "/part_818873e2dbbd51a1",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.41759124398231506,
+                    0.21083536744117737,
+                    0.5473552942276001
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "59877326-bb0a-5ed0-99a8-e7762059be1f",
+                "name": "sm button03 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 2,
+                "nodePath": "/part_59877326bb0a5ed0",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.42453455924987793,
+                    0.16899323463439941,
+                    0.5564561486244202
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "157e69ce-0f1b-53d4-8bfe-08ebaf5fa525",
+                "name": "sm button04 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 3,
+                "nodePath": "/part_157e69ce0f1b53d4",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.4081524610519409,
+                    -0.5931011438369751,
+                    0.008623387664556503
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "41982f51-6305-5e0a-b001-5475c23c9dfc",
+                "name": "sm button05 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 4,
+                "nodePath": "/part_41982f5163055e0a",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.4010762870311737,
+                    -0.5827805399894714,
+                    0.13392677903175354
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "c8726c07-cc43-5264-b7dd-eedf29c172a7",
+                "name": "sm button06 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 5,
+                "nodePath": "/part_c8726c07cc435264",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.4062919318675995,
+                    -0.590359091758728,
+                    0.0695326030254364
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "b492f677-aa7a-5b7c-a617-093940681b3e",
+                "name": "sm conveyor belt a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 6,
+                "nodePath": "/part_b492f677aa7a5b7c",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.0,
+                    0.48001471161842346,
+                    -0.0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8da95455-f7a9-5d9c-a4dd-bb084b2c4eb2",
+                "name": "sm glass a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 7,
+                "nodePath": "/part_8da95455f7a95d9c",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.2525302469730377,
+                    0.674267053604126,
+                    -0.004916347097605467
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "d97cbe16-906c-5a23-b7fe-1e53c1481394",
+                "name": "sm roller01 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 8,
+                "nodePath": "/part_d97cbe16906c5a23",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.06994720548391342,
+                    -0.1483120322227478,
+                    -0.7011010646820068
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "2c545c69-1f6b-517b-9c3b-94adea4fafe6",
+                "name": "sm roller02 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 9,
+                "nodePath": "/part_2c545c691f6b517b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07235375046730042,
+                    -0.15341463685035706,
+                    -0.6997575759887695
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "c82b7453-aa0a-5627-8468-467892acf1f7",
+                "name": "sm roller03 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 10,
+                "nodePath": "/part_c82b7453aa0a5627",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07492639124393463,
+                    -0.15886949002742767,
+                    -0.6982680559158325
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "3d5c39e1-01a6-5828-a351-9d2d51dc56e2",
+                "name": "sm roller04 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 11,
+                "nodePath": "/part_3d5c39e101a65828",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.077682264149189,
+                    -0.16471290588378906,
+                    -0.6966110467910767
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "d2d8882f-ff3f-5371-9532-978f92785622",
+                "name": "sm roller05 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 12,
+                "nodePath": "/part_d2d8882fff3f5371",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08064090460538864,
+                    -0.17098622024059296,
+                    -0.694760799407959
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "bb2e941b-f169-5b3f-b2df-01d01e3974ee",
+                "name": "sm roller06 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 13,
+                "nodePath": "/part_bb2e941bf1695b3f",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08382448554039001,
+                    -0.17773649096488953,
+                    -0.6926867961883545
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "a8dfc259-6ad9-51fd-ae8f-0ffc112fde26",
+                "name": "sm roller07 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 14,
+                "nodePath": "/part_a8dfc2596ad951fd",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08725839108228683,
+                    -0.18501757085323334,
+                    -0.6903523206710815
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "71fa534d-7c1d-555b-b17f-96b46450f6fe",
+                "name": "sm roller08 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 15,
+                "nodePath": "/part_71fa534d7c1d555b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.0909716933965683,
+                    -0.19289101660251617,
+                    -0.6877128481864929
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "52315c62-0382-5dc6-9d9a-b74cf4a3996b",
+                "name": "sm roller09 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 16,
+                "nodePath": "/part_52315c6203825dc6",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.0949978232383728,
+                    -0.20142777264118195,
+                    -0.6847146153450012
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8a91fa2d-6c38-5d6b-a1d2-8546484adbe5",
+                "name": "sm roller10 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 17,
+                "nodePath": "/part_8a91fa2d6c385d6b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.09937535971403122,
+                    -0.21070966124534607,
+                    -0.6812912821769714
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "a9de3c52-4cb3-5519-bc7a-817c9e1e1f64",
+                "name": "sm roller11 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 18,
+                "nodePath": "/part_a9de3c524cb35519",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.10414879769086838,
+                    -0.2208309769630432,
+                    -0.6773614287376404
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "5e7a8954-63e8-5d04-a2a4-53886a96cf00",
+                "name": "sm roller12 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 19,
+                "nodePath": "/part_5e7a895463e85d04",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.10936959087848663,
+                    -0.23190084099769592,
+                    -0.6728239059448242
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "1fc31a8e-8523-554d-86ae-ee7d28881b53",
+                "name": "sm roller13 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 20,
+                "nodePath": "/part_1fc31a8e8523554d",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.11509744822978973,
+                    -0.24404586851596832,
+                    -0.6675522327423096
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "21424277-96c4-5352-8dfa-692aee87e286",
+                "name": "sm roller14 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 21,
+                "nodePath": "/part_2142427796c45352",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.12140099704265594,
+                    -0.257412314414978,
+                    -0.6613867878913879
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "84e16ded-2320-5dea-9de7-29103033ecff",
+                "name": "sm roller15 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 22,
+                "nodePath": "/part_84e16ded23205dea",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.12836086750030518,
+                    -0.2721687853336334,
+                    -0.6541249752044678
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "a98f26b6-9e90-51c7-bf82-e51850966145",
+                "name": "sm roller16 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 23,
+                "nodePath": "/part_a98f26b69e9051c7",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.1360672414302826,
+                    -0.28850892186164856,
+                    -0.6455075740814209
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "1f53666c-628d-543c-99a6-8efc050eb979",
+                "name": "sm roller17 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 24,
+                "nodePath": "/part_1f53666c628d543c",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.14462406933307648,
+                    -0.306652307510376,
+                    -0.6352007985115051
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "893e6863-ebe1-5100-a6d3-6544a41caed3",
+                "name": "sm roller18 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 25,
+                "nodePath": "/part_893e6863ebe15100",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.15414637327194214,
+                    -0.32684293389320374,
+                    -0.6227715611457825
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8bd85293-a608-56cb-8660-d21906ef53a7",
+                "name": "sm roller19 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 26,
+                "nodePath": "/part_8bd85293a60856cb",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.15414011478424072,
+                    -0.3268570303916931,
+                    0.6227657198905945
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "4faab7bf-7b49-5580-9595-5f5f627ecdaf",
+                "name": "sm roller20 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 27,
+                "nodePath": "/part_4faab7bf7b495580",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.14461788535118103,
+                    -0.30666500329971313,
+                    0.6351960897445679
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "4f22c847-293e-5aac-bd40-ffd3977c8fcf",
+                "name": "sm roller21 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 28,
+                "nodePath": "/part_4f22c847293e5aac",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.13606120645999908,
+                    -0.28852033615112305,
+                    0.6455038189888
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "ac2e4961-3389-53db-99c0-d06afa2d4fa5",
+                "name": "sm roller22 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 29,
+                "nodePath": "/part_ac2e4961338953db",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.12835486233234406,
+                    -0.2721789479255676,
+                    0.6541218161582947
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8ab84fa5-3eec-5cd2-b8c8-3ee73aa26a5d",
+                "name": "sm roller23 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 30,
+                "nodePath": "/part_8ab84fa53eec5cd2",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.12139546871185303,
+                    -0.25742143392562866,
+                    0.6613842248916626
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "490b65f9-ca9c-5cdd-9fa7-d1e05705f373",
+                "name": "sm roller24 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 31,
+                "nodePath": "/part_490b65f9ca9c5cdd",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.1150917038321495,
+                    -0.2440541684627533,
+                    0.6675501465797424
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "d80fdd4a-9aab-5835-a76c-1b8c711ac025",
+                "name": "sm roller25 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 32,
+                "nodePath": "/part_d80fdd4a9aab5835",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.10936393588781357,
+                    -0.23190835118293762,
+                    0.6728222370147705
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "7b8c201d-a630-5d94-87b9-65f8c956879d",
+                "name": "sm roller26 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 33,
+                "nodePath": "/part_7b8c201da6305d94",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.10414329916238785,
+                    -0.22083784639835358,
+                    0.6773600578308105
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "0257a687-e6f5-582a-bbc2-d08599f56c3b",
+                "name": "sm roller27 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 34,
+                "nodePath": "/part_0257a687e6f5582a",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.09936997294425964,
+                    -0.21071594953536987,
+                    0.6812900304794312
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "af2c356d-407e-5c6b-a755-92c4c42e557e",
+                "name": "sm roller28 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 35,
+                "nodePath": "/part_af2c356d407e5c6b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.09499256312847137,
+                    -0.20143355429172516,
+                    0.6847135424613953
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8f5e0188-f9f3-5737-a9de-16dbe94f13a9",
+                "name": "sm roller29 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 36,
+                "nodePath": "/part_8f5e0188f9f35737",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.09096655994653702,
+                    -0.19289633631706238,
+                    0.6877120137214661
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "b68e6601-4723-5343-bcd0-41eea74154b2",
+                "name": "sm roller30 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 37,
+                "nodePath": "/part_b68e660147235343",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08725333958864212,
+                    -0.18502254784107208,
+                    0.6903515458106995
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "f3fa07d0-afd3-5888-96a3-dd15d06c3daf",
+                "name": "sm roller31 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 38,
+                "nodePath": "/part_f3fa07d0afd35888",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08381957560777664,
+                    -0.17774102091789246,
+                    0.6926862001419067
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "ebe1ee59-3848-5de8-ad7d-700f1ea8b492",
+                "name": "sm roller32 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 39,
+                "nodePath": "/part_ebe1ee5938485de8",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08063608407974243,
+                    -0.17099037766456604,
+                    0.6947603225708008
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "b3565863-59f8-511b-bb87-0ef43de314cd",
+                "name": "sm roller33 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 40,
+                "nodePath": "/part_b356586359f8511b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07767755538225174,
+                    -0.16471676528453827,
+                    0.6966106295585632
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "0ca6b17b-1ba1-5953-b36a-55e2d20fc4ba",
+                "name": "sm roller34 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 41,
+                "nodePath": "/part_0ca6b17b1ba15953",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07492179423570633,
+                    -0.15887323021888733,
+                    0.6982677578926086
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "663b9dd1-726e-5612-8b4a-f81f7a93cdb7",
+                "name": "sm roller35 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 42,
+                "nodePath": "/part_663b9dd1726e5612",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07234790921211243,
+                    -0.15341803431510925,
+                    0.69975745677948
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "68c676be-a03e-510d-abed-b273f42bcdf6",
+                "name": "sm roller36 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 43,
+                "nodePath": "/part_68c676bea03e510d",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.06994282454252243,
+                    -0.1483151614665985,
+                    0.7011008858680725
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            ],
+            "bindings": [],
+            "maintenanceText": "Reference geometry only. Map measured signals explicitly before operational use. Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred. Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD. Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials. Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+          }
+        },
+        "compact": {
+          "url": "/models/nvidia/nvidia-transfer-conveyor/compact.3f73d759f3f6f233.glb",
+          "sha256": "3f73d759f3f6f233d5b3196951bf1ade77e163c14576bccdceddebe9e3ebe0f0",
+          "bytes": 1586780,
+          "triangles": 29057,
+          "revision": "nvidia:nvidia-transfer-conveyor:3f73d759f3f6f233d5b3196951bf1ade77e163c14576bccdceddebe9e3ebe0f0",
+          "manifest": {
+            "schemaVersion": "smart-factory-model-1",
+            "name": "NVIDIA Transfer conveyor",
+            "provenance": "NVIDIA conveyor_belt_a61; https://huggingface.co/datasets/nvidia/simready-assets/tree/4763fbfaa4f8e97658e68b57d01b4c86659e08b5/conveyor_belt_a61; adapted by Smart Factory (Onesa UG).",
+            "license": "CC-BY-4.0; NVIDIA. Modified for Smart Factory browser visualization.",
+            "units": "m",
+            "handedness": "right",
+            "upAxis": "+Y",
+            "components": [
+              {
+                "templateComponentId": "0b1b2f4a-5328-54c9-9fb8-3208a4f855b9",
+                "name": "sm button01 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 0,
+                "nodePath": "/part_0b1b2f4a532854c9",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.4094584584236145,
+                    0.2504667043685913,
+                    0.5366954803466797
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "818873e2-dbbd-51a1-b1a4-1832242e20d7",
+                "name": "sm button02 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 1,
+                "nodePath": "/part_818873e2dbbd51a1",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.41759124398231506,
+                    0.21083536744117737,
+                    0.5473552942276001
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "59877326-bb0a-5ed0-99a8-e7762059be1f",
+                "name": "sm button03 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 2,
+                "nodePath": "/part_59877326bb0a5ed0",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.42453455924987793,
+                    0.16899323463439941,
+                    0.5564561486244202
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "157e69ce-0f1b-53d4-8bfe-08ebaf5fa525",
+                "name": "sm button04 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 3,
+                "nodePath": "/part_157e69ce0f1b53d4",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.4081524610519409,
+                    -0.5931011438369751,
+                    0.008623387664556503
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "41982f51-6305-5e0a-b001-5475c23c9dfc",
+                "name": "sm button05 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 4,
+                "nodePath": "/part_41982f5163055e0a",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.4010762870311737,
+                    -0.5827805399894714,
+                    0.13392677903175354
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "c8726c07-cc43-5264-b7dd-eedf29c172a7",
+                "name": "sm button06 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 5,
+                "nodePath": "/part_c8726c07cc435264",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    -0.4062919318675995,
+                    -0.590359091758728,
+                    0.0695326030254364
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "b492f677-aa7a-5b7c-a617-093940681b3e",
+                "name": "sm conveyor belt a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 6,
+                "nodePath": "/part_b492f677aa7a5b7c",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.0,
+                    0.48001471161842346,
+                    -0.0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8da95455-f7a9-5d9c-a4dd-bb084b2c4eb2",
+                "name": "sm glass a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 7,
+                "nodePath": "/part_8da95455f7a95d9c",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.2525302469730377,
+                    0.674267053604126,
+                    -0.004916347097605467
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "d97cbe16-906c-5a23-b7fe-1e53c1481394",
+                "name": "sm roller01 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 8,
+                "nodePath": "/part_d97cbe16906c5a23",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.06994720548391342,
+                    -0.1483120322227478,
+                    -0.7011010646820068
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "2c545c69-1f6b-517b-9c3b-94adea4fafe6",
+                "name": "sm roller02 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 9,
+                "nodePath": "/part_2c545c691f6b517b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07235375046730042,
+                    -0.15341463685035706,
+                    -0.6997575759887695
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "c82b7453-aa0a-5627-8468-467892acf1f7",
+                "name": "sm roller03 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 10,
+                "nodePath": "/part_c82b7453aa0a5627",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07492639124393463,
+                    -0.15886949002742767,
+                    -0.6982680559158325
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "3d5c39e1-01a6-5828-a351-9d2d51dc56e2",
+                "name": "sm roller04 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 11,
+                "nodePath": "/part_3d5c39e101a65828",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.077682264149189,
+                    -0.16471290588378906,
+                    -0.6966110467910767
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "d2d8882f-ff3f-5371-9532-978f92785622",
+                "name": "sm roller05 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 12,
+                "nodePath": "/part_d2d8882fff3f5371",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08064090460538864,
+                    -0.17098622024059296,
+                    -0.694760799407959
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "bb2e941b-f169-5b3f-b2df-01d01e3974ee",
+                "name": "sm roller06 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 13,
+                "nodePath": "/part_bb2e941bf1695b3f",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08382448554039001,
+                    -0.17773649096488953,
+                    -0.6926867961883545
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "a8dfc259-6ad9-51fd-ae8f-0ffc112fde26",
+                "name": "sm roller07 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 14,
+                "nodePath": "/part_a8dfc2596ad951fd",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08725839108228683,
+                    -0.18501757085323334,
+                    -0.6903523206710815
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "71fa534d-7c1d-555b-b17f-96b46450f6fe",
+                "name": "sm roller08 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 15,
+                "nodePath": "/part_71fa534d7c1d555b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.0909716933965683,
+                    -0.19289101660251617,
+                    -0.6877128481864929
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "52315c62-0382-5dc6-9d9a-b74cf4a3996b",
+                "name": "sm roller09 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 16,
+                "nodePath": "/part_52315c6203825dc6",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.0949978232383728,
+                    -0.20142777264118195,
+                    -0.6847146153450012
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8a91fa2d-6c38-5d6b-a1d2-8546484adbe5",
+                "name": "sm roller10 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 17,
+                "nodePath": "/part_8a91fa2d6c385d6b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.09937535971403122,
+                    -0.21070966124534607,
+                    -0.6812912821769714
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "a9de3c52-4cb3-5519-bc7a-817c9e1e1f64",
+                "name": "sm roller11 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 18,
+                "nodePath": "/part_a9de3c524cb35519",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.10414879769086838,
+                    -0.2208309769630432,
+                    -0.6773614287376404
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "5e7a8954-63e8-5d04-a2a4-53886a96cf00",
+                "name": "sm roller12 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 19,
+                "nodePath": "/part_5e7a895463e85d04",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.10936959087848663,
+                    -0.23190084099769592,
+                    -0.6728239059448242
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "1fc31a8e-8523-554d-86ae-ee7d28881b53",
+                "name": "sm roller13 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 20,
+                "nodePath": "/part_1fc31a8e8523554d",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.11509744822978973,
+                    -0.24404586851596832,
+                    -0.6675522327423096
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "21424277-96c4-5352-8dfa-692aee87e286",
+                "name": "sm roller14 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 21,
+                "nodePath": "/part_2142427796c45352",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.12140099704265594,
+                    -0.257412314414978,
+                    -0.6613867878913879
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "84e16ded-2320-5dea-9de7-29103033ecff",
+                "name": "sm roller15 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 22,
+                "nodePath": "/part_84e16ded23205dea",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.12836086750030518,
+                    -0.2721687853336334,
+                    -0.6541249752044678
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "a98f26b6-9e90-51c7-bf82-e51850966145",
+                "name": "sm roller16 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 23,
+                "nodePath": "/part_a98f26b69e9051c7",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.1360672414302826,
+                    -0.28850892186164856,
+                    -0.6455075740814209
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "1f53666c-628d-543c-99a6-8efc050eb979",
+                "name": "sm roller17 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 24,
+                "nodePath": "/part_1f53666c628d543c",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.14462406933307648,
+                    -0.306652307510376,
+                    -0.6352007985115051
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "893e6863-ebe1-5100-a6d3-6544a41caed3",
+                "name": "sm roller18 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 25,
+                "nodePath": "/part_893e6863ebe15100",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.15414637327194214,
+                    -0.32684293389320374,
+                    -0.6227715611457825
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8bd85293-a608-56cb-8660-d21906ef53a7",
+                "name": "sm roller19 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 26,
+                "nodePath": "/part_8bd85293a60856cb",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.15414011478424072,
+                    -0.3268570303916931,
+                    0.6227657198905945
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "4faab7bf-7b49-5580-9595-5f5f627ecdaf",
+                "name": "sm roller20 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 27,
+                "nodePath": "/part_4faab7bf7b495580",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.14461788535118103,
+                    -0.30666500329971313,
+                    0.6351960897445679
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "4f22c847-293e-5aac-bd40-ffd3977c8fcf",
+                "name": "sm roller21 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 28,
+                "nodePath": "/part_4f22c847293e5aac",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.13606120645999908,
+                    -0.28852033615112305,
+                    0.6455038189888
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "ac2e4961-3389-53db-99c0-d06afa2d4fa5",
+                "name": "sm roller22 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 29,
+                "nodePath": "/part_ac2e4961338953db",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.12835486233234406,
+                    -0.2721789479255676,
+                    0.6541218161582947
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8ab84fa5-3eec-5cd2-b8c8-3ee73aa26a5d",
+                "name": "sm roller23 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 30,
+                "nodePath": "/part_8ab84fa53eec5cd2",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.12139546871185303,
+                    -0.25742143392562866,
+                    0.6613842248916626
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "490b65f9-ca9c-5cdd-9fa7-d1e05705f373",
+                "name": "sm roller24 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 31,
+                "nodePath": "/part_490b65f9ca9c5cdd",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.1150917038321495,
+                    -0.2440541684627533,
+                    0.6675501465797424
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "d80fdd4a-9aab-5835-a76c-1b8c711ac025",
+                "name": "sm roller25 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 32,
+                "nodePath": "/part_d80fdd4a9aab5835",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.10936393588781357,
+                    -0.23190835118293762,
+                    0.6728222370147705
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "7b8c201d-a630-5d94-87b9-65f8c956879d",
+                "name": "sm roller26 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 33,
+                "nodePath": "/part_7b8c201da6305d94",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.10414329916238785,
+                    -0.22083784639835358,
+                    0.6773600578308105
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "0257a687-e6f5-582a-bbc2-d08599f56c3b",
+                "name": "sm roller27 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 34,
+                "nodePath": "/part_0257a687e6f5582a",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.09936997294425964,
+                    -0.21071594953536987,
+                    0.6812900304794312
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "af2c356d-407e-5c6b-a755-92c4c42e557e",
+                "name": "sm roller28 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 35,
+                "nodePath": "/part_af2c356d407e5c6b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.09499256312847137,
+                    -0.20143355429172516,
+                    0.6847135424613953
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "8f5e0188-f9f3-5737-a9de-16dbe94f13a9",
+                "name": "sm roller29 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 36,
+                "nodePath": "/part_8f5e0188f9f35737",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.09096655994653702,
+                    -0.19289633631706238,
+                    0.6877120137214661
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "b68e6601-4723-5343-bcd0-41eea74154b2",
+                "name": "sm roller30 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 37,
+                "nodePath": "/part_b68e660147235343",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08725333958864212,
+                    -0.18502254784107208,
+                    0.6903515458106995
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "f3fa07d0-afd3-5888-96a3-dd15d06c3daf",
+                "name": "sm roller31 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 38,
+                "nodePath": "/part_f3fa07d0afd35888",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08381957560777664,
+                    -0.17774102091789246,
+                    0.6926862001419067
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "ebe1ee59-3848-5de8-ad7d-700f1ea8b492",
+                "name": "sm roller32 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 39,
+                "nodePath": "/part_ebe1ee5938485de8",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.08063608407974243,
+                    -0.17099037766456604,
+                    0.6947603225708008
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "b3565863-59f8-511b-bb87-0ef43de314cd",
+                "name": "sm roller33 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 40,
+                "nodePath": "/part_b356586359f8511b",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07767755538225174,
+                    -0.16471676528453827,
+                    0.6966106295585632
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "0ca6b17b-1ba1-5953-b36a-55e2d20fc4ba",
+                "name": "sm roller34 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 41,
+                "nodePath": "/part_0ca6b17b1ba15953",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07492179423570633,
+                    -0.15887323021888733,
+                    0.6982677578926086
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "663b9dd1-726e-5612-8b4a-f81f7a93cdb7",
+                "name": "sm roller35 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 42,
+                "nodePath": "/part_663b9dd1726e5612",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.07234790921211243,
+                    -0.15341803431510925,
+                    0.69975745677948
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "68c676be-a03e-510d-abed-b273f42bcdf6",
+                "name": "sm roller36 a61 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 43,
+                "nodePath": "/part_68c676bea03e510d",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA conveyor_belt_a61",
+                "explode": {
+                  "translation": [
+                    0.06994282454252243,
+                    -0.1483151614665985,
+                    0.7011008858680725
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            ],
+            "bindings": [],
+            "maintenanceText": "Reference geometry only. Map measured signals explicitly before operational use. Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred. Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD. Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials. Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+          }
+        }
+      }
+    },
+    {
+      "id": "rack_long_empty_a01",
+      "slug": "nvidia-storage-rack",
+      "name": "Warehouse storage rack",
+      "category": "Storage",
+      "description": "NVIDIA long storage rack for warehouse layouts and equipment reference scenes.",
+      "sourceUrl": "https://huggingface.co/datasets/nvidia/simready-assets/tree/4763fbfaa4f8e97658e68b57d01b4c86659e08b5/rack_long_empty_a01",
+      "sourceRevision": "4763fbfaa4f8e97658e68b57d01b4c86659e08b5",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "attribution": "rack_long_empty_a01 by NVIDIA, CC BY 4.0. Modified by Smart Factory (Onesa UG).",
+      "previewUrl": "/models/nvidia/nvidia-storage-rack/preview.png",
+      "licenseFileUrl": "/models/nvidia/nvidia-storage-rack/LICENSE.txt",
+      "sourceReceiptUrl": "/models/nvidia/nvidia-storage-rack/SOURCE.json",
+      "limitations": [
+        "Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred.",
+        "Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD.",
+        "Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials.",
+        "Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+      ],
+      "models": {
+        "detail": {
+          "url": "/models/nvidia/nvidia-storage-rack/detail.35ed22dad9781eb2.glb",
+          "sha256": "35ed22dad9781eb2151bc56f25ec401da4f2cf525cd5e8447d80a05fac8ee24a",
+          "bytes": 2053828,
+          "triangles": 44080,
+          "revision": "nvidia:nvidia-storage-rack:35ed22dad9781eb2151bc56f25ec401da4f2cf525cd5e8447d80a05fac8ee24a",
+          "manifest": {
+            "schemaVersion": "smart-factory-model-1",
+            "name": "NVIDIA Warehouse storage rack",
+            "provenance": "NVIDIA rack_long_empty_a01; https://huggingface.co/datasets/nvidia/simready-assets/tree/4763fbfaa4f8e97658e68b57d01b4c86659e08b5/rack_long_empty_a01; adapted by Smart Factory (Onesa UG).",
+            "license": "CC-BY-4.0; NVIDIA. Modified for Smart Factory browser visualization.",
+            "units": "m",
+            "handedness": "right",
+            "upAxis": "+Y",
+            "components": [
+              {
+                "templateComponentId": "ccca70fa-d3f9-58f6-8f7c-4f37716102ab",
+                "name": "sm rack long empty a01 leggs 01 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 0,
+                "nodePath": "/part_ccca70fad3f958f6",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA rack_long_empty_a01",
+                "explode": {
+                  "translation": [
+                    0.0,
+                    0.47999700903892517,
+                    -0.0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            ],
+            "bindings": [],
+            "maintenanceText": "Reference geometry only. Map measured signals explicitly before operational use. Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred. Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD. Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials. Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+          }
+        },
+        "compact": {
+          "url": "/models/nvidia/nvidia-storage-rack/compact.f62735d8355b5244.glb",
+          "sha256": "f62735d8355b524467301bdecce77c31b84a303b2d9c31f457dcbff27e9d3e2e",
+          "bytes": 1441336,
+          "triangles": 29100,
+          "revision": "nvidia:nvidia-storage-rack:f62735d8355b524467301bdecce77c31b84a303b2d9c31f457dcbff27e9d3e2e",
+          "manifest": {
+            "schemaVersion": "smart-factory-model-1",
+            "name": "NVIDIA Warehouse storage rack",
+            "provenance": "NVIDIA rack_long_empty_a01; https://huggingface.co/datasets/nvidia/simready-assets/tree/4763fbfaa4f8e97658e68b57d01b4c86659e08b5/rack_long_empty_a01; adapted by Smart Factory (Onesa UG).",
+            "license": "CC-BY-4.0; NVIDIA. Modified for Smart Factory browser visualization.",
+            "units": "m",
+            "handedness": "right",
+            "upAxis": "+Y",
+            "components": [
+              {
+                "templateComponentId": "ccca70fa-d3f9-58f6-8f7c-4f37716102ab",
+                "name": "sm rack long empty a01 leggs 01 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 0,
+                "nodePath": "/part_ccca70fad3f958f6",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA rack_long_empty_a01",
+                "explode": {
+                  "translation": [
+                    0.0,
+                    0.47999700903892517,
+                    -0.0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            ],
+            "bindings": [],
+            "maintenanceText": "Reference geometry only. Map measured signals explicitly before operational use. Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred. Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD. Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials. Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+          }
+        }
+      }
+    },
+    {
+      "id": "cart_mobile_e01",
+      "slug": "nvidia-mobile-cart",
+      "name": "Industrial mobile cart",
+      "category": "Material handling",
+      "description": "NVIDIA mobile cart with frame, work surfaces and wheels for factory logistics layouts.",
+      "sourceUrl": "https://huggingface.co/datasets/nvidia/simready-assets/tree/4763fbfaa4f8e97658e68b57d01b4c86659e08b5/cart_mobile_e01",
+      "sourceRevision": "4763fbfaa4f8e97658e68b57d01b4c86659e08b5",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "attribution": "cart_mobile_e01 by NVIDIA, CC BY 4.0. Modified by Smart Factory (Onesa UG).",
+      "previewUrl": "/models/nvidia/nvidia-mobile-cart/preview.png",
+      "licenseFileUrl": "/models/nvidia/nvidia-mobile-cart/LICENSE.txt",
+      "sourceReceiptUrl": "/models/nvidia/nvidia-mobile-cart/SOURCE.json",
+      "limitations": [
+        "Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred.",
+        "Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD.",
+        "Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials.",
+        "Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+      ],
+      "models": {
+        "detail": {
+          "url": "/models/nvidia/nvidia-mobile-cart/detail.fbc12148a63e5549.glb",
+          "sha256": "fbc12148a63e55493d7e9c4b8a8eaabd375249a10a59b2e492c45526c2605550",
+          "bytes": 2726524,
+          "triangles": 106689,
+          "revision": "nvidia:nvidia-mobile-cart:fbc12148a63e55493d7e9c4b8a8eaabd375249a10a59b2e492c45526c2605550",
+          "manifest": {
+            "schemaVersion": "smart-factory-model-1",
+            "name": "NVIDIA Industrial mobile cart",
+            "provenance": "NVIDIA cart_mobile_e01; https://huggingface.co/datasets/nvidia/simready-assets/tree/4763fbfaa4f8e97658e68b57d01b4c86659e08b5/cart_mobile_e01; adapted by Smart Factory (Onesa UG).",
+            "license": "CC-BY-4.0; NVIDIA. Modified for Smart Factory browser visualization.",
+            "units": "m",
+            "handedness": "right",
+            "upAxis": "+Y",
+            "components": [
+              {
+                "templateComponentId": "7adc72ef-9ff1-52de-85dd-316f2f4391e2",
+                "name": "body 01 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 0,
+                "nodePath": "/part_7adc72ef9ff152de",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    1.765935664366225e-08,
+                    0.284281462430954,
+                    -0.0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "d65b2ce8-87dc-5a11-9486-82f71511e82d",
+                "name": "tire 01 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 1,
+                "nodePath": "/part_d65b2ce887dc5a11",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    0.056376226246356964,
+                    -0.2594752907752991,
+                    0.10153936594724655
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "c8ab6f6f-40ca-5dfc-aaf4-53b11c0cc37b",
+                "name": "tire 02 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 2,
+                "nodePath": "/part_c8ab6f6f40ca5dfc",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    -0.0568816214799881,
+                    -0.25937962532043457,
+                    0.1015019342303276
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "1bef021e-de9e-5da3-8967-b92a122f1177",
+                "name": "tire 03 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 3,
+                "nodePath": "/part_1bef021ede9e5da3",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    0.056670404970645905,
+                    -0.25813522934913635,
+                    -0.104740671813488
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "41e6f6c7-f648-5981-8f0b-0f8de4027897",
+                "name": "tire 04 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 4,
+                "nodePath": "/part_41e6f6c7f6485981",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    -0.056342899799346924,
+                    -0.25819650292396545,
+                    -0.1047663763165474
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "028b9a8d-e9aa-594c-8dc7-f88fe91b58e4",
+                "name": "wheel 01 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 5,
+                "nodePath": "/part_028b9a8de9aa594c",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    0.05782034248113632,
+                    -0.25959503650665283,
+                    0.10041501373052597
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "77ed8f6d-9489-5e87-9cd1-486cf4a322ee",
+                "name": "wheel 02 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 6,
+                "nodePath": "/part_77ed8f6d94895e87",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    -0.05833753943443298,
+                    -0.2594943642616272,
+                    0.10037606209516525
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "6bc218b3-bff4-54aa-9a66-8ffbbe38705d",
+                "name": "wheel 03 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 7,
+                "nodePath": "/part_6bc218b3bff454aa",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    0.057552531361579895,
+                    -0.2557238042354584,
+                    -0.1100408062338829
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "71e5facf-0f46-533e-9e8d-16efc8f8d5ff",
+                "name": "wheel 04 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 8,
+                "nodePath": "/part_71e5facf0f46533e",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    -0.057220377027988434,
+                    -0.25578656792640686,
+                    -0.11006825417280197
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            ],
+            "bindings": [],
+            "maintenanceText": "Reference geometry only. Map measured signals explicitly before operational use. Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred. Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD. Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials. Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+          }
+        },
+        "compact": {
+          "url": "/models/nvidia/nvidia-mobile-cart/compact.1c37d2744f64601c.glb",
+          "sha256": "1c37d2744f64601cfa948712dacd788d82c2552233cd368bdc6c918024cdb650",
+          "bytes": 846516,
+          "triangles": 29094,
+          "revision": "nvidia:nvidia-mobile-cart:1c37d2744f64601cfa948712dacd788d82c2552233cd368bdc6c918024cdb650",
+          "manifest": {
+            "schemaVersion": "smart-factory-model-1",
+            "name": "NVIDIA Industrial mobile cart",
+            "provenance": "NVIDIA cart_mobile_e01; https://huggingface.co/datasets/nvidia/simready-assets/tree/4763fbfaa4f8e97658e68b57d01b4c86659e08b5/cart_mobile_e01; adapted by Smart Factory (Onesa UG).",
+            "license": "CC-BY-4.0; NVIDIA. Modified for Smart Factory browser visualization.",
+            "units": "m",
+            "handedness": "right",
+            "upAxis": "+Y",
+            "components": [
+              {
+                "templateComponentId": "7adc72ef-9ff1-52de-85dd-316f2f4391e2",
+                "name": "body 01 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 0,
+                "nodePath": "/part_7adc72ef9ff152de",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    1.765935664366225e-08,
+                    0.284281462430954,
+                    -0.0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "d65b2ce8-87dc-5a11-9486-82f71511e82d",
+                "name": "tire 01 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 1,
+                "nodePath": "/part_d65b2ce887dc5a11",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    0.056376226246356964,
+                    -0.2594752907752991,
+                    0.10153936594724655
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "c8ab6f6f-40ca-5dfc-aaf4-53b11c0cc37b",
+                "name": "tire 02 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 2,
+                "nodePath": "/part_c8ab6f6f40ca5dfc",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    -0.0568816214799881,
+                    -0.25937962532043457,
+                    0.1015019342303276
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "1bef021e-de9e-5da3-8967-b92a122f1177",
+                "name": "tire 03 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 3,
+                "nodePath": "/part_1bef021ede9e5da3",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    0.056670404970645905,
+                    -0.25813522934913635,
+                    -0.104740671813488
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "41e6f6c7-f648-5981-8f0b-0f8de4027897",
+                "name": "tire 04 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 4,
+                "nodePath": "/part_41e6f6c7f6485981",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    -0.056342899799346924,
+                    -0.25819650292396545,
+                    -0.1047663763165474
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "028b9a8d-e9aa-594c-8dc7-f88fe91b58e4",
+                "name": "wheel 01 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 5,
+                "nodePath": "/part_028b9a8de9aa594c",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    0.05782034248113632,
+                    -0.25959503650665283,
+                    0.10041501373052597
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "77ed8f6d-9489-5e87-9cd1-486cf4a322ee",
+                "name": "wheel 02 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 6,
+                "nodePath": "/part_77ed8f6d94895e87",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    -0.05833753943443298,
+                    -0.2594943642616272,
+                    0.10037606209516525
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "6bc218b3-bff4-54aa-9a66-8ffbbe38705d",
+                "name": "wheel 03 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 7,
+                "nodePath": "/part_6bc218b3bff454aa",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    0.057552531361579895,
+                    -0.2557238042354584,
+                    -0.1100408062338829
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "templateComponentId": "71e5facf-0f46-533e-9e8d-16efc8f8d5ff",
+                "name": "wheel 04 mesh 00",
+                "parentTemplateComponentId": null,
+                "nodeIndex": 8,
+                "nodePath": "/part_71e5facf0f46533e",
+                "role": "structural",
+                "solid": false,
+                "description": "Imported visual object; not a certified manufacturer component.",
+                "source": "NVIDIA cart_mobile_e01",
+                "explode": {
+                  "translation": [
+                    -0.057220377027988434,
+                    -0.25578656792640686,
+                    -0.11006825417280197
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "pivot": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            ],
+            "bindings": [],
+            "maintenanceText": "Reference geometry only. Map measured signals explicitly before operational use. Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred. Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD. Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials. Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+          }
+        }
+      }
+    }
+  ]
+}

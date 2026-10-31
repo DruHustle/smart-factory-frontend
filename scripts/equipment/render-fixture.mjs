@@ -59,6 +59,16 @@ const server = await createServer({
           const url = new URL(req.url, "http://127.0.0.1:3139");
           const directory = fixtureDirectory(url.searchParams.get("model"));
           const pump = directory === "fixtures/equipment/";
+          if (url.pathname === "/__equipment-render/trpc/equipment.access") {
+            res.setHeader("Content-Type", "application/json");
+            const result = {
+              result: { data: { json: { canWrite: false, demoOnly: true } } },
+            };
+            res.end(
+              JSON.stringify(url.searchParams.has("batch") ? [result] : result),
+            );
+            return;
+          }
           if (url.pathname === "/__equipment-render/trpc/equipment.reference") {
             const input = JSON.parse(url.searchParams.get("input") || "{}");
             const slug = (input["0"] || input).json.slug;

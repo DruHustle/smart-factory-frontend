@@ -13,6 +13,7 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "moduleResolution": "bundler",
+    "resolveJsonModule": true,
     "baseUrl": ".",
     "target": "ES2020",
     "downlevelIteration": true,
