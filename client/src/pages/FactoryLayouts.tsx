@@ -819,6 +819,7 @@ function FactoryLayoutsEditor() {
               returnTo="/layouts"
               demo={demo}
               layoutDocument={valid.data}
+              diagramScopeKey={`layout-study:${draft.key}`}
               onLayoutMove={move}
             />
           )}

@@ -17,6 +17,7 @@
 - [Login troubleshooting](LOGIN_TROUBLESHOOTING.md)
 - [Smart Factory Assistant configuration and data boundaries](docs/assistant.md)
 - [Factory layouts, mouse grabbing and fullscreen](docs/factory-layouts.md)
+- [Floor plan, process/P&ID and electrical diagrams](docs/factory-diagrams.md)
 - [Editable, resettable demo sandbox](docs/editable-demo.md)
 - [Complete demonstration and capability boundaries](docs/complete-demonstration.md)
 - [Digital passport publication and printing](docs/access-and-publication.md)

@@ -8,6 +8,7 @@ export default defineConfig({
     "data-workspace.spec.ts",
     "password-recovery.spec.ts",
     "factory-connections-theme.spec.ts",
+    "factory-diagrams.spec.ts",
   ],
   outputDir: "test-results/overview-contract",
   workers: 1,
