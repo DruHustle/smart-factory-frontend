@@ -15,6 +15,11 @@ import { createStudioEnvironment } from "../equipment/studioEnvironment";
 import { floorItemAtRay } from "./floor-picking";
 import { factoryAreas, factoryAreaColors } from "./factory-spaces";
 import {
+  FactoryConnectionLayer,
+  EMPTY_CONNECTION_APPEARANCES,
+  type ConnectionAppearances,
+} from "./factory-connections";
+import {
   optimizeFactoryReference,
   instantiateFactoryReference,
   createSurfaceGrain,
@@ -145,6 +150,7 @@ function areaSign(text: string, color: string, width: number) {
 export default function FactoryFloorScene({
   layout,
   links,
+  connectionAppearances = EMPTY_CONNECTION_APPEARANCES,
   selected,
   onSelect,
   dark,
@@ -157,6 +163,7 @@ export default function FactoryFloorScene({
 }: {
   layout: Layout;
   links: FloorLink[];
+  connectionAppearances?: ConnectionAppearances;
   selected: string | null;
   onSelect: FloorSelect;
   dark: boolean;
@@ -167,6 +174,8 @@ export default function FactoryFloorScene({
   const [rotateOnHover, setRotateOnHover] = useState(false);
   const rotateOnHoverRef = useRef(false);
   rotateOnHoverRef.current = rotateOnHover;
+  const appearances = useRef(connectionAppearances);
+  appearances.current = connectionAppearances;
   const host = useRef<HTMLDivElement>(null),
     choose = useRef(onSelect),
     selection = useRef(selected),
@@ -177,6 +186,7 @@ export default function FactoryFloorScene({
     focus: (ref: string | null) => void;
     reset: () => void;
     resetHover: () => void;
+    connections: () => void;
     statuses: (items: Layout["placements"]) => void;
     positions: (items: Layout["placements"]) => void;
     zones: (zones: Layout["zones"]) => void;
@@ -203,7 +213,7 @@ export default function FactoryFloorScene({
           `${p.item.ref}:${p.model}:${JSON.stringify(p.dimensions ?? null)}`,
       )
       .join("|") +
-    links.map((l) => `${l.from}:${l.to}`).join("|") +
+    JSON.stringify(links.map((l) => [l.from, l.to, l.kind])) +
     `${layout.width}:${layout.depth}:${layout.measured ?? false}:` +
     (layout.measured
       ? JSON.stringify(
@@ -444,6 +454,7 @@ export default function FactoryFloorScene({
           string,
           THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>
         >();
+      let updateConnections = () => {};
       const labels = new Map<string, THREE.Sprite>();
       const retired: THREE.Object3D[] = [];
       const zoneLabels = new Map<
@@ -483,6 +494,8 @@ export default function FactoryFloorScene({
         const body = p.dimensions
           ? fitFactoryDimensions(proxy, p.dimensions)
           : proxy;
+        const proxySize = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3());
+        group.userData.connectionSize = proxySize.toArray();
         body.userData.floorItemRef = p.item.ref;
         group.add(body);
         const name = label(p.item.name, "#203c4b");
@@ -567,6 +580,11 @@ export default function FactoryFloorScene({
               const height = p.dimensions?.height ?? size.y * scale;
               normalized.position.y = height / 2 + 0.025;
               group.userData.modelHeight = height;
+              group.userData.connectionSize = [
+                p.dimensions?.width ?? size.x * scale,
+                height,
+                p.dimensions?.depth ?? size.z * scale,
+              ];
               name.position.y = height + 0.8;
               marker.position.set(
                 -Math.min((p.dimensions?.width ?? size.x * scale) / 2, 0.64),
@@ -587,50 +605,24 @@ export default function FactoryFloorScene({
               renderer.domElement.dataset.referenceMaterialCount = String(
                 viewerMaterials.size,
               );
+              updateConnections();
               dirty = true;
             })
             .catch(() => {
               /* The labelled proxy remains available when a reference cannot load. */
             });
       }
-      const connectionLines: Array<{ link: FloorLink; line: THREE.Line }> = [];
-      for (const link of links) {
-        const from = objects.get(link.from),
-          to = objects.get(link.to);
-        if (!from || !to) continue;
-        const points = [
-          new THREE.Vector3(from.position.x, 0.07, from.position.z),
-          new THREE.Vector3(to.position.x, 0.07, to.position.z),
-        ];
-        const line = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(points),
-          new THREE.LineDashedMaterial({
-            color: link.kind === "fx" ? 0xaa70e9 : 0x2d99a2,
-            dashSize: 0.25,
-            gapSize: 0.15,
-            transparent: true,
-            opacity: 0.24,
-          }),
-        );
-        line.computeLineDistances();
-        scene.add(line);
-        connectionLines.push({ link, line });
-      }
-      const updateConnections = () => {
+      const connectionLayer = new FactoryConnectionLayer(software);
+      scene.add(connectionLayer.root);
+      updateConnections = () => {
+        connectionLayer.update(links, objects, appearances.current);
+        renderer.domElement.dataset.connectionRendering = "physical-meshes";
+        renderer.domElement.dataset.connectionRoutes = JSON.stringify(connectionLayer.summary);
+        renderer.domElement.dataset.connectionCount = String(connectionLayer.summary.length);
         renderer.shadowMap.needsUpdate = true;
-        for (const { link, line } of connectionLines) {
-          const from = objects.get(link.from),
-            to = objects.get(link.to);
-          if (!from || !to) continue;
-          const positions = line.geometry.getAttribute("position");
-          positions.setXYZ(0, from.position.x, 0.07, from.position.z);
-          positions.setXYZ(1, to.position.x, 0.07, to.position.z);
-          positions.needsUpdate = true;
-          line.geometry.computeBoundingSphere();
-          line.computeLineDistances();
-        }
         dirty = true;
       };
+      updateConnections();
       const size = () => {
         resetHover();
         cancelForResize();
@@ -642,9 +634,15 @@ export default function FactoryFloorScene({
           halfHeight = 0;
         // Fit the projected bounds, including the outermost equipment labels.
         // A width/depth heuristic clips corners after an isometric rotation.
-        for (const x of [-layout.width / 2 - 2, layout.width / 2 + 2])
-          for (const y of [-0.5, maxItemHeight])
-            for (const z of [-layout.depth / 2 - 2, layout.depth / 2 + 2]) {
+        const bounds = new THREE.Box3(
+          new THREE.Vector3(-layout.width / 2 - 2, -0.5, -layout.depth / 2 - 2),
+          new THREE.Vector3(layout.width / 2 + 2, maxItemHeight, layout.depth / 2 + 2),
+        );
+        if (connectionLayer.root.children.length)
+          bounds.union(new THREE.Box3().setFromObject(connectionLayer.root));
+        for (const x of [bounds.min.x, bounds.max.x])
+          for (const y of [bounds.min.y, bounds.max.y])
+            for (const z of [bounds.min.z, bounds.max.z]) {
               const point = new THREE.Vector3(x, y, z).applyMatrix4(
                 camera.matrixWorldInverse,
               );
@@ -682,6 +680,7 @@ export default function FactoryFloorScene({
       runtime.current = {
         reset: fit,
         resetHover,
+        connections: updateConnections,
         zones: (zones) => {
           for (const [index, area] of zones.entries()) {
             const prior = zoneLabels.get(index);
@@ -1168,6 +1167,7 @@ export default function FactoryFloorScene({
         renderer.domElement.removeEventListener("webglcontextlost", lost);
         // Disposing GPU resources preserves the cached CPU references for reuse.
         retired.forEach(disposeObject);
+        connectionLayer.dispose();
         disposeObject(scene);
         studio?.dispose();
         metalGrain.dispose();
@@ -1192,6 +1192,9 @@ export default function FactoryFloorScene({
     runtime.current?.positions(layout.placements);
     runtime.current?.zones(layout.zones);
   }, [layout, key, dark]);
+  useEffect(() => {
+    runtime.current?.connections();
+  }, [connectionAppearances, key, dark]);
   useEffect(() => {
     runtime.current?.reset();
   }, [reset, zone]);
