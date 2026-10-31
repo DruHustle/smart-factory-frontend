@@ -397,4 +397,4 @@ finally:
             logfile = Path(os.environ.get('TMPDIR', '/tmp')) / 'smart-factory-bundle-smoke.log'
             logfile.write_text(run(COMPOSE+['logs','--no-color'], True))
             print('Synthetic acceptance-test failure log: ' + str(logfile))
-    finally: run(COMPOSE+['down','--volumes','--remove-orphans'])
+    finally: run(COMPOSE+['--profile','mail-capture','down','--volumes','--remove-orphans'])
