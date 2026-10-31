@@ -378,9 +378,10 @@ export function FactoryFloor({
       </div>
       <p className="border-b px-4 py-2 text-xs text-muted-foreground">
         {movable
-          ? "Grab an item to move it, or empty floor to move the view."
-          : "Click equipment to inspect it; grab to move the view."}{" "}
-        {view === "3d" && "Move mouse to rotate · Scroll or pinch to zoom."}
+          ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
+          : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
+        {view === "3d" &&
+          "Rotate off: hovering stays still. Turn Rotate on to rotate with mouse movement · Scroll or pinch to zoom."}
         {fullscreen.expanded && " · Esc to exit fullscreen."}
       </p>
       {zone !== "all" && (
