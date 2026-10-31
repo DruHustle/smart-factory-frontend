@@ -5,6 +5,7 @@ import { requiredCapabilities, runtimeContractVersion } from "../shared/runtime-
 const draftsKey = "smart-factory:layout-drafts:v1:90001:live";
 const routeKey = 'smart-factory:connection-appearance:v1:[90001,"live","Routing review"]';
 const processId = '["process","asset:1","asset:2"]';
+const gatewayId = '["gateway","asset:1","asset:3"]';
 const placements = [
   { ref: "asset:1", x: -6, z: 0, rotation: 0, zoneId: null },
   { ref: "asset:2", x: 0, z: -3, rotation: 0, zoneId: null },
@@ -27,6 +28,12 @@ type RouteSummary = { id: string; type: string; shape: string; diameter: number;
 const canvasFor = (page: Page) => page.getByRole("img", { name: "Interactive 3D factory floor", exact: true });
 const routes = async (canvas: Locator): Promise<RouteSummary[]> =>
   JSON.parse((await canvas.getAttribute("data-connection-routes"))!);
+async function routeFor(canvas: Locator, id = processId) {
+  // Rebuilding one route may change render-cache insertion order, not its identity.
+  const route = (await routes(canvas)).find((entry) => entry.id === id);
+  expect(route, `Rendered connection ${id} must remain present`).toBeDefined();
+  return route!;
+}
 const readPlacements = (page: Page) => page.evaluate((key) =>
   JSON.parse(localStorage.getItem(key)!)[0].document.placements, draftsKey);
 
@@ -82,6 +89,7 @@ async function fixture(page: Page, authenticated = true) {
 async function setTheme(page: Page, name: "Light" | "Dark" | "System") {
   await page.getByRole("button", { name: /^Theme settings/ }).click();
   await page.getByRole("menuitemradio", { name, exact: true }).click();
+  await expect(page.getByRole("menu")).toBeHidden();
 }
 async function planLines(page: Page) {
   await page.getByRole("button", { name: "Floor plan", exact: true }).click();
@@ -97,7 +105,9 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     const control = await fixture(page), canvas = canvasFor(page);
     await expect(canvas).toHaveAttribute("data-connection-rendering", "physical-meshes");
-    expect((await routes(canvas)).map((r) => r.type)).toEqual(["pipe", "wire"]);
+    expect((await routeFor(canvas)).type).toBe("pipe");
+    expect((await routeFor(canvas, gatewayId)).type).toBe("wire");
+    const gateway = await routeFor(canvas, gatewayId);
     const original = await readPlacements(page), lines = await planLines(page);
     await page.getByRole("button", { name: "3D floor", exact: true }).click();
     await expect(canvas).toHaveAttribute("data-connection-count", "2");
@@ -106,19 +116,19 @@ for (const width of [390, 1440]) {
     const camera = await canvas.getAttribute("data-camera-view");
     await page.getByLabel("3D connection type", { exact: true }).selectOption("wire");
     await page.getByLabel("3D route shape", { exact: true }).selectOption("curve");
-    await expect.poll(async () => (await routes(canvas))[0].type).toBe("wire");
-    await expect.poll(async () => (await routes(canvas))[0].shape).toBe("curve");
+    await expect.poll(async () => (await routeFor(canvas)).type).toBe("wire");
+    await expect.poll(async () => (await routeFor(canvas)).shape).toBe("curve");
     await page.getByLabel("3D route shape", { exact: true }).selectOption("straight");
-    await expect.poll(async () => (await routes(canvas))[0].shape).toBe("straight");
+    await expect.poll(async () => (await routeFor(canvas)).shape).toBe("straight");
     await page.getByLabel("3D connection type", { exact: true }).selectOption("pipe");
     await page.getByLabel("3D route shape", { exact: true }).selectOption("elbow");
     await page.getByLabel("Route height (m)", { exact: true }).fill("2.4");
     await page.getByLabel("Route height (m)", { exact: true }).press("Tab");
     await page.getByLabel("Diameter (m)", { exact: true }).fill("0.22");
     await page.getByLabel("Diameter (m)", { exact: true }).press("Tab");
-    await expect.poll(async () => (await routes(canvas))[0].diameter).toBe(0.22);
+    await expect.poll(async () => (await routeFor(canvas)).diameter).toBe(0.22);
     await page.getByLabel("3D connection colour", { exact: true }).fill("#8899aa");
-    await expect.poll(async () => (await routes(canvas))[0].color).toBe("#8899aa");
+    await expect.poll(async () => (await routeFor(canvas)).color).toBe("#8899aa");
     await page.getByLabel("3D route shape", { exact: true }).selectOption("custom");
     await page.getByRole("button", { name: "Add bend point", exact: true }).click();
     await page.getByLabel("Point 1 Y (m)", { exact: true }).fill("3");
@@ -127,25 +137,27 @@ for (const width of [390, 1440]) {
     await page.getByRole("button", { name: "Move point 2 earlier", exact: true }).click();
     await page.getByRole("button", { name: "Remove point 2", exact: true }).click();
     await expect(page.getByLabel("Point 2 Y (m)", { exact: true })).toHaveCount(0);
-    await expect.poll(async () => (await routes(canvas))[0].shape).toBe("custom");
+    await expect.poll(async () => (await routeFor(canvas)).shape).toBe("custom");
     expect(await canvas.getAttribute("data-camera-view")).toBe(camera);
     expect(await readPlacements(page)).toEqual(original);
-    const configured = (await routes(canvas))[0];
+    expect(await routeFor(canvas, gatewayId)).toEqual(gateway);
+    const configured = await routeFor(canvas);
     await page.getByLabel("Diameter (m)", { exact: true }).fill("-1");
     await page.getByLabel("Diameter (m)", { exact: true }).press("Tab");
     await expect(page.getByLabel("Diameter (m)", { exact: true })).toHaveAttribute("aria-invalid", "true");
-    expect((await routes(canvas))[0].diameter).toBe(0.22);
+    expect((await routeFor(canvas)).diameter).toBe(0.22);
     await page.reload();
-    await expect.poll(async () => (await routes(canvas))[0]).toEqual(configured);
+    await expect(canvas).toHaveAttribute("data-connection-count", "2");
+    await expect.poll(() => routeFor(canvas)).toEqual(configured);
     expect(await planLines(page)).toEqual(lines);
     expect(await readPlacements(page)).toEqual(original);
     await page.getByRole("button", { name: "3D floor", exact: true }).click();
     await expect(canvas).toHaveAttribute("data-connection-count", "2");
     // A different layout scope must not inherit another study's custom route.
     await page.getByLabel("Layout name", { exact: true }).fill("Other routing review");
-    await expect.poll(async () => (await routes(canvas))[0].shape).toBe("elbow");
+    await expect.poll(async () => (await routeFor(canvas)).shape).toBe("elbow");
     await page.getByLabel("Layout name", { exact: true }).fill("Routing review");
-    await expect.poll(async () => (await routes(canvas))[0].shape).toBe("custom");
+    await expect.poll(async () => (await routeFor(canvas)).shape).toBe("custom");
     await page.getByRole("button", { name: "Enter fullscreen", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Factory floor overview", exact: true })).toBeVisible();
     await expect(page.getByTestId("connection-routing").locator("summary")).toBeVisible();
@@ -163,8 +175,16 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     const control = await fixture(page);
     const nav = page.locator('[data-sidebar="sidebar"]:visible');
-    const open = async () => { if (width < 768) await page.locator('[data-sidebar="trigger"]').click(); };
-    const close = async () => { if (width < 768) await page.keyboard.press("Escape"); };
+    const open = async () => {
+      if (width < 768) await page.locator('[data-sidebar="trigger"]').click();
+      await expect(nav).toBeVisible();
+    };
+    const close = async () => {
+      if (width < 768) {
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("dialog", { name: "Sidebar", exact: true })).toBeHidden();
+      }
+    };
     const colours = () => nav.evaluate((element) => {
       const selectors = [":scope", '[data-sidebar="header"]', '[data-sidebar="menu-button"][data-active="true"]', '[aria-label="Open account menu"]'];
       return selectors.map((selector) => {
@@ -181,6 +201,7 @@ for (const width of [390, 1440]) {
     await nav.getByRole("button", { name: "Open account menu", exact: true }).click();
     await expect(page.getByRole("menu")).toHaveCSS("background-color", "rgb(17, 29, 61)");
     await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toBeHidden();
     await close();
     const lightMain = await page.locator("#dashboard-main").evaluate((e) => getComputedStyle(e).backgroundColor);
     await setTheme(page, "Dark");
@@ -197,7 +218,10 @@ for (const width of [390, 1440]) {
     await close();
     if (width >= 768) {
       await page.locator('[data-sidebar="trigger"]').click();
-      await expect(page.locator('[data-slot="sidebar"][data-state="collapsed"]')).toBeVisible();
+      // The outer wrapper is zero-height because its visible panel is fixed-positioned.
+      await expect(page.locator('[data-slot="sidebar"][data-state]')).toHaveAttribute("data-state", "collapsed");
+      await expect(nav).toBeVisible();
+      await expect.poll(async () => (await nav.boundingBox())!.width).toBeLessThan(60);
       await expect(nav).toHaveCSS("background-color", "rgb(15, 22, 41)");
     }
     expect(control.errors).toEqual([]);
@@ -262,7 +286,7 @@ test("corrupt routing is retained and storage failure is reported without changi
     };
   });
   await page.getByLabel("3D connection type", { exact: true }).selectOption("wire");
-  await expect.poll(async () => (await routes(canvas))[0].type).toBe("wire");
+  await expect.poll(async () => (await routeFor(canvas)).type).toBe("wire");
   await expect(page.getByRole("alert")).toContainText("could not be saved");
   await expect(canvas).toHaveAttribute("data-connection-count", "2");
   expect(control.writes).toEqual([]);
