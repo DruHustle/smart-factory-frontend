@@ -1,0 +1,39 @@
+name: OpenUSD qualification
+
+on:
+  push:
+    branches: [feat/openusd-industrial-library]
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/openusd-qualification.yml'
+      - 'scripts/equipment/convert_openusd.py'
+      - 'scripts/equipment/openusd/**'
+      - 'server/equipment/**'
+      - 'server/openusd*'
+      - 'shared/industrial-assets.ts'
+      - 'client/src/components/equipment/**'
+      - 'client/src/pages/FactoryModels.tsx'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openusd-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-review:
+    name: OpenUSD source review snapshot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { persist-credentials: false }
+      - name: Retain exact source for isolated review
+        run: git archive --format=tar.gz HEAD > "$RUNNER_TEMP/smart-factory-source.tar.gz"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: openusd-source-review
+          path: ${{ runner.temp }}/smart-factory-source.tar.gz
+          retention-days: 1
