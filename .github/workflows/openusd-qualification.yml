@@ -8,6 +8,9 @@ on:
       - '.github/workflows/openusd-qualification.yml'
 permissions:
   contents: write
+defaults:
+  run:
+    shell: bash
 concurrency:
   group: openusd-authoring-${{ github.ref }}
   cancel-in-progress: false
@@ -26,6 +29,18 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Apply reviewed Blender 4.5 importer option correction
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/equipment/convert_openusd.py')
+          s=p.read_text()
+          old='import_blendshapes=False, import_subdivision=False,'
+          new='import_blendshapes=False, import_subdiv=False,'
+          assert s.count(old)==1 or s.count(new)==1
+          s=s.replace(old,new)
+          p.write_text(s)
+          PY
       - name: Build isolated CPU authoring tool
         run: docker build -f scripts/equipment/openusd/Dockerfile -t smart-factory-openusd-authoring .
       - name: Acquire immutable sources and verify per-package licensing
@@ -43,7 +58,6 @@ jobs:
         run: |
           node --import tsx --input-type=module <<'JS'
           import fs from 'node:fs';
-          import crypto from 'node:crypto';
           import {validateModelPackage} from './server/equipment/packages.ts';
           const root=process.env.OUTPUT;
           const catalog=JSON.parse(fs.readFileSync(root+'/shared/industrial-assets.catalog.json','utf8'));
@@ -67,7 +81,7 @@ jobs:
           cp "$RUNNER_TEMP/openusd-output/shared/industrial-assets.catalog.json" shared/
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add client/public/models/nvidia shared/industrial-assets.catalog.json
+          git add client/public/models/nvidia shared/industrial-assets.catalog.json scripts/equipment/convert_openusd.py
           if ! git diff --cached --quiet; then
             git commit -m 'Add qualified NVIDIA browser models with immutable provenance and attribution'
             git push origin HEAD:refs/heads/feat/openusd-industrial-library
