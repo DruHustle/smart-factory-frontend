@@ -2,7 +2,7 @@
 """Acceptance checks for the real six-process image with disposable dependencies."""
 from pathlib import Path
 from http.cookiejar import CookieJar
-import json, os, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse
+import json, os, re, secrets, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ['docker', 'compose', '--env-file', '/dev/null', '-p', 'smart-factory-bundle-test', '-f', str(ROOT / 'docker-compose.bundle-test.yml')]
@@ -42,8 +42,123 @@ def wait(check, timeout=90):
         time.sleep(1)
     raise AssertionError('Acceptance condition timed out')
 
+def credential_request(opener, procedure, value=None, query=False, expected=200):
+    """Do not include request values or response bodies in credential failures."""
+    path = '/api/trpc/' + procedure
+    if query: path += '?input=' + urllib.parse.quote(json.dumps({'json': value}))
+    try:
+        status, data = http(opener, path, None if query else value)
+    except Exception:
+        raise AssertionError('Packaged account request failed: ' + procedure) from None
+    if status != expected:
+        raise AssertionError(f'Packaged account request {procedure} returned HTTP {status}; expected {expected}.')
+    if expected != 200: return data
+    try:
+        return data['result']['data']['json']
+    except (KeyError, TypeError):
+        raise AssertionError('Packaged account response is invalid: ' + procedure) from None
+
+def packaged_password_recovery(administrator, previous_session, user_id):
+    """Real packaged API -> worker -> private SMTP -> emailed link -> identity.
+
+    The account was registered and approved earlier in this same test. Run this
+    only after the original notification and rollback assertions: enabling the
+    synthetic sender and revoking this viewer's session must not affect them.
+    """
+    email = 'viewer@example.com'
+    os.environ['BUNDLE_TEST_EMAIL_ENABLED'] = 'true'
+    os.environ['BUNDLE_TEST_SMTP_PASSWORD'] = 'isolated-mail-capture-password'
+    run(COMPOSE + ['up', '-d', '--wait', 'mail-capture'])
+    run(COMPOSE + ['up', '-d', '--no-deps', 'bundle'])
+    anonymous = urllib.request.build_opener()
+    wait(lambda: http(anonymous, '/health/ready')[0] == 200)
+    wait(lambda: run(COMPOSE + ['exec', '-T', 'bundle', 'supervisorctl', '-c', '/app/deploy/render/supervisord.conf', 'status'], True).count('RUNNING') == 6)
+    wait(lambda: (http(anonymous, '/api/runtime/contract')[1].get('worker') or {}).get('compatible') is True)
+    assert credential_request(anonymous, 'auth.passwordResetPolicy', query=True) == {'delivery': 'email'}
+    assert credential_request(previous_session, 'auth.me', query=True)['id'] == user_id
+    assert credential_request(anonymous, 'auth.requestPasswordReset', {'email': email}) == {'submitted': True}
+
+    captured = None
+    def reset_mail_arrived():
+        nonlocal captured
+        # This capture API has no host port. Its stdout is retained only in this
+        # process's memory and is never written to logs or qualification evidence.
+        try:
+            messages = json.loads(run(COMPOSE + ['exec', '-T', 'mail-capture', 'python3', '-c',
+                "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8025/messages',timeout=5).read().decode('utf-8'))"], True))
+            matching = [message for message in messages if message.get('to') == [email]
+                and message.get('subject') == 'Reset your Smart Factory password']
+        except Exception:
+            raise AssertionError('Private reset-email capture is unavailable.') from None
+        if not matching: return False
+        assert len(matching) == 1, 'Expected one synthetic reset email.'
+        captured = matching[0]
+        return True
+    wait(reset_mail_arrived)
+    assert captured is not None and isinstance(captured.get('text'), str), 'Reset email has no text body.'
+    links = re.findall(r'https?://[^\s<>\"]+', captured['text'])
+    assert len(links) == 1, 'Expected one reset link in the synthetic email.'
+    reset_link = links[0]
+    parsed = urllib.parse.urlsplit(reset_link)
+    expected_origin = urllib.parse.urlsplit(BASE)
+    assert (parsed.scheme, parsed.netloc, parsed.path, parsed.query) == (expected_origin.scheme, expected_origin.netloc, '/', ''), 'Reset email origin or document path is incorrect.'
+    fragment_path, separator, fragment_query = parsed.fragment.partition('?')
+    assert fragment_path == '/reset-password' and separator == '?', 'Reset email hash route is incorrect.'
+    try:
+        parameters = urllib.parse.parse_qs(fragment_query, strict_parsing=True)
+    except ValueError:
+        raise AssertionError('Reset email parameters are invalid.') from None
+    assert set(parameters) == {'token'} and len(parameters['token']) == 1, 'Reset email must contain one token parameter.'
+    token = parameters['token'][0]
+    assert re.fullmatch(r'[A-Za-z0-9_-]{43}', token), 'Reset email token format is invalid.'
+    assert reset_link == BASE + '/#/reset-password?token=' + token, 'Reset email URL is not canonical.'
+
+    accepted_request = None
+    def delivery_visible():
+        nonlocal accepted_request
+        queue = credential_request(administrator, 'users.pendingRequests', query=True)
+        accepted_request = next((item for item in queue if item['email'] == email and item['kind'] == 'password_reset'), None)
+        return accepted_request is not None and (accepted_request.get('recoveryDelivery') or {}).get('status') == 'accepted'
+    wait(delivery_visible)
+    assert accepted_request is not None
+    assert set(accepted_request) <= {'id', 'kind', 'email', 'name', 'organization', 'jobTitle', 'createdAt', 'recoveryDelivery'}, 'Account request exposed an unexpected field.'
+    delivery = accepted_request['recoveryDelivery']
+    assert set(delivery) == {'status', 'failureCode', 'attempts', 'expiresAt'}, 'Delivery status exposed an unexpected field.'
+    assert delivery['attempts'] >= 1 and delivery['failureCode'] is None
+    assert token not in json.dumps(accepted_request) and reset_link not in json.dumps(accepted_request), 'Account request exposed a reset credential.'
+    assert sql(f"SELECT count(*) FROM password_reset_tokens WHERE user_id={user_id} AND delivery_status='accepted' AND delivery_payload='' AND used_at IS NULL AND expires_at>now()") == '1'
+    # Requesting a reset and accepting its email must not invalidate a session.
+    assert credential_request(previous_session, 'auth.me', query=True)['id'] == user_id
+    new_password = 'Bundle-recovered-' + secrets.token_urlsafe(24)
+    assert credential_request(anonymous, 'auth.resetPassword', {'token': token, 'newPassword': new_password}) == {'reset': True}
+    assert credential_request(previous_session, 'auth.me', query=True) is None
+    credential_request(previous_session, 'assets.list', query=True, expected=401)
+    credential_request(anonymous, 'auth.login', {'email': email, 'password': 'Bundle-test-Password-123!'}, expected=401)
+    replay = credential_request(anonymous, 'auth.resetPassword', {'token': token, 'newPassword': new_password + 'x'}, expected=400)
+    assert replay['error']['json']['data']['code'] == 'BAD_REQUEST'
+    assert 'invalid' in replay['error']['json']['message'].lower()
+    recovered = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+    signed_in = credential_request(recovered, 'auth.login', {'email': email, 'password': new_password})['user']
+    assert signed_in['id'] == user_id and signed_in['passwordChangeRequired'] is False
+    # In render-bundle mode auth.me delegates to the real C# IdentityService.
+    profile = credential_request(recovered, 'auth.me', query=True)
+    assert profile['id'] == user_id and profile['email'] == email and profile['role'] == 'viewer'
+    credential_request(recovered, 'assets.list', query=True)
+    assert sql(f"SELECT count(*) FROM password_reset_tokens WHERE user_id={user_id} AND delivery_status='accepted' AND delivery_payload='' AND used_at IS NOT NULL") == '1'
+    pending_after = credential_request(administrator, 'users.pendingRequests', query=True)
+    assert not any(item['email'] == email and item['kind'] == 'password_reset' for item in pending_after)
+    print('PASS: packaged account recovery traverses the API, real SMTP worker and emailed link; old credentials are rejected and a new session reaches IdentityService.')
+    return {'apiRequestQueued': True, 'workerSmtpAccepted': True, 'emailedLinkOriginAndRouteValidated': True,
+        'administratorDeliveryStatusVerified': True, 'tokenRedeemed': True, 'previousPasswordRejected': True,
+        'previousSessionRejected': True, 'tokenReplayRejected': True, 'newPasswordIdentityVerified': True,
+        'productionAccountVerified': False, 'productionMailboxVerified': False}
+
 completed = False
 try:
+    # The early restart/rollback checks intentionally exercise unconfigured mail.
+    # Only the final isolated recovery stage may enable the private test sender.
+    os.environ['BUNDLE_TEST_EMAIL_ENABLED'] = 'false'
+    os.environ['BUNDLE_TEST_SMTP_PASSWORD'] = ''
     run(COMPOSE + ['up','-d','--wait','database','backend-database','redis','broker'])
     # Repeated pre-deploy tasks must be idempotent and need no mounted disk.
     for _ in range(2): run(COMPOSE + ['run','--rm','--entrypoint','python3','bundle','/app/deploy/render/migrate.py'])
@@ -267,9 +382,14 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','start','notification'])
     wait(lambda: run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','status'], True).count('RUNNING') == 6)
     print('PASS: packaged demo installer is explicit and idempotent, preserves operational inventory and global visibility, and requests no email or current connectivity.')
+    password_recovery_evidence = packaged_password_recovery(admin, viewer, viewer_id)
+    final_runtime = http(plain, '/api/runtime/contract')[1]
+    assert all(final_runtime[key] == runtime[key] for key in ['source', 'backendSource', 'edgeSource'])
+    assert final_runtime['schema']['ready'] is True and final_runtime['worker']['fresh'] is True and final_runtime['worker']['compatible'] is True
+    runtime = final_runtime
     image=json.loads(run(['docker','image','inspect',os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')],True))[0]
     output=Path(os.environ.get('QUALIFICATION_EVIDENCE_DIR',str(Path(tempfile.gettempdir())/'factory-arm64-bundle-evidence')));output.mkdir(parents=True,exist_ok=True)
-    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'compatibleRollback':rollback_evidence,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
+    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'compatibleRollback':rollback_evidence,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'packagedPasswordRecovery':password_recovery_evidence,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
     completed = True
 finally:
     try:
