@@ -1330,8 +1330,14 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             ) : (
               <p>Authored explosion unavailable for this model.</p>
             )}
-            {props.components.some((c) => c.solid) ? (
+            {props.components.length > 0 ? (
               <>
+                {!props.components.some((c) => c.solid) && (
+                  <p className="text-xs text-muted-foreground">
+                    Visual section only. Solid section caps unavailable for this
+                    model.
+                  </p>
+                )}
                 <label>
                   Section axis
                   <select

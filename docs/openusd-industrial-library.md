@@ -66,3 +66,5 @@ pnpm e2e:equipment --grep NVIDIA
 The NVIDIA library qualification job validates all six packages through the unchanged API admission contract, licenses/hashes/components/budgets, desktop/mobile rendering, both quality levels, selection, inspection controls, read-only browsing, corrupted/missing files, WebGL-disabled fallback and Firefox/WebKit compatibility. The standalone equipment suite imports a real package through the authenticated API, creates a disposable workspace, reads its local files and persists/reloads a viewpoint. Existing renderer/application regression suites continue to run. CI retains evidence artifacts.
 
 Production uses the existing exact-main-SHA deployment process and API compatibility gate. A successful source test does not establish successful production deployment.
+
+After deployment, the existing release verifier checks all six GLBs and every preview, license and provenance receipt against the exact qualified checkout. Missing, truncated, altered or HTML-fallback asset responses fail release verification. These checks are read-only and send no account credentials.
