@@ -23,11 +23,11 @@
       ],
       "models": {
         "detail": {
-          "url": "/models/nvidia/nvidia-transfer-conveyor/detail.a7e105cec86326bc.glb",
-          "sha256": "a7e105cec86326bc2af8dbc146e4f94c1ac2b06a71ef17af8678bcd1debe9687",
-          "bytes": 4952220,
+          "url": "/models/nvidia/nvidia-transfer-conveyor/detail.c69759f2116fa20c.glb",
+          "sha256": "c69759f2116fa20cba44a2cd3d8b3792fa782f4d2d90b8621cfdef1e86a26b46",
+          "bytes": 4950208,
           "triangles": 106621,
-          "revision": "nvidia:nvidia-transfer-conveyor:a7e105cec86326bc2af8dbc146e4f94c1ac2b06a71ef17af8678bcd1debe9687",
+          "revision": "nvidia:nvidia-transfer-conveyor:c69759f2116fa20cba44a2cd3d8b3792fa782f4d2d90b8621cfdef1e86a26b46",
           "manifest": {
             "schemaVersion": "smart-factory-model-1",
             "name": "NVIDIA Transfer conveyor",
@@ -1275,11 +1275,11 @@
           }
         },
         "compact": {
-          "url": "/models/nvidia/nvidia-transfer-conveyor/compact.4b6d9d3e1cc05e33.glb",
-          "sha256": "4b6d9d3e1cc05e33cddee59ec7ef0afdb496d1d8ffc057b130fbc94e84ce44dd",
-          "bytes": 1588756,
+          "url": "/models/nvidia/nvidia-transfer-conveyor/compact.3f73d759f3f6f233.glb",
+          "sha256": "3f73d759f3f6f233d5b3196951bf1ade77e163c14576bccdceddebe9e3ebe0f0",
+          "bytes": 1586780,
           "triangles": 29057,
-          "revision": "nvidia:nvidia-transfer-conveyor:4b6d9d3e1cc05e33cddee59ec7ef0afdb496d1d8ffc057b130fbc94e84ce44dd",
+          "revision": "nvidia:nvidia-transfer-conveyor:3f73d759f3f6f233d5b3196951bf1ade77e163c14576bccdceddebe9e3ebe0f0",
           "manifest": {
             "schemaVersion": "smart-factory-model-1",
             "name": "NVIDIA Transfer conveyor",
@@ -2550,11 +2550,11 @@
       ],
       "models": {
         "detail": {
-          "url": "/models/nvidia/nvidia-storage-rack/detail.f35199ef3cc1e74c.glb",
-          "sha256": "f35199ef3cc1e74c8d1e12dd9a605b35a19201548947ed0ced7940063a81cff9",
-          "bytes": 2053900,
+          "url": "/models/nvidia/nvidia-storage-rack/detail.35ed22dad9781eb2.glb",
+          "sha256": "35ed22dad9781eb2151bc56f25ec401da4f2cf525cd5e8447d80a05fac8ee24a",
+          "bytes": 2053828,
           "triangles": 44080,
-          "revision": "nvidia:nvidia-storage-rack:f35199ef3cc1e74c8d1e12dd9a605b35a19201548947ed0ced7940063a81cff9",
+          "revision": "nvidia:nvidia-storage-rack:35ed22dad9781eb2151bc56f25ec401da4f2cf525cd5e8447d80a05fac8ee24a",
           "manifest": {
             "schemaVersion": "smart-factory-model-1",
             "name": "NVIDIA Warehouse storage rack",
@@ -2598,11 +2598,11 @@
           }
         },
         "compact": {
-          "url": "/models/nvidia/nvidia-storage-rack/compact.351db73cf41ca87d.glb",
-          "sha256": "351db73cf41ca87d61493b5220467ff5310e1c25a3b4af1816562ac7a0712425",
-          "bytes": 1441404,
+          "url": "/models/nvidia/nvidia-storage-rack/compact.f62735d8355b5244.glb",
+          "sha256": "f62735d8355b524467301bdecce77c31b84a303b2d9c31f457dcbff27e9d3e2e",
+          "bytes": 1441336,
           "triangles": 29100,
-          "revision": "nvidia:nvidia-storage-rack:351db73cf41ca87d61493b5220467ff5310e1c25a3b4af1816562ac7a0712425",
+          "revision": "nvidia:nvidia-storage-rack:f62735d8355b524467301bdecce77c31b84a303b2d9c31f457dcbff27e9d3e2e",
           "manifest": {
             "schemaVersion": "smart-factory-model-1",
             "name": "NVIDIA Warehouse storage rack",
@@ -2669,11 +2669,11 @@
       ],
       "models": {
         "detail": {
-          "url": "/models/nvidia/nvidia-mobile-cart/detail.b7fefec01aad4ca8.glb",
-          "sha256": "b7fefec01aad4ca8aa6faab52c36d74fab8ebff56deace6b30bec2288fe579d3",
-          "bytes": 2727060,
+          "url": "/models/nvidia/nvidia-mobile-cart/detail.fbc12148a63e5549.glb",
+          "sha256": "fbc12148a63e55493d7e9c4b8a8eaabd375249a10a59b2e492c45526c2605550",
+          "bytes": 2726524,
           "triangles": 106689,
-          "revision": "nvidia:nvidia-mobile-cart:b7fefec01aad4ca8aa6faab52c36d74fab8ebff56deace6b30bec2288fe579d3",
+          "revision": "nvidia:nvidia-mobile-cart:fbc12148a63e55493d7e9c4b8a8eaabd375249a10a59b2e492c45526c2605550",
           "manifest": {
             "schemaVersion": "smart-factory-model-1",
             "name": "NVIDIA Industrial mobile cart",
@@ -2941,11 +2941,11 @@
           }
         },
         "compact": {
-          "url": "/models/nvidia/nvidia-mobile-cart/compact.5637bc6db3fc9b89.glb",
-          "sha256": "5637bc6db3fc9b899363dddc502c5a9c5073a5fa7340bb5f5740d1bb015da464",
-          "bytes": 847052,
+          "url": "/models/nvidia/nvidia-mobile-cart/compact.1c37d2744f64601c.glb",
+          "sha256": "1c37d2744f64601cfa948712dacd788d82c2552233cd368bdc6c918024cdb650",
+          "bytes": 846516,
           "triangles": 29094,
-          "revision": "nvidia:nvidia-mobile-cart:5637bc6db3fc9b899363dddc502c5a9c5073a5fa7340bb5f5740d1bb015da464",
+          "revision": "nvidia:nvidia-mobile-cart:1c37d2744f64601cfa948712dacd788d82c2552233cd368bdc6c918024cdb650",
           "manifest": {
             "schemaVersion": "smart-factory-model-1",
             "name": "NVIDIA Industrial mobile cart",

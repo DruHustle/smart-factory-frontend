@@ -68,3 +68,7 @@ The NVIDIA library qualification job validates all six packages through the unch
 Production uses the existing exact-main-SHA deployment process and API compatibility gate. A successful source test does not establish successful production deployment.
 
 After deployment, the existing release verifier checks all six GLBs and every preview, license and provenance receipt against the exact qualified checkout. Missing, truncated, altered or HTML-fallback asset responses fail release verification. These checks are read-only and send no account credentials.
+
+### Browser material adaptation
+
+The reviewed PBR policy (`scripts/equipment/openusd/material_policy.py`) replaces unsupported default-gray USD shading with explicitly authored metal, rubber, paint and plastic approximations. Non-default imported colors are preserved. This is not a reconstruction of NVIDIA MDL shaders or textures. `SOURCE.json` records the material policy and replacements. `finalize_materials.py` can apply this policy offline to hash-verified GLBs without changing binary geometry, node indices or component identifiers; it updates filenames, hashes, catalogue and rendered previews. The normal USD converter applies the same policy directly.

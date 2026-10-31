@@ -269,8 +269,9 @@ export default function FactoryModels() {
             <p className="text-sm">{industrial.attribution}</p>
             <p className="text-xs text-muted-foreground">
               Adapted from OpenUSD to static GLB: geometry simplified and
-              materials converted to browser PBR colors. Native textures,
-              animation, articulation and physics are not transferred.
+              unsupported shading replaced with documented browser PBR
+              approximations. Native textures, animation, articulation and
+              physics are not transferred.
             </p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
               <a

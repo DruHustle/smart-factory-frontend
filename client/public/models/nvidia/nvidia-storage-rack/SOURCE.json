@@ -229,5 +229,111 @@
   ],
   "sourceObjectPaths": {
     "part_ccca70fad3f958f6": "/Geometry/sm_rack_long_empty_a01_leggs_01_obj_00/sm_rack_long_empty_a01_leggs_01_mesh_00"
+  },
+  "materialAdaptation": {
+    "policy": "smart-factory-pbr-v1",
+    "description": "Unsupported default-gray USD shading is replaced with documented name-based PBR approximations; original MDL shading and textures are not reproduced.",
+    "changes": {
+      "detail": [
+        {
+          "material": "Browser_opaque__metal__painted_unique_rack_a",
+          "reason": "painted rack replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.025,
+              0.08,
+              0.18,
+              1
+            ],
+            "metallicFactor": 0.15,
+            "roughnessFactor": 0.48
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__unique_rack_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        }
+      ],
+      "compact": [
+        {
+          "material": "Browser_opaque__metal__painted_unique_rack_a",
+          "reason": "painted rack replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.025,
+              0.08,
+              0.18,
+              1
+            ],
+            "metallicFactor": 0.15,
+            "roughnessFactor": 0.48
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__unique_rack_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        }
+      ]
+    }
   }
 }
