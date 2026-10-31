@@ -349,3 +349,32 @@ jobs:
         env:
           QUALIFICATION_DOTNET: dotnet
         run: '"$RUNNER_TEMP/edge-proof/bin/python" scripts/cross-repo-smoke.py'
+
+  openusd-library:
+    name: NVIDIA library qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { persist-credentials: false }
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with: { version: 10.34.5 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Verify offline source and archive safety
+        run: python3 -m unittest discover -s scripts/equipment/openusd -p 'test_*.py' -v
+      - name: Verify all asset packages and delivery policies
+        run: pnpm exec vitest run server/equipment/openusd.test.ts
+      - name: Install three browser engines
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Verify actual models, mobile layout and safe failures
+        run: node scripts/equipment/qualify-openusd.mjs
+      - name: Retain NVIDIA browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nvidia-library-browser-evidence
+          path: test-results/openusd/
+          retention-days: 7
+          if-no-files-found: warn

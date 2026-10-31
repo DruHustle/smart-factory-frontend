@@ -54,6 +54,22 @@ export default function EquipmentView({
     enabled: !embedded,
   });
   const [modelRevision, setModelRevision] = useState("");
+  const requestedModel = new URLSearchParams(
+    hashLocation.split("?")[1] ?? "",
+  ).get("modelRevision");
+  const appliedModel = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !embedded &&
+      writable &&
+      requestedModel &&
+      appliedModel.current !== requestedModel &&
+      models.data?.imported.some((model) => model.id === requestedModel)
+    ) {
+      setModelRevision(requestedModel);
+      appliedModel.current = requestedModel;
+    }
+  }, [embedded, writable, requestedModel, models.data]);
   const selectedTemplate = trpc.equipment.bindingTemplate.useQuery(
     { revision: modelRevision },
     { enabled: !embedded && writable && !!modelRevision },
@@ -249,9 +265,12 @@ export default function EquipmentView({
                     </option>
                   </select>
                 </label>
-                <label className="text-sm">
-                  Local model/template
+                <div className="text-sm">
+                  <label htmlFor="local-model-template">
+                    Local model/template
+                  </label>
                   <select
+                    id="local-model-template"
                     className="mt-1 w-full rounded border bg-background p-2"
                     value={modelRevision}
                     onChange={(e) => {
@@ -275,7 +294,7 @@ export default function EquipmentView({
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
                 {modelRevision && selectedTemplate.error && (
                   <p role="alert">
                     Model mapping metadata is unavailable. Retry selecting the

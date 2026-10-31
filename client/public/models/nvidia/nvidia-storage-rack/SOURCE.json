@@ -1,0 +1,339 @@
+{
+  "dataset": "nvidia/simready-assets",
+  "revision": "4763fbfaa4f8e97658e68b57d01b4c86659e08b5",
+  "packagingSha256": "24e241b7913e995a1e3cd87606f0db8d266bdf519dd0233519ed204fc6009d44",
+  "license": "CC-BY-4.0",
+  "files": [
+    {
+      "path": "rack_long_empty_a01/.metadata/LICENSE.txt",
+      "bytes": 18657,
+      "sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411"
+    },
+    {
+      "path": "rack_long_empty_a01/.metadata/com.nvidia.simready.conformance.Package-Candidate@1.0.0.json",
+      "bytes": 887,
+      "sha256": "8290b83a76b64e60a950c629d78ca537f6021bf0d76272de5acd6aee5b8b1328"
+    },
+    {
+      "path": "rack_long_empty_a01/.metadata/com.nvidia.simready.conformance.Package@1.0.0.json",
+      "bytes": 763,
+      "sha256": "23079e7843b7ad999c9a3d5e37eb16fd201ebcc7e43b818fd84c4eb29a5d4c68"
+    },
+    {
+      "path": "rack_long_empty_a01/.metadata/com.nvidia.simready.packaging.bom.json",
+      "bytes": 19415,
+      "sha256": "d2fbc74d2527f6208aeb2e4c5ee4278a8f3d595b9827ebb3c015d3b96f0e8390"
+    },
+    {
+      "path": "rack_long_empty_a01/.metadata/com.nvidia.simready.root_usds.json",
+      "bytes": 99,
+      "sha256": "422a66a1eb43663c4b84b029ab808f2dabbccfffbec97edffd21dc62aad85ea8"
+    },
+    {
+      "path": "rack_long_empty_a01/com.nvidia.simready.packaging.json",
+      "bytes": 564,
+      "sha256": "24e241b7913e995a1e3cd87606f0db8d266bdf519dd0233519ed204fc6009d44"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/Textures/T_Rack_A1_Albedo.1001.png",
+      "bytes": 3161069,
+      "sha256": "1f3b1ee631115cd2ffe389442c1b6f5e0041becbc865b38f01cea5a2c9e6ec44"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/Textures/T_Rack_A1_Albedo.1002.png",
+      "bytes": 1581868,
+      "sha256": "0b3c783cb03ab77943730160b78b7fac621e4fa552631bbd126794e59d765252"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/Textures/T_Rack_A1_Albedo.1003.png",
+      "bytes": 2195053,
+      "sha256": "e0c01a4ba682ee2bf4cda07e11baa5152fe53b98294ef3e08328d574b4a5f50e"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/Textures/T_Rack_A1_Normal.1001.png",
+      "bytes": 2928843,
+      "sha256": "9e3bd93830222341e2c8c212ef1b782b1f1650391018a843396e7714d8cc2e95"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/Textures/T_Rack_A1_Normal.1002.png",
+      "bytes": 3513699,
+      "sha256": "9ecaf8e47a51aea09a77ab45d1440e20095306fa3624db46d68c15473da2d6c9"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/Textures/T_Rack_A1_Normal.1003.png",
+      "bytes": 63451,
+      "sha256": "8d3c25f625366abb09686c5478092b0231e19c0974c539ab8b355ff803f98c7e"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/Textures/T_Rack_A1_ORM.1001.png",
+      "bytes": 4202012,
+      "sha256": "9aeaec1344f78d91f2c9b8a8ddf013391fe35a9b750cd3dbc44e4ba244ad430e"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/Textures/T_Rack_A1_ORM.1002.png",
+      "bytes": 2951843,
+      "sha256": "aae6964b5267c79efd87aaf1ef097ec9adf414f0bdcb6d556b05e0122f21e4d4"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/Textures/T_Rack_A1_ORM.1003.png",
+      "bytes": 2482068,
+      "sha256": "9988e4cf51cdae795cb3a1015335eabff89aadef23b0e938258efc24e1a3bf20"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/MuJoCo/disabled.usda",
+      "bytes": 8501,
+      "sha256": "84941386de53a39038ceead81ab209e5b1058b3dd3df5f69478b360768899976"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/MuJoCo/enabled.usda",
+      "bytes": 9245,
+      "sha256": "8892d55a363832230214dea82bc653b87710fd7568e3780be881209b6baa36e6"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/Newton/disabled.usda",
+      "bytes": 8501,
+      "sha256": "84941386de53a39038ceead81ab209e5b1058b3dd3df5f69478b360768899976"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/Newton/enabled.usda",
+      "bytes": 9357,
+      "sha256": "2b2b43f8dec4fcdcd25bfa4d5ff97f15c8558498639a39d53d21fabd24107eb1"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/PhysX/disabled.usda",
+      "bytes": 8501,
+      "sha256": "84941386de53a39038ceead81ab209e5b1058b3dd3df5f69478b360768899976"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/PhysX/enabled.usda",
+      "bytes": 8817,
+      "sha256": "0ef2bf0df7042c1705110abe23fa8f803d36464249e00ccb8abd413d3ab909e9"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/Physics/physics.usda",
+      "bytes": 9375,
+      "sha256": "236a0cb5a31dd34e9900d8d18db468ddced4d89b321380670481b18f7b02d4e6"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/base.usda",
+      "bytes": 11429,
+      "sha256": "c737234f068992185ce2204806ec58aca2e63ffbb3166751920df0a0cf51a256"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/geometries.usd",
+      "bytes": 3293374,
+      "sha256": "2779465df58460069fd19870ddca9b9f68a91fa6f19541a2c20b9edce43a74e9"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/instances.usda",
+      "bytes": 10578,
+      "sha256": "42fb3640fcce0d7d19997d5a5f5b523bdc2ed9b51896fea8ec6901d26ea1c714"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/instances_mujoco.usda",
+      "bytes": 10850,
+      "sha256": "95e4e2bd8b2707bdf2228f2c5fbd37d19c65054360d3420c05be358031e837e4"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/instances_newton.usda",
+      "bytes": 10701,
+      "sha256": "2dc02bb851b2b71733e7f58be7da29fabeda141124d72848806530d58cb663ec"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/instances_physx.usda",
+      "bytes": 10718,
+      "sha256": "aaa000727f2a4e59654a866ace813d617cdd964094dbb7b3c5455ed3466d92aa"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/payloads/materials.usda",
+      "bytes": 19586,
+      "sha256": "8f0e7bbe9b5dccf5db32348e2d7dd4131e75b93d02bc2f11f59d8f3466b25395"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/sm_rack_long_empty_a01_01.usd",
+      "bytes": 25811,
+      "sha256": "d21ea2493a2e2e3ee83282bf94a1b6ca7767dfd37fcc114a1d01c2f0d9159c11"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/OmniPBR.mdl",
+      "bytes": 16010,
+      "sha256": "6e6b3acbccd236e21a6c29964a431d2a53e77251cc6b8b1bc975eb1c62da1781"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/OmniPBRBase.mdl",
+      "bytes": 19369,
+      "sha256": "a8fd9fe174e91892e94d06da90ba453a124024c2ce2c033be9d82c9e2f76a3b7"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/OmniPBR_ClearCoat.mdl",
+      "bytes": 29789,
+      "sha256": "d84c5ba482561c0eaea2e0c5b607358af549e36cd921773462f92dbc4f32cbc3"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/T_Rack_A1_Albedo.1001.png",
+      "bytes": 3161069,
+      "sha256": "1f3b1ee631115cd2ffe389442c1b6f5e0041becbc865b38f01cea5a2c9e6ec44"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/T_Rack_A1_Albedo.1002.png",
+      "bytes": 1581868,
+      "sha256": "0b3c783cb03ab77943730160b78b7fac621e4fa552631bbd126794e59d765252"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/T_Rack_A1_Albedo.1003.png",
+      "bytes": 2195053,
+      "sha256": "e0c01a4ba682ee2bf4cda07e11baa5152fe53b98294ef3e08328d574b4a5f50e"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/T_Rack_A1_Normal.1001.png",
+      "bytes": 2928843,
+      "sha256": "9e3bd93830222341e2c8c212ef1b782b1f1650391018a843396e7714d8cc2e95"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/T_Rack_A1_Normal.1002.png",
+      "bytes": 3513699,
+      "sha256": "9ecaf8e47a51aea09a77ab45d1440e20095306fa3624db46d68c15473da2d6c9"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/T_Rack_A1_Normal.1003.png",
+      "bytes": 63451,
+      "sha256": "8d3c25f625366abb09686c5478092b0231e19c0974c539ab8b355ff803f98c7e"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/T_Rack_A1_ORM.1001.png",
+      "bytes": 4202012,
+      "sha256": "9aeaec1344f78d91f2c9b8a8ddf013391fe35a9b750cd3dbc44e4ba244ad430e"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/T_Rack_A1_ORM.1002.png",
+      "bytes": 2951843,
+      "sha256": "aae6964b5267c79efd87aaf1ef097ec9adf414f0bdcb6d556b05e0122f21e4d4"
+    },
+    {
+      "path": "rack_long_empty_a01/simready_usd/source_assets/T_Rack_A1_ORM.1003.png",
+      "bytes": 2482068,
+      "sha256": "9988e4cf51cdae795cb3a1015335eabff89aadef23b0e938258efc24e1a3bf20"
+    }
+  ],
+  "assetId": "rack_long_empty_a01",
+  "entrypoint": "simready_usd/sm_rack_long_empty_a01_01.usd",
+  "author": "NVIDIA",
+  "modifiedBy": "Smart Factory (Onesa UG)",
+  "converter": "Blender 4.5.15 LTS",
+  "originalTriangles": 44080,
+  "limitations": [
+    "Static browser visualization; physics, robotics articulation, animation and simulation behavior are not transferred.",
+    "Geometry is decimated and native materials/textures are adapted to bounded glTF PBR colors; appearance can differ from the original USD.",
+    "Component identifiers describe imported visual objects, not a manufacturer-certified bill of materials.",
+    "Exploded spacing is illustrative; sections are visual cuts and are not engineering or maintenance instructions."
+  ],
+  "sourceObjectPaths": {
+    "part_ccca70fad3f958f6": "/Geometry/sm_rack_long_empty_a01_leggs_01_obj_00/sm_rack_long_empty_a01_leggs_01_mesh_00"
+  },
+  "materialAdaptation": {
+    "policy": "smart-factory-pbr-v1",
+    "description": "Unsupported default-gray USD shading is replaced with documented name-based PBR approximations; original MDL shading and textures are not reproduced.",
+    "changes": {
+      "detail": [
+        {
+          "material": "Browser_opaque__metal__painted_unique_rack_a",
+          "reason": "painted rack replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.025,
+              0.08,
+              0.18,
+              1
+            ],
+            "metallicFactor": 0.15,
+            "roughnessFactor": 0.48
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__unique_rack_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        }
+      ],
+      "compact": [
+        {
+          "material": "Browser_opaque__metal__painted_unique_rack_a",
+          "reason": "painted rack replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.025,
+              0.08,
+              0.18,
+              1
+            ],
+            "metallicFactor": 0.15,
+            "roughnessFactor": 0.48
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__unique_rack_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        }
+      ]
+    }
+  }
+}

@@ -814,3 +814,92 @@ for (const viewport of [
     });
     await context.close();
   });
+
+test("NVIDIA library imports a verified model into a real local equipment workspace", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    process.env.E2E_EQUIPMENT_STANDALONE !== "true",
+    "Requires the disposable standalone fixture",
+  );
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/#/login");
+  await page.getByLabel("Email").fill("local-equipment@example.test");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("Synthetic-fixture-only-2026!");
+  await page.getByRole("button", { name: /^sign in$/i }).click();
+  await expect(
+    page.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await page.goto("/#/models");
+  await page
+    .getByLabel("Factory reference models")
+    .getByRole("button", { name: "Warehouse storage rack", exact: true })
+    .click();
+  await expect(page.locator("[data-state=ready]")).toBeVisible();
+  const imported = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/api/equipment/model-import"),
+  );
+  await page
+    .getByRole("button", { name: "Add to local models", exact: true })
+    .click();
+  const response = await imported;
+  const receipt = await response.json();
+  expect(response.ok(), JSON.stringify(receipt)).toBe(true);
+  expect(receipt.revision).toMatch(/^local-import:[a-f0-9]{64}$/);
+  await page
+    .getByRole("link", { name: "Configure equipment and signals", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Equipment view", exact: true }),
+  ).toBeVisible();
+  await page.getByText("Create local equipment", { exact: true }).click();
+  await expect(
+    page.getByLabel("Local model/template", { exact: true }),
+  ).toHaveValue(receipt.revision);
+  const name = `NVIDIA rack ${Date.now()}`;
+  await page.getByLabel("Equipment name", { exact: true }).fill(name);
+  await page
+    .getByLabel("Serial number", { exact: true })
+    .fill(`NVIDIA-TEST-${Date.now()}`);
+  await submitEquipment(page, name);
+  await expect(page.locator("[data-state=ready]")).toBeVisible();
+  const localModel = page.getByRole("link", { name: "Download local GLB" });
+  const model = await page.request.get(
+    (await localModel.getAttribute("href"))!,
+  );
+  expect(model.ok()).toBe(true);
+  expect((await model.body()).subarray(0, 4).toString()).toBe("glTF");
+  const document = await page.request.get(
+    (await page
+      .getByRole("link", { name: "Open local maintenance document" })
+      .getAttribute("href"))!,
+  );
+  expect(document.ok()).toBe(true);
+  expect(await document.text()).toContain("Reference geometry only");
+  await page.getByLabel("Viewpoint name").fill("NVIDIA inspection view");
+  await page
+    .getByRole("button", { name: "Save viewpoint", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Open viewpoint: NVIDIA inspection view",
+    }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.locator("[data-state=ready]")).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Open viewpoint: NVIDIA inspection view",
+    }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath("nvidia-installed-equipment.png"),
+    fullPage: true,
+  });
+});
