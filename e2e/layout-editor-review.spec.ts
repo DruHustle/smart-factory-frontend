@@ -543,10 +543,10 @@ test("loading, warehouse, production and exit areas follow saved named zones in 
     .click();
 });
 
-test("mouse movement pans in both axes by default and returns to pan when Rotate is off", async ({
+test("Rotate off keeps hover still, pans only while grabbing and stops on release", async ({
   page,
 }) => {
-  const { canvas, bounds, placement } = await grabFixture(page);
+  const { canvas, bounds, item, placement } = await grabFixture(page);
   const original = await placement();
   type CameraView = { position: number[]; target: number[]; zoom: number };
   const view = async (): Promise<CameraView> =>
@@ -556,12 +556,32 @@ test("mouse movement pans in both axes by default and returns to pan when Rotate
     exact: true,
   });
   await expect(rotate).toHaveAttribute("aria-pressed", "false");
-  await page.mouse.move(bounds.x - 10, bounds.y - 10);
-  const start = { x: bounds.x + 60, y: bounds.y + 60 };
-  await page.mouse.move(start.x, start.y);
+  const initial = await view();
+  const start = { x: bounds.x + 60, y: bounds.y + 80 };
+  await page.mouse.move(start.x, start.y, { steps: 8 });
+  await page.mouse.move(start.x + 40, start.y + 30, { steps: 8 });
+  expect(await view()).toEqual(initial);
+  await expect(canvas).toHaveCSS("cursor", "grab");
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  // A click is not a latch: moving after releasing it must still do nothing.
+  await page.mouse.click(start.x, start.y);
+  await page.mouse.move(start.x + 30, start.y + 20, { steps: 8 });
+  expect(await view()).toEqual(initial);
+  // Approach equipment normally, without leaving the canvas to avoid navigation.
+  await page.mouse.move(item.x, item.y, { steps: 12 });
+  await expect(canvas).toHaveAttribute("data-grab-target", "asset:1");
+  expect(await view()).toEqual(initial);
+  expect(await placement()).toEqual(original);
+  await page.mouse.move(start.x, start.y, { steps: 8 });
   const panTo = async (x: number, y: number) => {
     const before = await view();
+    await expect(canvas).toHaveAttribute("data-grab-target", "floor");
+    await page.mouse.down({ button: "left" });
+    await expect(canvas).toHaveAttribute("data-grab-state", "floor");
+    await expect(canvas).toHaveCSS("cursor", "grabbing");
+    expect(await view()).toEqual(before);
     await page.mouse.move(x, y, { steps: 8 });
+    await page.mouse.up({ button: "left" });
     const after = await view();
     expect(after.position).not.toEqual(before.position);
     expect(after.target).not.toEqual(before.target);
@@ -574,6 +594,11 @@ test("mouse movement pans in both axes by default and returns to pan when Rotate
     expect(after.zoom).toBe(before.zoom);
     expect(await placement()).toEqual(original);
     await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+    await expect(canvas).toHaveCSS("cursor", "grab");
+    // Movement after release must not continue the pan.
+    await page.mouse.move(x + 5, y + 5, { steps: 4 });
+    await page.mouse.move(x, y, { steps: 4 });
+    expect(await view()).toEqual(after);
   };
   await panTo(start.x + 30, start.y);
   await panTo(start.x, start.y);
@@ -591,11 +616,11 @@ test("mouse movement pans in both axes by default and returns to pan when Rotate
   );
   expect(await view()).toEqual(stopped);
   await page.mouse.move(bounds.x - 10, bounds.y - 10);
-  await page.mouse.move(start.x + 80, start.y + 40);
+  await page.mouse.move(start.x + 80, start.y + 40, { steps: 8 });
   expect(await view()).toEqual(stopped);
-  // Exercise the native button with the keyboard, not a synthetic state change.
+  // Space activates the focused toggle even while the pointer is over the canvas.
   await rotate.focus();
-  await page.keyboard.press("Enter");
+  await page.keyboard.press("Space");
   await expect(rotate).toHaveAttribute("aria-pressed", "true");
   const beforeOrbit = await view();
   await page.mouse.move(start.x + 110, start.y + 60, { steps: 8 });
@@ -606,8 +631,21 @@ test("mouse movement pans in both axes by default and returns to pan when Rotate
   await rotate.focus();
   await page.keyboard.press("Enter");
   await expect(rotate).toHaveAttribute("aria-pressed", "false");
-  await panTo(start.x + 140, start.y + 60);
-  await panTo(start.x + 140, start.y + 90);
+  const disabled = await view();
+  await page.mouse.move(start.x, start.y, { steps: 12 });
+  expect(await view()).toEqual(disabled);
+  await panTo(start.x + 30, start.y);
+  await panTo(start.x + 30, start.y + 30);
+  // Pointer capture must also release a floor grab when the mouse ends outside.
+  await page.mouse.down({ button: "left" });
+  await expect(canvas).toHaveAttribute("data-grab-state", "floor");
+  await page.mouse.move(bounds.x - 15, bounds.y + 100, { steps: 8 });
+  await page.mouse.up({ button: "left" });
+  const releasedOutside = await view();
+  await page.mouse.move(start.x, start.y, { steps: 8 });
+  await page.mouse.move(start.x + 40, start.y + 40, { steps: 8 });
+  expect(await view()).toEqual(releasedOutside);
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
   expect(await placement()).toEqual(original);
 });
 
