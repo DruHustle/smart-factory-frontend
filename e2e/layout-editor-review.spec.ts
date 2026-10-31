@@ -543,13 +543,90 @@ test("loading, warehouse, production and exit areas follow saved named zones in 
     .click();
 });
 
-test("mouse movement rotates 3D without grabbing, stops at rest and resets across leaving/fullscreen", async ({
+test("mouse movement pans in both axes by default and returns to pan when Rotate is off", async ({
+  page,
+}) => {
+  const { canvas, bounds, placement } = await grabFixture(page);
+  const original = await placement();
+  type CameraView = { position: number[]; target: number[]; zoom: number };
+  const view = async (): Promise<CameraView> =>
+    JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+  const rotate = page.getByRole("button", {
+    name: "Rotate with mouse movement",
+    exact: true,
+  });
+  await expect(rotate).toHaveAttribute("aria-pressed", "false");
+  await page.mouse.move(bounds.x - 10, bounds.y - 10);
+  const start = { x: bounds.x + 60, y: bounds.y + 60 };
+  await page.mouse.move(start.x, start.y);
+  const panTo = async (x: number, y: number) => {
+    const before = await view();
+    await page.mouse.move(x, y, { steps: 8 });
+    const after = await view();
+    expect(after.position).not.toEqual(before.position);
+    expect(after.target).not.toEqual(before.target);
+    // Panning translates camera and target equally, without orbiting or zooming.
+    for (let axis = 0; axis < 3; axis++)
+      expect(after.position[axis] - after.target[axis]).toBeCloseTo(
+        before.position[axis] - before.target[axis],
+        8,
+      );
+    expect(after.zoom).toBe(before.zoom);
+    expect(await placement()).toEqual(original);
+    await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  };
+  await panTo(start.x + 30, start.y);
+  await panTo(start.x, start.y);
+  await panTo(start.x, start.y + 30);
+  await panTo(start.x, start.y);
+  const stopped = await view();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let frames = 0;
+        const next = () =>
+          ++frames === 8 ? resolve() : requestAnimationFrame(next);
+        requestAnimationFrame(next);
+      }),
+  );
+  expect(await view()).toEqual(stopped);
+  await page.mouse.move(bounds.x - 10, bounds.y - 10);
+  await page.mouse.move(start.x + 80, start.y + 40);
+  expect(await view()).toEqual(stopped);
+  // Exercise the native button with the keyboard, not a synthetic state change.
+  await rotate.focus();
+  await page.keyboard.press("Enter");
+  await expect(rotate).toHaveAttribute("aria-pressed", "true");
+  const beforeOrbit = await view();
+  await page.mouse.move(start.x + 110, start.y + 60, { steps: 8 });
+  const orbited = await view();
+  expect(orbited.position).not.toEqual(beforeOrbit.position);
+  expect(orbited.target).toEqual(beforeOrbit.target);
+  expect(orbited.zoom).toBe(beforeOrbit.zoom);
+  await rotate.focus();
+  await page.keyboard.press("Enter");
+  await expect(rotate).toHaveAttribute("aria-pressed", "false");
+  await panTo(start.x + 140, start.y + 60);
+  await panTo(start.x + 140, start.y + 90);
+  expect(await placement()).toEqual(original);
+});
+
+test("enabled Rotate follows mouse movement without grabbing, stops at rest and resets across leaving/fullscreen", async ({
   page,
 }) => {
   const { canvas, bounds, placement } = await grabFixture(page);
   const original = await placement();
   const view = async () =>
     JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+  const rotate = page.getByRole("button", {
+    name: "Rotate with mouse movement",
+    exact: true,
+  });
+  await expect(rotate).toHaveAttribute("aria-pressed", "false");
+  await rotate.click();
+  await expect(rotate).toHaveAttribute("aria-pressed", "true");
+  await page.mouse.move(bounds.x - 10, bounds.y - 10);
+  await page.mouse.move(bounds.x + 15, bounds.y + 15);
   const before = await view();
   await page.mouse.move(bounds.x + 100, bounds.y + 65, { steps: 8 });
   const rotated = await view();
@@ -1069,6 +1146,8 @@ test("detailed equipment retains physical materials in the fullscreen factory", 
   let found = false;
   for (let y = 0.25; y < 0.8 && !found; y += 0.12)
     for (let x = 0.25; x < 0.8; x += 0.08) {
+      // Re-enter for each pick so navigation does not move the model while scanning.
+      await page.mouse.move(bounds.x - 10, bounds.y - 10);
       await page.mouse.move(
         bounds.x + bounds.width * x,
         bounds.y + bounds.height * y,
