@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "dataset": "nvidia/simready-assets",
+  "revision": "4763fbfaa4f8e97658e68b57d01b4c86659e08b5",
+  "assets": [
+    {"id": "conveyor_belt_a61", "slug": "nvidia-transfer-conveyor", "name": "Transfer conveyor", "category": "Material handling", "description": "NVIDIA conveyor transfer station, with its authored industrial geometry adapted for browser inspection.", "packagingSha256": "9b97ab1744dd83339fb2b0a7c41a01312a9c2b8afab4a5ec04776e85462623ee"},
+    {"id": "rack_long_empty_a01", "slug": "nvidia-storage-rack", "name": "Warehouse storage rack", "category": "Storage", "description": "NVIDIA long storage rack for warehouse layouts and equipment reference scenes.", "packagingSha256": "24e241b7913e995a1e3cd87606f0db8d266bdf519dd0233519ed204fc6009d44"},
+    {"id": "cart_mobile_e01", "slug": "nvidia-mobile-cart", "name": "Industrial mobile cart", "category": "Material handling", "description": "NVIDIA mobile cart with frame, work surfaces and wheels for factory logistics layouts.", "packagingSha256": "77b6407a516e598bd2656f313adbd2a9996d8667c837bdc0ce89b14de1b0ae20"}
+  ]
+}
