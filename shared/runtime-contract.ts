@@ -23,6 +23,7 @@ export const requiredCapabilities = [
   "assistant-conversation-v1",
   "demo-sandbox-v1",
   "fx-tsn-diagnostics-v1",
+  "industrial-connectivity-v1",
   "native-equipment-v1",
   "raspberry-pi-model-v1",
   "factory-reference-models-v1",

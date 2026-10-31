@@ -1,0 +1,70 @@
+{
+  "configuration": {
+    "schemaVersion": "industrial-connectivity/v1",
+    "gatewayDeviceId": "gateway-01",
+    "revision": 7,
+    "connections": [
+      {
+        "connectionId": "opc-line1", "name": "Line 1 controller", "protocol": "opcua",
+        "endpoint": "opc.tcp://127.0.0.1:4840/test/", "enabled": true, "intervalMs": 1000,
+        "credentialRef": "line1-controller",
+        "tags": [
+          {"tagId": "outlet-pressure", "name": "Outlet pressure", "dataType": "float32", "source": {"nodeId": "s=Pressure", "namespaceUri": "urn:fixture:line1"}, "unit": "bar", "assetId": "urn:fixture:pump-101", "property": "outletPressure"},
+          {"tagId": "running", "name": "Running", "dataType": "boolean", "source": {"nodeId": "s=Running", "namespaceUri": "urn:fixture:line1"}}
+        ]
+      },
+      {
+        "connectionId": "modbus-meter", "name": "Energy meter", "protocol": "modbus_tcp",
+        "endpoint": "tcp://127.0.0.1:1502", "enabled": true, "intervalMs": 1000,
+        "tags": [{"tagId": "energy", "name": "Energy total", "dataType": "uint64", "source": {"address": 100, "registerType": "holding_register", "unitId": 1, "count": 4, "wordOrder": "big"}, "unit": "Wh"}]
+      },
+      {
+        "connectionId": "serial-meter", "name": "Serial meter", "protocol": "modbus_rtu",
+        "endpoint": "serial:///dev/ttyUSB0?baudrate=9600&parity=N&stopbits=1&bytesize=8", "enabled": false, "intervalMs": 1000,
+        "tags": [{"tagId": "current", "name": "Current", "dataType": "uint16", "source": {"address": 5, "registerType": "input_register", "unitId": 7}, "scale": 0.1, "unit": "A"}]
+      },
+      {
+        "connectionId": "mqtt-sensor", "name": "MQTT sensor", "protocol": "mqtt",
+        "endpoint": "mqtt://127.0.0.1:1883", "enabled": true, "intervalMs": 1000,
+        "mode": "simulated", "scenarioRunId": "connectivity-fixture",
+        "tags": [{"tagId": "status", "name": "Status", "dataType": "string", "source": {"topic": "fixture/sensor/status", "path": "/message", "timestampPath": "/timestamp", "qualityPath": "/quality"}}]
+      },
+      {
+        "connectionId": "fx-controller", "name": "FX component diagnostics", "protocol": "opcua_fx",
+        "endpoint": "opc.tcp://127.0.0.1:4841", "enabled": true, "intervalMs": 1000,
+        "fx": {"mode": "diagnostics"}, "tsn": {"interface": "eth0", "ptpDomain": 0}, "tags": []
+      },
+      {
+        "connectionId": "fx-observer", "name": "Commissioned UADP observer", "protocol": "opcua_fx",
+        "endpoint": "opc.udp://239.0.0.1:4840", "enabled": false, "intervalMs": 1000,
+        "fx": {"mode": "udp_uadp", "publisherId": "42", "publisherIdType": "UInt16", "writerGroupId": 1, "dataSetWriterId": 2, "metadataMajorVersion": 1, "metadataMinorVersion": 0, "allowUnsecured": true},
+        "tags": [{"tagId": "speed", "name": "Speed", "dataType": "float32", "source": {"fieldIndex": 0}, "unit": "rpm"}]
+      }
+    ]
+  },
+  "observation": {
+    "schemaVersion": "industrial-observation/v1", "connectionId": "fx-controller", "configurationRevision": 7,
+    "eventId": "28755904-c24a-4f9f-91cf-c04cc64e849f", "observedAt": "2026-10-30T10:00:00.000Z", "state": "connected",
+    "tags": [
+      {"tagId": "outlet-pressure", "dataType": "float32", "value": 6.25, "quality": "good", "unit": "bar", "qualityBasis": "protocol", "sourceTimestamp": "2026-10-30T09:59:59.999Z", "nativeStatus": "Good"},
+      {"tagId": "running", "dataType": "boolean", "value": true, "quality": "good", "qualityBasis": "protocol"},
+      {"tagId": "energy", "dataType": "uint64", "value": "18446744073709551615", "quality": "unknown", "qualityBasis": "communication"},
+      {"tagId": "fault-description", "dataType": "string", "value": "No active fault", "quality": "good", "qualityBasis": "payload"}
+    ],
+    "discoveredTags": [{"name": "Output", "nodeId": "s=Output", "namespaceUri": "http://opcfoundation.org/UA/FX/AC/", "dataType": "Float"}],
+    "fx": {
+      "mode": "diagnostics", "modelVerified": true,
+      "components": [{"name": "Controller", "nodeId": "s=Controller", "namespaceUri": "http://opcfoundation.org/UA/FX/AC/", "kind": "automation_component"}],
+      "warnings": [], "determinism": "unverified"
+    },
+    "tsn": {
+      "interface": "eth0", "observedAt": "2026-10-30T10:00:00.000Z",
+      "clock": {"state": "unknown", "domain": 0},
+      "capabilities": {"hardwareTimestamping": "unknown"},
+      "qdiscs": [{"kind": "fq_codel", "handle": "0:"}],
+      "counters": {"rxDropped": 0, "txDropped": 0},
+      "evidence": [{"source": "pmc", "status": "unavailable"}, {"source": "tc", "status": "observed"}],
+      "determinism": "unverified"
+    }
+  }
+}

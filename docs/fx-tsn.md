@@ -33,7 +33,9 @@ Overview shows a complete factory floor with brief network indicators. Open **Op
 
 Demo mode provides four explicitly authored scenarios: normal, late delivery, lost synchronization and recovery. Clock loss removes one-way latency and deadline claims rather than replacing unavailable values with zero. These examples do not configure a physical network or establish UAFX/TSN conformance.
 
-An individual engineer can import a bounded diagnostics JSON snapshot, or a commissioned gateway can post the same schema to the authenticated collector endpoint. Each registered operational gateway retains its newest snapshot. Public demo sessions cannot import or modify reports. Export downloads the selected gateway snapshot for inspection and exchange. Retained reports older than two minutes are labelled stale; they do not assert current connection health.
+The [industrial device connectivity workspace](industrial-device-connectivity.md) now supplies native read-only FX model discovery, a commissioned scalar UADP observer and local TSN collection through the gateway's existing MQTT/outbox path. Its live model/clock evidence is projected conservatively into this workspace. Timestamping capability is not treated as active hardware timing, and missing topology or end-to-end latency remains unknown.
+
+An individual engineer can also import a bounded diagnostics JSON snapshot, or a commissioned vendor collector can post the same schema to the authenticated collector endpoint. The newest available snapshot is selected for each registered operational gateway. Public demo sessions cannot import or modify reports. Export downloads the selected gateway snapshot for inspection and exchange. Retained reports older than two minutes are labelled stale; they do not assert current connection health.
 
 ## Commission a real installation
 
@@ -43,7 +45,7 @@ An individual engineer can import a bounded diagnostics JSON snapshot, or a comm
 4. Register the gateway in the operational inventory. For manual reports, use **Import snapshot**. For a service collector, provision a dedicated `NETWORK_DIAGNOSTICS_INGESTION_TOKEN` of at least 32 characters and comma-separated `NETWORK_DIAGNOSTICS_ALLOWED_GATEWAYS` in the existing API service environment. These are separate from telemetry credentials. The collector sends HTTPS `POST /api/internal/network-diagnostics`, `Authorization: Bearer <dedicated token>`, and `Content-Type: application/json`.
 5. Validate real endpoint timing under representative competing traffic, clock loss and recovery before relying on any deadline. Hardware one-way latency requires distinct publisher/subscriber ports with locked hardware clocks in the same domain and grandmaster, plus actual synchronized timestamp evidence. A local timestamping capability or configured Linux schedule alone is insufficient.
 
-The current delivery provides the monitoring UI, demo scenarios, validated import/export and collector ingestion contract. It does not implement a PLC FX connection manager, deploy PubSub control programs, configure Linux/switch schedules, or certify deterministic behavior. Use the equipment vendor's supported discovery/measurement collector to produce the report. No PLC or network write is performed by this feature.
+The delivery provides native gateway acquisition/diagnostics, the monitoring UI, demo scenarios, validated import/export and the vendor collector ingestion contract. The native UADP observer supports a bounded unsecured scalar keyframe subset and does not authenticate a publisher or verify an FX model from a packet. It does not implement a PLC FX connection manager, deploy PubSub control programs, configure Linux/switch schedules, or certify deterministic behavior. A supported vendor collector remains necessary for measurements beyond the native evidence, including commissioned topology and synchronized endpoint timing. No PLC or network write is performed by this feature.
 
 ## Report contract and retention
 
@@ -55,4 +57,4 @@ Clock offset is displayed in nanoseconds; latency and jitter use microseconds. S
 
 ## Release order
 
-The API advertises `factory-floor-v1` and `fx-tsn-diagnostics-v1`. Qualify and deploy that API before the UI; the existing runtime gate rejects an older API. No schema migration or live collector credential is created automatically. Install the expanded demo with the separately invoked v4 showcase installer described in [the demonstration guide](complete-demonstration.md).
+The API advertises `factory-floor-v1`, `fx-tsn-diagnostics-v1` and `industrial-connectivity-v1`. Qualify and deploy that API before the UI; the existing runtime gate rejects an older API. Industrial connectivity includes additive dashboard and telemetry-worker migrations. Gateway allowlists, credentials, broker ACLs and local TSN collector access require commissioning. Install the expanded demo with the separately invoked v4 showcase installer described in [the demonstration guide](complete-demonstration.md).

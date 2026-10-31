@@ -26,6 +26,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SecuritySummary from "@/components/SecuritySummary";
+import { AssetConnectivity } from "@/components/connectivity/AssetConnectivity";
+import { Cable } from "lucide-react";
 const Aas = lazy(() => import("./AssetAdministrationShell"));
 const Device = lazy(() => import("./DeviceDetail"));
 const loadEquipment = () => import("./EquipmentView");
@@ -151,7 +153,9 @@ export default function ItemWorkspace() {
     !!i.equipmentId;
   if (is3D) opened3D.current = i.equipmentId;
   return (
-    <div className={`min-w-0 ${is3D ? "space-y-3" : "space-y-[var(--workspace-gap)]"}`}>
+    <div
+      className={`min-w-0 ${is3D ? "space-y-3" : "space-y-[var(--workspace-gap)]"}`}
+    >
       <PageHeader
         title={i.name}
         eyebrow={
@@ -173,6 +177,16 @@ export default function ItemWorkspace() {
         action={
           <>
             <StatusBadge status={i.status} />
+            {gateway && (
+              <Button asChild size="sm" variant="outline">
+                <Link
+                  href={`/connectivity?gateway=${encodeURIComponent(i.identifier)}`}
+                >
+                  <Cable className="size-4" aria-hidden="true" />
+                  Device connectivity
+                </Link>
+              </Button>
+            )}
             {i.kind === "device" && !i.isDemo && (
               <DeviceActions id={Number(i.id)} name={i.name} />
             )}
@@ -218,6 +232,12 @@ export default function ItemWorkspace() {
         }}
         onChange={(v) => navigate(itemHref(ref, v, safeReturn))}
       >
+        {i.kind === "asset" &&
+          ["telemetry", "connections"].includes(section) && (
+            <div className="mb-4">
+              <AssetConnectivity assetId={i.identifier} />
+            </div>
+          )}
         {!sections.some((s) => s[0] === section) ? (
           <EmptyState
             error
@@ -236,6 +256,7 @@ export default function ItemWorkspace() {
               engineering={engineering}
               returnTo={safeReturn}
             />
+            {i.kind === "asset" && <AssetConnectivity assetId={i.identifier} />}
             {engineering && i.kind === "asset" && (
               <Suspense
                 fallback={<EmptyState title="Loading engineering summary…" />}

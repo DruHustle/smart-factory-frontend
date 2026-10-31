@@ -3,6 +3,11 @@ import { TRPCError } from "@trpc/server";
 import { createHash } from "node:crypto";
 import { getDb } from "../db";
 import {
+  industrialConfigurationSchema,
+  connectivityObservationSchema,
+} from "../../shared/industrial-connectivity";
+import { connectivityNetworkEvidence } from "../connectivity/network-evidence";
+import {
   networkSnapshot,
   type NetworkSnapshot,
   type NetworkView,
@@ -70,16 +75,55 @@ export async function networkView(): Promise<NetworkView> {
     .map((r) => networkSnapshot.safeParse(r.value.report))
     .filter((r) => r.success)
     .map((r) => r.data!);
+  const collected = await db.execute<{
+    configuration: unknown;
+    reports: unknown[];
+    receivedAt: string;
+  }>(sql`
+    select c.published_configuration as configuration,jsonb_agg(l.report) as reports,max(l.received_at)::text as "receivedAt"
+    from industrial_gateway_configurations c join devices d on d.id=c.gateway_id and d.type='gateway' and d."isDemo"=false
+    join industrial_connection_latest l on l.gateway_id=c.gateway_id and l.revision=c.published_revision
+    where c.published_configuration is not null and (l.report ? 'fx' or l.report ? 'tsn')
+    group by c.gateway_id,c.published_configuration order by c.gateway_id limit 128`);
+  for (const row of collected) {
+    const configuration = industrialConfigurationSchema.safeParse(
+      row.configuration,
+    );
+    if (!configuration.success) continue;
+    const reports = row.reports
+      .map((r) => connectivityObservationSchema.safeParse(r))
+      .filter((r) => r.success)
+      .map((r) => r.data!);
+    const snapshot = connectivityNetworkEvidence(configuration.data, reports);
+    if (!snapshot) continue;
+    const previous = snapshots.findIndex(
+      (s) => s.gatewayId === snapshot.gatewayId,
+    );
+    if (previous < 0) snapshots.push(snapshot);
+    else if (
+      Date.parse(snapshots[previous].observedAt) <=
+      Date.parse(snapshot.observedAt)
+    )
+      snapshots[previous] = snapshot;
+  }
   const importedAt =
-    rows
-      .map((r) => r.value.importedAt)
+    [
+      ...rows.map((r) => r.value.importedAt),
+      ...collected.map((r) => new Date(r.receivedAt).toISOString()),
+    ]
       .sort()
       .at(-1) ?? null;
+  const selected = snapshots
+    .sort((a, b) => a.gatewayId.localeCompare(b.gatewayId))
+    .slice(0, 128);
   return {
     synthetic: false,
-    coverage: { returned: snapshots.length, total: rows[0]?.total ?? 0 },
+    coverage: {
+      returned: selected.length,
+      total: Math.max(snapshots.length, rows[0]?.total ?? 0),
+    },
     scenario: "operational",
-    snapshots,
+    snapshots: selected,
     importedAt,
     stale:
       snapshots.length > 0 &&
