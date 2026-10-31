@@ -652,5 +652,2727 @@
     "part_0ca6b17b1ba15953": "/Geometry/sm_roller34_a61_obj_00/sm_roller34_a61_mesh_00",
     "part_663b9dd1726e5612": "/Geometry/sm_roller35_a61_obj_00/sm_roller35_a61_mesh_00",
     "part_68c676bea03e510d": "/Geometry/sm_roller36_a61_obj_00/sm_roller36_a61_mesh_00"
+  },
+  "materialAdaptation": {
+    "policy": "smart-factory-pbr-v1",
+    "description": "Unsupported default-gray USD shading is replaced with documented name-based PBR approximations; original MDL shading and textures are not reproduced.",
+    "changes": {
+      "detail": [
+        {
+          "material": "Browser_opaque__plastic__rough_black_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.018,
+              0.022,
+              0.028,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__emissive_led_green_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.22,
+              0.035,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__rough_black_a.001",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.018,
+              0.022,
+              0.028,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__grey_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.16,
+              0.18,
+              0.21,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__grey_a.001",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.16,
+              0.18,
+              0.21,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__grey_a.002",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.16,
+              0.18,
+              0.21,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__unique_trim_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.18,
+              0.2,
+              0.23,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__rubber__unique_belt_a",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__steel_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__emissive_led_green_a.001",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.22,
+              0.035,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__rough_black_a.002",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.018,
+              0.022,
+              0.028,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__paper__unique_decal_a",
+          "reason": "neutral replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.25,
+              0.27,
+              0.3,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__unique_scaner_decal_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.18,
+              0.2,
+              0.23,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__rough_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__emissive_led_red_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.015,
+              0.012,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__emissive_led_yellow_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.65,
+              0.38,
+              0.015,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__glossy_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__orange_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.6,
+              0.12,
+              0.012,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__yellow_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.65,
+              0.38,
+              0.015,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__blue_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.018,
+              0.07,
+              0.28,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__unique_screen_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.025,
+              0.04,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.001",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.002",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.003",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.004",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.005",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.006",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.007",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.008",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.009",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.010",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.011",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.012",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.013",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.014",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.015",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.016",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.017",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.018",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.019",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.020",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.021",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.022",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.023",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.024",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.025",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.026",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.027",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.028",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.029",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.030",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.031",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.032",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.033",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.034",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.035",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        }
+      ],
+      "compact": [
+        {
+          "material": "Browser_opaque__plastic__rough_black_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.018,
+              0.022,
+              0.028,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__emissive_led_green_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.22,
+              0.035,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__rough_black_a.001",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.018,
+              0.022,
+              0.028,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__grey_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.16,
+              0.18,
+              0.21,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__grey_a.001",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.16,
+              0.18,
+              0.21,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__grey_a.002",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.16,
+              0.18,
+              0.21,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__unique_trim_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.18,
+              0.2,
+              0.23,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__rubber__unique_belt_a",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__steel_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__emissive_led_green_a.001",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.22,
+              0.035,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__rough_black_a.002",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.018,
+              0.022,
+              0.028,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__paper__unique_decal_a",
+          "reason": "neutral replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.25,
+              0.27,
+              0.3,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__unique_scaner_decal_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.18,
+              0.2,
+              0.23,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__rough_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__emissive_led_red_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.015,
+              0.012,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__glossy_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__orange_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.6,
+              0.12,
+              0.012,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__yellow_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.65,
+              0.38,
+              0.015,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__blue_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.018,
+              0.07,
+              0.28,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__plastic__unique_screen_a",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.025,
+              0.04,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.001",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.002",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.003",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.004",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.005",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.006",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.007",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.008",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.009",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.010",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.011",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.012",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.013",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.014",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.015",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.016",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.017",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.018",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.019",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.020",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.021",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.022",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.023",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.024",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.025",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.026",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.027",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.028",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.029",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.030",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.031",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.032",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.033",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.034",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_opaque__metal__aluminum_brushed_a.035",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        }
+      ]
+    }
   }
 }

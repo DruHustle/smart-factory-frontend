@@ -287,5 +287,735 @@
     "part_77ed8f6d94895e87": "/Geometry/wheel_02_obj_00/wheel_02_mesh_00",
     "part_6bc218b3bff454aa": "/Geometry/wheel_03_obj_00/wheel_03_mesh_00",
     "part_71e5facf0f46533e": "/Geometry/wheel_04_obj_00/wheel_04_mesh_00"
+  },
+  "materialAdaptation": {
+    "policy": "smart-factory-pbr-v1",
+    "description": "Unsupported default-gray USD shading is replaced with documented name-based PBR approximations; original MDL shading and textures are not reproduced.",
+    "changes": {
+      "detail": [
+        {
+          "material": "Browser_m_opaque__metal__aluminium_brushed_a01",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_m_opaque__metal__aluminum_brushed_c01",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01.001",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01.002",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.001",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01.003",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.002",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01.004",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.003",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.004",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.005",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.006",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.007",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        }
+      ],
+      "compact": [
+        {
+          "material": "Browser_m_opaque__metal__aluminium_brushed_a01",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_m_opaque__metal__aluminum_brushed_c01",
+          "reason": "metal replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.38,
+              0.42,
+              0.48,
+              1
+            ],
+            "metallicFactor": 0.78,
+            "roughnessFactor": 0.34
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01.001",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01.002",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.001",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01.003",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.002",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__rubber__black_glossy_a01.004",
+          "reason": "rubber replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.012,
+              0.015,
+              0.018,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.7
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.003",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.004",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.005",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.006",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        },
+        {
+          "material": "Browser_m_opaque__plastic__white_a01.007",
+          "reason": "plastic replacement",
+          "before": {
+            "baseColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929,
+              1
+            ],
+            "metallicFactor": 0,
+            "roughnessFactor": 0.5
+          },
+          "after": {
+            "baseColorFactor": [
+              0.52,
+              0.55,
+              0.58,
+              1
+            ],
+            "metallicFactor": 0.0,
+            "roughnessFactor": 0.5
+          }
+        }
+      ]
+    }
   }
 }

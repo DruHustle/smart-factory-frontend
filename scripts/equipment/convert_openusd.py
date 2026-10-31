@@ -91,6 +91,7 @@ def manifest_for(g: dict, asset: dict, source_paths: dict, choreography: dict, p
 def convert(asset: dict, config: dict, source_root: Path, public_root: Path) -> dict:
     import bpy
     from mathutils import Vector
+    from openusd.material_policy import adapt_material, POLICY, DESCRIPTION
     root = (source_root / asset["id"]).resolve()
     metadata_bytes = (root / "com.nvidia.simready.packaging.json").read_bytes()
     if hashlib.sha256(metadata_bytes).hexdigest() != asset["packagingSha256"] or json.loads(metadata_bytes).get("license") != "CC-BY-4.0":
@@ -140,6 +141,7 @@ def convert(asset: dict, config: dict, source_root: Path, public_root: Path) -> 
         if obj not in originals:
             bpy.data.objects.remove(obj, do_unlink=True)
     material_map = {}
+    material_changes = []
     for obj in originals:
         for slot in obj.material_slots:
             old = slot.material
@@ -154,6 +156,9 @@ def convert(asset: dict, config: dict, source_root: Path, public_root: Path) -> 
                         color = list(principled.inputs["Base Color"].default_value)
                         metallic = float(principled.inputs["Metallic"].default_value)
                         roughness = float(principled.inputs["Roughness"].default_value)
+                color, metallic, roughness, reason = adapt_material(key, color, metallic, roughness)
+                if reason:
+                    material_changes.append({"material": key, "reason": reason, "baseColorFactor": color, "metallicFactor": metallic, "roughnessFactor": roughness})
                 m = bpy.data.materials.new("Browser_" + key)
                 m.use_nodes = True
                 bsdf = m.node_tree.nodes.get("Principled BSDF")
@@ -279,6 +284,7 @@ def convert(asset: dict, config: dict, source_root: Path, public_root: Path) -> 
         "author": "NVIDIA", "modifiedBy": "Smart Factory (Onesa UG)",
         "converter": "Blender " + bpy.app.version_string,
         "originalTriangles": original_triangles,
+        "materialAdaptation": {"policy": POLICY, "description": DESCRIPTION, "changes": material_changes},
         "limitations": LIMITATIONS, "sourceObjectPaths": all_source_paths,
     }, indent=2) + "\n")
     return {
