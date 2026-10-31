@@ -28,7 +28,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Open `http://localhost:3000`. Create the first individual administrator using the [documented private bootstrap and recovery workflow](docs/access-and-publication.md). Public registration cannot grant factory access.
+Open `http://localhost:3000`. Create the first individual administrator using the [documented private bootstrap and recovery workflow](docs/access-and-publication.md). Public account requests require [individual administrator approval](docs/account-access.md) before sign-in; the login page also accepts administrator-assisted password recovery requests.
 
 ## Workspaces
 

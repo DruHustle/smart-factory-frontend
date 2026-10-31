@@ -6,6 +6,7 @@ The dashboard uses PostgreSQL with Drizzle ORM. The source of truth is drizzle/s
 erDiagram
   USERS ||--o{ ASSET_LIFECYCLE_EVENTS : records
   USERS ||--o{ SYSTEM_SETTINGS : updates
+  USERS ||--o{ ACCOUNT_REQUESTS : reviews
   ASSETS ||--o{ ASSET_VERSIONS : snapshots
   ASSETS ||--o{ ASSET_DEVICES : connected_through
   DEVICES ||--o{ ASSET_DEVICES : gateways
@@ -15,6 +16,14 @@ erDiagram
     string email
     string password
     string role
+  }
+  ACCOUNT_REQUESTS {
+    uuid id PK
+    string kind
+    string email
+    string status
+    timestamp created_at
+    int reviewed_by
   }
   SYSTEM_SETTINGS {
     string key PK
@@ -88,20 +97,21 @@ flowchart LR
 
 Threshold-generated incidents use stable `SF-*` platform classifications. A vendor diagnostic code is stored as supplied when available. The engineer role provides technician assignment and resolution permissions; downtime is explicitly confirmed by the assigned engineer or administrator. A lost device connection does not automatically prove a factory outage. Existing records inferred by migration 0010 need operational review before use in downtime KPIs. Mean downtime-to-resolution uses only records with both downtime and resolution timestamps.
 
-| Table | Purpose |
-|---|---|
-| users | Local identity, bcrypt password hash in `password`, role, and sign-in timestamps. Never expose the hash in API responses. |
-| system_settings | Durable application-wide settings changed by administrators. `demo_data_enabled` controls whether demo rows are included; replicas refresh it without requiring a deployment. |
-| devices | Connectivity devices. Registrations support gateways, edge devices, sensors, actuators and controllers. Includes status, location, firmware, and simulator marker. Migration `0015_melted_dragon_lord` adds `edge_device`. |
-| assets | Equipment identity, manufacturer name/designation, separate required postal fields, article and order codes, optional serial/rated values, lifecycle, current AAS JSON, monotonic AAS revision, and simulator marker. |
-| asset_devices | Asset-to-gateway protocol, endpoint, and tag/register mappings. Store credentials on the edge gateway, not in mappings. |
-| asset_lifecycle_events | Actor, transition, timestamp, and engineering note audit history. |
-| asset_versions | Append-only AAS snapshots keyed by asset and revision, with change note, actor, and SHA-256 integrity digest. Migration baseline rows have no digest because prior revisions were not recorded. |
-| login_rate_limits | Hashed IP/email identifiers, fixed-window counters, and expiration timestamps shared across application replicas. |
-| sensor_readings | Nullable measurements, AAS asset attribution, named signals, Unix epoch millisecond timestamps, and a unique ingestion digest for retry deduplication. Indexes cover asset/date and device/date queries. |
-| alerts | Stable platform/vendor error code, severity/status, metric observation, acknowledging actor/time, assigned engineer/time, confirmed downtime start, resolving actor/time, and lifecycle timestamps. Per-source transaction locks deduplicate threshold incidents by device/asset/metric; query indexes cover status/date and assignee/status. |
-| alert_thresholds | Enabled per-device warning and critical bands used to classify telemetry into incidents. |
-| firmware_versions, ota_deployments | Firmware catalog metadata and legacy rollout rows. OTA is disabled; a rollout row is not proof that a device downloaded, verified, installed, or booted a release. |
+| Table                              | Purpose                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| users                              | Local identity, bcrypt password hash in `password`, role, and sign-in timestamps. Never expose the hash in API responses.                                                                                                                                                                                                                     |
+| account_requests                   | Pending registration or password-help requests, safe applicant details, review status, reviewer and time. Registration hashes are erased after approval or dismissal.                                                                                                                             |
+| system_settings                    | Durable application-wide settings changed by administrators. `demo_data_enabled` controls whether demo rows are included; replicas refresh it without requiring a deployment.                                                                                                                                                                 |
+| devices                            | Connectivity devices. Registrations support gateways, edge devices, sensors, actuators and controllers. Includes status, location, firmware, and simulator marker. Migration `0015_melted_dragon_lord` adds `edge_device`.                                                                                                                    |
+| assets                             | Equipment identity, manufacturer name/designation, separate required postal fields, article and order codes, optional serial/rated values, lifecycle, current AAS JSON, monotonic AAS revision, and simulator marker.                                                                                                                         |
+| asset_devices                      | Asset-to-gateway protocol, endpoint, and tag/register mappings. Store credentials on the edge gateway, not in mappings.                                                                                                                                                                                                                       |
+| asset_lifecycle_events             | Actor, transition, timestamp, and engineering note audit history.                                                                                                                                                                                                                                                                             |
+| asset_versions                     | Append-only AAS snapshots keyed by asset and revision, with change note, actor, and SHA-256 integrity digest. Migration baseline rows have no digest because prior revisions were not recorded.                                                                                                                                               |
+| login_rate_limits                  | Hashed IP/email identifiers, fixed-window counters, and expiration timestamps shared across application replicas.                                                                                                                                                                                                                             |
+| sensor_readings                    | Nullable measurements, AAS asset attribution, named signals, Unix epoch millisecond timestamps, and a unique ingestion digest for retry deduplication. Indexes cover asset/date and device/date queries.                                                                                                                                      |
+| alerts                             | Stable platform/vendor error code, severity/status, metric observation, acknowledging actor/time, assigned engineer/time, confirmed downtime start, resolving actor/time, and lifecycle timestamps. Per-source transaction locks deduplicate threshold incidents by device/asset/metric; query indexes cover status/date and assignee/status. |
+| alert_thresholds                   | Enabled per-device warning and critical bands used to classify telemetry into incidents.                                                                                                                                                                                                                                                      |
+| firmware_versions, ota_deployments | Firmware catalog metadata and legacy rollout rows. OTA is disabled; a rollout row is not proof that a device downloaded, verified, installed, or booted a release.                                                                                                                                                                            |
 
 Connection and lifecycle ids are application-level relationships, not database-enforced foreign keys in the current schema. Oracle-hosted BaSyx owns separate storage in the Aiven `basyx` PostgreSQL database; it is not part of the Drizzle application schema. Demo rows are marked `isDemo`; startup and viewing never seed. An explicit local CLI creates isolated showcase fixtures. Administrators control visibility separately; shared identities see only approved demo records.
 
@@ -115,8 +125,7 @@ Each row belongs to one account, optionally links to an alert, and retains title
 
 The inbox is queryable only by its owner. Reads do not acknowledge/resolve the factory incident. Email-provider credentials, sender identity and recipient policy are runtime secrets/configuration, not editable browser notification settings. Plan retention/archive policies for both telemetry and inbox history before long-term production operation.
 
-Migration `0014_account_email_identity` adds a case-insensitive unique email index. Null emails remain allowed for legacy identity records. Existing duplicate case-folded email addresses must be reconciled by an administrator before migration. Production self-registration is closed; further accounts are created by an authenticated administrator after private first-admin bootstrap. Passwords are never included in account API responses.
-
+Migration `0014_account_email_identity` adds a case-insensitive unique email index. Null emails remain allowed for legacy identity records. Existing duplicate case-folded email addresses must be reconciled by an administrator before migration. Migration `0033_account_requests` adds a pending review queue; registration creates no user or session until an individual administrator approves it. Password-help requests require administrator identity verification before a temporary credential is issued. Passwords are never included in account API responses.
 
 ## Trusted observation and access additions
 

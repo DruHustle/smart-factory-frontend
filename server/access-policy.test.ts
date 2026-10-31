@@ -43,6 +43,8 @@ describe("central shared-walkthrough containment", () => {
       const readOnlyMutations = new Set([
         "auth.login",
         "auth.logout",
+        "auth.requestRegistration",
+        "auth.requestPasswordReset",
         "assistant.ask",
       ]);
       const mutations = Object.entries(appRouter._def.procedures).filter(

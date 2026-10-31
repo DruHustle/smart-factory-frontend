@@ -90,7 +90,8 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
       deviceId: testDeviceExternalId,
       name: "E2E Device",
       status: "online",
-      route:"direct",freshnessSeconds:120,
+      route: "direct",
+      freshnessSeconds: 120,
       location: "Factory A",
       zone: "Zone A",
     });
@@ -132,27 +133,40 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     const health = await caller.system.health({ timestamp: Date.now() });
     expect(health.ok).toBe(true);
 
-    await expect(caller.system.notifyOwner({title:"Test",content:"System coverage check"})).rejects.toMatchObject({code:"PRECONDITION_FAILED"});
+    await expect(
+      caller.system.notifyOwner({
+        title: "Test",
+        content: "System coverage check",
+      }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
   });
 
-  it("covers auth register/login/me/logout", async () => {
+  it("covers account request, approval, login, me and logout", async () => {
     const unique = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const email = `e2e-auth-${unique}@test.local`;
     const password = "P@ssw0rd!123";
 
     const registration = createContext({ authenticated: false });
     const registerCaller = appRouter.createCaller(registration.ctx);
-    const registered = await registerCaller.auth.register({
+    const submitted = await registerCaller.auth.requestRegistration({
       email,
       password,
       name: "E2E User",
+      organization: "E2E Factory",
     });
-
-    expect(registered.user?.email).toBe(email);
-    expect(typeof registration.cookieCalls[0]?.value).toBe("string");
-    expect(registered.user?.role).toBe("viewer");
-    expect(registered.user && "password" in registered.user).toBe(false);
-    expect(registration.cookieCalls.length).toBeGreaterThan(0);
+    expect(submitted).toEqual({ submitted: true });
+    expect(registration.cookieCalls).toHaveLength(0);
+    await expect(
+      registerCaller.auth.login({ email, password }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    const admin = appRouter.createCaller(
+      createContext({ authenticated: true, role: "admin" }).ctx,
+    );
+    const request = (await admin.users.pendingRequests()).find(
+      (item) => item.email === email,
+    );
+    expect(request).toBeDefined();
+    await admin.users.approveRegistration({ id: request!.id });
 
     const loginContext = createContext({ authenticated: false });
     const loginCaller = appRouter.createCaller(loginContext.ctx);

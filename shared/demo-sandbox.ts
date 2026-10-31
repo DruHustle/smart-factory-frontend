@@ -29,6 +29,7 @@ export const sandboxItem = z
     model: z.string().max(100).default("Demonstration model"),
     serial: z.string().max(100).default("DEMO"),
     connected: z.boolean().default(false),
+    gatewayId: z.string().max(64).nullable().default(null),
     custom: z.boolean().default(false),
     equipmentId: z.string().nullable().default(null),
   })
@@ -247,9 +248,96 @@ export function seedDemoSandbox(
         itemType: i.itemType,
         zone: i.zone,
         connected: i.configured,
+        gatewayId: i.gatewayId ?? null,
         equipmentId: i.equipmentId,
       }),
     );
+  // This preset represents the observed bench topology. Browser-demo values
+  // remain simulated and never read the private operational sensor records.
+  const used = new Set(items.map((i) => i.ref));
+  const newRef = () => {
+    let candidate: string;
+    do {
+      candidate = `device:${(
+        3000000000n +
+        BigInt(`0x${crypto.randomUUID().replaceAll("-", "").slice(-13)}`)
+      ).toString()}`;
+    } while (used.has(candidate));
+    used.add(candidate);
+    return candidate;
+  };
+  const bench =
+    items.length <= 498 &&
+    items.some((item) => item.identifier === "smart-factory-public-simulator")
+      ? [
+          sandboxItem.parse({
+            ref: newRef(),
+            identifier: "pi-edge-01",
+            name: "Raspberry Pi 5 gateway",
+            kind: "device",
+            itemType: "gateway",
+            zone: "Hardware bench",
+            model: "Raspberry Pi 5 Model B",
+            manufacturer: "Raspberry Pi",
+            serial: "DEMO-TOPOLOGY",
+          }),
+          sandboxItem.parse({
+            ref: newRef(),
+            identifier: "esp32-wrover-01",
+            name: "ESP32 WROVER + DHT11 sensor",
+            kind: "device",
+            itemType: "edge_device",
+            zone: "Hardware bench",
+            gatewayId: "pi-edge-01",
+            model: "ESP-WROVER-KIT with DHT11",
+            manufacturer: "Espressif",
+            serial: "DEMO-TOPOLOGY",
+          }),
+        ]
+      : [];
+  items.push(...bench);
+  const benchFactory =
+    bench.length === 2
+      ? [
+          {
+            id: crypto.randomUUID(),
+            version: 1,
+            updatedAt: now,
+            draft: {
+              document: {
+                name: "Current Pi + DHT11 setup",
+                width: 4,
+                depth: 4,
+                zones: [],
+                placements: [
+                  {
+                    ref: bench[0].ref,
+                    x: -0.9,
+                    z: 0,
+                    rotation: 0,
+                    zoneId: null,
+                  },
+                  {
+                    ref: bench[1].ref,
+                    x: 0.9,
+                    z: 0,
+                    rotation: 0,
+                    zoneId: null,
+                  },
+                ],
+              },
+              dimensions: {
+                [bench[0].ref]: { width: 0.09, depth: 0.06, height: 0.05 },
+                [bench[1].ref]: { width: 0.18, depth: 0.1, height: 0.06 },
+              },
+              tags: {
+                [bench[0].ref]: "Pi gateway",
+                [bench[1].ref]: "WROVER / DHT11",
+              },
+            },
+          },
+        ]
+      : [];
   const samples = inventory
     .filter((i) => items.some((s) => s.ref === i.ref))
     .flatMap((i) =>
@@ -278,6 +366,7 @@ export function seedDemoSandbox(
     id: crypto.randomUUID(),
     updatedAt: now,
     items,
+    factories: benchFactory,
     samples,
     thresholds: [],
     incidents: [],
@@ -659,6 +748,7 @@ export function sandboxInventory(s: DemoSandbox): InventoryItem[] {
       configured: i.connected,
       isDemo: true,
       route: "Browser demo simulation",
+      gatewayId: i.gatewayId,
       status: "unknown",
       lastObserved: null,
       sampleAt: samples[0] ? Date.parse(samples[0].at) : null,

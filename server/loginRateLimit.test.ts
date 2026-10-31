@@ -40,6 +40,8 @@ async function fixture(fail = false) {
     auth: t.router({
       login: t.procedure.mutation(checked),
       changePassword: t.procedure.mutation(checked),
+      requestRegistration: t.procedure.mutation(checked),
+      requestPasswordReset: t.procedure.mutation(checked),
     }),
   });
   app.use("/trpc", createExpressMiddleware({ router }));
@@ -59,6 +61,32 @@ async function fixture(fail = false) {
 }
 
 describe("credential throttling at the HTTP tRPC boundary", () => {
+  it("throttles public registration and recovery requests by account", async () => {
+    const { post, checked } = await fixture();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const path =
+        attempt % 2 ? "auth.requestRegistration" : "auth.requestPasswordReset";
+      expect(
+        (
+          await post(
+            path,
+            { json: { email: "person@example.test" } },
+            `192.0.2.${attempt + 1}`,
+          )
+        ).status,
+      ).toBe(200);
+    }
+    expect(
+      (
+        await post(
+          "auth.requestPasswordReset",
+          { json: { email: "PERSON@example.test" } },
+          "192.0.2.9",
+        )
+      ).status,
+    ).toBe(429);
+    expect(checked).toHaveBeenCalledTimes(5);
+  });
   it("charges the account in real single-operation client batches across source IPs", async () => {
     const { url, record, checked, router } = await fixture();
     let ip = 1;

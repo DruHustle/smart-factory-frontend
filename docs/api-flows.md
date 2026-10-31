@@ -21,7 +21,7 @@ sequenceDiagram
   API-->>UI: Result or UNAUTHORIZED / FORBIDDEN
 ```
 
-Public registration cannot grant factory access. Administrators create individual accounts with an expiring initial credential and required password change. The browser neither reads nor stores the JWT. All protected requests check persisted role, disabled state, session generation and revocation. Shared demo identities read only approved server fixtures regardless of their displayed role; editable simulations stay in the browser. Shared actor denial precedes input processing, publishers and operational writes; raw HTTP, exports, service delegation and sockets enforce the boundary too.
+Public registration submits details over HTTPS; the API stores a password hash in `account_requests` and creates no account or session. An individual administrator verifies the applicant and approves a viewer account. The login page's password-help form submits a generic, deduplicated request; after identity verification, the administrator sets and privately delivers a one-use, 30-minute temporary password. The browser neither reads nor stores the JWT. All protected requests check persisted role, disabled state, session generation and revocation. Shared demo identities read only approved server fixtures regardless of their displayed role; editable simulations stay in the browser. Shared actor denial precedes input processing, publishers and operational writes; raw HTTP, exports, service delegation and sockets enforce the boundary too. See [account access](account-access.md).
 
 ## Register and delete connectivity devices
 

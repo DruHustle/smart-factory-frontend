@@ -94,8 +94,13 @@ export function useFactoryDirectory() {
     { enabled: !!user && selection.demo, staleTime: 60000 },
   );
   useEffect(() => {
-    if (selection.demo && reference.data && !state)
-      startDemoSandbox(reference.data.items);
+    if (selection.demo && reference.data && !state) {
+      const seeded = startDemoSandbox(reference.data.items);
+      const bench = seeded.factories.find(
+        (factory) => factory.draft.document.name === "Current Pi + DHT11 setup",
+      );
+      if (bench && !selection.id) selection.select(bench.id);
+    }
   }, [selection.demo, reference.data, state]);
   const create = trpc.factories.create.useMutation();
   const factories: NamedFactorySummary[] = selection.demo

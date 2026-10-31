@@ -14,6 +14,8 @@ describe("immediate factory geometry", () => {
     "storage-tank",
     "control-cabinet",
     "raspberry-pi-4b",
+    "raspberry-pi-5",
+    "esp32-wrover-dht11",
     "valve",
     null,
   ])(
@@ -39,7 +41,9 @@ describe("immediate factory geometry", () => {
       expect(Math.min(bounds.x, bounds.y, bounds.z)).toBeGreaterThan(0.2);
       expect(triangles).toBeGreaterThan(80);
       expect(triangles).toBeLessThan(10000);
-      expect(draws).toBeLessThanOrEqual(8);
+      expect(draws).toBeLessThanOrEqual(
+        model === "esp32-wrover-dht11" ? 10 : 8,
+      );
     },
   );
 

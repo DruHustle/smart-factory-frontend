@@ -114,7 +114,13 @@ const accessBoundary = t.middleware(
     // Signing in/out remains available; neither operation grants operational writes.
     if (
       type === "mutation" &&
-      !["auth.login", "auth.logout", "assistant.ask"].includes(path) &&
+      ![
+        "auth.login",
+        "auth.logout",
+        "auth.requestRegistration",
+        "auth.requestPasswordReset",
+        "assistant.ask",
+      ].includes(path) &&
       (demonstrationOnly(ctx.user) ||
         requestedDataWorkspace(ctx.req?.headers?.cookie) === "demo")
     ) {

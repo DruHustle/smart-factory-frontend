@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 290" role="img" aria-labelledby="title description">
+  <title id="title">Observed Raspberry Pi and DHT11 bench telemetry route</title>
+  <desc id="description">A DHT11 sensor is connected to an ESP32 WROVER, which sends MQTT over Wi-Fi to a Raspberry Pi 5 gateway. The Pi forwards to a cloud broker, worker and dashboard database. This path is not OPC UA FX or TSN.</desc>
+  <rect width="1100" height="290" rx="16" fill="#10232c"/>
+  <g font-family="Arial, sans-serif" text-anchor="middle">
+    <g fill="#1a3b43" stroke="#58b8c8" stroke-width="2">
+      <rect x="28" y="52" width="145" height="116" rx="12"/>
+      <rect x="212" y="52" width="167" height="116" rx="12"/>
+      <rect x="418" y="52" width="153" height="116" rx="12"/>
+      <rect x="610" y="52" width="145" height="116" rx="12"/>
+      <rect x="794" y="52" width="128" height="116" rx="12"/>
+      <rect x="961" y="52" width="112" height="116" rx="12"/>
+    </g>
+    <g fill="#e9f5f5" font-size="17" font-weight="bold">
+      <text x="100" y="103">DHT11</text>
+      <text x="295" y="94">ESP32</text><text x="295" y="120">WROVER</text>
+      <text x="495" y="94">Raspberry Pi 5</text><text x="495" y="120">gateway</text>
+      <text x="683" y="94">Cloud MQTT</text><text x="683" y="120">broker</text>
+      <text x="858" y="103">Worker</text>
+      <text x="1017" y="94">Dashboard</text><text x="1017" y="120">database</text>
+    </g>
+    <g stroke="#8bc9d6" stroke-width="3" fill="none">
+      <path d="M174 109h37m168 0h38m154 0h38m147 0h38m128 0h38"/>
+    </g>
+    <g fill="#8bc9d6">
+      <path d="m211 109-9-6v12zm206 0-9-6v12zm192 0-9-6v12zm185 0-9-6v12zm167 0-9-6v12z"/>
+    </g>
+    <g fill="#b7d1d5" font-size="13">
+      <text x="193" y="195">GPIO</text><text x="398" y="195">Wi-Fi / TLS MQTT</text>
+      <text x="590" y="195">forwarded MQTT</text>
+    </g>
+    <rect x="185" y="229" width="730" height="38" rx="8" fill="#3d3426"/>
+    <text x="550" y="254" fill="#ffd686" font-size="16">Observed historical telemetry · verified Live, OPC UA FX and TSN not established</text>
+  </g>
+</svg>

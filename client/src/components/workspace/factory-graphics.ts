@@ -198,6 +198,8 @@ export const factoryModelSize: Record<string, number> = {
   "pump-motor": 2.7,
   valve: 1.7,
   "raspberry-pi-4b": 0.8,
+  "raspberry-pi-5": 1.35,
+  "esp32-wrover-dht11": 1.65,
 };
 
 /** Fit a reference/proxy's actual geometry to a measured physical envelope, in metres. */

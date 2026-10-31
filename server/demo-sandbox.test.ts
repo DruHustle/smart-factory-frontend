@@ -7,6 +7,7 @@ import {
   type SandboxAction,
 } from "../shared/demo-sandbox";
 import { demoAssistantContext } from "../shared/demo-assistant";
+import { gatewayLinksForFloor } from "../shared/factory-floor";
 import { answerDemoQuestion } from "./demo-assistant";
 import { buildDemoAssistantContext } from "../client/src/lib/demo-assistant-context";
 const create: SandboxAction = {
@@ -17,6 +18,35 @@ function seeded() {
   return applySandboxAction(seedDemoSandbox([]), "engineer", create);
 }
 describe("editable browser demo boundaries and workflows", () => {
+  it("starts the public showcase with a two-device, editable bench topology", () => {
+    const state = seedDemoSandbox([
+      {
+        ref: "device:1",
+        kind: "device",
+        identifier: "smart-factory-public-simulator",
+        name: "Showcase simulator",
+        itemType: "gateway",
+        zone: "Showcase",
+        configured: true,
+        equipmentId: null,
+        isDemo: true,
+      } as any,
+    ]);
+    const factory = state.factories.find(
+      (f) => f.draft.document.name === "Current Pi + DHT11 setup",
+    );
+    expect(factory?.draft.document.placements).toHaveLength(2);
+    const refs = new Set(factory!.draft.document.placements.map((p) => p.ref));
+    const bench = sandboxInventory(state).filter((item) => refs.has(item.ref));
+    expect(bench.map((item) => item.identifier).sort()).toEqual([
+      "esp32-wrover-01",
+      "pi-edge-01",
+    ]);
+    expect(gatewayLinksForFloor(bench)).toMatchObject([
+      { from: bench[0].ref, to: bench[1].ref, kind: "gateway" },
+    ]);
+    expect(bench.every((item) => item.isDemo && item.sandbox)).toBe(true);
+  });
   it("does not admit private inventory into its reference seed", () => {
     expect(
       seedDemoSandbox([{ isDemo: false, name: "private" } as any]).items,

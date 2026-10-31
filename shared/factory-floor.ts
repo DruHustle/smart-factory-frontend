@@ -23,11 +23,44 @@ export type FloorZone = {
   count: number;
 };
 
+/** Draw only recorded parent identities that are also on this floor. */
+export function gatewayLinksForFloor(items: InventoryItem[]): FloorLink[] {
+  const parents = new Map(
+    items
+      .filter((item) => item.kind === "device" && item.itemType === "gateway")
+      .map((item) => [item.identifier, item]),
+  );
+  return items.flatMap((item) => {
+    if (item.kind !== "device" || !item.gatewayId) return [];
+    const parent = parents.get(item.gatewayId);
+    if (!parent || parent.ref === item.ref) return [];
+    return [
+      {
+        from: parent.ref,
+        to: item.ref,
+        kind: "gateway" as const,
+        label:
+          parent.identifier === "pi-edge-01" &&
+          item.identifier === "esp32-wrover-01"
+            ? "Pi-local MQTT/TLS"
+            : "Gateway uplink",
+      },
+    ];
+  });
+}
+
 /** Layout is illustrative; discovery does not establish physical coordinates. */
 export function floorModel(
-  item: Pick<InventoryItem, "itemType" | "name">,
+  item: Pick<InventoryItem, "itemType" | "name"> & { identifier?: string },
 ): string | null {
   const type = `${item.itemType} ${item.name}`.toLowerCase();
+  if (
+    item.identifier === "esp32-wrover-01" ||
+    /(?:esp32.*wrover.*dht11|wrover.*dht11)/.test(type)
+  )
+    return "esp32-wrover-dht11";
+  if (item.identifier === "pi-edge-01" || /raspberry\s*pi\s*5/.test(type))
+    return "raspberry-pi-5";
   if (/warehouse_rack/.test(type)) return "warehouse-rack";
   if (/loading_door/.test(type)) return "loading-door";
   if (/exit_door/.test(type)) return "exit-door";

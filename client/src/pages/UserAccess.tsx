@@ -38,6 +38,8 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 const roles = ["viewer", "operator", "engineer", "admin"] as const;
 type Account = inferRouterOutputs<AppRouter>["users"]["list"][number];
+type AccountRequest =
+  inferRouterOutputs<AppRouter>["users"]["pendingRequests"][number];
 const emptyAccount = {
   name: "",
   email: "",
@@ -60,16 +62,32 @@ export default function UserAccess({
     } | null>(null),
     [temporary, setTemporary] = useState(""),
     [verified, setVerified] = useState(false);
+  const [approval, setApproval] = useState<AccountRequest | null>(null);
+  const [approvalVerified, setApprovalVerified] = useState(false);
   const done = async (message: string) => {
     toast.success(message);
     setAction(null);
     setTemporary("");
     setVerified(false);
+    setApproval(null);
+    setApprovalVerified(false);
     await utils.users.list.invalidate();
+    await utils.users.pendingRequests.invalidate();
   };
   const failure = (error: { message: string }) => toast.error(error.message);
   const list = trpc.users.list.useQuery(undefined, {
     enabled: !!currentUser?.access?.canAdminister,
+  });
+  const requests = trpc.users.pendingRequests.useQuery(undefined, {
+    enabled: !!currentUser?.access?.canAdminister,
+  });
+  const approveRequest = trpc.users.approveRegistration.useMutation({
+    onSuccess: () => done("Account approved. The person can now sign in."),
+    onError: failure,
+  });
+  const dismissRequest = trpc.users.dismissRequest.useMutation({
+    onSuccess: () => done("Request dismissed."),
+    onError: failure,
   });
   const create = trpc.users.create.useMutation({
     onSuccess: async () => {
@@ -105,7 +123,9 @@ export default function UserAccess({
     role.isPending ||
     enabled.isPending ||
     revoke.isPending ||
-    reset.isPending;
+    reset.isPending ||
+    approveRequest.isPending ||
+    dismissRequest.isPending;
   if (!currentUser?.access?.canAdminister)
     return (
       <EmptyState
@@ -144,6 +164,154 @@ export default function UserAccess({
           }
         />
       )}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Account requests{" "}
+            <span className="text-sm font-normal text-muted-foreground">
+              {requests.data?.length ?? ""}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {requests.isLoading ? (
+            <p role="status">Loading requests…</p>
+          ) : requests.error ? (
+            <EmptyState
+              error
+              title="Requests unavailable"
+              description={requests.error.message}
+              action={
+                <Button
+                  variant="outline"
+                  onClick={() => void requests.refetch()}
+                >
+                  Retry
+                </Button>
+              }
+            />
+          ) : !requests.data?.length ? (
+            <p className="text-sm text-muted-foreground">
+              No requests awaiting review.
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {requests.data.map((request) => {
+                const matching = list.data?.find(
+                  (account) =>
+                    account.email?.toLowerCase() ===
+                    request.email.toLowerCase(),
+                );
+                return (
+                  <li
+                    key={request.id}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {request.kind === "registration"
+                          ? "Account approval"
+                          : "Password help"}
+                        : {request.name || request.email}
+                      </p>
+                      <p className="break-all text-sm text-muted-foreground">
+                        {request.email}
+                        {request.organization
+                          ? ` · ${request.organization}`
+                          : ""}
+                        {request.jobTitle ? ` · ${request.jobTitle}` : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Requested{" "}
+                        <SampleTime value={request.createdAt.toISOString()} />
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {request.kind === "registration" ? (
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => setApproval(request)}
+                        >
+                          Approve
+                        </Button>
+                      ) : matching && !matching.disabledAt ? (
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() =>
+                            setAction({ account: matching, kind: "reset" })
+                          }
+                        >
+                          Verify & reset
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() =>
+                          dismissRequest.mutate({ id: request.id })
+                        }
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+      <Dialog
+        open={!!approval}
+        onOpenChange={(open) => {
+          if (!open) {
+            setApproval(null);
+            setApprovalVerified(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve account request</DialogTitle>
+            <DialogDescription>
+              Review the person's identity and factory affiliation before
+              granting viewer access.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (approval && approvalVerified)
+                approveRequest.mutate({ id: approval.id });
+            }}
+          >
+            <p className="text-sm">
+              {approval?.name} · {approval?.email}
+              <br />
+              {approval?.organization}
+              {approval?.jobTitle ? ` · ${approval.jobTitle}` : ""}
+            </p>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                required
+                checked={approvalVerified}
+                onChange={(event) => setApprovalVerified(event.target.checked)}
+              />
+              I verified this person's identity and permission to access this
+              factory through our approved channel.
+            </label>
+            <Button type="submit" disabled={busy || !approvalVerified}>
+              Approve viewer access
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
       <div className="relative max-w-md">
         <Search
           aria-hidden

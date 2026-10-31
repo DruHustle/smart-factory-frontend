@@ -10,7 +10,11 @@ import {
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { createWorkshop, createEquipmentProxy } from "./FactoryEnvironment";
+import {
+  createWorkshop,
+  createEquipmentProxy,
+  isBenchHardwareLayout,
+} from "./FactoryEnvironment";
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
 import { floorItemAtRay } from "./floor-picking";
 import { factoryAreas, factoryAreaColors } from "./factory-spaces";
@@ -325,8 +329,9 @@ export default function FactoryFloorScene({
       const hoverOffset = new THREE.Vector3(),
         hoverRotation = new THREE.Spherical();
       scene.add(new THREE.HemisphereLight(0xdceaff, 0x4b535b, 0.75));
+      const benchHardware = isBenchHardwareLayout(layout);
       const maxItemHeight = Math.max(
-        5,
+        benchHardware ? 1.2 : 5,
         ...layout.placements.map((p) =>
           p.dimensions ? p.dimensions.height + 1 : 0,
         ),
@@ -475,16 +480,20 @@ export default function FactoryFloorScene({
         );
         contact.userData.nonSelectable = true;
         group.add(contact);
+        const benchBoard = ["raspberry-pi-5", "esp32-wrover-dht11"].includes(
+          p.model ?? "",
+        );
         const proxy = createEquipmentProxy(p.model, p.item.itemType);
-        const body = p.dimensions
-          ? fitFactoryDimensions(proxy, p.dimensions)
-          : proxy;
+        const body =
+          p.dimensions && !benchBoard
+            ? fitFactoryDimensions(proxy, p.dimensions)
+            : proxy;
         body.userData.floorItemRef = p.item.ref;
         group.add(body);
         const name = label(p.item.name, "#203c4b");
         name.position.set(
           0,
-          p.dimensions ? p.dimensions.height + 0.8 : 3.05,
+          benchBoard ? 1.12 : p.dimensions ? p.dimensions.height + 0.8 : 3.05,
           0,
         );
         name.visible = p.item.ref === selection.current;
@@ -497,8 +506,12 @@ export default function FactoryFloorScene({
           }),
         );
         marker.position.set(
-          p.dimensions ? -Math.min(p.dimensions.width / 2, 0.64) : -0.64,
-          p.dimensions ? p.dimensions.height + 0.32 : 2.55,
+          benchBoard
+            ? -0.4
+            : p.dimensions
+              ? -Math.min(p.dimensions.width / 2, 0.64)
+              : -0.64,
+          benchBoard ? 0.75 : p.dimensions ? p.dimensions.height + 0.32 : 2.55,
           0,
         );
         marker.userData.nonSelectable = true;
@@ -531,7 +544,13 @@ export default function FactoryFloorScene({
         objects.set(p.item.ref, group);
         if (
           p.model &&
-          !["warehouse-rack", "loading-door", "exit-door"].includes(p.model) &&
+          ![
+            "warehouse-rack",
+            "loading-door",
+            "exit-door",
+            "raspberry-pi-5",
+            "esp32-wrover-dht11",
+          ].includes(p.model) &&
           (p.model !== "raspberry-pi-4b" || p.item.equipmentId)
         )
           void referenceModel(p.model)
@@ -648,7 +667,11 @@ export default function FactoryFloorScene({
               halfHeight = Math.max(halfHeight, Math.abs(point.y));
             }
         const extent =
-          Math.max(halfWidth / Math.max(aspect, 0.1), halfHeight, 9) * 1.06;
+          Math.max(
+            halfWidth / Math.max(aspect, 0.1),
+            halfHeight,
+            benchHardware ? 1.8 : 9,
+          ) * 1.06;
         camera.left = -extent * aspect;
         camera.right = extent * aspect;
         camera.top = extent;

@@ -1,6 +1,6 @@
 # Smart Factory Architecture
 
-Updated 30 October 2026 for the released factory layout, Assistant, demo sandbox and FX/TSN experience. Exact runtime and qualification identities are separate from this architecture description.
+Updated 31 October 2026 for the connected Pi/DHT11 bench, account requests, factory layout, Assistant, demo sandbox and FX/TSN experience. Exact runtime and qualification identities are separate from this architecture description.
 
 ## Repositories and ownership
 
@@ -48,6 +48,8 @@ The [Oracle runbook](../deploy/oracle/README.md) owns deployment, image identity
 
 The Node API checks bcrypt passwords and issues eight-hour HttpOnly cookie sessions. Protected requests reload current role, disabled state, session generation, recovery restriction and revocation. Sockets retain identity and expiry; delegated .NET routes independently enforce the persisted session. Unsafe cookie requests enforce exact allowed origins. Secrets never enter browser state or published profiles.
 
+Public registration and password-help requests are rate limited and stored for individual administrator review. A pending registration cannot sign in; approval creates a viewer account. A password-help request cannot change credentials; an administrator verifies identity and issues a short-lived temporary credential through a private channel. Shared demo administrators cannot review account requests. See [account access](account-access.md).
+
 Individually authenticated operational roles apply on private installations. Shared demo identities and public-demo deployments read explicitly approved server fixtures. Their editable sandbox stores simulated changes in the browser; it does not write operational inventory or shared fixtures. Central actor checks run before writes and publishers. Raw HTTP, exports, downloads and delegated services follow the same boundary. Fixture targets remain read-only for individual users too. The [access guide](access-and-publication.md) documents bootstrap, recovery, disable/revoke and public passport publication.
 
 Assets, independent devices, gateways and equipment share one typed inventory. AAS, source, gateway and representation links are explicit and separate. Registration saves identity and software configuration; broker credentials, profile application and physical commissioning are distinct outcomes. Incoming samples never rewrite commissioned topology or automatically create operational inventory.
@@ -84,4 +86,4 @@ Accepted telemetry survives restart in the independent worker outbox; the edge p
 
 Analytics uses complete-range SQL summaries and bounded buckets with visible gaps, with separately bounded/paginated details and explicit completeness metadata. Polling pauses hidden/offline work, backs off stale sources and retains a bounded authorized fast mode. The primary database connection budget remains unchanged.
 
-Demonstration fixtures are seeded only by an explicit CLI in guarded disposable storage. Viewing and startup never seed. Recorded simulations retain their source mode and period; disconnected physical commissioning examples remain separate. Physical commissioning, hardware performance, external Onesa consumer acceptance and production promotion are separately named outcomes. See [operations](operations.md).
+Only an explicit CLI seeds demonstration fixtures in guarded disposable storage. Viewing never seeds. Simulations retain their source mode; physical examples remain separate. Physical commissioning, hardware performance, Onesa acceptance and production promotion require separate evidence.

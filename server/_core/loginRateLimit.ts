@@ -27,8 +27,14 @@ export function createLoginRateLimit(
     const paths = procedures(req.path);
     if (
       req.method !== "POST" ||
-      !paths.some(
-        (path) => path === "auth.login" || path === "auth.changePassword",
+      !paths.some((path) =>
+        [
+          "auth.login",
+          "auth.changePassword",
+          "auth.register",
+          "auth.requestRegistration",
+          "auth.requestPasswordReset",
+        ].includes(path),
       )
     )
       return next();
@@ -59,10 +65,7 @@ export function createLoginRateLimit(
       return res.status(status).json(batched ? paths.map(() => error) : error);
     };
     if (paths.length !== 1)
-      return void reject(
-        400,
-        "Submit one sign-in or password change at a time.",
-      );
+      return void reject(400, "Submit one account request at a time.");
 
     const now = Date.now();
     if (now - lastPrune > 60_000) {
@@ -82,6 +85,11 @@ export function createLoginRateLimit(
       `ip:${req.ip || "unknown"}`,
       ...(email ? [`email:${email}`] : []),
     ];
+    const requestPath = [
+      "auth.requestRegistration",
+      "auth.requestPasswordReset",
+      "auth.register",
+    ].includes(paths[0]);
     try {
       const windows = await Promise.all(
         identifiers.map(async (identifier) => ({
@@ -89,7 +97,13 @@ export function createLoginRateLimit(
             createHash("sha256").update(identifier).digest("hex"),
             15 * 60_000,
           )),
-          limit: identifier.startsWith("ip:") ? 100 : 20,
+          limit: identifier.startsWith("ip:")
+            ? requestPath
+              ? 20
+              : 100
+            : requestPath
+              ? 5
+              : 20,
         })),
       );
       const blocked = windows.find((window) => window.attempts > window.limit);

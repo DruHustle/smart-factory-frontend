@@ -127,6 +127,32 @@ export const users = pgTable(
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+export const accountRequests = pgTable(
+  "account_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: varchar("kind", { length: 24 }).notNull(),
+    email: varchar("email", { length: 320 }).notNull(),
+    name: varchar("name", { length: 255 }),
+    organization: varchar("organization", { length: 255 }),
+    jobTitle: varchar("job_title", { length: 255 }),
+    passwordHash: text("password_hash"),
+    status: varchar("status", { length: 24 }).default("pending").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedBy: integer("reviewed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (table) => [
+    uniqueIndex("account_requests_pending_identity")
+      .on(sql`lower(${table.email})`, table.kind)
+      .where(sql`${table.status} = 'pending'`),
+  ],
+);
+
 /** Only hashes are persisted; logout/expiry never leaves reusable bearer tokens. */
 export const sessionRevocations = pgTable(
   "session_revocations",
