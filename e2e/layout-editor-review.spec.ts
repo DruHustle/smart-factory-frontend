@@ -781,6 +781,7 @@ test("3D hand grabs empty floor or equipment directly; camera stays fixed during
   await canvas.scrollIntoViewIfNeeded();
   await page.mouse.move(item.x, item.y);
   await expect(canvas).toHaveAttribute("data-grab-target", "asset:1");
+  await canvas.focus();
   await page.keyboard.down("Space");
   const beforeSpace = await canvas.getAttribute("data-camera-view");
   await page.mouse.down();
@@ -909,6 +910,8 @@ test("3D grabs cancel safely and release outside the canvas; a pinch never moves
     .not.toBe(camera);
   expect(await placement()).toEqual(original);
   await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  const zoom = JSON.parse((await canvas.getAttribute("data-camera-view"))!).zoom;
+  expect(zoom).toBeGreaterThan(0);
   await page
     .getByRole("button", { name: "Fit whole factory floor", exact: true })
     .click();
