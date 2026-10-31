@@ -32,6 +32,19 @@ describe("coordinated production promotion", () => {
   it("accepts the qualified API with a compatible current worker", () => {
     expect(promotionCompatibility(runtime(), expected)).toBeNull();
   });
+  it("blocks the account-request UI until its API is deployed", () => {
+    expect(
+      promotionCompatibility(
+        {
+          ...runtime(),
+          capabilities: runtime().capabilities.filter(
+            (capability) => capability !== "account-requests-v1",
+          ),
+        },
+        expected,
+      ),
+    ).toBeTruthy();
+  });
   it.each([
     { backendSource: "e".repeat(40) },
     { edgeSource: "e".repeat(40) },
