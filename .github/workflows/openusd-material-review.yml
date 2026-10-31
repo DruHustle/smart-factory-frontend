@@ -1,0 +1,86 @@
+name: OpenUSD browser material qualification
+on:
+  push:
+    branches: [feat/openusd-material-qualification]
+permissions:
+  contents: write
+defaults:
+  run: { shell: bash }
+jobs:
+  materials:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { ref: '${{ github.sha }}', persist-credentials: true }
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with: { version: 10.34.5 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Apply the same explicit material policy to future USD authoring
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/equipment/convert_openusd.py'); s=p.read_text()
+          old='    import bpy\n    from mathutils import Vector\n'
+          new=old+'    from openusd.material_policy import adapt_material, POLICY, DESCRIPTION\n'
+          assert s.count(old)==1 and 'from openusd.material_policy' not in s
+          s=s.replace(old,new)
+          old='    material_map = {}\n'; new=old+'    material_changes = []\n'
+          assert s.count(old)==1;s=s.replace(old,new)
+          old='                m = bpy.data.materials.new("Browser_" + key)'
+          new='                color, metallic, roughness, reason = adapt_material(key, color, metallic, roughness)\n                if reason:\n                    material_changes.append({"material": key, "reason": reason, "baseColorFactor": color, "metallicFactor": metallic, "roughnessFactor": roughness})\n'+old
+          assert s.count(old)==1;s=s.replace(old,new)
+          old='        "originalTriangles": original_triangles,\n'
+          new=old+'        "materialAdaptation": {"policy": POLICY, "description": DESCRIPTION, "changes": material_changes},\n'
+          assert s.count(old)==1;p.write_text(s.replace(old,new))
+          p=Path('client/src/pages/FactoryModels.tsx');s=p.read_text()
+          old='materials converted to browser PBR colors.'
+          new='unsupported shading replaced with documented browser PBR approximations.'
+          assert s.count(old)==1;p.write_text(s.replace(old,new))
+          p=Path('docs/openusd-industrial-library.md');s=p.read_text()
+          s+='\n### Browser material adaptation\n\nThe reviewed PBR policy (`scripts/equipment/openusd/material_policy.py`) replaces unsupported default-gray USD shading with explicitly authored metal, rubber, paint and plastic approximations. Non-default imported colors are preserved. This is not a reconstruction of NVIDIA MDL shaders or textures. `SOURCE.json` records the material policy and replacements. `finalize_materials.py` can apply this policy offline to hash-verified GLBs without changing binary geometry, node indices or component identifiers; it updates filenames, hashes, catalogue and rendered previews. The normal USD converter applies the same policy directly.\n'
+          p.write_text(s)
+          PY
+          pnpm exec prettier --write client/src/pages/FactoryModels.tsx scripts/equipment/qualify-openusd.mjs docs/openusd-industrial-library.md
+      - name: Prove material safety without network or Blender
+        run: python3 -m unittest discover -s scripts/equipment/openusd -p 'test_*.py' -v
+      - name: Build the pinned CPU authoring tool
+        run: docker build -f scripts/equipment/openusd/Dockerfile -t sf-openusd-materials .
+      - name: Generate revised materials and matching real previews without network or credentials
+        run: |
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --memory 5g --cpus 2 --pids-limit 512 --shm-size 256m --tmpfs /tmp:rw,nosuid,nodev,size=512m --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$GITHUB_WORKSPACE/client/public:/output/public:rw" -v "$GITHUB_WORKSPACE/shared:/output/shared:rw" \
+            --entrypoint python sf-openusd-materials /tools/openusd/finalize_materials.py --public-root /output/public --catalogue /output/shared/industrial-assets.catalog.json --render
+      - name: Validate every revised package and release file
+        run: |
+          pnpm check
+          pnpm exec vitest run server/equipment/openusd.test.ts server/equipment/industrial-release.test.ts server/equipment/inspection.test.ts
+          pnpm build
+      - name: Commit qualified material source and generated assets only
+        env: { EXPECTED: '${{ github.sha }}' }
+        run: |
+          remote=$(git ls-remote origin refs/heads/feat/openusd-material-qualification | cut -f1)
+          [[ "$remote" == "$EXPECTED" ]] || { echo 'Branch advanced; refusing to overwrite work.'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/equipment/convert_openusd.py scripts/equipment/qualify-openusd.mjs client/src/pages/FactoryModels.tsx docs/openusd-industrial-library.md client/public/models/nvidia shared/industrial-assets.catalog.json
+          git commit -m 'Qualify readable browser materials with preserved NVIDIA geometry and documented adaptation'
+          git push origin HEAD:refs/heads/feat/openusd-material-qualification
+      - name: Install browser engines
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Verify actual material revisions and restoration across browsers
+        run: node scripts/equipment/qualify-openusd.mjs
+      - name: Verify authenticated import, workspace and saved views with revised assets
+        run: pnpm e2e:equipment --grep NVIDIA
+      - name: Retain visual qualification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nvidia-material-qualification
+          path: |
+            test-results/
+            client/public/models/nvidia/
+            shared/industrial-assets.catalog.json
+          retention-days: 7
