@@ -45,7 +45,9 @@ After approved promotion, inspect `/release.json`, `/api/runtime/contract`, logi
 ## Rollback
 
 The qualified rollback sources are pinned in [rollback-sources.json](../rollback-sources.json).
-They pair the prior UI/API with its compatible backend and edge revisions.
+The API rollback retains the prior feature/schema contract with the patched
+`follow-redirects` 1.16.2 dependency, paired with its compatible backend and edge.
+The previously verified frontend deployment remains compatible with that API.
 The pinned backend retains administrator-only infrastructure access, the reduced
 connection budget and authenticated worker receipts. ARM64 qualification retains
 both tested image archives, image inspection and archive checksums in the same
