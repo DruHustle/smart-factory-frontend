@@ -118,9 +118,17 @@ test("an individual administrator reviews signup roles, rejects requests and han
   await rejectedRow
     .getByRole("button", { name: "Reject", exact: true })
     .click();
-  await admin
+  const rejectionDialog = admin.getByRole("dialog", {
+    name: "Reject account request",
+    exact: true,
+  });
+  await expect(rejectionDialog).toBeVisible();
+  await rejectionDialog
     .getByRole("button", { name: "Reject request", exact: true })
     .click();
+  // The open modal hides background roles before rejection has completed.
+  // Its success callback closes the dialog after the server commits the change.
+  await expect(rejectionDialog).toBeHidden();
   await expect(rejectedRow).toHaveCount(0);
   const rejectedLogin = await rejected.request.post("/api/trpc/auth.login", {
     data: { json: { email: rejectedEmail, password } },
