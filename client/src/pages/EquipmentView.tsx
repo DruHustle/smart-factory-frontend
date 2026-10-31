@@ -265,9 +265,12 @@ export default function EquipmentView({
                     </option>
                   </select>
                 </label>
-                <label className="text-sm">
-                  Local model/template
+                <div className="text-sm">
+                  <label htmlFor="local-model-template">
+                    Local model/template
+                  </label>
                   <select
+                    id="local-model-template"
                     className="mt-1 w-full rounded border bg-background p-2"
                     value={modelRevision}
                     onChange={(e) => {
@@ -291,7 +294,7 @@ export default function EquipmentView({
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
                 {modelRevision && selectedTemplate.error && (
                   <p role="alert">
                     Model mapping metadata is unavailable. Retry selecting the
