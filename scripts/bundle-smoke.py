@@ -78,9 +78,14 @@ try:
         trpc(opener,'auth.login',{'email':email,'password':'Bundle-test-Password-123!'})
         accounts[role]=(opener,user['id'])
         assert trpc(opener,'auth.me',query=True)['role'] == role
-    sql("DELETE FROM users WHERE email='bootstrap@example.com'")
-    print('PASS: open registration is denied; reviewed requests create individual accounts and sessions only after approval.')
     admin,admin_id=accounts['admin']; engineer,engineer_id=accounts['engineer']; viewer,viewer_id=accounts['viewer']
+    # Approval audits retain their reviewer. Disable this fixture identity through
+    # the replacement administrator so evidence survives and recipients stay scoped.
+    bootstrap_user=next(user for user in trpc(admin,'users.list',query=True) if user['email']=='bootstrap@example.com')
+    trpc(admin,'users.setEnabled',{'id':bootstrap_user['id'],'enabled':False,'expectedVersion':bootstrap_user['accessVersion']})
+    assert http(bootstrap_admin,'/api/trpc/assets.list')[0]==401
+    assert sql(f"SELECT count(*) FROM security_audit WHERE action='account_registration_approved' AND actor_id={bootstrap_user['id']}")=='3'
+    print('PASS: reviewed requests create individual accounts; disabling the bootstrap reviewer preserves approval evidence and revokes its session.')
     assert trpc(viewer,'system.demoData',query=True)['enabled'] is False
     status,_=http(viewer,'/api/trpc/system.setDemoData',{'enabled':True}); assert status==403
     sql("INSERT INTO assets(\"assetId\",name,\"assetType\",\"aasShell\",\"isDemo\") VALUES('urn:bundle:demo','Explicit bundle simulation','motor','{}'::json,true)")
@@ -105,7 +110,8 @@ try:
     assert not trpc(viewer,'notifications.list',query=True)
     status,_=http(viewer,'/api/trpc/notifications.markRead',{'id':items[0]['id']}); assert status==404
     trpc(engineer,'notifications.markRead',{'id':items[0]['id']})
-    wait(lambda: sql(f"SELECT count(*) FROM notification_inbox WHERE \"alertId\"={alert} AND \"emailStatus\"='unconfigured'") == '4')
+    # Retained disabled reviewers are not active delivery recipients.
+    wait(lambda: sql(f"SELECT count(*) FROM notification_inbox n JOIN users u ON u.id=n.\"userId\" WHERE n.\"alertId\"={alert} AND n.\"emailStatus\"='unconfigured' AND u.disabled_at IS NULL") == '4')
     assert sql("SELECT count(*) FROM notification_inbox WHERE kind='account_welcome' AND \"emailStatus\"='unconfigured'") == '3'
     run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','restart','notification'])
     assert len(trpc(engineer,'notifications.list',query=True)) == 2
