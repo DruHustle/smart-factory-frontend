@@ -164,6 +164,9 @@ export default function FactoryFloorScene({
   zone: string;
   onMove?: FloorMove;
 } & FloorDragHandlers) {
+  const [rotateOnHover, setRotateOnHover] = useState(false);
+  const rotateOnHoverRef = useRef(false);
+  rotateOnHoverRef.current = rotateOnHover;
   const host = useRef<HTMLDivElement>(null),
     choose = useRef(onSelect),
     selection = useRef(selected),
@@ -288,7 +291,7 @@ export default function FactoryFloorScene({
       renderer.domElement.tabIndex = 0;
       renderer.domElement.setAttribute(
         "aria-description",
-        "Move the mouse without pressing to rotate the view; stop moving to stop rotation. Press and hold equipment to grab it; drag empty floor to pan. Rotation pauses while grabbing. Release to drop. Right-drag or Shift-drag also rotates; scroll or pinch zooms. Hold Space to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.",
+        "Move the mouse to pan by default. Enable Rotate to orbit with mouse movement. Press and hold equipment to grab it; drag empty floor to pan. Rotation pauses while grabbing. Release to drop. Right-drag or Shift-drag also rotates; scroll or pinch zooms. Hold Space to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.",
       );
       renderer.domElement.dataset.floorNodeCount = String(
         layout.placements.length,
@@ -872,6 +875,18 @@ export default function FactoryFloorScene({
         const x = (e.clientX - previous.x) / rect.width,
           y = (e.clientY - previous.y) / rect.height;
         if (!x && !y) return;
+        if (!rotateOnHoverRef.current) {
+          const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+          const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+          const distance = (camera.right - camera.left) / camera.zoom;
+          const shift = right.multiplyScalar(-THREE.MathUtils.clamp(x, -0.1, 0.1) * distance)
+            .add(up.multiplyScalar(THREE.MathUtils.clamp(y, -0.1, 0.1) * distance));
+          camera.position.add(shift);
+          controls.target.add(shift);
+          controls.update();
+          dirty = true;
+          return;
+        }
         // Follow actual mouse motion only: no idle spin, inertia, pan or zoom.
         // Bound an individual event so re-entry/device jumps cannot swing the view.
         hoverOffset.copy(camera.position).sub(controls.target);
@@ -1188,6 +1203,12 @@ export default function FactoryFloorScene({
   return (
     <div className="relative h-full w-full">
       <div ref={host} className={`h-full w-full ${failed ? "hidden" : ""}`} />
+      {!failed && (
+        <button type="button" aria-pressed={rotateOnHover} aria-label="Rotate with mouse movement"
+          onClick={() => setRotateOnHover((value) => !value)}
+          className="absolute right-3 top-3 z-10 rounded-md border bg-background/95 px-3 py-2 text-xs font-medium shadow-sm"
+        >{rotateOnHover ? "Rotate: On" : "Rotate: Off · Pan"}</button>
+      )}
       {failed ? (
         <>
           <FloorPlan
