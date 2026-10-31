@@ -180,6 +180,12 @@ test("a returning demo user adds the Pi bench while retaining saved work and an 
     page.getByRole("heading", { name: "Saved assembly floor", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Unsaved layout draft", { exact: true }),
+    page.getByText("Unsaved layout draft · Browser sandbox", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByLabel("Factory totals", { exact: true }),
+  ).toContainText("8 × 6 m");
+  await expect(
+    page.getByRole("button", { name: "Save layout", exact: true }),
+  ).toBeEnabled();
 });

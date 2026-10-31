@@ -5,6 +5,11 @@ test.setTimeout(120000);
 const key = "smart-factory:editable-demo:v2";
 const snapshot = (page: Page) =>
   page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? "null"), key);
+const factoryIn = (state: any, id: string) => {
+  const factory = state.factories.find((candidate: any) => candidate.id === id);
+  expect(factory, "The selected factory must still be present").toBeDefined();
+  return factory;
+};
 async function prepare(page: Page) {
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto("/#/login");
@@ -30,6 +35,11 @@ async function prepare(page: Page) {
     page.getByRole("heading", { name: "Acceptance factory", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Floor plan", exact: true }).click();
+  const id = await page
+    .getByLabel("Active factory", { exact: true })
+    .inputValue();
+  expect(id).not.toBe("");
+  return id;
 }
 async function add(page: Page, type: string, name: string, tag: string) {
   await page
@@ -55,12 +65,12 @@ test("named factory inventory, hand drop to bin and attributed history stay cons
     if (r.method() === "POST" && r.url().includes("/api/trpc/"))
       writes.push(r.url().split("/trpc/")[1].split("?")[0]);
   });
-  await prepare(page);
+  const factoryId = await prepare(page);
   await add(page, "pump", "Acceptance pump", "P-01");
   await add(page, "rack", "Warehouse rack", "RACK-01");
   await add(page, "loading", "Receiving door", "IN-01");
   const first = await snapshot(page),
-    f = first.factories[0],
+    f = factoryIn(first, factoryId),
     ref = f.draft.document.placements[0].ref;
   expect(f.draft.document.width).toBe(32);
   expect(f.draft.document.placements).toHaveLength(3);
@@ -83,7 +93,7 @@ test("named factory inventory, hand drop to bin and attributed history stay cons
   await page.reload();
   await expect(page.getByTestId("named-factory-workspace")).toBeVisible();
   expect(
-    (await snapshot(page)).factories[0].draft.document.placements.find(
+    factoryIn(await snapshot(page), factoryId).draft.document.placements.find(
       (p: any) => p.ref === ref,
     ),
   ).toMatchObject({ x: 4, rotation: 90 });
@@ -108,7 +118,7 @@ test("named factory inventory, hand drop to bin and attributed history stay cons
   );
   await confirm.getByRole("button", { name: "Keep item", exact: true }).click();
   expect(
-    (await snapshot(page)).factories[0].draft.document.placements.find(
+    factoryIn(await snapshot(page), factoryId).draft.document.placements.find(
       (p: any) => p.ref === ref,
     ).x,
   ).toBe(4);
@@ -125,7 +135,9 @@ test("named factory inventory, hand drop to bin and attributed history stay cons
   await expect(confirm).not.toBeVisible();
   const removed = await snapshot(page);
   expect(removed.items.some((i: any) => i.ref === ref)).toBe(false);
-  expect(removed.factories[0].draft.document.placements).toHaveLength(2);
+  expect(factoryIn(removed, factoryId).draft.document.placements).toHaveLength(
+    2,
+  );
   await page
     .getByRole("button", { name: "Factory activity", exact: true })
     .click();
@@ -144,7 +156,7 @@ test("named factory inventory, hand drop to bin and attributed history stay cons
 test("factory roles, fullscreen editor and mobile layout work without server demo writes", async ({
   page,
 }) => {
-  await prepare(page);
+  const factoryId = await prepare(page);
   await add(page, "exit", "Personnel exit", "EXIT-01");
   await page
     .getByLabel("Factory demo role", { exact: true })
@@ -220,8 +232,18 @@ test("factory roles, fullscreen editor and mobile layout work without server dem
   await page
     .getByRole("button", { name: "Reset this demo workspace", exact: true })
     .click();
-  expect((await snapshot(page)).factories).toEqual([]);
-  expect((await snapshot(page)).factoryActivity).toEqual([]);
+  const reset = await snapshot(page);
+  expect(reset.factories).toHaveLength(1);
+  expect(reset.factories[0].draft.document).toMatchObject({
+    name: "Current Pi + DHT11 setup",
+    width: 4,
+    depth: 4,
+  });
+  expect(reset.factories[0].draft.document.placements).toHaveLength(2);
+  expect(reset.factories.some((factory: any) => factory.id === factoryId)).toBe(
+    false,
+  );
+  expect(reset.factoryActivity).toEqual([]);
   expect(
     await page.evaluate(
       () =>
@@ -240,10 +262,10 @@ test("the rendered factory supports direct hand dragging to its inventory bin", 
   page,
   browserName,
 }) => {
-  await prepare(page);
+  const factoryId = await prepare(page);
   await add(page, "pump", "Grabbed pump", "GRAB-01");
   const initial = await snapshot(page),
-    ref = initial.factories[0].draft.document.placements[0].ref;
+    ref = factoryIn(initial, factoryId).draft.document.placements[0].ref;
   await page.getByRole("button", { name: "3D floor", exact: true }).click();
   const scene = page.getByRole("img", {
       name: "Interactive 3D factory floor",
@@ -321,9 +343,9 @@ test("the rendered factory supports direct hand dragging to its inventory bin", 
     .getByRole("button", { name: "Delete inventory item", exact: true })
     .click();
   await expect(confirm).not.toBeVisible();
-  expect((await snapshot(page)).factories[0].draft.document.placements).toEqual(
-    [],
-  );
+  expect(
+    factoryIn(await snapshot(page), factoryId).draft.document.placements,
+  ).toEqual([]);
   expect((await snapshot(page)).factoryActivity.at(-1)).toMatchObject({
     action: "inventory.deleted",
     actorName: "Demo Admin",
