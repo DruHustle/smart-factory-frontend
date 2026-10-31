@@ -59,6 +59,11 @@ const walkthroughQueries = new Set([
   "inventory.list",
   "factory.floor",
   "networkDiagnostics.overview",
+  "connectivity.drivers",
+  "connectivity.gateways",
+  "connectivity.get",
+  "connectivity.history",
+  "connectivity.assetTags",
   "inventory.item",
   "devices.monitor",
   "devices.heartbeatHistory",
@@ -171,7 +176,7 @@ const visibilityBoundary = t.middleware(
     const run = () =>
       withVisibility(policy, () => next({ ctx: { ...ctx, user } }));
     return type === "mutation" &&
-      /^(factories|assets|devices|equipment|thresholds|alerts|ota)\./.test(path)
+      (/^(factories|assets|devices|equipment|thresholds|alerts|ota)\./.test(path) || path === "connectivity.save")
       ? withMutationActor(user, run)
       : run();
   },

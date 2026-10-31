@@ -152,7 +152,7 @@ function DashboardLayoutContent({
     path === "/"
       ? location === "/"
       : (path === "/inventory" &&
-          /^\/(devices|assets|equipment|models)(\/|$)/.test(location)) ||
+          /^\/(devices|assets|equipment|models|connectivity)(\/|$)/.test(location)) ||
         location === path ||
         location.startsWith(`${path}/`);
   const activeMenuItem = [

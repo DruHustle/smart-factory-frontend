@@ -13,6 +13,7 @@ import {
   Radio,
   Map,
   Search,
+  Cable,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -254,7 +255,17 @@ export function FactoryWorkspace({
             ? "Editable browser demo · simulated equipment"
             : "Shared factory · team permissions apply"
         }
-        action={<FactorySelector />}
+        action={
+          <>
+            <FactorySelector />
+            <Button asChild variant="outline">
+              <Link href="/connectivity">
+                <Cable className="mr-2 size-4" />
+                Connectivity
+              </Link>
+            </Button>
+          </>
+        }
       />
       {c.demo && factory?.name === "Current Pi + DHT11 setup" && (
         <p className="rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">

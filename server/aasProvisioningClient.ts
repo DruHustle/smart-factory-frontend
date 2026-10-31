@@ -30,6 +30,25 @@ function getProvisioningUrl() {
   return url;
 }
 
+async function publishConnectivityRequest(path: string, body: unknown) {
+  const base = getProvisioningUrl();
+  if (!base) return { published: false as const, reason: "provisioner_not_configured" as const };
+  const response = await fetch(new URL(path, base), {
+    method: "POST", headers: { "content-type": "application/json", accept: "application/json", "x-aas-provisioning-token": process.env.AAS_PROVISIONING_TOKEN! },
+    body: JSON.stringify(body), redirect: "error", signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`Connectivity request was rejected (HTTP ${response.status})`);
+  const result: unknown = await response.json();
+  if (!result || typeof result !== "object" || !("published" in result) || result.published !== true) throw new Error("DeviceService did not confirm connectivity publication");
+  return { published: true as const };
+}
+export function publishIndustrialConfiguration(configuration: import("../shared/industrial-connectivity").IndustrialConfiguration) {
+  return publishConnectivityRequest("connectivity/sync", configuration);
+}
+export function publishConnectivityProbe(input: { gatewayDeviceId: string; commandId: string; expiresAt: number; connection: import("../shared/industrial-connectivity").IndustrialConnection }) {
+  return publishConnectivityRequest("connectivity/probe", input);
+}
+
 async function requestProvisioner(url: URL, method: "POST" | "PUT" | "DELETE", asset: AssetIdentity) {
   const token = process.env.AAS_PROVISIONING_TOKEN!;
   const response = await fetch(url, {

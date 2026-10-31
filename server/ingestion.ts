@@ -20,6 +20,7 @@ import { evaluateAlertThreshold } from "../shared/alert-thresholds";
 import { getAlertErrorCode } from "../shared/alert-codes";
 import type { Metric } from "../shared/measurements";
 import { capture, recordCaptureFailure } from "./onesa/store";
+import { ingestConnectivity } from "./connectivity/store";
 export type TelemetryInput = {
   deviceId: string;
   gatewayId?: string;
@@ -29,6 +30,7 @@ export type TelemetryInput = {
   sensorStatus?: "ok" | "read_error";
   ingestionId?: string;
   integration?: unknown;
+  connectivity?: import("../shared/industrial-connectivity").ConnectivityObservation;
   transportRetained?: boolean;
   transportRetainVerified?: boolean;
   units?: Partial<Record<Metric, string>>;
@@ -57,6 +59,7 @@ export async function ingestTelemetryByDeviceId(
   const canonicalInput = { ...input, ingestionId: undefined };
   if (canonicalInput.integration === undefined)
     delete canonicalInput.integration;
+  if (canonicalInput.connectivity === undefined) delete canonicalInput.connectivity;
   if (canonicalInput.units === undefined) delete canonicalInput.units;
   if (canonicalInput.mapping === undefined) delete canonicalInput.mapping;
   delete canonicalInput.transportRetainVerified;
@@ -130,6 +133,11 @@ export async function ingestTelemetryByDeviceId(
           ? "route_not_commissioned"
           : "route_mismatch",
       );
+    if (input.connectivity) {
+      const eligibility = currentObservation(input, policy, null, receivedAt.getTime());
+      const result = await ingestConnectivity(tx, device, { ...input, timestamp: raw.timestamp }, eligibility.eligible);
+      return "rejection" in result && result.rejection ? reject(result.rejection) : result;
+    }
     let normalized: ReturnType<typeof normalizeMeasurements>;
     try {
       normalized = normalizeMeasurements(input, policy);
@@ -442,6 +450,6 @@ export async function ingestTelemetryByDeviceId(
   const outcome = transaction
     ? await persist(transaction)
     : await db.transaction(persist);
-  if ("rejection" in outcome) throw new TelemetryPolicyError(outcome.rejection);
+  if ("rejection" in outcome && outcome.rejection) throw new TelemetryPolicyError(outcome.rejection);
   return outcome;
 }

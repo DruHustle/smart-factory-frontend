@@ -18,6 +18,9 @@ import { canAdministerUsers, canViewEngineering } from "@/lib/access";
 import { filterPasswordRecoveryAnalytics } from "@/lib/password-recovery-link";
 
 const Inventory = lazy(() => import("./pages/Inventory"));
+const IndustrialConnectivity = lazy(
+  () => import("./pages/IndustrialConnectivity"),
+);
 const ItemWorkspace = lazy(() => import("./pages/ItemWorkspace"));
 const Cybersecurity = lazy(() => import("./pages/Cybersecurity"));
 const EquipmentView = lazy(() => import("./pages/EquipmentView"));
@@ -169,6 +172,10 @@ function AppRouter() {
                 <Switch>
                   <Route path="/account/password" component={ChangePassword} />
                   <Route path="/inventory" component={Inventory} />
+                  <Route
+                    path="/connectivity"
+                    component={IndustrialConnectivity}
+                  />
                   <Route
                     path="/inventory/:ref/:section"
                     component={ItemWorkspace}

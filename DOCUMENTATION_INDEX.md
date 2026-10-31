@@ -29,6 +29,8 @@
 
 ## Industrial interoperability
 
+- [Industrial device connectivity: drivers, typed tags, FX and TSN commissioning](docs/industrial-device-connectivity.md)
+- [Industrial connectivity implementation verification](docs/industrial-connectivity-verification.md)
 - [Connected Raspberry Pi 5, ESP32 WROVER and DHT11 bench test](docs/pi-dht11-bench.md)
 - [OPC UA FX and TSN: concepts, diagnostics and commissioning](docs/fx-tsn.md)
 - [Assistant explanations of FX, TSN and evidence](docs/assistant-concepts.md)
