@@ -1,3 +1,4 @@
+import { verifyIndustrialRelease } from "./industrial-release";
 import { releaseIdentityCompatibility } from "../shared/runtime-contract";
 
 const origin = new URL(process.env.RELEASE_ORIGIN ?? "");
@@ -25,4 +26,6 @@ if (!response.ok)
   throw Error("The deployed frontend release manifest is unavailable");
 const error = releaseIdentityCompatibility(await response.json(), expected);
 if (error) throw Error(error);
+const assets = await verifyIndustrialRelease(origin);
+console.log(JSON.stringify({ industrialAssets: assets }, null, 2));
 console.log(`Verified frontend ${expected} at ${origin.origin}`);

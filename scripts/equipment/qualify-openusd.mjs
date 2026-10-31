@@ -123,6 +123,19 @@ try {
         await expect(
           page.getByLabel("Section axis", { exact: true }),
         ).toHaveValue("X");
+        await expect(
+          page.getByText(
+            "Visual section only. Solid section caps unavailable for this model.",
+          ),
+        ).toBeVisible();
+        await page.waitForFunction(() => {
+          const diagnostics = JSON.parse(
+            document
+              .querySelector("[data-inspection]")
+              ?.getAttribute("data-inspection") || "{}",
+          );
+          return diagnostics.section === "X" && diagnostics.caps === 0;
+        });
         await page
           .getByRole("button", { name: "Restore assembly", exact: true })
           .click();
@@ -259,6 +272,18 @@ try {
     }
   }
   console.log(JSON.stringify(results, null, 2));
+} catch (error) {
+  const page = browser.contexts().at(-1)?.pages().at(-1);
+  if (page) {
+    await page
+      .screenshot({ path: `${directory}/failure.png`, fullPage: true })
+      .catch(() => {});
+    await writeFile(`${directory}/failure.html`, await page.content()).catch(
+      () => {},
+    );
+  }
+  await writeFile(`${directory}/failure.txt`, String(error.stack || error));
+  throw error;
 } finally {
   await writeFile(
     `${directory}/results.json`,
