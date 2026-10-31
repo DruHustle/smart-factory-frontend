@@ -1,4 +1,5 @@
 import { currentSample } from "@shared/measurements";
+import { monitoringFilters } from "@/lib/list-filters";
 import {
   EvidencePath,
   EquipmentSymbol,
@@ -37,7 +38,6 @@ import {
   metrics,
   type Metric,
 } from "@shared/measurements";
-import type { EvidenceScope } from "../../../server/evidenceScope";
 import { useWorkspaceLocation } from "@/lib/hashLocation";
 const scopes = [
   "operational",
@@ -55,12 +55,10 @@ export default function Monitoring() {
     [paused, setPaused] = useState(false),
     [filtersOpen, setFiltersOpen] = useState(false);
   const params = new URLSearchParams(location.split("?")[1] ?? "");
-  const search = params.get("search") ?? "",
-    type = params.get("type") ?? "all",
-    status = params.get("status") ?? "all",
-    scope = (params.get("scope") ??
-      (user?.access?.demoOnly ? "simulated" : "operational")) as EvidenceScope,
-    page = Math.max(0, Number(params.get("page") ?? 0) || 0);
+  const { search, type, status, scope, page } = monitoringFilters(
+    params,
+    user?.access?.demoOnly,
+  );
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     value ? next.set(key, value) : next.delete(key);
@@ -71,8 +69,8 @@ export default function Monitoring() {
   const sources = trpc.devices.monitor.useQuery(
     {
       search: settledSearch,
-      type: type as any,
-      status: status as any,
+      type,
+      status,
       page,
       pageSize: 25,
     },
@@ -196,6 +194,7 @@ export default function Monitoring() {
             />
             <Input
               aria-label="Search sources"
+              maxLength={100}
               value={search}
               onChange={(e) => update("search", e.target.value)}
               placeholder="Find a source or location"

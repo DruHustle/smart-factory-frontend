@@ -5,6 +5,8 @@ export default defineConfig({
     "workspace.spec.ts",
     "infrastructure-private.spec.ts",
     "factory-layouts-private.spec.ts",
+    "assistant-selection.spec.ts",
+    "list-filters.spec.ts",
   ],
   fullyParallel: false,
   workers: 1,

@@ -1,4 +1,5 @@
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { listPage } from "@/lib/list-filters";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { Search, RefreshCw, SlidersHorizontal } from "lucide-react";
@@ -37,7 +38,7 @@ export default function Alerts() {
     )
       ? params.get("severity")!
       : "all",
-    page = Math.max(0, Number(params.get("page") ?? 0) || 0),
+    page = listPage(params.get("page")),
     from = params.get("from") ?? "",
     to = params.get("to") ?? "",
     startTime =
@@ -166,6 +167,7 @@ export default function Alerts() {
               />
               <Input
                 aria-label="Search alerts"
+                maxLength={100}
                 value={search}
                 onChange={(e) => update("search", e.target.value)}
                 className="pl-9"

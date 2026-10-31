@@ -76,6 +76,11 @@ import {
 } from "../shared/demo-accounts";
 import { edgeTagMappingsSchema } from "../shared/edge-configuration";
 import { answerFactoryQuestion } from "./assistantKnowledge";
+import { assistantSelection } from "../shared/assistant-providers";
+import {
+  assistantProviderCatalog,
+  validateAssistantSelection,
+} from "./assistantProvider";
 import { isDefinitionQuestion } from "../shared/assistant-conversation";
 import { demoAssistantContext } from "../shared/demo-assistant";
 import {
@@ -88,6 +93,7 @@ import {
 import { wsManager } from "./websocket";
 import {
   requestRegistration,
+  pendingRegistrationCredential,
   pendingAccountRequests,
   approveRegistration,
   dismissAccountRequest,
@@ -342,6 +348,107 @@ const thresholdInputSchema = z
     }
   });
 
+const assistantAskProcedure = viewerProcedure
+  .input(
+    z.object({
+      question: z.string().trim().min(1).max(500),
+      demoContext: demoAssistantContext.optional(),
+      factoryId: z.uuid().optional(),
+      selectedAssetId: z.string().trim().min(3).max(128).optional(),
+      selection: assistantSelection.optional(),
+      history: z
+        .array(
+          z.object({
+            role: z.enum(["user", "assistant"]),
+            content: z.string().max(1200),
+          }),
+        )
+        .max(12)
+        .optional(),
+    }),
+  )
+  .mutation(async ({ input, ctx }) => {
+    if (input.demoContext && !demoOnlyRead())
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message:
+          "Browser simulation context is accepted only in the shared demo workspace.",
+      });
+    try {
+      validateAssistantSelection(input.selection, !demoOnlyRead());
+    } catch {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message:
+          "The selected AI provider or model is no longer available. Choose an enabled option.",
+      });
+    }
+    if (
+      /\b(security|cybersecurity|vulnerabilit(?:y|ies)|cyber)\b/i.test(
+        input.question,
+      ) &&
+      !isDefinitionQuestion(input.question) &&
+      !input.demoContext &&
+      !input.factoryId
+    ) {
+      if (!(await import("./security/store")).enabled())
+        return {
+          answer:
+            "Cybersecurity collection is disabled. Existing equipment and telemetry remain available; no security assessment is implied.",
+          sources: [],
+          contextAt: new Date().toISOString(),
+          execution: { provider: "local" as const, model: null },
+        };
+      const { overview, findings, filters } =
+        await import("./security/service");
+      const { demoOnly } = await import("./security/router");
+      try {
+        const [coverage, fs] = await Promise.all([
+          overview(demoOnly(ctx.user)),
+          findings(filters.parse({}), demoOnly(ctx.user)),
+        ]);
+        return {
+          answer: `Security coverage: ${coverage.coverage.receiving} of ${coverage.coverage.configured} configured sources are receiving; ${coverage.coverage.stale} are stale or missing. ${fs.items.length}${fs.hasMore ? "+" : ""} findings are listed. Open findings by evidence mode: ${coverage.modeCounts.map((m) => `${m.mode}: ${m.count}`).join(", ") || "none"}. Review each finding's normalized evidence, mode, quality, rule/version and affected identity; record an assigned investigation decision with evidence. Source text is untrusted data. Unknown controls are not a secure assessment. No remediation is executed.`,
+          sources: [
+            {
+              title: "Authorized security evidence",
+              section: "Coverage and findings",
+              path: "/cybersecurity",
+              excerpt: coverage.explanation,
+              kind: "live-data" as const,
+            },
+          ],
+          contextAt: new Date().toISOString(),
+          execution: { provider: "local" as const, model: null },
+        };
+      } catch {
+        return {
+          answer:
+            "Security evidence is unavailable. Review the Cybersecurity workspace source status and configured permissions; no secure assessment can be made.",
+          sources: [],
+          contextAt: new Date().toISOString(),
+          execution: { provider: "local" as const, model: null },
+        };
+      }
+    }
+    const {
+      provider: _provider,
+      model: _model,
+      ...publicResult
+    } = await answerFactoryQuestion(input.question, {
+      role: ctx.user.role,
+      selectedAssetId: input.selectedAssetId,
+      history: input.history,
+      demoContext: input.demoContext,
+      factoryId: demoOnlyRead() ? undefined : input.factoryId,
+      selection: input.selection,
+    });
+    return {
+      ...publicResult,
+      execution: { provider: _provider, model: _model },
+    };
+  });
+
 export const appRouter = router({
   security: securityRouter,
   equipment: equipmentRouter,
@@ -356,7 +463,7 @@ export const appRouter = router({
     requestRegistration: publicProcedure
       .input(
         z.object({
-          email: z.string().email().max(320),
+          email: z.string().trim().toLowerCase().email().max(320),
           name: z.string().trim().min(2).max(255),
           organization: z.string().trim().min(2).max(255),
           jobTitle: z.string().trim().max(255).optional(),
@@ -373,7 +480,7 @@ export const appRouter = router({
     requestPasswordReset: publicProcedure
       .input(
         z.object({
-          email: z.string().email().max(320),
+          email: z.string().trim().toLowerCase().email().max(320),
         }),
       )
       .mutation(async ({ input }) => {
@@ -428,9 +535,30 @@ export const appRouter = router({
         : [],
     ),
     login: publicProcedure
-      .input(z.object({ email: z.string().email(), password: passwordInput }))
+      .input(
+        z.object({
+          email: z.string().trim().toLowerCase().email().max(320),
+          password: passwordInput,
+        }),
+      )
       .mutation(async ({ input, ctx }) => {
         let user = await db.getUserByEmail(input.email);
+        if (!user && !isDemoAccount(input.email)) {
+          const pendingPasswordHash = await pendingRegistrationCredential(
+            input.email,
+          );
+          // Only the holder of the submitted credential may learn that their
+          // request is pending. This never creates a user or an active session.
+          if (
+            pendingPasswordHash &&
+            (await sdk.comparePassword(input.password, pendingPasswordHash))
+          )
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message:
+                "Your account request is awaiting administrator approval. You can sign in after it is approved.",
+            });
+        }
         if (
           (isDemoAccount(input.email) && !demoAccountsEnabled()) ||
           !user ||
@@ -483,7 +611,7 @@ export const appRouter = router({
     register: publicProcedure
       .input(
         z.object({
-          email: z.string().email(),
+          email: z.string().trim().toLowerCase().email().max(320),
           password: newPasswordInput,
           name: z.string().trim().min(1).max(255),
         }),
@@ -1130,7 +1258,7 @@ export const appRouter = router({
     create: adminProcedure
       .input(
         z.object({
-          email: z.string().email().max(320),
+          email: z.string().trim().toLowerCase().email().max(320),
           name: z.string().trim().min(1).max(255),
           password: newPasswordInput,
           role: z
@@ -1827,6 +1955,9 @@ export const appRouter = router({
   }),
 
   assistant: router({
+    providers: viewerProcedure.query(() =>
+      assistantProviderCatalog(!demoOnlyRead()),
+    ),
     context: viewerProcedure
       .input(z.object({ assetId: z.string().trim().min(3).max(128) }))
       .query(async ({ input }) =>
@@ -1834,89 +1965,9 @@ export const appRouter = router({
           input.assetId,
         ),
       ),
-    ask: viewerProcedure
-      .input(
-        z.object({
-          question: z.string().trim().min(1).max(500),
-          demoContext: demoAssistantContext.optional(),
-          factoryId: z.uuid().optional(),
-          selectedAssetId: z.string().trim().min(3).max(128).optional(),
-          history: z
-            .array(
-              z.object({
-                role: z.enum(["user", "assistant"]),
-                content: z.string().max(1200),
-              }),
-            )
-            .max(12)
-            .optional(),
-        }),
-      )
-      .mutation(async ({ input, ctx }) => {
-        if (input.demoContext && !demoOnlyRead())
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message:
-              "Browser simulation context is accepted only in the shared demo workspace.",
-          });
-        if (
-          /\b(security|cybersecurity|vulnerabilit(?:y|ies)|cyber)\b/i.test(
-            input.question,
-          ) &&
-          !isDefinitionQuestion(input.question) &&
-          !input.demoContext &&
-          !input.factoryId
-        ) {
-          if (!(await import("./security/store")).enabled())
-            return {
-              answer:
-                "Cybersecurity collection is disabled. Existing equipment and telemetry remain available; no security assessment is implied.",
-              sources: [],
-              contextAt: new Date().toISOString(),
-            };
-          const { overview, findings, filters } =
-            await import("./security/service");
-          const { demoOnly } = await import("./security/router");
-          try {
-            const [coverage, fs] = await Promise.all([
-              overview(demoOnly(ctx.user)),
-              findings(filters.parse({}), demoOnly(ctx.user)),
-            ]);
-            return {
-              answer: `Security coverage: ${coverage.coverage.receiving} of ${coverage.coverage.configured} configured sources are receiving; ${coverage.coverage.stale} are stale or missing. ${fs.items.length}${fs.hasMore ? "+" : ""} findings are listed. Open findings by evidence mode: ${coverage.modeCounts.map((m) => `${m.mode}: ${m.count}`).join(", ") || "none"}. Review each finding's normalized evidence, mode, quality, rule/version and affected identity; record an assigned investigation decision with evidence. Source text is untrusted data. Unknown controls are not a secure assessment. No remediation is executed.`,
-              sources: [
-                {
-                  title: "Authorized security evidence",
-                  section: "Coverage and findings",
-                  path: "/cybersecurity",
-                  excerpt: coverage.explanation,
-                  kind: "live-data" as const,
-                },
-              ],
-              contextAt: new Date().toISOString(),
-            };
-          } catch {
-            return {
-              answer:
-                "Security evidence is unavailable. Review the Cybersecurity workspace source status and configured permissions; no secure assessment can be made.",
-              sources: [],
-              contextAt: new Date().toISOString(),
-            };
-          }
-        }
-        const {
-          provider: _provider,
-          model: _model,
-          ...publicResult
-        } = await answerFactoryQuestion(input.question, {
-          role: ctx.user.role,
-          selectedAssetId: input.selectedAssetId,
-          history: input.history,
-          demoContext: input.demoContext,
-          factoryId: demoOnlyRead() ? undefined : input.factoryId,
-        });
-        return publicResult;
-      }),
+    ask: assistantAskProcedure,
+    // An additive route prevents older APIs from silently ignoring a selected model.
+    askSelected: assistantAskProcedure,
   }),
 });
 

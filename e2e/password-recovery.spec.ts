@@ -12,6 +12,11 @@ async function recoveryFixture(
   page: Page,
   rejectReset = false,
   signedIn = false,
+  options: {
+    rejectRequest?: boolean;
+    rejectRegistration?: boolean;
+    pendingLogin?: boolean;
+  } = {},
 ) {
   const mutations: { procedure: string; input: any }[] = [];
   await page.route("**/api/runtime/contract", (route) =>
@@ -37,6 +42,26 @@ async function recoveryFixture(
     const responses = names.map((procedure, index) => {
       const input = (batch ? inputs[String(index)]?.json : inputs.json) ?? {};
       if (request.method() === "POST") mutations.push({ procedure, input });
+      if (
+        (procedure === "auth.requestPasswordReset" && options.rejectRequest) ||
+        (procedure === "auth.requestRegistration" &&
+          options.rejectRegistration) ||
+        (procedure === "auth.login" && options.pendingLogin)
+      ) {
+        const pending = procedure === "auth.login";
+        return {
+          error: superjson.serialize({
+            message: pending
+              ? "Your account request is awaiting administrator approval. You can sign in after it is approved."
+              : "Account requests are temporarily unavailable. Try again.",
+            code: pending ? -32003 : -32603,
+            data: {
+              code: pending ? "FORBIDDEN" : "INTERNAL_SERVER_ERROR",
+              httpStatus: pending ? 403 : 500,
+            },
+          }),
+        };
+      }
       if (procedure === "auth.resetPassword" && rejectReset)
         return {
           error: superjson.serialize({
@@ -62,6 +87,7 @@ async function recoveryFixture(
         "auth.registrationPolicy": { enabled: true, requiresApproval: true },
         "auth.passwordResetPolicy": { delivery: "email" },
         "auth.requestPasswordReset": { submitted: true },
+        "auth.requestRegistration": { submitted: true },
         "auth.resetPassword": { reset: true },
       };
       return {
@@ -77,19 +103,148 @@ test("forgot password is reachable from sign-in and confirms requests genericall
   page,
 }) => {
   const mutations = await recoveryFixture(page);
-  await page.goto("/#/login");
+  await page.goto("/admin#/login");
   await page.getByRole("link", { name: "Forgot password?" }).click();
-  await page.getByLabel("Account email").fill("person@example.test");
+  await page.getByLabel("Account email").fill(" Person@Example.Test ");
   await page.getByRole("button", { name: "Send reset link" }).click();
   await expect(page.getByRole("status")).toContainText(
     "If this address belongs to an active individual account",
   );
+  await expect(page.getByRole("status")).toContainText(
+    "does not confirm email delivery",
+  );
+  await expect(
+    page.getByText("Recently requested an account?", { exact: false }),
+  ).toContainText("does not activate a pending registration");
   expect(mutations).toEqual([
     {
       procedure: "auth.requestPasswordReset",
       input: { email: "person@example.test" },
     },
   ]);
+  await page.getByRole("button", { name: "Use a different email" }).click();
+  await expect(page.getByLabel("Account email")).toBeVisible();
+  await expect(page.getByRole("status")).toHaveCount(0);
+});
+
+test("failed recovery requests stay on the form with persistent feedback", async ({
+  page,
+}) => {
+  await recoveryFixture(page, false, false, { rejectRequest: true });
+  await page.goto("/#/forgot-password");
+  await page.getByLabel("Account email").fill("person@example.test");
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Account requests are temporarily unavailable. Try again.",
+  );
+  await expect(page.getByLabel("Account email")).toHaveValue(
+    "person@example.test",
+  );
+  await expect(
+    page.getByRole("button", { name: "Send reset link" }),
+  ).toBeEnabled();
+  await expect(page.getByRole("status")).toHaveCount(0);
+});
+
+test("sign-in keeps approval guidance visible and normalizes the email", async ({
+  page,
+}) => {
+  const mutations = await recoveryFixture(page, false, false, {
+    pendingLogin: true,
+  });
+  await page.goto("/admin#/login");
+  await page
+    .getByLabel("Email", { exact: true })
+    .fill(" Applicant@Example.Test ");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("Synthetic-request-2026!");
+  await page.getByRole("button", { name: /^sign in$/i }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "awaiting administrator approval",
+  );
+  await expect(page.getByRole("alert")).toContainText(
+    "Password reset does not approve a pending registration",
+  );
+  await expect(page.getByRole("button", { name: /^sign in$/i })).toBeEnabled();
+  expect(mutations).toEqual([
+    {
+      procedure: "auth.login",
+      input: {
+        email: "applicant@example.test",
+        password: "Synthetic-request-2026!",
+      },
+    },
+  ]);
+});
+
+test("registration validates password bytes before submission and explains approval", async ({
+  page,
+}) => {
+  const mutations = await recoveryFixture(page);
+  await page.goto("/#/register");
+  await page.getByLabel("Full Name").fill(" Synthetic Applicant ");
+  await page
+    .getByLabel("Email", { exact: true })
+    .fill(" Applicant@Example.Test ");
+  await page.getByLabel("Factory or organization").fill(" Example Factory ");
+  await page.getByLabel("Job title (optional)").fill(" Operator ");
+  await page.getByLabel("Password", { exact: true }).fill("🔐".repeat(19));
+  await page.getByRole("button", { name: "Request approval" }).click();
+  await expect(page.getByRole("alert")).toContainText("password is too long");
+  expect(mutations).toHaveLength(0);
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("Synthetic-request-2026!");
+  await page.getByRole("button", { name: "Request approval" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Request received" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("This confirmation does not mean", { exact: false }),
+  ).toContainText("After approval");
+  await expect(
+    page.getByRole("link", { name: "Forgot password", exact: true }),
+  ).toBeVisible();
+  expect(mutations).toEqual([
+    {
+      procedure: "auth.requestRegistration",
+      input: {
+        email: "applicant@example.test",
+        password: "Synthetic-request-2026!",
+        name: "Synthetic Applicant",
+        organization: "Example Factory",
+        jobTitle: "Operator",
+      },
+    },
+  ]);
+});
+
+test("a rejected registration submission preserves the entered details for retry", async ({
+  page,
+}) => {
+  await recoveryFixture(page, false, false, { rejectRegistration: true });
+  await page.goto("/#/register");
+  await page.getByLabel("Full Name").fill("Synthetic Applicant");
+  await page.getByLabel("Email", { exact: true }).fill("person@example.test");
+  await page.getByLabel("Factory or organization").fill("Example Factory");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("Synthetic-request-2026!");
+  await page.getByRole("button", { name: "Request approval" }).click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Account requests are temporarily unavailable. Try again.",
+  );
+  await expect(page.getByLabel("Full Name")).toHaveValue("Synthetic Applicant");
+  await expect(page.getByLabel("Email", { exact: true })).toHaveValue(
+    "person@example.test",
+  );
+  await expect(
+    page.getByRole("button", { name: "Request approval" }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("heading", { name: "Request received" }),
+  ).toHaveCount(0);
 });
 
 test("a reset link validates matching passwords, clears the URL and returns to sign-in", async ({

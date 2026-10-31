@@ -1,6 +1,7 @@
 import { FactorySelector } from "@/components/workspace/FactorySelector";
 import { FactoryWorkspace } from "@/components/workspace/FactoryWorkspace";
 import { useFactorySelection } from "@/lib/factory-selection";
+import { inventoryFilters } from "@/lib/list-filters";
 import { currentSample } from "@shared/measurements";
 import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
@@ -90,17 +91,7 @@ function LegacyInventory() {
     capability: "all",
     sort: "name",
   });
-  const filter = {
-    search: params.get("search") ?? "",
-    view: (params.get("view") ?? "all") as "all",
-    zone: params.get("zone") ?? "",
-    status: (params.get("status") ?? "all") as "all",
-    mode: (params.get("mode") ?? "all") as "all",
-    capability: (params.get("capability") ?? "all") as "all",
-    sort: (params.get("sort") ?? "name") as "name",
-    page: Math.max(0, Number(params.get("page")) || 0),
-    pageSize: 25,
-  };
+  const filter = inventoryFilters(params);
   useEffect(() => {
     if (location === "/inventory") {
       const saved = safeLocalStorage.getItem(key);
@@ -261,7 +252,7 @@ function LegacyInventory() {
               aria-label="Search inventory"
               className="pl-9 pr-10"
               value={filter.search}
-              maxLength={200}
+              maxLength={100}
               placeholder="Search name or identifier"
               onChange={(event) => update({ search: event.target.value })}
             />

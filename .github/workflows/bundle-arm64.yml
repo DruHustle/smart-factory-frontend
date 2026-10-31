@@ -10,6 +10,8 @@ on:
         "drizzle/**",
         "deploy/**",
         "scripts/bundle-smoke.py",
+        "scripts/tests/smtp-capture.py",
+        "scripts/tests/test_smtp_capture.py",
         "docker-compose.bundle-test.yml",
         "package.json",
         "pnpm-lock.yaml",
@@ -24,6 +26,8 @@ on:
         "drizzle/**",
         "deploy/**",
         "scripts/bundle-smoke.py",
+        "scripts/tests/smtp-capture.py",
+        "scripts/tests/test_smtp_capture.py",
         "docker-compose.bundle-test.yml",
         "package.json",
         "pnpm-lock.yaml",
@@ -48,6 +52,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
           path: candidate
+      - name: Verify isolated SMTP capture fixture
+        working-directory: candidate
+        run: python3 -m unittest discover -s scripts/tests -p test_smtp_capture.py -v
       - name: Read immutable companion identities
         id: sources
         working-directory: candidate

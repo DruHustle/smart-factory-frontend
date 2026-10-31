@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { MoreHorizontal, Plus, RefreshCw, Search } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +48,30 @@ const roleDescriptions: Record<(typeof roles)[number], string> = {
 type Account = inferRouterOutputs<AppRouter>["users"]["list"][number];
 type AccountRequest =
   inferRouterOutputs<AppRouter>["users"]["pendingRequests"][number];
+function recoveryDeliveryMessage(delivery: AccountRequest["recoveryDelivery"]) {
+  if (!delivery)
+    return "Email delivery status is unavailable. Use verified administrator recovery if needed.";
+  switch (delivery.status) {
+    case "pending":
+      return "Reset email queued. Refresh to check delivery progress.";
+    case "accepted":
+      return "Email provider accepted the reset message. Inbox receipt is not confirmed.";
+    case "failed":
+      return delivery.attempts >= 4
+        ? "Email delivery failed and automatic retries are exhausted. Check the mail service or use verified administrator recovery."
+        : "Email delivery failed. The worker will retry while the link is valid.";
+    case "unconfigured":
+      return "Email delivery is not configured. Use verified administrator recovery.";
+    case "expired":
+      return "This reset link has expired. Ask the account owner to request a new link.";
+    case "blocked":
+      return delivery.failureCode === "recipient_not_allowed"
+        ? "The recipient is outside the current email delivery policy. Review the mail configuration or use verified administrator recovery."
+        : delivery.failureCode === "invalid_delivery_payload"
+          ? "The reset email could not be verified. Check the API and mail worker configuration."
+          : "This reset link is no longer usable. Verify the account and request a new recovery link.";
+  }
+}
 const emptyAccount = {
   name: "",
   email: "",
@@ -186,13 +210,22 @@ export default function UserAccess({
         />
       )}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <CardTitle>
             Account requests{" "}
             <span className="text-sm font-normal text-muted-foreground">
               {requests.data?.length ?? ""}
             </span>
           </CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={requests.isFetching}
+            onClick={() => void requests.refetch()}
+          >
+            <RefreshCw className="size-4" />
+            {requests.isFetching ? "Refreshing…" : "Refresh requests"}
+          </Button>
         </CardHeader>
         <CardContent>
           {requests.isLoading ? (
@@ -246,6 +279,11 @@ export default function UserAccess({
                         Requested{" "}
                         <SampleTime value={request.createdAt.toISOString()} />
                       </p>
+                      {request.kind === "password_reset" && (
+                        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+                          {recoveryDeliveryMessage(request.recoveryDelivery)}
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       {request.kind === "registration" ? (

@@ -441,13 +441,13 @@ async function fixture(
         discoveredTags: [
           {
             name: "Pump pressure",
-            nodeId: "s=Pressure",
+            nodeId: "ns=2;s=Pressure",
             namespaceUri: "urn:example:controller",
             dataType: "Double",
           },
           {
             name: "Valve pressure",
-            nodeId: "s=Pressure",
+            nodeId: "ns=3;s=Pressure",
             namespaceUri: "urn:example:valve",
             dataType: "Double",
           },

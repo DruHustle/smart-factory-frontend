@@ -1,7 +1,17 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { resolveApiBase } from "@/lib/api-base";
 import { runtimeCompatibility } from "@shared/runtime-contract";
 import { useWorkspaceLocation } from "@/lib/hashLocation";
+const RuntimeCapabilities = createContext<readonly string[]>([]);
+export function useRuntimeCapability(capability: string) {
+  return useContext(RuntimeCapabilities).includes(capability);
+}
 /** Prevent a newer UI issuing incompatible requests to an older API. */
 export function RuntimeBoundary({ children }: { children: ReactNode }) {
   const [location] = useWorkspaceLocation();
@@ -9,6 +19,7 @@ export function RuntimeBoundary({ children }: { children: ReactNode }) {
   // It has no API consumer; every normal application route still requires the gate.
   const portableDemo = /^\/passport\/demo\/[^/]+$/.test(location.split("?")[0]);
   const [state, setState] = useState<string | null | undefined>(),
+    [capabilities, setCapabilities] = useState<string[]>([]),
     [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (portableDemo) {
@@ -29,7 +40,12 @@ export function RuntimeBoundary({ children }: { children: ReactNode }) {
         if (!r.ok) throw Error();
         return r.json();
       })
-      .then((r) => setState(runtimeCompatibility(r, import.meta.env.PROD)))
+      .then((r) => {
+        if (controller.signal.aborted) return;
+        const error = runtimeCompatibility(r, import.meta.env.PROD);
+        setCapabilities(error ? [] : r.capabilities);
+        setState(error);
+      })
       .catch(() => {
         if (!controller.signal.aborted)
           setState(
@@ -38,7 +54,12 @@ export function RuntimeBoundary({ children }: { children: ReactNode }) {
       });
     return () => controller.abort();
   }, [attempt, portableDemo]);
-  if (portableDemo || state === null) return children;
+  if (portableDemo || state === null)
+    return (
+      <RuntimeCapabilities.Provider value={portableDemo ? [] : capabilities}>
+        {children}
+      </RuntimeCapabilities.Provider>
+    );
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-4 p-6">
       <h1 className="text-2xl font-semibold">Smart Factory</h1>

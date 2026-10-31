@@ -29,6 +29,10 @@ export const requiredCapabilities = [
   "factory-reference-models-v1",
   "native-security-v1",
 ] as const;
+/** Additive features may be hidden when the compatible rollback API lacks them. */
+export const optionalCapabilities = [
+  "assistant-provider-selection-v1",
+] as const;
 export type RuntimeContract = {
   contractVersion: number;
   source: string | null;

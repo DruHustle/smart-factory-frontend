@@ -1133,11 +1133,17 @@ export function ConnectionEditor({
                           tags.length >= 100
                         )
                           continue;
+                        // Browse responses carry the server's current namespace
+                        // index. Store the namespace URI with a relative NodeId
+                        // so the gateway can resolve its index on reconnect.
+                        const nodeId = tag.namespaceUri
+                          ? tag.nodeId.replace(/^ns=[0-9]+;/, "")
+                          : tag.nodeId;
                         if (
                           tags.some(
                             (existing) =>
                               "nodeId" in existing.source &&
-                              existing.source.nodeId === tag.nodeId &&
+                              existing.source.nodeId === nodeId &&
                               existing.source.namespaceUri === tag.namespaceUri,
                           )
                         )
@@ -1147,8 +1153,8 @@ export function ConnectionEditor({
                           name: tag.name,
                           dataType: discoveryType[tag.dataType],
                           source: {
-                            nodeId: tag.nodeId,
-                            namespaceUri: tag.namespaceUri,
+                            nodeId,
+                            ...(tag.namespaceUri ? { namespaceUri: tag.namespaceUri } : {}),
                           },
                         });
                         added++;

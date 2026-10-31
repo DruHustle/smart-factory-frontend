@@ -102,6 +102,26 @@ afterEach(() => {
 
 describe("Smart Factory documentation assistant", () => {
   it.each([
+    "Review the source observation.",
+    "What is the latest temperature on Compressor 01?",
+  ])(
+    "returns a useful local answer when observation context is omitted: %s",
+    async (question) => {
+      vi.stubEnv("ASSISTANT_INCLUDE_LIVE_CONTEXT", "false");
+      const fetcher = vi.fn();
+      vi.stubGlobal("fetch", fetcher);
+      const result = await answerFactoryQuestion(question, {
+        selection: { provider: "local" },
+      });
+      expect(result.answer.trim().length).toBeGreaterThan(0);
+      expect(result.answer).toContain("current equipment observation");
+      expect(result.answer).not.toMatch(/53\.2|Compressor 01.*temperature=/);
+      expect(result.provider).toBe("local");
+      expect(database.getAssets).not.toHaveBeenCalled();
+      expect(fetcher).not.toHaveBeenCalled();
+    },
+  );
+  it.each([
     "whats fx and tsn",
     "What's FX and TSN?",
     "What are UAFX and Time-Sensitive Networking?",
@@ -520,12 +540,10 @@ describe("Smart Factory documentation assistant", () => {
 it("never resolves a private named factory from a forged demo assistant identity", async () => {
   const factories = await import("./factories"),
     { withVisibility } = await import("./demoData");
-  const read = vi
-    .spyOn(factories, "snapshot")
-    .mockResolvedValue({
-      name: "Private factory must stay private",
-      items: [],
-    } as any);
+  const read = vi.spyOn(factories, "snapshot").mockResolvedValue({
+    name: "Private factory must stay private",
+    items: [],
+  } as any);
   try {
     await withVisibility({ demoOnly: true, includeDemo: true }, () =>
       answerFactoryQuestion("How many factory assets are visible?", {
