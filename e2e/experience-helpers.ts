@@ -33,12 +33,19 @@ export async function setTheme(page: Page, theme: "light" | "dark" | "system") {
     })
     .click();
   await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: `Theme settings, ${theme}`, exact: true }),
+  ).toBeVisible({ timeout: 15000 });
   if (theme !== "system")
     await expect
-      .poll(() =>
-        page.evaluate(
-          () => getComputedStyle(document.documentElement).colorScheme,
-        ),
+      .poll(
+        () =>
+          page.evaluate(
+            () => getComputedStyle(document.documentElement).colorScheme,
+          ),
+        // Software rendering can hold a DevTools style read for several seconds.
+        // Assert the saved preference above and the actual computed scheme here.
+        { timeout: 15000 },
       )
       .toBe(theme);
 }

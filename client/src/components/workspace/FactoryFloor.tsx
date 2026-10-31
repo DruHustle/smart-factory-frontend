@@ -1,3 +1,4 @@
+import type { PhysicalDimensions } from "@shared/named-factory";
 import {
   Component,
   lazy,
@@ -17,6 +18,7 @@ import {
   RotateCcw,
   Maximize2,
   Minimize2,
+  Trash2,
 } from "lucide-react";
 import { layoutFactory, type FloorLink } from "@shared/factory-floor";
 import { currentSample } from "@shared/measurements";
@@ -32,7 +34,19 @@ import {
   arrangeFloor,
   readFloorOffsets,
   type FloorOffsets,
+  type FloorLayout,
 } from "./floor-arrangement";
+import type { FloorDrag } from "./floor-arrangement";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FloorPlan } from "./FactoryFloorPlan";
@@ -63,6 +77,14 @@ export function FactoryFloor({
   layoutDocument,
   onLayoutMove,
   arrangementKey,
+  headerActions,
+  editor,
+  onGrabStart,
+  onInventoryDelete,
+  movable = true,
+  itemDimensions,
+  measured = false,
+  onGrabChange,
 }: {
   items: InventoryItem[];
   links: FloorLink[];
@@ -73,6 +95,14 @@ export function FactoryFloor({
   layoutDocument?: FactoryLayoutDocument;
   onLayoutMove?: (ref: string, x: number, z: number) => void;
   arrangementKey?: string;
+  headerActions?: ReactNode;
+  editor?: ReactNode;
+  onGrabStart?: () => void;
+  onInventoryDelete?: (ref: string) => Promise<void>;
+  movable?: boolean;
+  itemDimensions?: Record<string, PhysicalDimensions>;
+  measured?: boolean;
+  onGrabChange?: (active: boolean) => void;
 }) {
   const { theme } = useTheme();
   const fullscreen = useFloorFullscreen();
@@ -122,10 +152,19 @@ export function FactoryFloor({
         : layoutFactory(visible),
     [visible, layoutDocument],
   );
-  const layout = useMemo(
-    () => (layoutDocument ? baseLayout : arrangeFloor(baseLayout, offsets)),
-    [baseLayout, offsets, layoutDocument],
-  );
+  const layout = useMemo<FloorLayout>(() => {
+    const placed = layoutDocument
+      ? baseLayout
+      : arrangeFloor(baseLayout, offsets);
+    return {
+      ...placed,
+      measured,
+      placements: placed.placements.map((p) => ({
+        ...p,
+        dimensions: itemDimensions?.[p.item.ref],
+      })),
+    };
+  }, [baseLayout, offsets, layoutDocument, itemDimensions, measured]);
   const moveItem = (ref: string, x: number, z: number) => {
     if (onLayoutMove) {
       onLayoutMove(ref, x, z);
@@ -141,6 +180,55 @@ export function FactoryFloor({
     setSaved({ key: preferenceKey, offsets: next });
     safeLocalStorage.setItem(preferenceKey, JSON.stringify(next));
   };
+  const [grabbedRef, setGrabbedRef] = useState<string | null>(null);
+  const grabRef = useRef<string | null>(null);
+  const bin = useRef<HTMLButtonElement>(null);
+  const [overBin, setOverBin] = useState(false);
+  const [deleteRef, setDeleteRef] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const deleteTarget = items.find((item) => item.ref === deleteRef);
+  const requestDelete = onInventoryDelete
+    ? (ref: string) => {
+        setDeleteRef(ref);
+        setDeleteError("");
+      }
+    : undefined;
+  const hitsBin = (x: number, y: number) => {
+    const rect = bin.current?.getBoundingClientRect();
+    return (
+      !!rect &&
+      x >= rect.left &&
+      x <= rect.right &&
+      y >= rect.top &&
+      y <= rect.bottom
+    );
+  };
+  const itemDragged = (drag: FloorDrag) => {
+    if ((drag?.ref ?? null) !== grabRef.current) {
+      if (drag) onGrabStart?.();
+      onGrabChange?.(!!drag);
+      grabRef.current = drag?.ref ?? null;
+      setGrabbedRef(drag?.ref ?? null);
+    }
+    setOverBin(
+      !!drag && !!onInventoryDelete && hitsBin(drag.clientX, drag.clientY),
+    );
+  };
+  const itemDropped = (ref: string, x: number, y: number) => {
+    if (!requestDelete || !hitsBin(x, y)) return false;
+    requestDelete(ref);
+    return true;
+  };
+  const wasFullscreen = useRef(fullscreen.expanded);
+  useEffect(() => {
+    if (wasFullscreen.current && !fullscreen.expanded && !deleting)
+      setDeleteRef(null);
+    wasFullscreen.current = fullscreen.expanded;
+  }, [fullscreen.expanded, deleting]);
+  useEffect(() => {
+    if (!onInventoryDelete && !deleting) setDeleteRef(null);
+  }, [!!onInventoryDelete, deleting]);
   const active = items.find((item) => item.ref === selected);
   const details = useRef<HTMLDivElement>(null);
   const related = active
@@ -177,6 +265,7 @@ export function FactoryFloor({
       className={`overview-floor min-w-0 overflow-hidden rounded-lg border bg-card ${fullscreen.expanded ? "floor-expanded" : ""}`}
       role={fullscreen.expanded ? "dialog" : undefined}
       aria-modal={fullscreen.expanded || undefined}
+      data-measured={measured}
       aria-label="Factory floor overview"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
@@ -192,6 +281,7 @@ export function FactoryFloor({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1">
+          {headerActions}
           <select
             aria-label="Factory floor zone"
             value={zone}
@@ -287,7 +377,9 @@ export function FactoryFloor({
         </div>
       </div>
       <p className="border-b px-4 py-2 text-xs text-muted-foreground">
-        Grab an item to move it, or empty floor to move the view.{" "}
+        {movable
+          ? "Grab an item to move it, or empty floor to move the view."
+          : "Click equipment to inspect it; grab to move the view."}{" "}
         {view === "3d" && "Move mouse to rotate · Scroll or pinch to zoom."}
         {fullscreen.expanded && " · Esc to exit fullscreen."}
       </p>
@@ -329,7 +421,7 @@ export function FactoryFloor({
         </div>
       )}
       <div
-        className="overview-floor-viewport relative h-[21rem] min-w-0"
+        className={`overview-floor-viewport relative min-w-0 ${measured ? "h-[32rem]" : "h-[21rem]"}`}
         data-testid="factory-floor"
         data-total-items={items.length}
         data-visible-items={visible.length}
@@ -340,7 +432,10 @@ export function FactoryFloor({
             links={links}
             selected={selected}
             onSelect={selectOnFloor}
-            onMove={moveItem}
+            onMove={movable ? moveItem : undefined}
+            onItemDrag={itemDragged}
+            onItemDrop={onInventoryDelete ? itemDropped : undefined}
+            onDelete={requestDelete}
             reset={reset}
           />
         ) : (
@@ -351,7 +446,10 @@ export function FactoryFloor({
                 links={links}
                 selected={selected}
                 onSelect={selectOnFloor}
-                onMove={moveItem}
+                onMove={movable ? moveItem : undefined}
+                onItemDrag={itemDragged}
+                onItemDrop={onInventoryDelete ? itemDropped : undefined}
+                onDelete={requestDelete}
                 reset={reset}
               />
             }
@@ -363,7 +461,10 @@ export function FactoryFloor({
                   links={links}
                   selected={selected}
                   onSelect={selectOnFloor}
-                  onMove={moveItem}
+                  onMove={movable ? moveItem : undefined}
+                  onItemDrag={itemDragged}
+                  onItemDrop={onInventoryDelete ? itemDropped : undefined}
+                  onDelete={requestDelete}
                   reset={reset}
                 />
               }
@@ -376,10 +477,34 @@ export function FactoryFloor({
                 dark={theme === "dark"}
                 reset={reset}
                 zone={zone}
-                onMove={moveItem}
+                onMove={movable ? moveItem : undefined}
+                onItemDrag={itemDragged}
+                onItemDrop={onInventoryDelete ? itemDropped : undefined}
+                onDelete={requestDelete}
               />
             </Suspense>
           </FloorSceneBoundary>
+        )}
+        {editor}
+        {onInventoryDelete && (grabbedRef || selected) && (
+          <Button
+            ref={bin}
+            type="button"
+            variant="outline"
+            className={`absolute bottom-12 right-3 z-10 border-destructive/60 bg-background/95 text-destructive ${grabbedRef ? "h-16 min-w-32 border-2 border-dashed" : "size-10"} ${overBin ? "bg-destructive text-destructive-foreground ring-4 ring-destructive/20" : ""}`}
+            aria-label="Delete selected item from factory inventory"
+            title={
+              grabbedRef
+                ? "Drop to delete from factory inventory"
+                : "Delete selected item from factory inventory"
+            }
+            data-floor-bin="true"
+            data-drop-active={overBin ? "true" : "false"}
+            onClick={() => requestDelete?.(grabbedRef ?? selected!)}
+          >
+            <Trash2 className="size-5" />
+            {grabbedRef && <span className="text-xs">Drop to delete</span>}
+          </Button>
         )}
         {fullscreen.expanded && active && (
           <p
@@ -410,6 +535,61 @@ export function FactoryFloor({
           ))}
         </div>
       </div>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteRef(null);
+        }}
+      >
+        <AlertDialogContent container={fullscreen.panel.current}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {deleteTarget?.name} from{" "}
+              {layoutDocument?.name ?? "factory inventory"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the item from the floor and inventory. Its activity
+              history is retained. Disconnect linked devices before deleting
+              them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <p className="break-all text-xs text-muted-foreground">
+            {deleteTarget?.factoryTag ?? deleteTarget?.identifier}
+          </p>
+          {deleteError && (
+            <p role="alert" className="text-sm text-destructive">
+              {deleteError}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Keep item</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting || !onInventoryDelete}
+              onClick={async (event) => {
+                event.preventDefault();
+                if (!deleteTarget || !onInventoryDelete) return;
+                setDeleting(true);
+                setDeleteError("");
+                try {
+                  await onInventoryDelete(deleteTarget.ref);
+                  setDeleteRef(null);
+                } catch (error) {
+                  setDeleteError(
+                    error instanceof Error
+                      ? error.message
+                      : "The item could not be deleted.",
+                  );
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete inventory item"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {active && (
         <div
           ref={details}
@@ -514,7 +694,10 @@ export function FactoryFloor({
       )}
       <div className="floor-secondary flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2 text-[11px] text-muted-foreground">
         <span>
-          {visible.length} of {items.length} items shown · Illustrative layout
+          {visible.length} of {items.length} items shown ·{" "}
+          {measured
+            ? "Measured floor · reference models"
+            : "Illustrative layout"}
         </span>
         <Link
           href="/inventory"

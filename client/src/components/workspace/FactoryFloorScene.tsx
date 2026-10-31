@@ -4,6 +4,8 @@ import {
   constrainFloorPosition,
   type FloorSelect,
   type FloorMove,
+  type FloorLayout,
+  type FloorDragHandlers,
 } from "./floor-arrangement";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -18,6 +20,7 @@ import {
   createSurfaceGrain,
   createContactShadow,
   factoryModelSize,
+  fitFactoryDimensions,
 } from "./factory-graphics";
 import {
   floorModelUrl,
@@ -25,7 +28,7 @@ import {
   type layoutFactory,
 } from "@shared/factory-floor";
 
-type Layout = ReturnType<typeof layoutFactory>;
+type Layout = FloorLayout;
 const indicatorColor = (item: Layout["placements"][number]["item"]) =>
   item.status === "error"
     ? 0xef6461
@@ -148,6 +151,9 @@ export default function FactoryFloorScene({
   reset,
   zone,
   onMove,
+  onItemDrag,
+  onItemDrop,
+  onDelete,
 }: {
   layout: Layout;
   links: FloorLink[];
@@ -156,18 +162,29 @@ export default function FactoryFloorScene({
   dark: boolean;
   reset: number;
   zone: string;
-  onMove: FloorMove;
-}) {
+  onMove?: FloorMove;
+} & FloorDragHandlers) {
   const host = useRef<HTMLDivElement>(null),
     choose = useRef(onSelect),
     selection = useRef(selected),
     move = useRef(onMove);
+  const dragEvents = useRef({ onItemDrag, onItemDrop, onDelete });
+  dragEvents.current = { onItemDrag, onItemDrop, onDelete };
   const runtime = useRef<{
     focus: (ref: string | null) => void;
     reset: () => void;
     statuses: (items: Layout["placements"]) => void;
     positions: (items: Layout["placements"]) => void;
     zones: (zones: Layout["zones"]) => void;
+  } | null>(null);
+  const cameraMemory = useRef<{
+    width: number;
+    depth: number;
+    zone: string;
+    reset: number;
+    position: THREE.Vector3;
+    target: THREE.Vector3;
+    zoom: number;
   } | null>(null);
   const [failed, setFailed] = useState(false),
     [ready, setReady] = useState(false),
@@ -176,9 +193,21 @@ export default function FactoryFloorScene({
   selection.current = selected;
   move.current = onMove;
   const key =
-    layout.placements.map((p) => `${p.item.ref}:${p.model}`).join("|") +
+    layout.placements
+      .map(
+        (p) =>
+          `${p.item.ref}:${p.model}:${JSON.stringify(p.dimensions ?? null)}`,
+      )
+      .join("|") +
     links.map((l) => `${l.from}:${l.to}`).join("|") +
-    `${layout.width}:${layout.depth}:` +
+    `${layout.width}:${layout.depth}:${layout.measured ?? false}:` +
+    (layout.measured
+      ? JSON.stringify(
+          layout.placements
+            .filter((p) => /door/.test(p.model ?? ""))
+            .map((p) => [p.item.ref, p.x, p.z, p.rotation, p.dimensions]),
+        )
+      : "") +
     JSON.stringify(layout.zones.map(({ count, ...zone }) => zone));
   useEffect(() => {
     if (failed) return;
@@ -273,7 +302,11 @@ export default function FactoryFloorScene({
         15,
         -15,
         0.1,
-        Math.max(500, Math.max(layout.width, layout.depth) * 8),
+        Math.max(
+          500,
+          Math.max(layout.width, layout.depth) * 8,
+          ...layout.placements.map((p) => (p.dimensions?.height ?? 0) * 4),
+        ),
       );
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = false;
@@ -292,7 +325,18 @@ export default function FactoryFloorScene({
       const hoverOffset = new THREE.Vector3(),
         hoverRotation = new THREE.Spherical();
       scene.add(new THREE.HemisphereLight(0xdceaff, 0x4b535b, 0.75));
-      const span = Math.max(layout.width, layout.depth, 20);
+      const maxItemHeight = Math.max(
+        5,
+        ...layout.placements.map((p) =>
+          p.dimensions ? p.dimensions.height + 1 : 0,
+        ),
+      );
+      const span = Math.max(
+        layout.width,
+        layout.depth,
+        maxItemHeight * 1.5,
+        20,
+      );
       const sun = new THREE.DirectionalLight(0xfff1de, 3.1);
       sun.position.set(span * 0.45, span * 0.9, span * 0.55);
       sun.castShadow = true;
@@ -424,14 +468,25 @@ export default function FactoryFloorScene({
           p.item.kind === "device"
             ? 0.9
             : (factoryModelSize[p.model ?? ""] ?? 2.7) * 1.05;
-        contact.scale.set(footprintSize, footprintSize * 0.8, 1);
+        contact.scale.set(
+          p.dimensions?.width ?? footprintSize,
+          p.dimensions?.depth ?? footprintSize * 0.8,
+          1,
+        );
         contact.userData.nonSelectable = true;
         group.add(contact);
-        const body = createEquipmentProxy(p.model, p.item.itemType);
+        const proxy = createEquipmentProxy(p.model, p.item.itemType);
+        const body = p.dimensions
+          ? fitFactoryDimensions(proxy, p.dimensions)
+          : proxy;
         body.userData.floorItemRef = p.item.ref;
         group.add(body);
         const name = label(p.item.name, "#203c4b");
-        name.position.set(0, 3.05, 0);
+        name.position.set(
+          0,
+          p.dimensions ? p.dimensions.height + 0.8 : 3.05,
+          0,
+        );
         name.visible = p.item.ref === selection.current;
         labels.set(p.item.ref, name);
         group.add(name);
@@ -441,7 +496,11 @@ export default function FactoryFloorScene({
             color: indicatorColor(p.item),
           }),
         );
-        marker.position.set(-0.64, 2.55, 0);
+        marker.position.set(
+          p.dimensions ? -Math.min(p.dimensions.width / 2, 0.64) : -0.64,
+          p.dimensions ? p.dimensions.height + 0.32 : 2.55,
+          0,
+        );
         marker.userData.nonSelectable = true;
         const rim = new THREE.Mesh(
           new THREE.TorusGeometry(0.16, 0.035, 8, 16),
@@ -460,6 +519,8 @@ export default function FactoryFloorScene({
             opacity: 0.9,
           }),
         );
+        if (p.dimensions)
+          halo.scale.set(p.dimensions.width / 2.5, p.dimensions.depth / 2.5, 1);
         halo.rotation.x = -Math.PI / 2;
         halo.position.y = 0.025;
         halo.visible = false;
@@ -468,7 +529,11 @@ export default function FactoryFloorScene({
         indicators.set(p.item.ref, halo);
         scene.add(group);
         objects.set(p.item.ref, group);
-        if (p.model && (p.model !== "raspberry-pi-4b" || p.item.equipmentId))
+        if (
+          p.model &&
+          !["warehouse-rack", "loading-door", "exit-door"].includes(p.model) &&
+          (p.model !== "raspberry-pi-4b" || p.item.equipmentId)
+        )
           void referenceModel(p.model)
             .then((model) => {
               if (disposed) return;
@@ -488,13 +553,19 @@ export default function FactoryFloorScene({
               const normalized = new THREE.Group();
               normalized.userData.floorItemRef = p.item.ref;
               normalized.add(copy);
-              normalized.scale.setScalar(scale);
-              normalized.position.y = (size.y * scale) / 2 + 0.025;
-              const height = size.y * scale;
+              if (p.dimensions)
+                normalized.scale.set(
+                  p.dimensions.width / Math.max(size.x, 0.00001),
+                  p.dimensions.height / Math.max(size.y, 0.00001),
+                  p.dimensions.depth / Math.max(size.z, 0.00001),
+                );
+              else normalized.scale.setScalar(scale);
+              const height = p.dimensions?.height ?? size.y * scale;
+              normalized.position.y = height / 2 + 0.025;
               group.userData.modelHeight = height;
               name.position.y = height + 0.8;
               marker.position.set(
-                -Math.min((size.x * scale) / 2, 0.64),
+                -Math.min((p.dimensions?.width ?? size.x * scale) / 2, 0.64),
                 height + 0.32,
                 0,
               );
@@ -568,7 +639,7 @@ export default function FactoryFloorScene({
         // Fit the projected bounds, including the outermost equipment labels.
         // A width/depth heuristic clips corners after an isometric rotation.
         for (const x of [-layout.width / 2 - 2, layout.width / 2 + 2])
-          for (const y of [-0.5, 5])
+          for (const y of [-0.5, maxItemHeight])
             for (const z of [-layout.depth / 2 - 2, layout.depth / 2 + 2]) {
               const point = new THREE.Vector3(x, y, z).applyMatrix4(
                 camera.matrixWorldInverse,
@@ -626,7 +697,7 @@ export default function FactoryFloorScene({
         positions: (placements) => {
           for (const p of placements) {
             const object = objects.get(p.item.ref);
-            if (object) {
+            if (object && dragging?.ref !== p.item.ref) {
               object.position.set(p.x, 0, p.z);
               object.rotation.y = THREE.MathUtils.degToRad(p.rotation ?? 0);
             }
@@ -651,6 +722,21 @@ export default function FactoryFloorScene({
       const observer = new ResizeObserver(size);
       observer.observe(element);
       fit();
+      const remembered = cameraMemory.current;
+      if (
+        remembered &&
+        remembered.width === layout.width &&
+        remembered.depth === layout.depth &&
+        remembered.zone === zone &&
+        remembered.reset === reset
+      ) {
+        camera.position.copy(remembered.position);
+        controls.target.copy(remembered.target);
+        camera.zoom = remembered.zoom;
+        camera.updateProjectionMatrix();
+        controls.update();
+        size();
+      }
       const change = () => {
         dirty = true;
         renderer.domElement.dataset.cameraView = JSON.stringify({
@@ -702,6 +788,7 @@ export default function FactoryFloorScene({
         controls.enablePan = controls.enableRotate = controls.enableZoom = true;
       };
       const cancel = (releaseCapture = true) => {
+        dragEvents.current.onItemDrag?.(null);
         resetHover();
         start = undefined;
         if (dragging) {
@@ -742,7 +829,7 @@ export default function FactoryFloorScene({
           const ref = picked(),
             ground = ray.ray.intersectPlane(floorPlane, new THREE.Vector3());
           const object = ref && objects.get(ref);
-          if (ref && object && ground) {
+          if (ref && object && ground && move.current) {
             dragging = {
               ref,
               point: ground.clone(),
@@ -750,6 +837,11 @@ export default function FactoryFloorScene({
               pointerId: e.pointerId,
               moved: false,
             };
+            dragEvents.current.onItemDrag?.({
+              ref,
+              clientX: e.clientX,
+              clientY: e.clientY,
+            });
             // Allow OrbitControls to track pointer lifetimes while suppressing camera motion.
             controls.enablePan =
               controls.enableRotate =
@@ -800,6 +892,11 @@ export default function FactoryFloorScene({
       };
       const pointerMove = (e: PointerEvent) => {
         if (dragging && dragging.pointerId === e.pointerId) {
+          dragEvents.current.onItemDrag?.({
+            ref: dragging.ref,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          });
           if (
             !start ||
             (!dragging.moved &&
@@ -817,6 +914,7 @@ export default function FactoryFloorScene({
             layout,
             dragging.original.x + ground.x - dragging.point.x,
             dragging.original.z + ground.z - dragging.point.z,
+            dragging.ref,
           );
           objects.get(dragging.ref)?.position.set(next.x, 0, next.z);
           updateConnections();
@@ -841,13 +939,20 @@ export default function FactoryFloorScene({
           dragging = undefined;
           unlockView();
           const position = objects.get(ended.ref)?.position;
-          if (
+          const sentToBin =
+            ended.moved &&
+            dragEvents.current.onItemDrop?.(ended.ref, e.clientX, e.clientY);
+          if (sentToBin || !move.current) {
+            objects.get(ended.ref)?.position.copy(ended.original);
+            updateConnections();
+          } else if (
             ended.moved &&
             position &&
             position.distanceTo(ended.original) > 0.001
           )
-            move.current(ended.ref, position.x, position.z);
-          choose.current(ended.ref, !ended.moved);
+            move.current?.(ended.ref, position.x, position.z);
+          dragEvents.current.onItemDrag?.(null);
+          choose.current(ended.ref, !ended.moved && !sentToBin);
         } else if (
           began?.select &&
           began.pointerId === e.pointerId &&
@@ -920,6 +1025,18 @@ export default function FactoryFloorScene({
         if (e.code === "Space") panModifier = false;
       };
       const keyDown = (e: KeyboardEvent) => {
+        if (
+          ["Delete", "Backspace"].includes(e.key) &&
+          dragEvents.current.onDelete
+        ) {
+          const ref = dragging?.ref ?? selection.current;
+          if (ref) {
+            e.preventDefault();
+            cancel();
+            dragEvents.current.onDelete(ref);
+          }
+          return;
+        }
         if (e.code === "Space") {
           e.preventDefault();
           panModifier = true;
@@ -957,11 +1074,12 @@ export default function FactoryFloorScene({
                 : direction.multiplyScalar(-1)
         ).multiplyScalar(e.shiftKey ? 2 : 0.5);
         const object = selection.current && objects.get(selection.current);
-        if (object) {
+        if (object && move.current) {
           const next = constrainFloorPosition(
             layout,
             object.position.x + offset.x,
             object.position.z + offset.z,
+            selection.current!,
           );
           object.position.set(next.x, 0, next.z);
           updateConnections();
@@ -1006,6 +1124,15 @@ export default function FactoryFloorScene({
       tick();
       return () => {
         if (disposed) return;
+        cameraMemory.current = {
+          width: layout.width,
+          depth: layout.depth,
+          zone,
+          reset,
+          position: camera.position.clone(),
+          target: controls.target.clone(),
+          zoom: camera.zoom,
+        };
         disposed = true;
         cancel();
         cancelAnimationFrame(frame);
@@ -1069,6 +1196,9 @@ export default function FactoryFloorScene({
             selected={selected}
             onSelect={onSelect}
             onMove={onMove}
+            onItemDrag={onItemDrag}
+            onItemDrop={onItemDrop}
+            onDelete={onDelete}
             reset={reset}
           />
           <p

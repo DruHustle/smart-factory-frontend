@@ -9,6 +9,8 @@ export type InventoryStatus =
   | "error";
 export type InventoryItem = {
   ref: string;
+  factoryId?: string | null;
+  factoryTag?: string | null;
   kind: ItemKind;
   id: string;
   name: string;

@@ -111,3 +111,50 @@ describe("physical factory reference rendering", () => {
     expect(a.children[0].userData.sharedReferenceGeometry).toBe(true);
   });
 });
+
+it("fits real geometry to the measured width, depth and height, centred on the floor", async () => {
+  const { fitFactoryDimensions } =
+    await import("../client/src/components/workspace/factory-graphics");
+  const { createEquipmentProxy } =
+    await import("../client/src/components/workspace/FactoryEnvironment");
+  for (const model of [
+    "pump-motor",
+    "robot-arm",
+    "warehouse-rack",
+    "loading-door",
+    "exit-door",
+  ]) {
+    const fitted = fitFactoryDimensions(createEquipmentProxy(model), {
+      width: 4,
+      depth: 1.2,
+      height: 3,
+    });
+    fitted.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(fitted),
+      size = box.getSize(new THREE.Vector3());
+    expect(size.x).toBeCloseTo(4, 4);
+    expect(size.z).toBeCloseTo(1.2, 4);
+    expect(size.y).toBeCloseTo(3, 4);
+    expect(box.min.y).toBeCloseTo(0, 4);
+    expect(box.getCenter(new THREE.Vector3()).x).toBeCloseTo(0, 4);
+    expect(box.getCenter(new THREE.Vector3()).z).toBeCloseTo(0, 4);
+  }
+});
+it("does not make the empty loading doorway a selectable hit surface", async () => {
+  const { createEquipmentProxy } =
+    await import("../client/src/components/workspace/FactoryEnvironment");
+  const door = createEquipmentProxy("loading-door");
+  door.updateMatrixWorld(true);
+  expect(
+    new THREE.Raycaster(
+      new THREE.Vector3(0, 1, 5),
+      new THREE.Vector3(0, 0, -1),
+    ).intersectObject(door, true),
+  ).toHaveLength(0);
+  expect(
+    new THREE.Raycaster(
+      new THREE.Vector3(1.71, 1, 5),
+      new THREE.Vector3(0, 0, -1),
+    ).intersectObject(door, true).length,
+  ).toBeGreaterThan(0);
+});

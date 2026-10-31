@@ -45,13 +45,28 @@ After approved promotion, inspect `/release.json`, `/api/runtime/contract`, logi
 ## Rollback
 
 The qualified rollback sources are pinned in [rollback-sources.json](../rollback-sources.json).
-They pair the prior UI/API with its compatible backend and edge revisions.
+The API rollback retains the prior feature/schema contract with the patched
+`follow-redirects` 1.16.2 dependency, paired with its compatible backend and edge.
+The previously verified frontend deployment remains compatible with that API.
 The pinned backend retains administrator-only infrastructure access, the reduced
 connection budget and authenticated worker receipts. ARM64 qualification retains
 both tested image archives, image inspection and archive checksums in the same
 workflow artifact. Inspect the retained manifest for the exact runtime contract;
 do not infer compatibility from a mutable tag or an older deployment record.
 
-Retain the prior Oracle image and Vercel artifact. Stop the candidate worker before starting the prior worker. Validate the prior application's compatibility with the additive database schema and current session/evidence contracts; then restore the prior API/worker image and UI artifact in API-first order. Do not reverse migrations or delete evidence as an application rollback. Restore data only through a separately approved recovery procedure with verified backups.
+Retain the prior Oracle image and Vercel artifact. Stop the candidate worker before starting the prior worker. Validate the prior application's compatibility with the additive database schema and current session/evidence contracts. API-first upgrades remain mandatory. When rollback would remove a capability required by the current frontend, first restore the verified prior frontend while the candidate API still serves it, then restore the qualified API/worker pair. For example, the named-factory frontend requires `named-factories-v1`, while the retained prior frontend can run against either API. Never connect that new frontend to a prior API lacking its requirements. An API failure before frontend promotion can be recovered directly because the prior frontend is still active. Do not reverse migrations or delete evidence as an application rollback. Restore data only through a separately approved recovery procedure with verified backups.
 
 Historical Render rollback configuration is not an instruction to reactivate Render. A hosting cutover requires its own reviewed plan and approval.
+
+## Discard superseded container images after deployment
+
+Successful release finalization must run `cleanup-images.py` on Oracle after API, singleton worker, frontend promotion and live verification. Supply the current and qualified rollback **Docker image IDs reported by the production engine** (`sha256:` plus 64 hex digits; inspect the current and rollback references with `docker image inspect`), the qualified API source and the deployed frontend source. First review the default plan, then repeat with `--apply`. Retain its JSON report in the protected release evidence.
+
+```bash
+python3 cleanup-images.py --current-image "$CURRENT_IMAGE_ID" \
+  --rollback-image "$QUALIFIED_ROLLBACK_IMAGE_ID" \
+  --api-source "$QUALIFIED_API_SHA" --frontend-source "$DEPLOYED_FRONTEND_SHA"
+# After successful live verification, use the same exact arguments with --apply.
+```
+
+Cleanup removes superseded, unreferenced Smart Factory images with all three source labels. It always keeps the current release, the verified rollback image, and every image referenced by any running or stopped container. It rechecks the local/proxied API source, schema and worker receipt, the published frontend source, and exactly one current API/worker before removal. No global prune, forced removal, volume deletion, unrelated application cleanup or build-cache purge is used. Retained qualification archives and protected database/configuration recovery evidence remain available. A refused deletion is reported and retained for review.

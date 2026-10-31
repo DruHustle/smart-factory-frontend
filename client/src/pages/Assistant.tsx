@@ -1,3 +1,4 @@
+import { useFactorySelection } from "@/lib/factory-selection";
 import {
   useEffect,
   useLayoutEffect,
@@ -15,7 +16,10 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { captureDemoAssistantContext } from "@/lib/demo-sandbox";
+import {
+  captureDemoAssistantContext,
+  useDemoSandbox,
+} from "@/lib/demo-sandbox";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { trpc } from "@/lib/trpc";
@@ -64,7 +68,9 @@ export default function Assistant() {
     wide = useMediaQuery("(min-width:1280px)"),
     active = useDocumentActive(),
     reduce = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const owner = `${user?.id ?? "signed-out"}:${user?.role ?? ""}:${user?.access?.demoOnly ? "demo" : (user?.access?.workspaceView ?? "configured")}`;
+  const { id: factoryId, demo: factoryDemo } = useFactorySelection();
+  const sandbox = useDemoSandbox();
+  const owner = `${factoryId ?? "all"}:${user?.id ?? "signed-out"}:${user?.role ?? ""}:${user?.access?.demoOnly ? "demo" : (user?.access?.workspaceView ?? "configured")}`;
   const [session, setSession] = useAssistantSession(owner),
     [inspectorOpen, setInspectorOpen] = useState(false),
     [citation, setCitation] = useState<{ number: number; key: number } | null>(
@@ -89,9 +95,15 @@ export default function Assistant() {
   latest.current = session;
   const busy = session.turns.some((t) => t.status === "pending"),
     invalid = session.draft.length > 500 || session.draft.trim().length < 1;
+  const localSelected = factoryDemo
+    ? sandbox?.items.find((i) => i.identifier === session.selectedAssetId)
+    : undefined;
   const contextQuery = trpc.assistant.context.useQuery(
     { assetId: session.selectedAssetId },
-    { enabled: session.selectedAssetId !== "automatic", staleTime: 60000 },
+    {
+      enabled: session.selectedAssetId !== "automatic" && !localSelected,
+      staleTime: 60000,
+    },
   );
   const selectedContext: TurnContext =
     session.selectedAssetId === "automatic"
@@ -99,6 +111,7 @@ export default function Assistant() {
       : {
           assetId: session.selectedAssetId,
           name:
+            localSelected?.name ??
             contextQuery.data?.name ??
             session.selectedAssetName ??
             "Selected equipment",
@@ -298,14 +311,16 @@ export default function Assistant() {
       context,
       request: {
         question,
+        factoryId: factoryId ?? undefined,
         selectedAssetId: context?.assetId,
         history,
-        ...(user?.access?.demoOnly
+        ...(factoryDemo
           ? {
               demoContext: captureDemoAssistantContext(
                 question,
                 history,
                 context?.assetId,
+                factoryId ?? undefined,
               ),
             }
           : {}),

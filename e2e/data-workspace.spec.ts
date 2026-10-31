@@ -177,6 +177,9 @@ async function workspaceFixture(
         case "alerts.list":
           value = [];
           break;
+        case "factories.list":
+          value = [];
+          break;
         case "factory.floor":
           value = {
             items: control.floor === "empty" ? [] : items,

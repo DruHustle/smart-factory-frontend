@@ -40,6 +40,31 @@ describe("editable browser demo boundaries and workflows", () => {
     expect(first.id).not.toBe(second.id);
     expect(edited.items[0].custom).toBe(true);
   });
+  it("keeps retained server evidence for an untouched reference copy and captures local edits", () => {
+    const reference = seedDemoSandbox(
+      sandboxInventory(seeded()).map((item) => ({ ...item, isDemo: true })),
+    );
+    expect(reference.items).toHaveLength(1);
+    expect(reference.items[0].custom).toBe(false);
+    expect(
+      buildDemoAssistantContext(
+        reference,
+        "Why does My pump need attention?",
+        [],
+      ),
+    ).toBeUndefined();
+    const edited = applySandboxAction(reference, "operator", {
+      type: "sample",
+      ref: reference.items[0].ref,
+      metric: "temperature",
+      value: 85,
+    });
+    expect(
+      buildDemoAssistantContext(edited, "What is My pump temperature?", [])
+        ?.items[0].samples,
+    ).toMatchObject([{ metric: "temperature", value: 85, unit: "°C" }]);
+    expect(reference.audit).toEqual([]);
+  });
   it("persists validated changes and resets to a separate reference workspace", () => {
     const s = seeded();
     expect(demoSandbox.parse(JSON.parse(JSON.stringify(s)))).toEqual(s);
@@ -297,5 +322,171 @@ describe("editable browser demo boundaries and workflows", () => {
     expect(answerDemoQuestion("Check network timing", c).answer).toContain(
       "one-way latency is unavailable",
     );
+  });
+});
+
+describe("named demo factories, inventory and attributed history", () => {
+  const empty = (name: string) => ({
+    document: { name, width: 30, depth: 20, zones: [], placements: [] },
+    dimensions: {},
+    tags: {},
+  });
+  function factory() {
+    return applySandboxAction(seedDemoSandbox([]), "engineer", {
+      type: "factory.create",
+      draft: empty("Demo team factory"),
+    });
+  }
+  it("creates canonical inventory, saves placement, preserves deletion history and resets independently", () => {
+    const initial = factory(),
+      id = initial.factories[0].id;
+    let s = applySandboxAction(initial, "engineer", {
+      type: "factory.add",
+      id,
+      expectedVersion: 1,
+      item: {
+        name: "Physical pump",
+        identifier: "P-01",
+        kind: "asset",
+        itemType: "pump",
+        dimensions: { width: 2, depth: 1, height: 1.5 },
+      },
+    });
+    const ref = s.items[0].ref;
+    expect(sandboxInventory(s)).toHaveLength(1);
+    expect(s.factories[0].draft.document.placements[0].ref).toBe(ref);
+    const draft = structuredClone(s.factories[0].draft);
+    draft.document.placements[0].x = 4;
+    s = applySandboxAction(s, "engineer", {
+      type: "factory.save",
+      id,
+      expectedVersion: s.factories[0].version,
+      draft,
+    });
+    expect(s.factoryActivity.at(-1)).toMatchObject({
+      action: "placement.changed",
+      actorName: "Demo Engineer",
+      before: { x: 0 },
+      after: { x: 4 },
+    });
+    expect(() =>
+      applySandboxAction(s, "engineer", {
+        type: "factory.deleteItem",
+        id,
+        expectedVersion: s.factories[0].version,
+        ref,
+      }),
+    ).toThrow(/admin/);
+    s = applySandboxAction(s, "admin", {
+      type: "factory.deleteItem",
+      id,
+      expectedVersion: s.factories[0].version,
+      ref,
+    });
+    expect(sandboxInventory(s)).toHaveLength(0);
+    expect(s.factories[0].draft.document.placements).toEqual([]);
+    expect(s.factoryActivity.at(-1)).toMatchObject({
+      action: "inventory.deleted",
+      actorName: "Demo Admin",
+      before: { name: "Physical pump", tag: "P-01", x: 4 },
+      after: null,
+    });
+    expect(demoSandbox.parse(JSON.parse(JSON.stringify(s)))).toEqual(s);
+    expect(seedDemoSandbox([]).factoryActivity).toEqual([]);
+    expect(initial.factoryActivity).toHaveLength(1);
+  });
+  it("enforces roles, stale versions, distinct names/tags and one factory per item", () => {
+    const s = factory(),
+      id = s.factories[0].id;
+    expect(() =>
+      applySandboxAction(s, "viewer", {
+        type: "factory.create",
+        draft: empty("Forbidden"),
+      }),
+    ).toThrow(/engineer/);
+    expect(() =>
+      applySandboxAction(s, "engineer", {
+        type: "factory.create",
+        draft: empty("demo team factory"),
+      }),
+    ).toThrow(/distinct/);
+    expect(() =>
+      applySandboxAction(s, "engineer", {
+        type: "factory.save",
+        id,
+        expectedVersion: 2,
+        draft: empty("Stale"),
+      }),
+    ).toThrow(/newer/);
+    const item = applySandboxAction(s, "engineer", create);
+    const attached = applySandboxAction(item, "engineer", {
+      type: "factory.attach",
+      id,
+      expectedVersion: 1,
+      ref: item.items[0].ref,
+      tag: "P1",
+      dimensions: { width: 2, depth: 1, height: 1.5 },
+    });
+    const other = applySandboxAction(attached, "engineer", {
+      type: "factory.create",
+      draft: empty("Another floor"),
+    });
+    expect(() =>
+      applySandboxAction(other, "engineer", {
+        type: "factory.attach",
+        id: other.factories[1].id,
+        expectedVersion: 1,
+        ref: item.items[0].ref,
+        tag: "P1",
+        dimensions: { width: 1, depth: 1, height: 1 },
+      }),
+    ).toThrow(/another factory/);
+  });
+  it("keeps assistant evidence inside the selected factory", () => {
+    let s = factory();
+    const id = s.factories[0].id;
+    s = applySandboxAction(s, "engineer", {
+      type: "factory.add",
+      id,
+      expectedVersion: 1,
+      item: {
+        name: "Inside pump",
+        identifier: "P1",
+        kind: "asset",
+        itemType: "pump",
+        dimensions: { width: 1, depth: 1, height: 1 },
+      },
+    });
+    s = applySandboxAction(s, "engineer", {
+      type: "item.save",
+      item: {
+        name: "Outside pump",
+        kind: "asset",
+        itemType: "pump",
+        zone: null,
+      },
+    });
+    const context = buildDemoAssistantContext(
+      s,
+      "How many items in this factory?",
+      [],
+      undefined,
+      id,
+    )!;
+    expect(context.name).toBe("Demo team factory");
+    expect(context.itemCount).toBe(1);
+    expect(context.items.map((i) => i.name)).toEqual(["Inside pump"]);
+  });
+  it("upgrades the old demo without discarding inventory, samples or identity", async () => {
+    const { upgradeDemoSandbox } = await import("../shared/demo-sandbox");
+    const current = seeded();
+    const { factories, factoryActivity, factoryDeletedRefs, ...legacy } =
+      current;
+    const upgraded = upgradeDemoSandbox({ ...legacy, version: 1 });
+    expect(upgraded.items).toEqual(current.items);
+    expect(upgraded.id).toBe(current.id);
+    expect(upgraded.samples).toEqual(current.samples);
+    expect(upgraded.factories).toEqual([]);
+    expect(upgraded.version).toBe(2);
   });
 });

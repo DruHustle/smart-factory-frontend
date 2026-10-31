@@ -9,6 +9,8 @@ import {
   constrainFloorPosition,
   type FloorSelect,
   type FloorMove,
+  type FloorLayout,
+  type FloorDragHandlers,
 } from "./floor-arrangement";
 import {
   factoryAreas,
@@ -16,10 +18,30 @@ import {
   factoryAreaTitles,
 } from "./factory-spaces";
 
-type Layout = ReturnType<typeof layoutFactory>;
+type Layout = FloorLayout;
 
 function EquipmentSymbol({ model }: { model: string | null }) {
   switch (model) {
+    case "warehouse-rack":
+      return (
+        <>
+          <rect x="-.9" y="-.4" width="1.8" height=".8" />
+          <path d="M-.3 -.4v.8M.3 -.4v.8M-.9 0h1.8" />
+        </>
+      );
+    case "loading-door":
+      return (
+        <>
+          <path d="M-.9 .4v-.8h1.8v.8M-.9 -.25h1.8" />
+        </>
+      );
+    case "exit-door":
+      return (
+        <>
+          <rect x="-.6" y="-.35" width="1.2" height=".7" />
+          <path d="M-.35 0h.7M.1 -.2L.35 0 .1 .2" />
+        </>
+      );
     case "conveyor":
       return (
         <>
@@ -104,6 +126,9 @@ export function FloorPlan({
   onSelect,
   onMove,
   reset = 0,
+  onItemDrag,
+  onItemDrop,
+  onDelete,
 }: {
   layout: Layout;
   links: FloorLink[];
@@ -111,7 +136,7 @@ export function FloorPlan({
   onSelect: FloorSelect;
   onMove?: FloorMove;
   reset?: number;
-}) {
+} & FloorDragHandlers) {
   const areas = factoryAreas(layout);
   const canvas = useRef<SVGSVGElement>(null);
   const panModifier = useRef(false);
@@ -143,6 +168,7 @@ export function FloorPlan({
   const cancel = () => {
     const ended = drag.current;
     drag.current = null;
+    onItemDrag?.(null);
     if (ended) suppressClick.current = true;
     if (ended && !ended.ref) setPan(ended.origin);
     setPreview(null);
@@ -194,6 +220,7 @@ export function FloorPlan({
       layout,
       p.x + (key === "ArrowLeft" ? -0.5 : key === "ArrowRight" ? 0.5 : 0),
       p.z + (key === "ArrowUp" ? -0.5 : key === "ArrowDown" ? 0.5 : 0),
+      ref,
     );
     onMove(ref, next.x, next.z);
   };
@@ -223,6 +250,8 @@ export function FloorPlan({
     };
     suppressClick.current = false;
     setGrabbed(moveItem ? "item" : "floor");
+    if (moveItem && ref)
+      onItemDrag?.({ ref, clientX: e.clientX, clientY: e.clientY });
     e.currentTarget.focus({ preventScroll: true });
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -247,6 +276,8 @@ export function FloorPlan({
       onPointerMove={(e) => {
         const d = drag.current;
         if (!d || d.pointerId !== e.pointerId) return;
+        if (d.ref)
+          onItemDrag?.({ ref: d.ref, clientX: e.clientX, clientY: e.clientY });
         const point = new DOMPoint(e.clientX, e.clientY).matrixTransform(
             d.matrix,
           ),
@@ -255,7 +286,12 @@ export function FloorPlan({
         if (Math.hypot(dx, dz) > 0.05) suppressClick.current = true;
         if (!suppressClick.current) return;
         d.next = d.ref
-          ? constrainFloorPosition(layout, d.origin.x + dx, d.origin.z + dz)
+          ? constrainFloorPosition(
+              layout,
+              d.origin.x + dx,
+              d.origin.z + dz,
+              d.ref,
+            )
           : { x: d.origin.x - dx, z: d.origin.z - dz };
         if (d.ref) setPreview({ ref: d.ref, ...d.next });
         else setPan(d.next);
@@ -267,17 +303,27 @@ export function FloorPlan({
         if (e.currentTarget.hasPointerCapture(e.pointerId))
           e.currentTarget.releasePointerCapture(e.pointerId);
         if (d.ref) {
-          if (suppressClick.current) onMove?.(d.ref, d.next.x, d.next.z);
-          onSelect(d.ref, !suppressClick.current);
+          const sentToBin =
+            suppressClick.current && onItemDrop?.(d.ref, e.clientX, e.clientY);
+          if (suppressClick.current && !sentToBin)
+            onMove?.(d.ref, d.next.x, d.next.z);
+          onSelect(d.ref, !suppressClick.current && !sentToBin);
           // Pointer capture retargets click to the SVG; selection is handled here.
           suppressClick.current = true;
         }
+        onItemDrag?.(null);
         setPreview(null);
         setGrabbed(null);
       }}
       onPointerCancel={cancel}
       onLostPointerCapture={cancel}
       onKeyDown={(e) => {
+        if (["Delete", "Backspace"].includes(e.key) && selected && onDelete) {
+          e.preventDefault();
+          cancel();
+          onDelete(selected);
+          return;
+        }
         if (e.code === "Space" && e.target === e.currentTarget) {
           e.preventDefault();
           panModifier.current = true;
@@ -310,6 +356,17 @@ export function FloorPlan({
         }
       }}
     >
+      <rect
+        pointerEvents="none"
+        x={-layout.width / 2}
+        y={-layout.depth / 2}
+        width={layout.width}
+        height={layout.depth}
+        fill="var(--muted)"
+        fillOpacity=".35"
+        stroke="var(--border)"
+        strokeWidth=".08"
+      />
       <g
         pointerEvents="none"
         aria-label="Factory loading, storage, production and exit areas"
@@ -474,13 +531,13 @@ export function FloorPlan({
             {p.item.name} · {p.item.status} · {p.item.mode} evidence
           </title>
           <g
-            transform={`translate(${p.x} ${p.z}) rotate(${p.rotation ?? 0}) scale(${p.item.kind === "device" ? 0.42 : 1})`}
+            transform={`translate(${p.x} ${p.z}) rotate(${p.rotation ?? 0}) scale(${p.dimensions ? 1 : p.item.kind === "device" ? 0.42 : 1})`}
           >
             <rect
-              x="-1.1"
-              y="-.8"
-              width="2.2"
-              height="1.6"
+              x={p.dimensions ? -p.dimensions.width / 2 : -1.1}
+              y={p.dimensions ? -p.dimensions.depth / 2 : -0.8}
+              width={p.dimensions?.width ?? 2.2}
+              height={p.dimensions?.depth ?? 1.6}
               rx=".2"
               fill={selected === p.item.ref ? "var(--info)" : "var(--card)"}
               fillOpacity={selected === p.item.ref ? ".2" : "1"}
@@ -488,13 +545,26 @@ export function FloorPlan({
               strokeWidth={selected === p.item.ref ? ".15" : ".07"}
               className="group-focus:stroke-[.18]"
             />
-            <g fill="var(--muted)" stroke="var(--info)" strokeWidth=".07">
+            <g
+              fill="var(--muted)"
+              stroke="var(--info)"
+              strokeWidth=".07"
+              transform={
+                p.dimensions
+                  ? `scale(${p.dimensions.width / 2.2} ${p.dimensions.depth / 1.6})`
+                  : undefined
+              }
+            >
               <EquipmentSymbol model={p.model} />
             </g>
             <circle
-              cx=".87"
-              cy="-.57"
-              r=".13"
+              cx={p.dimensions ? p.dimensions.width * 0.4 : 0.87}
+              cy={p.dimensions ? -p.dimensions.depth * 0.35 : -0.57}
+              r={
+                p.dimensions
+                  ? Math.min(p.dimensions.width, p.dimensions.depth) * 0.08
+                  : 0.13
+              }
               fill={statusColor(p.item)}
               stroke="var(--card)"
               strokeWidth=".04"
@@ -503,7 +573,12 @@ export function FloorPlan({
           {(p.item.kind !== "device" || selected === p.item.ref) && (
             <text
               x={p.x}
-              y={p.z + 1.25}
+              y={
+                p.z +
+                (p.dimensions
+                  ? Math.max(p.dimensions.width, p.dimensions.depth) / 2 + 0.45
+                  : 1.25)
+              }
               textAnchor="middle"
               fontSize=".38"
               fill="currentColor"

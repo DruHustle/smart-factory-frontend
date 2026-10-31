@@ -225,6 +225,13 @@
       "when": 1793053000003,
       "tag": "0031_factory_layouts",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793053000004,
+      "tag": "0032_named_factories",
+      "breakpoints": true
     }
   ]
 }

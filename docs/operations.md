@@ -1,5 +1,23 @@
 # Operating guide
 
+## Docker artifact names
+
+Local frontend and backend Compose projects use `smart-factory` and
+`smart-factory-backend`, with the shared network `smart-factory-shared`.
+New builds therefore use `smart-factory-*` image names. Existing image tags can
+be renamed by tagging the same exact image ID and removing the old alias after
+checking that the new tag resolves to that ID.
+
+Changing a Compose project name also changes its default container, network and
+volume names. Migrate an existing local installation explicitly: retain protected
+container configuration and database backups, stop its writers, copy and verify
+each named data volume, then recreate containers against those volumes using
+their original image IDs and settings. Preserve which services were running.
+Verify database contents and service health before removing the old volumes and
+networks. Merely starting the renamed project would create empty data volumes.
+Production database identities, hosted URLs, JWT issuers and existing remote
+runtime paths retain their established values.
+
 Maintained 27 October 2026 for the product-experience candidate. This guide describes implemented software; deployment acceptance is recorded separately against exact sources and image digests.
 
 ## Observe and investigate

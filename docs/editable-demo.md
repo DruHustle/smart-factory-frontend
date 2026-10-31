@@ -9,3 +9,7 @@ Changes persist across refresh in this browser. Another browser has its own work
 The Assistant can answer operational questions about a bounded snapshot of this browser workspace, captured with each submitted question. Generic explanations do not send this state. Answers label browser simulation and never infer physical connectivity, timing, fault cause or actual firmware installation.
 
 The Digital passport section prints the selected simulated equipment's product fields. Existing reference assets also support signed-in printable passport previews. Neither action publishes an asset. Operational writes, private administration, real notifications, credentials, external configuration and hardware commands retain their existing server authorization boundaries. Firmware completion is an explicit simulation; no delivery agent is claimed.
+
+## Named factories and activity
+
+The Overview factory picker creates browser-local factories with measured floors and canonical sandbox inventory. Engineer/Admin can add and move items; Admin can confirm bin deletion. Factory history retains simulated actor/time and safe before/after details. Demo storage v2 upgrades existing v1 data, retaining the previous key for recovery; JSON backups and reset include factories and history. [Factory guide](named-factories.md).

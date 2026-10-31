@@ -199,3 +199,22 @@ export const factoryModelSize: Record<string, number> = {
   valve: 1.7,
   "raspberry-pi-4b": 0.8,
 };
+
+/** Fit a reference/proxy's actual geometry to a measured physical envelope, in metres. */
+export function fitFactoryDimensions(
+  object: THREE.Group,
+  dimensions: { width: number; depth: number; height: number },
+) {
+  const wrapper = new THREE.Group();
+  wrapper.add(object);
+  const bounds = new THREE.Box3().setFromObject(object),
+    size = bounds.getSize(new THREE.Vector3()),
+    center = bounds.getCenter(new THREE.Vector3());
+  object.position.sub(new THREE.Vector3(center.x, bounds.min.y, center.z));
+  wrapper.scale.set(
+    dimensions.width / Math.max(size.x, 0.00001),
+    dimensions.height / Math.max(size.y, 0.00001),
+    dimensions.depth / Math.max(size.z, 0.00001),
+  );
+  return wrapper;
+}

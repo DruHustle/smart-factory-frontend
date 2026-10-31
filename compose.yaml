@@ -1,4 +1,4 @@
-name: smart-factory-iot
+name: smart-factory
 services:
   database:
     image: postgres:16-alpine
@@ -240,4 +240,4 @@ networks:
   aas-internal:
     internal: true
   shared:
-    name: smart-factory-iot-shared
+    name: smart-factory-shared

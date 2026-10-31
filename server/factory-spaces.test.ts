@@ -122,3 +122,16 @@ describe("factory loading, storage and exit areas", () => {
     }
   });
 });
+
+it("keeps a named measured floor at its actual size without adding fixed warehouse or door props", () => {
+  const layout = { ...blank(), measured: true };
+  expect(factoryAreas(layout)).toEqual([]);
+  const room = createWorkshop(layout, false);
+  room.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(room);
+  expect(bounds.max.x - bounds.min.x).toBeLessThan(40.3);
+  expect(bounds.max.z - bounds.min.z).toBeLessThan(30.3);
+  expect(
+    room.getObjectByName("factory-loading-storage-and-exit")?.children,
+  ).toHaveLength(0);
+});
