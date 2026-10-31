@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { sdk } from "../_core/sdk";
 import { demonstrationOnly } from "../../shared/access-policy";
+import { requestedDataWorkspace } from "../../shared/data-workspace";
 export const ARTIFACT_FILES = [
   "equipment.json",
   "mappings.json",
@@ -24,7 +25,9 @@ export function installArtifactRoutes(app: express.Express) {
     }
     if (
       !["engineer", "admin"].includes(user.role) ||
-      demonstrationOnly(user)
+      demonstrationOnly(user) ||
+      requestedDataWorkspace(req.headers.cookie) === "demo" ||
+      user.passwordChangeRequired
     )
       return res
         .status(403)

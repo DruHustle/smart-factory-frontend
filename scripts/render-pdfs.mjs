@@ -68,6 +68,10 @@ try {
       hr { border: 0; border-top: 1px solid #d2dde4; margin: 16pt 0; }
       @media print { h2 { break-after: avoid; } img, svg { max-width: 100%; } }
     ` });
+    if (documentName === "architecture") {
+      // Keep the short acceptance close on page four rather than emitting an empty fifth page.
+      await page.addStyleTag({ content: "body { font-size: 9.8pt; line-height: 1.48; }" });
+    }
     await page.addScriptTag({ path: mermaidBundle });
     const diagramCount = await page.evaluate(async () => {
       const mermaidApi = (window).mermaid;

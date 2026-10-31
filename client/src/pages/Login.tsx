@@ -205,6 +205,15 @@ export default function Login() {
             </Button>
           </form>
 
+          <div className="text-right text-sm">
+            <Link
+              href="/forgot-password"
+              className="text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           <div className="space-y-2 text-center">
             <p className="text-sm text-muted-foreground">
               New to Smart Factory?

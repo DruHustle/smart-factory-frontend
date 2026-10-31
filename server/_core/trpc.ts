@@ -101,9 +101,15 @@ const accessBoundary = t.middleware(
   async ({ ctx, next, type, path, getRawInput }) => {
     if (
       ctx.user?.passwordChangeRequired &&
-      !["auth.me", "auth.login", "auth.logout", "auth.changePassword"].includes(
-        path,
-      )
+      ![
+        "auth.me",
+        "auth.login",
+        "auth.logout",
+        "auth.changePassword",
+        "auth.passwordResetPolicy",
+        "auth.requestPasswordReset",
+        "auth.resetPassword",
+      ].includes(path)
     )
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -114,7 +120,14 @@ const accessBoundary = t.middleware(
     // Signing in/out remains available; neither operation grants operational writes.
     if (
       type === "mutation" &&
-      !["auth.login", "auth.logout", "assistant.ask"].includes(path) &&
+      ![
+        "auth.login",
+        "auth.logout",
+        "auth.requestRegistration",
+        "auth.requestPasswordReset",
+        "auth.resetPassword",
+        "assistant.ask",
+      ].includes(path) &&
       (demonstrationOnly(ctx.user) ||
         requestedDataWorkspace(ctx.req?.headers?.cookie) === "demo")
     ) {

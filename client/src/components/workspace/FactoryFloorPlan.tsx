@@ -87,11 +87,22 @@ function EquipmentSymbol({ model }: { model: string | null }) {
         </>
       );
     case "raspberry-pi-4b":
+    case "raspberry-pi-5":
       return (
         <>
           <rect x="-.65" y="-.4" width="1.3" height=".8" rx=".1" />
           <rect x="-.2" y="-.2" width=".4" height=".4" />
           <path d="M.3 -.35h.25M.3 0h.25M.3 .3h.25" />
+        </>
+      );
+    case "esp32-wrover-dht11":
+      return (
+        <>
+          <rect x="-.85" y="-.35" width=".9" height=".7" rx=".08" />
+          <rect x="-.63" y="-.2" width=".38" height=".4" rx=".03" />
+          <path d="M.05 0h.2" />
+          <rect x=".25" y="-.24" width=".48" height=".48" rx=".05" />
+          <path d="M.35 -.13h.28M.35 0h.28M.35 .13h.28" />
         </>
       );
     case "control-cabinet":

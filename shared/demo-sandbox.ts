@@ -7,6 +7,7 @@ import {
   applyDemoFactoryAction,
   appendDemoFactoryActivity,
 } from "./demo-factories";
+import { buildPiBenchPreset, findPiBenchFactory } from "./pi-bench";
 import { z } from "zod";
 import { canonicalUnits, metrics, type Metric } from "./measurements";
 import type { InventoryItem } from "./inventory";
@@ -29,6 +30,7 @@ export const sandboxItem = z
     model: z.string().max(100).default("Demonstration model"),
     serial: z.string().max(100).default("DEMO"),
     connected: z.boolean().default(false),
+    gatewayId: z.string().max(64).nullable().default(null),
     custom: z.boolean().default(false),
     equipmentId: z.string().nullable().default(null),
   })
@@ -247,9 +249,28 @@ export function seedDemoSandbox(
         itemType: i.itemType,
         zone: i.zone,
         connected: i.configured,
+        gatewayId: i.gatewayId ?? null,
         equipmentId: i.equipmentId,
       }),
     );
+  // This preset represents the observed bench topology. Browser-demo values
+  // remain simulated and never read the private operational sensor records.
+  const preset =
+    items.length <= 498 &&
+    items.some((item) => item.identifier === "smart-factory-public-simulator")
+      ? buildPiBenchPreset({ items, factories: [], factoryDeletedRefs: [] })
+      : null;
+  if (preset) items.push(...preset.items);
+  const benchFactory = preset
+    ? [
+        {
+          id: crypto.randomUUID(),
+          version: 1,
+          updatedAt: now,
+          draft: preset.draft,
+        },
+      ]
+    : [];
   const samples = inventory
     .filter((i) => items.some((s) => s.ref === i.ref))
     .flatMap((i) =>
@@ -278,6 +299,7 @@ export function seedDemoSandbox(
     id: crypto.randomUUID(),
     updatedAt: now,
     items,
+    factories: benchFactory,
     samples,
     thresholds: [],
     incidents: [],
@@ -328,6 +350,9 @@ export function applySandboxAction(
     throw Error(
       `This demo action requires ${minimum} access. Switch demo role to try it.`,
     );
+  // Concurrent/repeated requests open the same saved preset without adding history.
+  if (action.type === "factory.addPiBench" && findPiBenchFactory(source))
+    return structuredClone(source);
   const s = structuredClone(source),
     now = new Date().toISOString();
   const item = (id: string) => {
@@ -337,6 +362,7 @@ export function applySandboxAction(
   };
   if (
     action.type === "factory.create" ||
+    action.type === "factory.addPiBench" ||
     action.type === "factory.save" ||
     action.type === "factory.add" ||
     action.type === "factory.attach" ||
@@ -659,6 +685,7 @@ export function sandboxInventory(s: DemoSandbox): InventoryItem[] {
       configured: i.connected,
       isDemo: true,
       route: "Browser demo simulation",
+      gatewayId: i.gatewayId,
       status: "unknown",
       lastObserved: null,
       sampleAt: samples[0] ? Date.parse(samples[0].at) : null,

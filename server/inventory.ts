@@ -39,7 +39,7 @@ type Filter = z.infer<typeof inventoryFilter>;
 const projection = (mode: Filter["mode"] = "all") => sql`with inventory as (
  select 'asset:'||a.id as ref,'asset' as kind,a.id::text as id,a.name,a."assetId" as identifier,a."assetType"::text as "itemType",a.location,a.zone,
  exists(select 1 from asset_devices c where c."assetId"=a.id) as configured,
- case when exists(select 1 from asset_devices c where c."assetId"=a.id and c.protocol='mqtt_direct') then 'Direct MQTT' when exists(select 1 from asset_devices c where c."assetId"=a.id) then 'Linked devices' else 'Not configured' end as route,
+ case when exists(select 1 from asset_devices c where c."assetId"=a.id and c.protocol='mqtt_direct') then 'Direct MQTT' when exists(select 1 from asset_devices c where c."assetId"=a.id) then 'Linked devices' else 'Not configured' end as route,null::text as "gatewayId",
  null::text as reported,(select case when bool_and(c.protocol='ada031_v4_serial') then 120000::bigint else null end from asset_devices c where c."assetId"=a.id) as "freshnessMs",(select max(c."lastSeen") from asset_devices c where c."assetId"=a.id) as "lastObserved",r.timestamp as "sampleAt",coalesce(r.integration->>'mode','unknown') as mode,
  coalesce(r.integration->>'sourceQuality','unknown') as quality,a."lifecycleStage"::text as lifecycle,true as aas,w.id::text as "equipmentId",null::text as firmware,r.measurements,r.values,r.integration->'evidence' as evidence,a."isDemo" as "isDemo"
  from assets a left join equipment_workspaces w on w.asset_id=a.id and ${visibleRecordSql(sql`w.is_demo`)}
@@ -48,14 +48,14 @@ const projection = (mode: Filter["mode"] = "all") => sql`with inventory as (
  union all
  select 'device:'||d.id,'device',d.id::text,d.name,d."deviceId",d.type::text,d.location,d.zone,
  coalesce(d.metadata->>'connectionMode','') in ('direct_mqtt','gateway'),
- case when d.metadata->>'gatewayId' is not null then 'Via gateway: '||(d.metadata->>'gatewayId') when d.metadata->>'connectionMode'='direct_mqtt' then 'Direct MQTT' when d.type='gateway' and d.metadata->>'connectionMode'='gateway' then 'Gateway uplink' else 'Not configured' end,
+ case when d.metadata->>'gatewayId' is not null then 'Via gateway: '||(d.metadata->>'gatewayId') when d.metadata->>'connectionMode'='direct_mqtt' then 'Direct MQTT' when d.type='gateway' and d.metadata->>'connectionMode'='gateway' then 'Gateway uplink' else 'Not configured' end,d.metadata->>'gatewayId',
  d.status::text,${deviceFreshnessSql(sql`d.metadata`)},
  d."lastSeen",r.timestamp,coalesce(r.integration->>'mode','unknown'),
  coalesce(r.integration->>'sourceQuality','unknown'),null,false,null,d."firmwareVersion",r.measurements,r.values,r.integration->'evidence',d."isDemo"
  from devices d left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where ("assetId" is null or exists(select 1 from assets observed_asset where observed_asset."assetId"=sensor_readings."assetId" and ${visibleRecordSql(sql`observed_asset."isDemo"`)})) and "deviceId"=d.id and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true where ${visibleRecordSql(sql`d."isDemo"`)}
  union all
  select 'equipment:'||w.id,'equipment',w.id::text,a.name,a."assetId",'3D equipment',a.location,a.zone,
- exists(select 1 from asset_devices c where c."assetId"=a.id),'Local observations',null,null,null,r.timestamp,coalesce(r.integration->>'mode','unknown'),'unknown',a."lifecycleStage"::text,false,w.id::text,null,r.measurements,r.values,r.integration->'evidence',w.is_demo
+ exists(select 1 from asset_devices c where c."assetId"=a.id),'Local observations',null::text,null,null,null,r.timestamp,coalesce(r.integration->>'mode','unknown'),'unknown',a."lifecycleStage"::text,false,w.id::text,null,r.measurements,r.values,r.integration->'evidence',w.is_demo
  from equipment_workspaces w join assets a on a.id=w.asset_id left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where exists(select 1 from devices observed_source where observed_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`observed_source."isDemo"`)}) and "assetId"=a."assetId" and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true
  where w.is_standalone=true and ${visibleRecordSql(sql`w.is_demo`)} and ${visibleRecordSql(sql`a."isDemo"`)}
 ), observed as materialized(select *,case when reported in ('maintenance','error') then reported when "lastObserved" is null or "lastObserved">now() then 'unknown' when reported='offline' then 'offline' when "freshnessMs" is null then 'unknown' when "lastObserved">=now()-"freshnessMs"*interval '1 millisecond' then 'live' else 'stale' end as status from inventory)`;

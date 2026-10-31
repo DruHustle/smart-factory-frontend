@@ -1,5 +1,7 @@
 # OPC UA FX and TSN in Smart Factory
 
+For the currently connected Raspberry Pi 5, ESP32 WROVER and DHT11 bench, see the [physical end-to-end test and capability boundary](pi-dht11-bench.md). Its MQTT sensor path is distinct from the FX/TSN diagnostic scenarios below.
+
 OPC UA Field eXchange (UAFX) supplies an interoperable model for AutomationComponents, their FunctionalEntities and controller-to-controller connections. Current UAFX process-data exchange uses OPC UA PubSub. OPC UA Client/Server provides model access and configuration; ordinary polling of OPC UA variables is not itself an FX data connection. See [Part 81, connection communication](https://reference.opcfoundation.org/specs/OPC-10000-81/5.5.6.1) and the [AutomationComponent model](https://reference.opcfoundation.org/specs/OPC-10000-81).
 
 Time-Sensitive Networking is a family of Ethernet capabilities. Time synchronization (802.1AS), scheduled traffic (802.1Qbv), frame preemption (802.1Qbu/802.3br), policing (802.1Qci) and redundancy (802.1CB) address different requirements. Support depends on the selected industrial profile and hardware. [IEC/IEEE 60802-2026](https://1.ieee802.org/tsn/iec-ieee-60802/) defines the industrial automation TSN profile. UAFX can also use best-effort or prioritized Ethernet; an FX model does not prove a deterministic network.

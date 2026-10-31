@@ -4,7 +4,11 @@ import { defineConfig, devices } from "@playwright/test";
 // They can run independently of the database/broker integration fixtures.
 export default defineConfig({
   testDir: "e2e",
-  testMatch: ["data-workspace.spec.ts", "factory-connections-theme.spec.ts"],
+  testMatch: [
+    "data-workspace.spec.ts",
+    "password-recovery.spec.ts",
+    "factory-connections-theme.spec.ts",
+  ],
   outputDir: "test-results/overview-contract",
   workers: 1,
   retries: 0,

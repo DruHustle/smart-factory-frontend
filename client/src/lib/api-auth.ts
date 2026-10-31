@@ -69,30 +69,6 @@ export async function login(
   }
 }
 
-export async function register(
-  email: string,
-  password: string,
-  name: string,
-): Promise<AuthResponse> {
-  try {
-    const data = await trpcAuthClient.auth.register.mutate({
-      email,
-      password,
-      name,
-    });
-
-    return {
-      success: true,
-      user: data.user ?? undefined,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: getErrorMessage(error, "Registration failed"),
-    };
-  }
-}
-
 export async function getCurrentUser(): Promise<AuthResponse> {
   try {
     const user = await trpcAuthClient.auth.me.query();

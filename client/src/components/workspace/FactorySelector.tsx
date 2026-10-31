@@ -19,9 +19,10 @@ export function FactorySelector() {
     [width, setWidth] = useState(30),
     [depth, setDepth] = useState(20),
     [busy, setBusy] = useState(false),
+    [addingBench, setAddingBench] = useState(false),
     [error, setError] = useState("");
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
       <Factory className="size-4 shrink-0 text-info" aria-hidden />
       <select
         aria-label="Active factory"
@@ -54,6 +55,34 @@ export function FactorySelector() {
           <Plus className="size-4" />
         </Button>
       )}
+      {directory.demo &&
+        directory.canEdit &&
+        directory.state &&
+        !directory.piBench && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={addingBench}
+            onClick={async () => {
+              if (addingBench) return;
+              setAddingBench(true);
+              try {
+                await directory.addPiBench();
+                toast.success("Pi bench ready in this browser demo.");
+              } catch (error) {
+                toast.error(
+                  error instanceof Error
+                    ? error.message
+                    : "The Pi bench could not be added.",
+                );
+              } finally {
+                setAddingBench(false);
+              }
+            }}
+          >
+            {addingBench ? "Adding Pi bench…" : "Add Pi bench"}
+          </Button>
+        )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

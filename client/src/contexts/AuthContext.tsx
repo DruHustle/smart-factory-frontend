@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useState, useEffect } from "react";
 import {
   login as apiLogin,
-  register as apiRegister,
   logout as apiLogout,
   getCurrentUser,
 } from "@/lib/api-auth";
@@ -21,11 +20,6 @@ interface AuthContextType {
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  register: (
-    email: string,
-    password: string,
-    name: string,
-  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,22 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
-    try {
-      const result = await apiRegister(email, password, name);
-
-      if (result.success) {
-        clearAssistantSession();
-        queryClient.clear();
-        setUser(result.user || null);
-        return { success: true };
-      }
-      return { success: false, error: result.error || "Registration failed" };
-    } catch (error: any) {
-      return { success: false, error: error.message || "Registration failed" };
-    }
-  };
-
   const logout = async () => {
     try {
       const result = await apiLogout();
@@ -141,7 +119,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         refreshUser,
-        register,
       }}
     >
       {children}

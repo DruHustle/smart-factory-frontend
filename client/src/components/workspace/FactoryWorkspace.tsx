@@ -35,6 +35,7 @@ import {
   type FactoryActivitySummary,
 } from "@shared/named-factory";
 import { itemHref, type InventoryItem } from "@shared/inventory";
+import { gatewayLinksForFloor } from "@shared/factory-floor";
 import { DEMO_ACCOUNTS } from "@shared/demo-accounts";
 import { factoryZoneSuggestions } from "./factory-spaces";
 
@@ -255,6 +256,14 @@ export function FactoryWorkspace({
         }
         action={<FactorySelector />}
       />
+      {c.demo && factory?.name === "Current Pi + DHT11 setup" && (
+        <p className="rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
+          Hardware topology: DHT11 → ESP32 WROVER → Raspberry Pi 5 gateway.
+          Board models are enlarged in 3D for inspection; floor positions can be
+          moved to match your bench. This browser demo uses simulated records,
+          not the private physical readings.
+        </p>
+      )}
       {c.demo && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-xs">
           <span>
@@ -452,7 +461,7 @@ export function FactoryWorkspace({
           )}
           <FactoryFloor
             items={items}
-            links={[]}
+            links={gatewayLinksForFloor(items)}
             selected={selected}
             onSelect={(ref) => setSelected(ref || null)}
             returnTo={`/${mode === "inventory" ? "inventory" : ""}?factory=${id}`}

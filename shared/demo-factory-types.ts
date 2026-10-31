@@ -31,6 +31,7 @@ export const demoFactoryActivity = z
 export type DemoFactory = z.infer<typeof demoFactory>;
 export type DemoFactoryAction =
   | { type: "factory.create"; draft: NamedFactoryDraft }
+  | { type: "factory.addPiBench" }
   | {
       type: "factory.save";
       id: string;

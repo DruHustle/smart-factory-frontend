@@ -28,7 +28,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Open `http://localhost:3000`. Create the first individual administrator using the [documented private bootstrap and recovery workflow](docs/access-and-publication.md). Public registration cannot grant factory access.
+Open `http://localhost:3000`. Create the first individual administrator using the [documented private bootstrap and recovery workflow](docs/access-and-publication.md). Public account requests require [individual administrator review and role assignment](docs/account-access.md) before sign-in. **Forgot password?** sends a single-use reset link through the existing configured mail worker, with administrator-assisted recovery available when delivery is unavailable.
 
 ## Workspaces
 
@@ -47,7 +47,7 @@ The [OPC UA FX and TSN guide](docs/fx-tsn.md) explains industrial communication 
 
 ## Access and evidence
 
-Individual viewer/operator/engineer/admin roles apply on private installations. Shared reserved demo identities and public-demo deployments are read-only and see approved demonstration records only. They cannot mutate operational data, create privileged users, issue commands, export private data or retry email. Fixture targets also remain read-only for individual users.
+Individual viewer/operator/engineer/admin roles apply to approved accounts, including on a site that offers shared demo accounts. Reserved demo identities remain read-only and see approved demonstration records only. They cannot mutate operational data, create privileged users, issue commands, export private data or retry email. An individual who selects Demo data also has a read-only demonstration view; selecting Live restores role-scoped operational access. Fixture targets remain read-only for individual users.
 
 Manual production readings are retired. Ingestion validates identity, source/asset links, provenance, engineering conversions, route and duplicate delivery. Unknown identities and route mismatches enter bounded quarantine. Delayed, retained, bad-quality, simulated, replayed or unclassified evidence may be historical without becoming current physical state. Explicit live mode is still subject to current-observation eligibility. Unknown units remain unknown.
 

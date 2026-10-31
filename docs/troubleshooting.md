@@ -1,5 +1,7 @@
 # Factory troubleshooting
 
+The [31 October Pi 5 / WROVER / DHT11 test](pi-dht11-bench.md) records a successful physical reading path and explains why the current production broker and commissioning state still prevent a verified Live status.
+
 ## Missing readings or offline gateway
 
 For a **local** dashboard, first verify that the Pi and TelemetryService use the same upstream broker. The local Docker RabbitMQ MQTT listener is bound to `127.0.0.1:1883` on the development computer, so a physical Pi on another machine cannot reach it directly. `127.0.0.1` in the Pi's `MQTT_HOST` also means the Pi itself, not the development computer. A Pi connected to its Wrover over the Pi-local broker can still appear Offline in the dashboard when its upstream MQTT target differs. Check the Pi's `DEVICE_ID` against the gateway ID shown in Devices; the repository's ignored local simulator `.env.local` is not evidence of the physical Pi's settings. A simulator needs its own explicitly registered identity. Unknown incoming IDs are quarantined for review and never create operational inventory automatically. Do not mark a gateway Online by hand or publish synthetic data under a physical gateway's ID to diagnose a production connection.

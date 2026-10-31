@@ -59,17 +59,33 @@ try:
     run(bootstrap)
     refused = subprocess.run(bootstrap, cwd=ROOT, capture_output=True, text=True)
     assert refused.returncode != 0 and 'administrator already exists' in refused.stderr
-    sql("DELETE FROM users WHERE email='bootstrap@example.com'")
     print('PASS: private first-admin bootstrap works and refuses a second bootstrap.')
-    # Seed isolated accounts via the real API and elevate test roles in the disposable DB.
+    # Exercise the reviewed registration boundary with the disposable administrator.
+    bootstrap_admin=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+    trpc(bootstrap_admin,'auth.login',{'email':'bootstrap@example.com','password':'Bootstrap-test-Password-123!'})
+    status,_=http(plain,'/api/trpc/auth.register',{'email':'legacy@example.com','password':'Bundle-test-Password-123!','name':'Legacy'})
+    assert status==403
+    # Elevate only the isolated smoke identities after normal approval.
     accounts={}
     for role in ('engineer','viewer','admin'):
+        email=role+'@example.com'
+        trpc(plain,'auth.requestRegistration',{'email':email,'password':'Bundle-test-Password-123!','name':role.title()+' reviewer','organization':'Bundle smoke factory'})
+        queue=trpc(bootstrap_admin,'users.pendingRequests',query=True)
+        request=next(item for item in queue if item['email']==email and item['kind']=='registration')
+        user=trpc(bootstrap_admin,'users.approveRegistration',{'id':request['id']})
         opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
-        user=trpc(opener,'auth.register',{'email':role+'@example.com','password':'Bundle-test-Password-123!','name':role})['user']
         sql(f"UPDATE users SET role='{role}' WHERE id={user['id']}")
+        trpc(opener,'auth.login',{'email':email,'password':'Bundle-test-Password-123!'})
         accounts[role]=(opener,user['id'])
         assert trpc(opener,'auth.me',query=True)['role'] == role
     admin,admin_id=accounts['admin']; engineer,engineer_id=accounts['engineer']; viewer,viewer_id=accounts['viewer']
+    # Approval audits retain their reviewer. Disable this fixture identity through
+    # the replacement administrator so evidence survives and recipients stay scoped.
+    bootstrap_user=next(user for user in trpc(admin,'users.list',query=True) if user['email']=='bootstrap@example.com')
+    trpc(admin,'users.setEnabled',{'id':bootstrap_user['id'],'enabled':False,'expectedVersion':bootstrap_user['accessVersion']})
+    assert http(bootstrap_admin,'/api/trpc/assets.list')[0]==401
+    assert sql(f"SELECT count(*) FROM security_audit WHERE action='account_registration_approved' AND actor_id={bootstrap_user['id']}")=='3'
+    print('PASS: reviewed requests create individual accounts; disabling the bootstrap reviewer preserves approval evidence and revokes its session.')
     assert trpc(viewer,'system.demoData',query=True)['enabled'] is False
     status,_=http(viewer,'/api/trpc/system.setDemoData',{'enabled':True}); assert status==403
     sql("INSERT INTO assets(\"assetId\",name,\"assetType\",\"aasShell\",\"isDemo\") VALUES('urn:bundle:demo','Explicit bundle simulation','motor','{}'::json,true)")
@@ -94,7 +110,8 @@ try:
     assert not trpc(viewer,'notifications.list',query=True)
     status,_=http(viewer,'/api/trpc/notifications.markRead',{'id':items[0]['id']}); assert status==404
     trpc(engineer,'notifications.markRead',{'id':items[0]['id']})
-    wait(lambda: sql(f"SELECT count(*) FROM notification_inbox WHERE \"alertId\"={alert} AND \"emailStatus\"='unconfigured'") == '4')
+    # Retained disabled reviewers are not active delivery recipients.
+    wait(lambda: sql(f"SELECT count(*) FROM notification_inbox n JOIN users u ON u.id=n.\"userId\" WHERE n.\"alertId\"={alert} AND n.\"emailStatus\"='unconfigured' AND u.disabled_at IS NULL") == '4')
     assert sql("SELECT count(*) FROM notification_inbox WHERE kind='account_welcome' AND \"emailStatus\"='unconfigured'") == '3'
     run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','restart','notification'])
     assert len(trpc(engineer,'notifications.list',query=True)) == 2

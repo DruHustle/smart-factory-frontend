@@ -74,7 +74,33 @@ const surface = (
   roughness = 0.5,
 ) => new THREE.MeshStandardMaterial({ color, metalness, roughness });
 
+export function isBenchHardwareLayout(layout: FloorLayout) {
+  return (
+    !!layout.measured &&
+    layout.zones.length === 0 &&
+    layout.width <= 4 &&
+    layout.depth <= 4 &&
+    layout.placements.length > 0 &&
+    layout.placements.every((p) =>
+      ["raspberry-pi-5", "esp32-wrover-dht11"].includes(p.model ?? ""),
+    )
+  );
+}
+
 export function createWorkshop(layout: FloorLayout, dark: boolean) {
+  if (isBenchHardwareLayout(layout)) {
+    const bench = new WorkshopBuilder(),
+      edge = surface(dark ? 0x354149 : 0x62727a, 0.45, 0.45),
+      top = surface(dark ? 0x485963 : 0x9aa9ae, 0.15, 0.7),
+      mat = surface(dark ? 0x24586a : 0x5b8993, 0.04, 0.9);
+    bench.box(edge, [3.7, 0.13, 2.7], [0, -0.18, 0]);
+    bench.box(top, [3.54, 0.035, 2.54], [0, -0.095, 0]);
+    bench.box(mat, [3.27, 0.012, 2.28], [0, -0.07, 0]);
+    for (const x of [-1.58, 1.58])
+      for (const z of [-1.08, 1.08])
+        bench.box(edge, [0.095, 0.57, 0.095], [x, -0.52, z]);
+    return bench.finish();
+  }
   const b = new WorkshopBuilder();
   const concrete = surface(dark ? 0x3d454b : 0xb9b8b1, 0.02, 0.88);
   const grain = createSurfaceGrain("concrete");
@@ -346,6 +372,77 @@ export function createEquipmentProxy(model: string | null, itemType = "") {
     pipe(0.09, 1.8, [0.85, 1.06, 0]);
     pipe(0.09, 0.55, [0.6, 1.95, 0], [0, 0, Math.PI / 2]);
     b.box(casing, [0.25, 0.3, 0.12], [0.86, 1.27, 0.12]);
+  } else if (model === "raspberry-pi-5") {
+    // Board-level bench proxy: distinct from the bundled Pi 4 inspection model.
+    const pcb = surface(0x176843, 0.18, 0.66),
+      copper = surface(0xb89d5c, 0.65, 0.3),
+      chip = surface(0x20282b, 0.12, 0.68),
+      port = surface(0xb9c5c8, 0.75, 0.23);
+    b.box(black, [1.34, 0.08, 1.02], [0, 0.1, 0]);
+    b.box(pcb, [1.2, 0.06, 0.82], [0, 0.22, 0]);
+    for (const x of [-0.52, 0.52])
+      for (const z of [-0.33, 0.33]) {
+        b.cylinder(copper, 0.035, 0.012, [x, 0.255, z]);
+        b.cylinder(steel, 0.023, 0.13, [x, 0.17, z]);
+      }
+    b.box(chip, [0.29, 0.045, 0.29], [-0.15, 0.275, 0]);
+    b.box(chip, [0.17, 0.038, 0.17], [0.2, 0.27, 0.16]);
+    b.box(steel, [0.32, 0.11, 0.32], [-0.15, 0.35, 0]);
+    for (let n = 0; n < 8; n++)
+      b.box(steel, [0.025, 0.045, 0.32], [-0.29 + n * 0.04, 0.43, 0]);
+    b.box(port, [0.31, 0.22, 0.24], [0.38, 0.35, -0.35]);
+    for (const x of [-0.25, 0.04])
+      b.box(port, [0.22, 0.18, 0.24], [x, 0.33, -0.35]);
+    b.box(port, [0.19, 0.055, 0.11], [-0.42, 0.26, 0.4]);
+    for (const x of [-0.16, 0.02])
+      b.box(port, [0.12, 0.045, 0.09], [x, 0.265, 0.4]);
+    b.box(black, [0.07, 0.045, 0.38], [0.35, 0.27, 0.3]);
+    for (let n = 0; n < 20; n++)
+      for (const z of [0.27, 0.34])
+        b.box(copper, [0.014, 0.1, 0.014], [0.04 + n * 0.032, 0.33, z]);
+  } else if (model === "esp32-wrover-dht11") {
+    const pcb = surface(0x23565b, 0.12, 0.68),
+      sensor = surface(0x2773b5, 0.03, 0.58),
+      chip = surface(0x222b30, 0.08, 0.7),
+      copper = surface(0xc3a667, 0.68, 0.3);
+    b.box(black, [1.65, 0.07, 1.02], [0, 0.1, 0]);
+    b.box(pcb, [0.87, 0.055, 0.61], [-0.29, 0.21, 0]);
+    b.box(steel, [0.37, 0.06, 0.36], [-0.43, 0.28, -0.03]);
+    b.box(chip, [0.17, 0.025, 0.17], [-0.4, 0.32, -0.04]);
+    b.box(copper, [0.29, 0.012, 0.18], [-0.41, 0.25, -0.22]);
+    for (const z of [-0.28, 0.28]) {
+      b.box(chip, [0.7, 0.04, 0.055], [-0.29, 0.27, z]);
+      for (let n = 0; n < 12; n++)
+        b.box(copper, [0.014, 0.055, 0.014], [-0.62 + n * 0.06, 0.31, z]);
+    }
+    b.box(steel, [0.13, 0.075, 0.11], [0.11, 0.26, 0]);
+    b.box(pcb, [0.37, 0.045, 0.42], [0.47, 0.21, 0]);
+    b.box(sensor, [0.27, 0.28, 0.28], [0.47, 0.38, 0]);
+    for (const x of [0.38, 0.43, 0.48, 0.53, 0.58])
+      for (const y of [0.33, 0.39, 0.45])
+        b.box(black, [0.018, 0.025, 0.005], [x, y, 0.145]);
+    for (const [z, color] of [
+      [-0.18, 0xd64f42],
+      [0, 0xe4bd4c],
+      [0.18, 0x243b58],
+    ] as const) {
+      const wire = surface(color, 0.05, 0.65);
+      b.add(
+        new THREE.TubeGeometry(
+          new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-0.02, 0.29, z),
+            new THREE.Vector3(0.18, 0.39, z * 1.3),
+            new THREE.Vector3(0.36, 0.25, z),
+          ]),
+          10,
+          0.009,
+          5,
+          false,
+        ),
+        wire,
+        [0, 0, 0],
+      );
+    }
   } else if (model === "control-cabinet" || model === "raspberry-pi-4b") {
     const gateway = model === "raspberry-pi-4b";
     const w = gateway ? 0.75 : 1.28,
