@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "e2e",
-  testMatch: "security-standalone.spec.ts",
+  testMatch: ["security-standalone.spec.ts", "account-admin.spec.ts"],
   outputDir: "test-results/security",
   workers: 1,
   timeout: 120000,

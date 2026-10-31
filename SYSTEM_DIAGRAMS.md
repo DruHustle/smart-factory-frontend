@@ -6,6 +6,7 @@ Maintained diagrams live with their explanations in the canonical guides. The SV
 |---|---|---|
 | [Architecture](docs/architecture.md) | [SVG](docs/diagrams/architecture.svg) · [PNG](docs/diagrams/architecture.png) | Vercel UI, Oracle ARM64 API, singleton worker, managed services and factory edge boundaries. |
 | [OPC UA FX and TSN](docs/fx-tsn.md) | [SVG](docs/diagrams/fx-tsn.svg) · [PNG](docs/diagrams/fx-tsn.png) | Local controller communication, Ethernet timing and read-only cloud diagnostics; separate polling/MQTT telemetry. |
+| [Connected Pi 5 and DHT11 bench](docs/pi-dht11-bench.md) | [SVG](docs/diagrams/pi-dht11-bench.svg) · [PNG](docs/diagrams/pi-dht11-bench.png) | Observed DHT11 → WROVER → Pi gateway → cloud telemetry route and the unverified Live/FX/TSN boundary. |
 | [API flows](docs/api-flows.md) | [PDF](docs/api-flows.pdf) | Authentication, AAS workflows, Assistant, layouts, sandbox and diagnostics. |
 | [Database schema](docs/database-schema.md) | [PDF](docs/database-schema.pdf) | Persisted entities, observations, diagnostics retention and versioned factory layouts. |
 

@@ -11,6 +11,7 @@ import {
 import { sourceCredential, ingest } from "./store";
 import { sdk } from "../_core/sdk";
 import { demoOnly } from "./router";
+import { requestedDataWorkspace } from "../../shared/data-workspace";
 import { nativeEvent } from "./runtime";
 import { importReport } from "./service";
 export function installSecurityBodies(app: express.Express) {
@@ -115,7 +116,14 @@ export function installSecurityRoutes(app: express.Express) {
       const user = await sdk.authenticateRequest(req).catch(() => {
         throw new SecurityError(401, "user_authentication_required");
       });
-      if (!["engineer", "admin"].includes(user.role) || demoOnly(user))
+      // This direct HTTP route does not pass through tRPC's workspace or
+      // temporary-credential middleware. Enforce both before importing data.
+      if (
+        !["engineer", "admin"].includes(user.role) ||
+        demoOnly(user) ||
+        requestedDataWorkspace(req.headers.cookie) === "demo" ||
+        user.passwordChangeRequired
+      )
         throw new SecurityError(403, "private_engineer_required");
       const sourceId = String(req.query.sourceId ?? "");
       if (!z.uuid().safeParse(sourceId).success)

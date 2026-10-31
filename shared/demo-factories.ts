@@ -1,6 +1,11 @@
 import type { DemoSandbox, SandboxRole } from "./demo-sandbox";
 import type { DemoFactory, DemoFactoryAction } from "./demo-factory-types";
 import {
+  buildPiBenchPreset,
+  findPiBenchFactory,
+  PI_BENCH_PRESET,
+} from "./pi-bench";
+import {
   namedFactoryDraft,
   newFactoryItem,
   type PhysicalDimensions,
@@ -141,6 +146,24 @@ export function applyDemoFactoryAction(
       after,
       changeSet,
     );
+  if (action.type === "factory.addPiBench") {
+    if (findPiBenchFactory(s)) return;
+    const preset = buildPiBenchPreset(s);
+    s.items.push(...preset.items);
+    applyDemoFactoryAction(
+      s,
+      role,
+      { type: "factory.create", draft: preset.draft },
+      createItem,
+    );
+    const factory = s.factories.at(-1)!;
+    const creation = s.factoryActivity.find(
+      (entry) =>
+        entry.factoryId === factory.id && entry.action === "factory.created",
+    )!;
+    creation.after = { ...creation.after, preset: PI_BENCH_PRESET };
+    return;
+  }
   if (action.type === "factory.create") {
     if (s.factories.length >= 100)
       throw Error("This demo supports 100 factories.");

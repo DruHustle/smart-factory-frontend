@@ -6,6 +6,8 @@ import {
   uuid,
   bigint,
   boolean,
+  char,
+  check,
   index,
   integer,
   json,
@@ -126,6 +128,71 @@ export const users = pgTable(
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+export const accountRequests = pgTable(
+  "account_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: varchar("kind", { length: 24 }).notNull(),
+    email: varchar("email", { length: 320 }).notNull(),
+    name: varchar("name", { length: 255 }),
+    organization: varchar("organization", { length: 255 }),
+    jobTitle: varchar("job_title", { length: 255 }),
+    passwordHash: text("password_hash"),
+    status: varchar("status", { length: 24 }).default("pending").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedBy: integer("reviewed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (table) => [
+    uniqueIndex("account_requests_pending_identity")
+      .on(sql`lower(${table.email})`, table.kind)
+      .where(sql`${table.status} = 'pending'`),
+  ],
+);
+
+/** Bearer tokens are hashed; the worker's delivery copy is encrypted and short-lived. */
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    email: varchar("email", { length: 320 }).notNull(),
+    tokenHash: char("token_hash", { length: 64 }).notNull().unique(),
+    authVersion: integer("auth_version").notNull(),
+    deliveryPayload: text("delivery_payload").default("").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    deliveryStatus: varchar("delivery_status", { length: 24 })
+      .default("pending")
+      .notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastError: varchar("last_error", { length: 96 }),
+  },
+  (table) => [
+    check(
+      "password_reset_tokens_delivery_status_check",
+      sql`${table.deliveryStatus} in ('pending','accepted','failed','unconfigured','blocked','expired')`,
+    ),
+    index("password_reset_tokens_user").on(table.userId),
+    index("password_reset_tokens_delivery")
+      .on(table.deliveryStatus, table.nextAttemptAt, table.id)
+      .where(sql`${table.usedAt} is null`),
+    index("password_reset_tokens_expiry").on(table.expiresAt),
+  ],
+);
 
 /** Only hashes are persisted; logout/expiry never leaves reusable bearer tokens. */
 export const sessionRevocations = pgTable(

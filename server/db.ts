@@ -314,6 +314,17 @@ export async function getUserByEmail(email: string) {
   });
 }
 
+export async function getUserById(id: number) {
+  return withDb(async (db) => {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+    return user;
+  });
+}
+
 export async function createUser(user: InsertUser) {
   return withDb(async (db) => {
     await db.insert(users).values(user);

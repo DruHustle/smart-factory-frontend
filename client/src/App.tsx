@@ -15,6 +15,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import DashboardLayout from "./components/DashboardLayout";
 import { canAdministerUsers, canViewEngineering } from "@/lib/access";
+import { filterPasswordRecoveryAnalytics } from "@/lib/password-recovery-link";
 
 const Inventory = lazy(() => import("./pages/Inventory"));
 const ItemWorkspace = lazy(() => import("./pages/ItemWorkspace"));
@@ -29,6 +30,7 @@ const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Monitoring = lazy(() => import("./pages/Monitoring"));
 const NetworkDiagnostics = lazy(() => import("./pages/NetworkDiagnostics"));
 const Devices = lazy(() => import("./pages/Devices"));
@@ -87,6 +89,22 @@ function LegacyItem({
 
 function AppRouter() {
   const { user, isLoading } = useAuth();
+  const [location] = useHashLocation();
+
+  // A recovery link authorizes only the password change. It must also work
+  // while another account or a temporary-credential session is signed in.
+  if (["/reset-password", "/forgot-password"].includes(location.split("?")[0]))
+    return (
+      <WouterRouter hook={useHashPath}>
+        <Suspense fallback={<RouteLoading />}>
+          {location.split("?")[0] === "/reset-password" ? (
+            <ResetPassword />
+          ) : (
+            <ForgotPassword />
+          )}
+        </Suspense>
+      </WouterRouter>
+    );
 
   if (isLoading) {
     return (
@@ -228,13 +246,17 @@ function AppRouter() {
 }
 
 function App() {
+  const [location] = useHashLocation();
+  const recovering = location.split("?")[0] === "/reset-password";
   return (
     <ErrorBoundary>
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
           <AppRouter />
-          {import.meta.env.PROD && <Analytics />}
+          {import.meta.env.PROD && !recovering && (
+            <Analytics beforeSend={filterPasswordRecoveryAnalytics} />
+          )}
         </TooltipProvider>
       </AuthProvider>
     </ErrorBoundary>

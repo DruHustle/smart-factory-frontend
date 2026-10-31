@@ -15,10 +15,14 @@ import {
   isUnauthorizedError,
 } from "@/lib/session-expiry";
 import { userFacingApiError } from "@/lib/errors";
+import { capturePasswordResetToken } from "@/lib/password-recovery-link";
 import App from "./App";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { RuntimeBoundary } from "./components/RuntimeBoundary";
 import "./index.css";
+
+capturePasswordResetToken();
+window.addEventListener("hashchange", capturePasswordResetToken);
 
 // Earlier versions kept session JWTs in Web Storage. Remove those persisted
 // values after upgrading to the HttpOnly cookie session.

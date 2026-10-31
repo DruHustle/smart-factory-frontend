@@ -45,16 +45,17 @@ After approved promotion, inspect `/release.json`, `/api/runtime/contract`, logi
 ## Rollback
 
 The qualified rollback sources are pinned in [rollback-sources.json](../rollback-sources.json).
-The API rollback retains the prior feature/schema contract with the patched
-`follow-redirects` 1.16.2 dependency, paired with its compatible backend and edge.
-The previously verified frontend deployment remains compatible with that API.
+The pinned API rollback is the currently deployed named-factory source, paired
+with its deployed backend and edge revisions. The currently deployed frontend
+remains compatible with that API. Qualify this rollback against additive
+`0033_account_requests` and `0034_password_reset_tokens` in a disposable restore before promoting the candidate. The UI requires `account-requests-v1`, `account-role-approval-v1` and `password-reset-v1`; the live API and matching worker must support them before frontend promotion. Set the same non-secret `PASSWORD_RESET_ORIGIN` to the canonical frontend origin on the API and worker. Reuse their existing matching `DASHBOARD_SERVICE_TOKEN` and leave SMTP/Resend/SES credentials on the worker. Verify delivery configuration and recipient policy without broadening allowed recipients.
 The pinned backend retains administrator-only infrastructure access, the reduced
 connection budget and authenticated worker receipts. ARM64 qualification retains
 both tested image archives, image inspection and archive checksums in the same
 workflow artifact. Inspect the retained manifest for the exact runtime contract;
 do not infer compatibility from a mutable tag or an older deployment record.
 
-Retain the prior Oracle image and Vercel artifact. Stop the candidate worker before starting the prior worker. Validate the prior application's compatibility with the additive database schema and current session/evidence contracts. API-first upgrades remain mandatory. When rollback would remove a capability required by the current frontend, first restore the verified prior frontend while the candidate API still serves it, then restore the qualified API/worker pair. For example, the named-factory frontend requires `named-factories-v1`, while the retained prior frontend can run against either API. Never connect that new frontend to a prior API lacking its requirements. An API failure before frontend promotion can be recovered directly because the prior frontend is still active. Do not reverse migrations or delete evidence as an application rollback. Restore data only through a separately approved recovery procedure with verified backups.
+Retain the prior Oracle image and Vercel artifact. Stop the candidate worker before starting the prior worker. Validate the prior application's compatibility with the additive database schema and current session/evidence contracts. API-first upgrades remain mandatory. When rollback would remove a capability required by the current frontend, first restore the verified prior frontend while the candidate API still serves it, then restore the qualified API/worker pair. The account-request frontend requires the new routes and migration; restore the current frontend before rolling the API back. An API failure before frontend promotion can be recovered directly because the prior frontend is still active. Do not reverse migrations or delete evidence as an application rollback. Restore data only through a separately approved recovery procedure with verified backups.
 
 Historical Render rollback configuration is not an instruction to reactivate Render. A hosting cutover requires its own reviewed plan and approval.
 

@@ -22,6 +22,7 @@ export type InventoryItem = {
   isDemo?: boolean;
   sandbox?: boolean;
   route: string;
+  gatewayId?: string | null;
   status: InventoryStatus;
   lastObserved: string | null;
   sampleAt: number | null;

@@ -33,21 +33,32 @@ it("narrows individual reads without changing deployment demo visibility", async
     includeDemo: false,
   });
 });
-it("never lets a shared identity request operational data", async () => {
-  expect(
-    await resolveVisibility(
+it.each(["ENABLE_DEMO_ACCOUNTS", "PUBLIC_DEMO_DEPLOYMENT"])(
+  "keeps shared and anonymous visibility isolated while allowing individual Live reads with %s",
+  async (flag) => {
+    vi.stubEnv(flag, "true");
+    for (const user of [
+      null,
       { email: "demo@dev.local", openId: "demo-3" },
-      "live",
-    ),
-  ).toEqual({ demoOnly: true, includeDemo: true });
-  vi.stubEnv("PUBLIC_DEMO_DEPLOYMENT", "true");
-  expect(
-    await resolveVisibility(
-      { email: "owner@example.test", openId: "individual" },
-      "live",
-    ),
-  ).toEqual({ demoOnly: true, includeDemo: true });
-});
+      { email: "admin@dev.local", openId: "individual-looking" },
+      { email: "renamed@example.test", openId: "demo-reserved" },
+    ]) {
+      expect(await resolveVisibility(user, "live")).toEqual({
+        demoOnly: true,
+        includeDemo: true,
+      });
+    }
+    const individual = { email: "owner@example.test", openId: "individual" };
+    expect(await resolveVisibility(individual, "live")).toEqual({
+      demoOnly: false,
+      includeDemo: false,
+    });
+    expect(await resolveVisibility(individual, "demo")).toEqual({
+      demoOnly: true,
+      includeDemo: true,
+    });
+  },
+);
 it("blocks demo-view mutations before persistence even for an individual administrator", async () => {
   const save = vi.spyOn(db, "updateDevice").mockResolvedValue(undefined);
   const ctx = {

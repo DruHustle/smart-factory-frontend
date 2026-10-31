@@ -4,6 +4,8 @@ export default defineConfig({
   testMatch: [
     "public-demo.spec.ts",
     "named-factories.spec.ts",
+    "pi-bench.spec.ts",
+    "account-requests.spec.ts",
     "showcase.spec.ts",
     "raspberry-pi.spec.ts",
     "onesa.spec.ts",

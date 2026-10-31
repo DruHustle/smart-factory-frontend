@@ -143,7 +143,7 @@ async function workspaceFixture(
           value = [];
           break;
         case "auth.registrationPolicy":
-          value = { enabled: !restricted };
+          value = { enabled: true, requiresApproval: true };
           break;
         case "notifications.summary":
           value = { unread: 0 };
@@ -423,7 +423,12 @@ for (const width of [390, 1440]) {
       exact: true,
     });
     await expect(dialog).toContainText("Demo Engineer");
-    await expect(dialog).toContainText("operational installation");
+    await expect(dialog).toContainText(
+      "This session is restricted to demonstration data.",
+    );
+    await expect(dialog).toContainText(
+      "Use an individual account on this site to view live systems.",
+    );
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -435,16 +440,17 @@ for (const width of [390, 1440]) {
     await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Register", exact: true }).click();
     await expect(
-      page.getByRole("heading", { name: "Account access", exact: true }),
+      page.getByRole("heading", { name: "Request an account", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText("Ask your factory administrator to create your account.", {
+      page.getByText("Enter your details for administrator approval.", {
         exact: true,
       }),
     ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Back to login", exact: true })
-      .click();
+    await expect(
+      page.getByRole("button", { name: "Request approval", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Sign In", exact: true }).click();
     await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
     expect(
       (await page.context().cookies()).some(

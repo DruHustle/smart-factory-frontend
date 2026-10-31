@@ -14,6 +14,7 @@ import {
   type DemoSandbox,
   type SandboxRole,
 } from "@shared/demo-sandbox";
+import { findPiBenchFactory } from "@shared/pi-bench";
 import {
   namedFactoryDraft,
   type NamedFactory,
@@ -94,8 +95,9 @@ export function useFactoryDirectory() {
     { enabled: !!user && selection.demo, staleTime: 60000 },
   );
   useEffect(() => {
-    if (selection.demo && reference.data && !state)
+    if (selection.demo && reference.data && !state) {
       startDemoSandbox(reference.data.items);
+    }
   }, [selection.demo, reference.data, state]);
   const create = trpc.factories.create.useMutation();
   const factories: NamedFactorySummary[] = selection.demo
@@ -131,6 +133,19 @@ export function useFactoryDirectory() {
     selection.select(result.id);
     return result;
   };
+  const piBench = state ? findPiBenchFactory(state) : undefined;
+  const addPiBench = async () => {
+    if (!selection.demo || !canEdit)
+      throw Error(
+        "Adding the Pi bench requires demo Engineer or Admin access.",
+      );
+    const changed = await changeDemoFactory(role, {
+      type: "factory.addPiBench",
+    });
+    const bench = findPiBenchFactory(changed.after);
+    if (!bench) throw Error("The Pi bench could not be added.");
+    selection.select(bench.id);
+  };
   return {
     ...selection,
     user,
@@ -140,6 +155,8 @@ export function useFactoryDirectory() {
     state,
     factories,
     createFactory,
+    piBench,
+    addPiBench,
     referenceItems: reference.data?.items ?? [],
     loading: selection.demo ? !state && reference.isLoading : list.isLoading,
     error: selection.demo ? reference.error : list.error,

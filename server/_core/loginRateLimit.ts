@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import type { RequestHandler } from "express";
 import { recordLoginAttempt, pruneExpiredLoginAttempts } from "../db";
+import { pruneExpiredAccountTokens } from "../accountAccess";
 
 type Store = {
   record: typeof recordLoginAttempt;
-  prune: typeof pruneExpiredLoginAttempts;
+  prune: (now: Date) => Promise<unknown>;
 };
 
 /** Match the Express tRPC adapter's final path segment and single decoding pass. */
@@ -19,7 +20,10 @@ function procedures(path: string) {
 export function createLoginRateLimit(
   store: Store = {
     record: recordLoginAttempt,
-    prune: pruneExpiredLoginAttempts,
+    prune: async (now) => {
+      await pruneExpiredLoginAttempts(now);
+      await pruneExpiredAccountTokens();
+    },
   },
 ): RequestHandler {
   let lastPrune = 0;
@@ -27,8 +31,15 @@ export function createLoginRateLimit(
     const paths = procedures(req.path);
     if (
       req.method !== "POST" ||
-      !paths.some(
-        (path) => path === "auth.login" || path === "auth.changePassword",
+      !paths.some((path) =>
+        [
+          "auth.login",
+          "auth.changePassword",
+          "auth.register",
+          "auth.requestRegistration",
+          "auth.requestPasswordReset",
+          "auth.resetPassword",
+        ].includes(path),
       )
     )
       return next();
@@ -59,10 +70,7 @@ export function createLoginRateLimit(
       return res.status(status).json(batched ? paths.map(() => error) : error);
     };
     if (paths.length !== 1)
-      return void reject(
-        400,
-        "Submit one sign-in or password change at a time.",
-      );
+      return void reject(400, "Submit one account request at a time.");
 
     const now = Date.now();
     if (now - lastPrune > 60_000) {
@@ -81,7 +89,18 @@ export function createLoginRateLimit(
     const identifiers = [
       `ip:${req.ip || "unknown"}`,
       ...(email ? [`email:${email}`] : []),
+      ...(paths[0] === "auth.resetPassword" &&
+      typeof input?.token === "string" &&
+      /^[A-Za-z0-9_-]{43}$/.test(input.token)
+        ? [`reset-token:${input.token}`]
+        : []),
     ];
+    const requestPath = [
+      "auth.requestRegistration",
+      "auth.requestPasswordReset",
+      "auth.resetPassword",
+      "auth.register",
+    ].includes(paths[0]);
     try {
       const windows = await Promise.all(
         identifiers.map(async (identifier) => ({
@@ -89,7 +108,13 @@ export function createLoginRateLimit(
             createHash("sha256").update(identifier).digest("hex"),
             15 * 60_000,
           )),
-          limit: identifier.startsWith("ip:") ? 100 : 20,
+          limit: identifier.startsWith("ip:")
+            ? requestPath
+              ? 20
+              : 100
+            : requestPath
+              ? 5
+              : 20,
         })),
       );
       const blocked = windows.find((window) => window.attempts > window.limit);

@@ -85,6 +85,18 @@ import {
 } from "./accountAccess";
 import { wsManager } from "./websocket";
 import {
+  requestRegistration,
+  pendingAccountRequests,
+  approveRegistration,
+  dismissAccountRequest,
+  completePasswordResetRequests,
+} from "./accountRequests";
+import {
+  issuePasswordReset,
+  passwordResetPolicy,
+  resetPasswordWithToken,
+} from "./passwordRecovery";
+import {
   accountCapabilities,
   demonstrationOnly,
 } from "../shared/access-policy";
@@ -334,9 +346,55 @@ export const appRouter = router({
   onesa: onesaRouter,
   system: systemRouter,
   auth: router({
+    passwordResetPolicy: publicProcedure.query(() => passwordResetPolicy()),
     registrationPolicy: publicProcedure.query(() => ({
-      enabled: process.env.NODE_ENV !== "production" && !publicDemoDeployment(),
+      enabled: true,
+      requiresApproval: true,
     })),
+    requestRegistration: publicProcedure
+      .input(
+        z.object({
+          email: z.string().email().max(320),
+          name: z.string().trim().min(2).max(255),
+          organization: z.string().trim().min(2).max(255),
+          jobTitle: z.string().trim().max(255).optional(),
+          password: newPasswordInput,
+        }),
+      )
+      .mutation(async ({ input }) => {
+        await requestRegistration({
+          ...input,
+          passwordHash: await sdk.hashPassword(input.password),
+        });
+        return { submitted: true };
+      }),
+    requestPasswordReset: publicProcedure
+      .input(
+        z.object({
+          email: z.string().email().max(320),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        await issuePasswordReset(input.email);
+        return { submitted: true };
+      }),
+    resetPassword: publicProcedure
+      .input(
+        z
+          .object({
+            token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+            newPassword: newPasswordInput,
+          })
+          .strict(),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const result = await accountAction(() =>
+          resetPasswordWithToken(input.token, input.newPassword),
+        );
+        await wsManager.invalidateUser(result.id);
+        ctx.res.clearCookie(COOKIE_NAME, getSessionCookieOptions(ctx.req));
+        return { reset: true };
+      }),
     me: publicProcedure.query(async ({ ctx }) => {
       if (
         !ctx.user ||
@@ -428,40 +486,11 @@ export const appRouter = router({
           name: z.string().trim().min(1).max(255),
         }),
       )
-      .mutation(async ({ input, ctx }) => {
-        if (process.env.NODE_ENV === "production")
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message:
-              "Public registration is disabled for this factory. Ask an administrator to create your account.",
-          });
-        if (isDemoAccount(input.email))
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "This address is reserved for the shared walkthrough.",
-          });
-        if (await db.getUserByEmail(input.email))
-          throw new Error("Email already registered");
-        const user = await db.createUser({
-          email: input.email,
-          password: await sdk.hashPassword(input.password),
-          name: input.name,
-          openId: randomUUID(),
-          role: "viewer",
+      .mutation(async () => {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Use the account request form for administrator approval.",
         });
-
-        await db
-          .enqueueWelcomeEmail(user)
-          .catch((error) =>
-            console.error(
-              "[Email] Could not queue account welcome message:",
-              error instanceof Error ? error.message : "unknown error",
-            ),
-          );
-
-        const token = await sdk.createSessionToken(user);
-        ctx.res.cookie(COOKIE_NAME, token, getSessionCookieOptions(ctx.req));
-        return { user: publicUser(user, ctx.req) };
       }),
     changePassword: viewerProcedure
       .input(
@@ -1038,6 +1067,54 @@ export const appRouter = router({
 
   users: router({
     list: adminProcedure.query(() => db.listUsers()),
+    pendingRequests: adminProcedure.query(() => pendingAccountRequests()),
+    approveRegistration: adminProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          role: z
+            .enum(["viewer", "operator", "engineer", "admin"])
+            .default("viewer"),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const user = await approveRegistration(
+          input.id,
+          ctx.user.id,
+          input.role,
+        );
+        await db
+          .enqueueWelcomeEmail(user)
+          .catch((error) =>
+            console.error(
+              "[Email] Could not queue account welcome message:",
+              error instanceof Error ? error.message : "unknown error",
+            ),
+          );
+        await nativeEvent(
+          "config.changed",
+          {
+            configRevision: randomUUID(),
+            changedKeys: ["users.approval", "users.role"],
+          },
+          `An administrator approved an account request with ${user.role} access.`,
+        );
+        return user;
+      }),
+    dismissRequest: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await dismissAccountRequest(input.id, ctx.user.id);
+        await nativeEvent(
+          "config.changed",
+          {
+            configRevision: randomUUID(),
+            changedKeys: ["users.requests"],
+          },
+          "An administrator dismissed an account request.",
+        );
+        return result;
+      }),
     create: adminProcedure
       .input(
         z.object({
@@ -1166,6 +1243,9 @@ export const appRouter = router({
           resetAccountCredential(input.id, passwordHash, input.expectedVersion),
         );
         await wsManager.invalidateUser(input.id);
+        const user = await db.getUserById(input.id);
+        if (user?.email)
+          await completePasswordResetRequests(user.email, ctx.user.id);
         return result;
       }),
   }),

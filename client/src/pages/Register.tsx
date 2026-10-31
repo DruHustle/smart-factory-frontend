@@ -15,18 +15,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Factory, Lock, Mail, User, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 
 export default function Register() {
   const policy = trpc.auth.registrationPolicy.useQuery();
-  const { register } = useAuth();
+  const request = trpc.auth.requestRegistration.useMutation();
   const [, navigate] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [organization, setOrganization] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,15 +37,20 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      const result = await register(email, password, name);
-      if (result.success) {
-        toast.success("Registration successful!");
-        navigate("/");
-      } else {
-        toast.error(result.error || "Registration failed");
-      }
+      await request.mutateAsync({
+        email,
+        password,
+        name,
+        organization,
+        jobTitle,
+      });
+      setSubmitted(true);
     } catch (error) {
-      toast.error("Network error. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to send request. Try again.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -74,6 +81,25 @@ export default function Register() {
       </main>
     );
 
+  if (submitted)
+    return (
+      <main className="mx-auto my-16 max-w-md px-4">
+        <Card>
+          <CardHeader>
+            <h1 className="text-2xl font-semibold">Request received</h1>
+            <CardDescription>
+              For security, we give the same confirmation for every address. An
+              administrator will review eligible requests. You can sign in after
+              approval.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => navigate("/login")}>Back to login</Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-background p-4 sm:p-6">
       {/* Dark Overlay - Matches Login Page */}
@@ -89,11 +115,13 @@ export default function Register() {
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl font-bold tracking-wide">Create Account</h1>
+          <h1 className="text-2xl font-bold tracking-wide">
+            Request an account
+          </h1>
 
           {/* Subtitle */}
           <CardDescription className="text-muted-foreground">
-            Join the Smart Factory Platform
+            Enter your details for administrator approval.
           </CardDescription>
         </CardHeader>
 
@@ -140,6 +168,29 @@ export default function Register() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="organization">Factory or organization</Label>
+              <Input
+                id="organization"
+                value={organization}
+                onChange={(e) => setOrganization(e.target.value)}
+                minLength={2}
+                maxLength={255}
+                required
+                autoComplete="organization"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="job-title">Job title (optional)</Label>
+              <Input
+                id="job-title"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+                maxLength={255}
+                autoComplete="organization-title"
+              />
+            </div>
+
             {/* Password Field */}
             <div className="space-y-2">
               <Label htmlFor="password" className="text-foreground font-medium">
@@ -184,7 +235,7 @@ export default function Register() {
               disabled={isLoading}
               className="w-full bg-primary hover:bg-primary/80 text-primary-foreground shadow-[0_0_15px_var(--primary)] font-semibold"
             >
-              {isLoading ? "Creating account..." : "Register Now"}
+              {isLoading ? "Sending request..." : "Request approval"}
             </Button>
           </form>
 

@@ -1,6 +1,10 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
-import { layoutFactory, floorModel } from "../shared/factory-floor";
+import {
+  layoutFactory,
+  floorModel,
+  gatewayLinksForFloor,
+} from "../shared/factory-floor";
 import type { InventoryItem } from "../shared/inventory";
 import { factoryFloor } from "./factory";
 import { closeDatabase, getDb } from "./db";
@@ -54,7 +58,42 @@ it("uses varied illustrative references and preserves unknown equipment as proxi
   };
   for (const [name, slug] of Object.entries(expected))
     expect(floorModel({ name, itemType: "other" })).toBe(slug);
+  expect(
+    floorModel({
+      name: "Raspberry Pi Edge Gateway",
+      itemType: "gateway",
+      identifier: "pi-edge-01",
+    }),
+  ).toBe("raspberry-pi-5");
+  expect(
+    floorModel({
+      name: "esp32-wrover-01",
+      itemType: "edge_device",
+      identifier: "esp32-wrover-01",
+    }),
+  ).toBe("esp32-wrover-dht11");
   expect(layoutFactory([]).placements).toEqual([]);
+});
+it("draws only the recorded Pi gateway parent for the physical sensor", () => {
+  const gateway = {
+    ...fixture(1),
+    itemType: "gateway",
+    identifier: "pi-edge-01",
+  };
+  const sensor = {
+    ...fixture(2),
+    identifier: "esp32-wrover-01",
+    gatewayId: "pi-edge-01",
+  };
+  expect(gatewayLinksForFloor([gateway, sensor])).toEqual([
+    {
+      from: gateway.ref,
+      to: sensor.ref,
+      kind: "gateway",
+      label: "Pi-local MQTT/TLS",
+    },
+  ]);
+  expect(gatewayLinksForFloor([sensor])).toEqual([]);
 });
 
 describe.skipIf(!process.env.TEST_DATABASE_URL)(
