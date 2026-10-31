@@ -1,0 +1,70 @@
+name: Prepare OpenUSD integration
+on:
+  push:
+    branches: [feat/openusd-industrial-library]
+    paths:
+      - '.github/workflows/openusd-integration.yml'
+      - 'scripts/equipment/openusd/integration.patch'
+permissions:
+  contents: write
+defaults:
+  run:
+    shell: bash
+jobs:
+  integrate:
+    if: github.ref == 'refs/heads/feat/openusd-industrial-library'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { ref: '${{ github.sha }}', persist-credentials: true }
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with: { version: 10.34.5 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Apply the reviewed integration patch without fuzzy merges
+        run: |
+          sed 's/^ diff --git/diff --git/' scripts/equipment/openusd/integration.patch > "$RUNNER_TEMP/integration.patch"
+          git apply --check "$RUNNER_TEMP/integration.patch"
+          git apply "$RUNNER_TEMP/integration.patch"
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tsconfig.json'); s=p.read_text()
+          assert '"resolveJsonModule"' not in s
+          needle='"moduleResolution": "bundler",'
+          assert s.count(needle)==1
+          p.write_text(s.replace(needle,needle+'\n    "resolveJsonModule": true,'))
+          PY
+      - name: Format changed source only
+        run: |
+          pnpm exec prettier --write shared/industrial-assets.ts client/src/components/equipment/modelDelivery.ts client/src/components/equipment/IndustrialAssetInstall.tsx client/src/components/equipment/LocalEquipmentRenderer.tsx client/src/components/equipment/ModelLoadingPreview.tsx client/src/pages/FactoryModels.tsx client/src/pages/EquipmentView.tsx server/equipment/openusd.test.ts scripts/equipment/qualify-openusd.mjs scripts/equipment/render-fixture.mjs e2e/equipment-standalone.spec.ts tsconfig.json .github/workflows/ci.yml docs/openusd-industrial-library.md
+      - name: Type check and validate generated assets
+        run: |
+          pnpm check
+          python3 -m unittest discover -s scripts/equipment/openusd -p 'test_*.py' -v
+          pnpm exec vitest run server/equipment/openusd.test.ts
+          pnpm build
+      - name: Preserve only validated source on the isolated branch
+        env: { EXPECTED: '${{ github.sha }}' }
+        run: |
+          remote=$(git ls-remote origin refs/heads/feat/openusd-industrial-library | cut -f1)
+          [[ "$remote" == "$EXPECTED" ]] || { echo 'Branch advanced; refusing to overwrite work.'; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add shared/industrial-assets.ts client/src/components/equipment/modelDelivery.ts client/src/components/equipment/IndustrialAssetInstall.tsx client/src/components/equipment/LocalEquipmentRenderer.tsx client/src/components/equipment/ModelLoadingPreview.tsx client/src/pages/FactoryModels.tsx client/src/pages/EquipmentView.tsx server/equipment/openusd.test.ts scripts/equipment/qualify-openusd.mjs scripts/equipment/render-fixture.mjs e2e/equipment-standalone.spec.ts tsconfig.json .github/workflows/ci.yml docs/openusd-industrial-library.md
+          git commit -m 'Integrate verified NVIDIA assets with the existing equipment viewer and admission workflow'
+          git push origin HEAD:refs/heads/feat/openusd-industrial-library
+      - name: Retain exact integration workspace for review
+        if: always()
+        run: |
+          tar --exclude=.git --exclude=node_modules --exclude=dist --exclude=test-results --exclude=playwright-report -czf "$RUNNER_TEMP/openusd-integration-source.tar.gz" .
+          tar -czf "$RUNNER_TEMP/openusd-node-dependencies.tar.gz" node_modules
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: openusd-integration-review
+          path: |
+            ${{ runner.temp }}/openusd-integration-source.tar.gz
+            ${{ runner.temp }}/openusd-node-dependencies.tar.gz
+          retention-days: 1

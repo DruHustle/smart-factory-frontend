@@ -1,0 +1,213 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 0da525c..beca412 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -349,3 +349,32 @@ jobs:
+         env:
+           QUALIFICATION_DOTNET: dotnet
+         run: '"$RUNNER_TEMP/edge-proof/bin/python" scripts/cross-repo-smoke.py'
++
++  openusd-library:
++    name: NVIDIA library qualification
++    runs-on: ubuntu-24.04
++    timeout-minutes: 15
++    steps:
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
++        with: { persist-credentials: false }
++      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
++        with: { version: 10.34.5 }
++      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
++        with: { node-version: 22, cache: pnpm }
++      - run: pnpm install --frozen-lockfile
++      - name: Verify offline source and archive safety
++        run: python3 -m unittest discover -s scripts/equipment/openusd -p 'test_*.py' -v
++      - name: Verify all asset packages and delivery policies
++        run: pnpm exec vitest run server/equipment/openusd.test.ts
++      - name: Install three browser engines
++        run: pnpm exec playwright install --with-deps chromium firefox webkit
++      - name: Verify actual models, mobile layout and safe failures
++        run: node scripts/equipment/qualify-openusd.mjs
++      - name: Retain NVIDIA browser evidence
++        if: always()
++        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
++        with:
++          name: nvidia-library-browser-evidence
++          path: test-results/openusd/
++          retention-days: 7
++          if-no-files-found: warn
+ diff --git a/client/src/components/equipment/LocalEquipmentRenderer.tsx b/client/src/components/equipment/LocalEquipmentRenderer.tsx
+index db9ab0a..938c672 100644
+--- a/client/src/components/equipment/LocalEquipmentRenderer.tsx
++++ b/client/src/components/equipment/LocalEquipmentRenderer.tsx
+@@ -16,6 +16,7 @@ import { moveCamera } from "./cameraMotion";
+ import { hitVisible } from "./visibility";
+ import { Button } from "@/components/ui/button";
+ import { referencePreview } from "./ModelLoadingPreview";
++import { modelDelivery, verifyBundledModel } from "./modelDelivery";
+ import {
+   createStudioEnvironment,
+   preloadStudioEnvironment,
+@@ -265,17 +266,10 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
+       // Start delivery alongside lighting setup. This retains the same
+       // authenticated, same-origin route and 20 MiB admission limit below.
+       const responsePromise = (async () => {
+-        const url = new URL(props.modelUrl, window.location.origin);
+-        if (
+-          url.origin !== window.location.origin ||
+-          !url.pathname.startsWith("/api/equipment/")
+-        )
+-          throw new Error(
+-            "Model must use authorized Smart Factory file delivery",
+-          );
++        const { url } = modelDelivery(props.modelUrl, window.location.origin);
+         mark("downloadStarted");
+         setLoadPhase("Downloading 3D model");
+-        return fetch(url, { credentials: "same-origin", signal: abort.signal });
++        return fetch(url, { credentials: "same-origin", redirect: "error", signal: abort.signal });
+       })();
+       void responsePromise.catch(() => {});
+       renderer.localClippingEnabled = true;
+@@ -643,6 +637,9 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
+             bytes.set(c, offset);
+             offset += c.length;
+           });
++          const { bundled } = modelDelivery(props.modelUrl, window.location.origin);
++          if (bundled) await verifyBundledModel(bytes, bundled);
++          if (disposed) return;
+           const loader = new GLTFLoader();
+           loader.manager.setURLModifier((resource) => {
+             if (resource.startsWith("blob:")) return resource;
+@@ -1060,7 +1057,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
+         />
+         {state !== "ready" && (
+           <>
+-            {state === "loading" && poster && (
++            {poster && (
+               <img
+                 src={poster}
+                 alt=""
+@@ -1069,7 +1066,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
+                 decoding="async"
+               />
+             )}
+-            {state === "loading" && poster && (
++            {poster && (
+               <img
+                 src={referencePreview(props.modelRevision, true)}
+                 alt=""
+@@ -1080,7 +1077,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
+             )}
+             <div
+               className={
+-                state === "loading" && poster
++                poster
+                   ? "absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-3 bg-background/90 px-3 py-2 text-center text-xs"
+                   : "absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/95 p-5 text-center text-sm"
+               }
+ diff --git a/client/src/components/equipment/ModelLoadingPreview.tsx b/client/src/components/equipment/ModelLoadingPreview.tsx
+index 0d7cbe5..cb7896d 100644
+--- a/client/src/components/equipment/ModelLoadingPreview.tsx
++++ b/client/src/components/equipment/ModelLoadingPreview.tsx
+@@ -1,3 +1,4 @@
++import { industrialPreview } from "@shared/industrial-assets";
+ import pumpPreview from "@/assets/equipment/pump-preview.webp";
+ import piPreview from "@/assets/equipment/pi-preview.webp";
+ import pumpPreviewDark from "@/assets/equipment/pump-preview-dark.webp";
+@@ -25,7 +26,7 @@ const previews: Record<string, readonly [string, string]> = {
+ 
+ /** These are rendered previews of these exact public reference revisions. */
+ export function referencePreview(revision?: string, dark = false) {
+-  return revision ? previews[revision]?.[dark ? 1 : 0] : undefined;
++  return revision ? previews[revision]?.[dark ? 1 : 0] ?? industrialPreview(revision) : undefined;
+ }
+ 
+ export default function ModelLoadingPreview({
+ diff --git a/client/src/pages/EquipmentView.tsx b/client/src/pages/EquipmentView.tsx
+index a86d935..04f2b64 100644
+--- a/client/src/pages/EquipmentView.tsx
++++ b/client/src/pages/EquipmentView.tsx
+@@ -54,6 +54,15 @@ export default function EquipmentView({
+     enabled: !embedded,
+   });
+   const [modelRevision, setModelRevision] = useState("");
++  const requestedModel = new URLSearchParams(hashLocation.split("?")[1] ?? "").get("modelRevision");
++  const appliedModel = useRef<string | null>(null);
++  useEffect(() => {
++    if (!embedded && writable && requestedModel && appliedModel.current !== requestedModel &&
++      models.data?.imported.some((model) => model.id === requestedModel)) {
++      setModelRevision(requestedModel);
++      appliedModel.current = requestedModel;
++    }
++  }, [embedded, writable, requestedModel, models.data]);
+   const selectedTemplate = trpc.equipment.bindingTemplate.useQuery(
+     { revision: modelRevision },
+     { enabled: !embedded && writable && !!modelRevision },
+ diff --git a/e2e/equipment-standalone.spec.ts b/e2e/equipment-standalone.spec.ts
+index 0fc1a17..5084798 100644
+--- a/e2e/equipment-standalone.spec.ts
++++ b/e2e/equipment-standalone.spec.ts
+@@ -814,3 +814,47 @@ for (const viewport of [
+     });
+     await context.close();
+   });
++
++test("NVIDIA library imports a verified model into a real local equipment workspace", async ({ page }, testInfo) => {
++  test.skip(process.env.E2E_EQUIPMENT_STANDALONE !== "true", "Requires the disposable standalone fixture");
++  const errors: string[] = [];
++  page.on("pageerror", (error) => errors.push(error.message));
++  await page.goto("/#/login");
++  await page.getByLabel("Email").fill("local-equipment@example.test");
++  await page.getByLabel("Password", { exact: true }).fill("Synthetic-fixture-only-2026!");
++  await page.getByRole("button", { name: /^sign in$/i }).click();
++  await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
++  await page.goto("/#/models");
++  await page.getByLabel("Factory reference models").getByRole("button", { name: "Warehouse storage rack", exact: true }).click();
++  await expect(page.locator("[data-state=ready]")).toBeVisible();
++  const imported = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/api/equipment/model-import"));
++  await page.getByRole("button", { name: "Add to local models", exact: true }).click();
++  const response = await imported;
++  const receipt = await response.json();
++  expect(response.ok(), JSON.stringify(receipt)).toBe(true);
++  expect(receipt.revision).toMatch(/^local-import:[a-f0-9]{64}$/);
++  await page.getByRole("link", { name: "Configure equipment and signals", exact: true }).click();
++  await expect(page.getByRole("heading", { name: "Equipment view", exact: true })).toBeVisible();
++  await page.getByText("Create local equipment", { exact: true }).click();
++  await expect(page.getByLabel("Local model/template", { exact: true })).toHaveValue(receipt.revision);
++  const name = `NVIDIA rack ${Date.now()}`;
++  await page.getByLabel("Equipment name", { exact: true }).fill(name);
++  await page.getByLabel("Serial number", { exact: true }).fill(`NVIDIA-TEST-${Date.now()}`);
++  await submitEquipment(page, name);
++  await expect(page.locator("[data-state=ready]")).toBeVisible();
++  const localModel = page.getByRole("link", { name: "Download local GLB" });
++  const model = await page.request.get((await localModel.getAttribute("href"))!);
++  expect(model.ok()).toBe(true);
++  expect((await model.body()).subarray(0, 4).toString()).toBe("glTF");
++  const document = await page.request.get((await page.getByRole("link", { name: "Open local maintenance document" }).getAttribute("href"))!);
++  expect(document.ok()).toBe(true);
++  expect(await document.text()).toContain("Reference geometry only");
++  await page.getByLabel("Viewpoint name").fill("NVIDIA inspection view");
++  await page.getByRole("button", { name: "Save viewpoint", exact: true }).click();
++  await expect(page.getByRole("button", { name: "Open viewpoint: NVIDIA inspection view" })).toBeVisible();
++  await page.reload();
++  await expect(page.locator("[data-state=ready]")).toBeVisible();
++  await expect(page.getByRole("button", { name: "Open viewpoint: NVIDIA inspection view" })).toBeVisible();
++  expect(errors).toEqual([]);
++  await page.screenshot({ path: testInfo.outputPath("nvidia-installed-equipment.png"), fullPage: true });
++});
+ diff --git a/scripts/equipment/render-fixture.mjs b/scripts/equipment/render-fixture.mjs
+index 435d547..c68a77b 100644
+--- a/scripts/equipment/render-fixture.mjs
++++ b/scripts/equipment/render-fixture.mjs
+@@ -59,6 +59,12 @@ const server = await createServer({
+           const url = new URL(req.url, "http://127.0.0.1:3139");
+           const directory = fixtureDirectory(url.searchParams.get("model"));
+           const pump = directory === "fixtures/equipment/";
++          if (url.pathname === "/__equipment-render/trpc/equipment.access") {
++            res.setHeader("Content-Type", "application/json");
++            const result = { result: { data: { json: { canWrite: false, demoOnly: true } } } };
++            res.end(JSON.stringify(url.searchParams.has("batch") ? [result] : result));
++            return;
++          }
+           if (url.pathname === "/__equipment-render/trpc/equipment.reference") {
+             const input = JSON.parse(url.searchParams.get("input") || "{}");
+             const slug = (input["0"] || input).json.slug;
