@@ -22,7 +22,8 @@ jobs:
       VITEST_MAX_WORKERS: "1"
     # Playwright 1.58.2 supports Ubuntu 24.04; ubuntu-latest now selects 26.04.
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # Allow the full serial database, browser and measurement suites to finish.
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:16
