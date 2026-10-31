@@ -158,7 +158,7 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     expect(registration.cookieCalls).toHaveLength(0);
     await expect(
       registerCaller.auth.login({ email, password }),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
     const admin = appRouter.createCaller(
       createContext({ authenticated: true, role: "admin" }).ctx,
     );

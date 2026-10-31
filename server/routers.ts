@@ -86,6 +86,7 @@ import {
 import { wsManager } from "./websocket";
 import {
   requestRegistration,
+  pendingRegistrationCredential,
   pendingAccountRequests,
   approveRegistration,
   dismissAccountRequest,
@@ -354,7 +355,7 @@ export const appRouter = router({
     requestRegistration: publicProcedure
       .input(
         z.object({
-          email: z.string().email().max(320),
+          email: z.string().trim().toLowerCase().email().max(320),
           name: z.string().trim().min(2).max(255),
           organization: z.string().trim().min(2).max(255),
           jobTitle: z.string().trim().max(255).optional(),
@@ -371,7 +372,7 @@ export const appRouter = router({
     requestPasswordReset: publicProcedure
       .input(
         z.object({
-          email: z.string().email().max(320),
+          email: z.string().trim().toLowerCase().email().max(320),
         }),
       )
       .mutation(async ({ input }) => {
@@ -426,9 +427,30 @@ export const appRouter = router({
         : [],
     ),
     login: publicProcedure
-      .input(z.object({ email: z.string().email(), password: passwordInput }))
+      .input(
+        z.object({
+          email: z.string().trim().toLowerCase().email().max(320),
+          password: passwordInput,
+        }),
+      )
       .mutation(async ({ input, ctx }) => {
         let user = await db.getUserByEmail(input.email);
+        if (!user && !isDemoAccount(input.email)) {
+          const pendingPasswordHash = await pendingRegistrationCredential(
+            input.email,
+          );
+          // Only the holder of the submitted credential may learn that their
+          // request is pending. This never creates a user or an active session.
+          if (
+            pendingPasswordHash &&
+            (await sdk.comparePassword(input.password, pendingPasswordHash))
+          )
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message:
+                "Your account request is awaiting administrator approval. You can sign in after it is approved.",
+            });
+        }
         if (
           (isDemoAccount(input.email) && !demoAccountsEnabled()) ||
           !user ||
@@ -481,7 +503,7 @@ export const appRouter = router({
     register: publicProcedure
       .input(
         z.object({
-          email: z.string().email(),
+          email: z.string().trim().toLowerCase().email().max(320),
           password: newPasswordInput,
           name: z.string().trim().min(1).max(255),
         }),
@@ -1118,7 +1140,7 @@ export const appRouter = router({
     create: adminProcedure
       .input(
         z.object({
-          email: z.string().email().max(320),
+          email: z.string().trim().toLowerCase().email().max(320),
           name: z.string().trim().min(1).max(255),
           password: newPasswordInput,
           role: z

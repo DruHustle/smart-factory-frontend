@@ -1,14 +1,16 @@
-import { randomUUID } from "node:crypto";
-import { sql } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
+import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "./_core/context";
 import { sdk } from "./_core/sdk";
 import { appRouter } from "./routers";
 import * as db from "./db";
 import * as requests from "./accountRequests";
+import * as recovery from "./passwordRecovery";
 import * as security from "./security/runtime";
 import { disposableDatabase } from "./test/disposableDatabase";
 import { dataWorkspaceCookie } from "../shared/data-workspace";
+import { passwordResetTokens, users } from "../drizzle/schema";
 
 const caller = (user: TrpcContext["user"] = null) =>
   appRouter.createCaller({
@@ -19,6 +21,72 @@ const caller = (user: TrpcContext["user"] = null) =>
     },
     res: { cookie: () => {}, clearCookie: () => {} },
   } as unknown as TrpcContext);
+
+describe("account identity normalization and pending approval guidance", () => {
+  beforeEach(() => {
+    vi.spyOn(security, "nativeEvent").mockResolvedValue(undefined);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("normalizes pasted email addresses before registration and recovery validation", async () => {
+    const registration = vi
+      .spyOn(requests, "requestRegistration")
+      .mockResolvedValue(undefined);
+    const reset = vi
+      .spyOn(recovery, "issuePasswordReset")
+      .mockResolvedValue(undefined);
+    vi.spyOn(sdk, "hashPassword").mockResolvedValue("synthetic-password-hash");
+    const email = "  Applicant@Example.Test  ";
+    await caller().auth.requestRegistration({
+      email,
+      name: "Applicant",
+      organization: "Example Works",
+      password: "Synthetic-private-2026!",
+    });
+    await caller().auth.requestPasswordReset({ email });
+    expect(registration).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "applicant@example.test" }),
+    );
+    expect(reset).toHaveBeenCalledExactlyOnceWith("applicant@example.test");
+  });
+
+  it("reveals pending approval only after verifying the submitted credential and never grants a session", async () => {
+    const lookup = vi.spyOn(db, "getUserByEmail").mockResolvedValue(undefined!);
+    const pending = vi
+      .spyOn(requests, "pendingRegistrationCredential")
+      .mockResolvedValue("synthetic-pending-hash");
+    const compare = vi.spyOn(sdk, "comparePassword").mockResolvedValue(true);
+    const session = vi.spyOn(sdk, "createSessionToken");
+    await expect(
+      caller().auth.login({
+        email: "  Applicant@Example.Test  ",
+        password: "Synthetic-private-2026!",
+      }),
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message:
+        "Your account request is awaiting administrator approval. You can sign in after it is approved.",
+    });
+    expect(lookup).toHaveBeenCalledExactlyOnceWith("applicant@example.test");
+    expect(pending).toHaveBeenCalledExactlyOnceWith("applicant@example.test");
+    expect(compare).toHaveBeenCalledExactlyOnceWith(
+      "Synthetic-private-2026!",
+      "synthetic-pending-hash",
+    );
+    expect(session).not.toHaveBeenCalled();
+    compare.mockResolvedValue(false);
+    await expect(
+      caller().auth.login({
+        email: "applicant@example.test",
+        password: "wrong",
+      }),
+    ).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+      message: "Invalid email or password",
+    });
+    expect(session).not.toHaveBeenCalled();
+  });
+});
 
 describe("account approval role boundary", () => {
   const administrator = {
@@ -120,6 +188,30 @@ describe("account approval role boundary", () => {
       expect(db.enqueueWelcomeEmail).not.toHaveBeenCalled();
     },
   );
+
+  it.each([
+    null,
+    "user",
+    "viewer",
+    "operator",
+    "engineer",
+    "shared-admin",
+  ] as const)(
+    "keeps recovery delivery metadata unavailable to %s",
+    async (role) => {
+      const read = vi.spyOn(requests, "pendingAccountRequests");
+      const user =
+        role === "shared-admin"
+          ? { ...administrator, openId: "demo-admin", email: "admin@dev.local" }
+          : role
+            ? { ...administrator, role }
+            : null;
+      await expect(caller(user).users.pendingRequests()).rejects.toMatchObject({
+        code: role ? "FORBIDDEN" : "UNAUTHORIZED",
+      });
+      expect(read).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe.skipIf(!process.env.TEST_DATABASE_URL)(
@@ -151,7 +243,17 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       expect(await db.getUserByEmail(applicant)).toBeUndefined();
       await expect(
         caller().auth.login({ email: applicant, password }),
-      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+      ).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message:
+          "Your account request is awaiting administrator approval. You can sign in after it is approved.",
+      });
+      await expect(
+        caller().auth.login({ email: applicant, password: "Incorrect-2026!" }),
+      ).rejects.toMatchObject({
+        code: "UNAUTHORIZED",
+        message: "Invalid email or password",
+      });
       const pending = await caller(administrator).users.pendingRequests();
       expect(pending).toMatchObject([
         {
@@ -210,6 +312,118 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       ).resolves.toHaveProperty("user.passwordChangeRequired", true);
     });
 
+    it("shows only sanitized latest reset delivery state to an administrator", async () => {
+      const administrator = await db.getUserByEmail("reviewer@example.test");
+      const email = `recovery-state-${randomUUID()}@example.test`;
+      const user = await db.createUser({
+        openId: randomUUID(),
+        email,
+        password: "private-password-hash-marker",
+        role: "viewer",
+      });
+      await requests.requestPasswordReset(email);
+      const database = (await db.getDb())!;
+      const expiresAt = new Date(Date.now() + 30 * 60_000);
+      const tokenHash = createHash("sha256").update(randomUUID()).digest("hex");
+      await database.insert(passwordResetTokens).values({
+        userId: user!.id,
+        email,
+        tokenHash: createHash("sha256").update(randomUUID()).digest("hex"),
+        authVersion: 0,
+        deliveryStatus: "accepted",
+        expiresAt,
+      });
+      const [latest] = await database
+        .insert(passwordResetTokens)
+        .values({
+          userId: user!.id,
+          email,
+          tokenHash,
+          authVersion: 0,
+          deliveryPayload: "private-encrypted-token-payload-marker",
+          deliveryStatus: "failed",
+          attempts: 2,
+          expiresAt,
+          lastError: "private-provider-error-marker",
+        })
+        .returning({ id: passwordResetTokens.id });
+      const read = async () =>
+        (await caller(administrator).users.pendingRequests()).find(
+          (item) => item.email === email,
+        )!;
+      const visible = await read();
+      expect(visible.recoveryDelivery).toEqual({
+        status: "failed",
+        failureCode: "unknown",
+        attempts: 2,
+        expiresAt,
+      });
+      expect(Object.keys(visible.recoveryDelivery!).sort()).toEqual([
+        "attempts",
+        "expiresAt",
+        "failureCode",
+        "status",
+      ]);
+      const serialized = JSON.stringify(visible);
+      for (const secret of [
+        tokenHash,
+        "private-password-hash-marker",
+        "private-encrypted-token-payload-marker",
+        "private-provider-error-marker",
+      ])
+        expect(serialized).not.toContain(secret);
+      await database
+        .update(passwordResetTokens)
+        .set({ deliveryStatus: "blocked", lastError: "recipient_not_allowed" })
+        .where(eq(passwordResetTokens.id, latest.id));
+      expect((await read()).recoveryDelivery).toMatchObject({
+        status: "blocked",
+        failureCode: "recipient_not_allowed",
+      });
+      await database
+        .update(users)
+        .set({ authVersion: 1 })
+        .where(eq(users.id, user!.id));
+      expect((await read()).recoveryDelivery).toMatchObject({
+        status: "blocked",
+        failureCode: "account_changed",
+      });
+      await database
+        .update(passwordResetTokens)
+        .set({ expiresAt: new Date(Date.now() - 1000) })
+        .where(eq(passwordResetTokens.id, latest.id));
+      expect((await read()).recoveryDelivery).toMatchObject({
+        status: "expired",
+        failureCode: "expired",
+      });
+    });
+
+    it("does not attribute an older completed recovery email to a new help request", async () => {
+      const administrator = await db.getUserByEmail("reviewer@example.test");
+      const email = `new-recovery-${randomUUID()}@example.test`;
+      const user = await db.createUser({
+        openId: randomUUID(),
+        email,
+        password: "unused",
+        role: "viewer",
+      });
+      const database = (await db.getDb())!;
+      await database.insert(passwordResetTokens).values({
+        userId: user!.id,
+        email,
+        tokenHash: createHash("sha256").update(randomUUID()).digest("hex"),
+        authVersion: 0,
+        deliveryStatus: "accepted",
+        createdAt: new Date(Date.now() - 60_000),
+        expiresAt: new Date(Date.now() + 30 * 60_000),
+      });
+      await requests.requestPasswordReset(email);
+      const request = (
+        await caller(administrator).users.pendingRequests()
+      ).find((item) => item.email === email);
+      expect(request?.recoveryDelivery).toBeNull();
+    });
+
     async function pendingRegistration() {
       const administrator = await db.createUser({
         openId: randomUUID(),
@@ -221,7 +435,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       const email = `applicant-${randomUUID()}@example.test`;
       const password = "Synthetic-private-2026!";
       await caller().auth.requestRegistration({
-        email,
+        email: `  ${email.toUpperCase()}  `,
         name: "Role Applicant",
         organization: "Example Works",
         password,

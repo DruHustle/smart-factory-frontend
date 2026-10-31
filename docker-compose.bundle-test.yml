@@ -18,6 +18,30 @@ services:
     environment: { RABBITMQ_DEFAULT_USER: review, RABBITMQ_DEFAULT_PASS: isolated-review-broker }
     command: [sh, -c, "rabbitmq-plugins enable --offline rabbitmq_mqtt && rabbitmq-server"]
     healthcheck: { test: [CMD, rabbitmq-diagnostics, -q, ping], interval: 3s, timeout: 5s, retries: 40 }
+  mail-capture:
+    # This profile starts only for the final, isolated email-recovery check.
+    # Use the candidate's existing Python/OpenSSL tools; it starts no app worker.
+    profiles: [mail-capture]
+    image: ${BUNDLE_IMAGE:-smart-factory-render-review:local}
+    user: "0:0"
+    entrypoint: [python3, /fixtures/smtp-capture.py]
+    environment: { PYTHONDONTWRITEBYTECODE: "1" }
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=8m,mode=1777"]
+    volumes:
+      - "./scripts/tests/smtp-capture.py:/fixtures/smtp-capture.py:ro"
+      - "mail_capture_ca:/mail-capture-ca"
+    networks: [mail_capture_private]
+    # No SMTP or HTTP port is published. HTTP is loopback-only in this service.
+    healthcheck:
+      test: [CMD, python3, -c, "import json,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8025/health',timeout=2)) == {'ok':True}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
   bundle:
     image: ${BUNDLE_IMAGE:-smart-factory-render-review:local}
     environment:
@@ -36,6 +60,19 @@ services:
       AAS_PROVISIONING_TOKEN: isolated-bundle-provisioner-at-least-32-bytes
       INGESTION_API_TOKEN: isolated-bundle-ingestion-token-at-least-32-bytes
       ALLOWED_ORIGIN: http://127.0.0.1:3110
+      PASSWORD_RESET_ORIGIN: http://127.0.0.1:3110
+      EMAIL_PROVIDER: smtp
+      # Empty password preserves the existing unconfigured-mail assertions.
+      # The smoke test enables these only after its rollback and data checks.
+      EMAIL_DELIVERY_CONFIGURED: ${BUNDLE_TEST_EMAIL_ENABLED:-false}
+      SMTP_PASSWORD: ${BUNDLE_TEST_SMTP_PASSWORD:-}
+      SMTP_HOST: mail-capture
+      SMTP_PORT: 2525
+      SMTP_USERNAME: mail-capture@example.test
+      SMTP_FROM: "Smart Factory fixture <mail-capture@example.test>"
+      SMTP_ALLOWED_RECIPIENTS: viewer@example.com
+      SMTP_ALLOW_ALL_RECIPIENTS: "false"
+      SSL_CERT_FILE: /mail-capture-ca/ca.pem
       AAS_ALLOW_UNAUTHENTICATED_LOCAL: "true"
       AAS_REPOSITORY_URL: http://127.0.0.1:9
       MqttBrokerHost: broker
@@ -46,6 +83,8 @@ services:
       MqttClientId: bundle-test-telemetry
       ASSISTANT_PROVIDER: disabled
     ports: ["127.0.0.1:3110:10000"]
+    volumes: ["mail_capture_ca:/mail-capture-ca:ro"]
+    networks: [default, mail_capture_private]
     depends_on:
       database: { condition: service_healthy }
       backend-database: { condition: service_healthy }
@@ -54,3 +93,7 @@ services:
 volumes:
   dashboard_test_data:
   backend_test_data:
+  mail_capture_ca:
+networks:
+  mail_capture_private:
+    internal: true

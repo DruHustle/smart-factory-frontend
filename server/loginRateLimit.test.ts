@@ -86,7 +86,7 @@ describe("credential throttling at the HTTP tRPC boundary", () => {
     ).toBe(429);
     expect(checked).toHaveBeenCalledTimes(5);
     const tokenHash = createHash("sha256")
-      .update(`reset-token:${token}`)
+      .update(`auth.resetPassword:reset-token:${token}`)
       .digest("hex");
     expect(record.mock.calls.filter(([key]) => key === tokenHash)).toHaveLength(
       6,
@@ -95,31 +95,62 @@ describe("credential throttling at the HTTP tRPC boundary", () => {
       true,
     );
   });
-  it("throttles public registration and recovery requests by account", async () => {
-    const { post, checked } = await fixture();
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const path =
-        attempt % 2 ? "auth.requestRegistration" : "auth.requestPasswordReset";
+  it.each(["auth.requestRegistration", "auth.requestPasswordReset"])(
+    "throttles %s by account across source IPs",
+    async (path) => {
+      const { post, checked } = await fixture();
+      for (let attempt = 0; attempt < 5; attempt++) {
+        expect(
+          (
+            await post(
+              path,
+              { json: { email: "person@example.test" } },
+              `192.0.2.${attempt + 1}`,
+            )
+          ).status,
+        ).toBe(200);
+      }
       expect(
         (
           await post(
             path,
-            { json: { email: "person@example.test" } },
-            `192.0.2.${attempt + 1}`,
+            { json: { email: "PERSON@example.test" } },
+            "192.0.2.9",
           )
         ).status,
+      ).toBe(429);
+      expect(checked).toHaveBeenCalledTimes(5);
+    },
+  );
+
+  it("allows registration, recovery and reset completion after sign-in throttling", async () => {
+    const { post } = await fixture();
+    const email = "person@example.test";
+    for (let attempt = 0; attempt < 20; attempt++)
+      expect(
+        (await post("auth.login", { json: { email, password: "wrong" } }))
+          .status,
       ).toBe(200);
-    }
+    expect(
+      (await post("auth.login", { json: { email, password: "wrong" } })).status,
+    ).toBe(429);
+    for (const path of [
+      "auth.requestRegistration",
+      "auth.requestPasswordReset",
+    ])
+      for (let attempt = 0; attempt < 5; attempt++)
+        expect((await post(path, { json: { email } })).status).toBe(200);
     expect(
       (
-        await post(
-          "auth.requestPasswordReset",
-          { json: { email: "PERSON@example.test" } },
-          "192.0.2.9",
-        )
+        await post("auth.resetPassword", {
+          json: { token: "b".repeat(43), newPassword: "New-secret-2026!" },
+        })
       ).status,
+    ).toBe(200);
+    // Independent recovery does not replenish the exhausted sign-in quota.
+    expect(
+      (await post("auth.login", { json: { email, password: "wrong" } })).status,
     ).toBe(429);
-    expect(checked).toHaveBeenCalledTimes(5);
   });
   it("charges the account in real single-operation client batches across source IPs", async () => {
     const { url, record, checked, router } = await fixture();

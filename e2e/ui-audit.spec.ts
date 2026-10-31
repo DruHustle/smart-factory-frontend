@@ -19,70 +19,73 @@ async function loginAs(page: Page, role: "admin" | "engineer" | "viewer") {
 async function expectSoundDocumentStructure(page: Page) {
   // The connection screen also has an h1; audit the actual page landmark.
   await expect(page.locator("main h1").first()).toBeVisible({ timeout: 15000 });
-  const audit = await page.evaluate(() => {
-    const duplicateIds = Array.from(
-      document.querySelectorAll<HTMLElement>("[id]"),
-    )
-      .map((element) => element.id)
-      .filter((id, index, ids) => id && ids.indexOf(id) !== index);
-
-    const controls = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        "button, a[href], input:not([type='hidden']), textarea, select, [role='button'], [role='link'], [role='combobox']",
-      ),
-    );
-    const textFromIds = (ids: string) =>
-      ids
-        .split(/\s+/)
-        .map((id) => document.getElementById(id)?.textContent?.trim() ?? "")
-        .join(" ")
-        .trim();
-    const controlName = (element: HTMLElement) => {
-      const labelledBy = element.getAttribute("aria-labelledby");
-      const ownId = element.id;
-      return (
-        element.getAttribute("aria-label")?.trim() ||
-        (labelledBy ? textFromIds(labelledBy) : "") ||
-        (ownId
-          ? document
-              .querySelector<HTMLLabelElement>(
-                `label[for="${CSS.escape(ownId)}"]`,
-              )
-              ?.textContent?.trim()
-          : "") ||
-        element.closest("label")?.textContent?.trim() ||
-        element.getAttribute("title")?.trim() ||
-        element.innerText?.trim() ||
-        ""
-      );
-    };
-    const unnamedControls = controls
-      .filter(
-        (element) =>
-          element.getAttribute("aria-hidden") !== "true" &&
-          !controlName(element),
+  // A navigation refresh may replace the landmark after the visibility check.
+  await expect(async () => {
+    const audit = await page.evaluate(() => {
+      const duplicateIds = Array.from(
+        document.querySelectorAll<HTMLElement>("[id]"),
       )
-      .map(
-        (element) =>
-          `${element.tagName.toLowerCase()}${element.getAttribute("role") ? `[role=${element.getAttribute("role")}]` : ""}`,
+        .map((element) => element.id)
+        .filter((id, index, ids) => id && ids.indexOf(id) !== index);
+
+      const controls = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          "button, a[href], input:not([type='hidden']), textarea, select, [role='button'], [role='link'], [role='combobox']",
+        ),
       );
+      const textFromIds = (ids: string) =>
+        ids
+          .split(/\s+/)
+          .map((id) => document.getElementById(id)?.textContent?.trim() ?? "")
+          .join(" ")
+          .trim();
+      const controlName = (element: HTMLElement) => {
+        const labelledBy = element.getAttribute("aria-labelledby");
+        const ownId = element.id;
+        return (
+          element.getAttribute("aria-label")?.trim() ||
+          (labelledBy ? textFromIds(labelledBy) : "") ||
+          (ownId
+            ? document
+                .querySelector<HTMLLabelElement>(
+                  `label[for="${CSS.escape(ownId)}"]`,
+                )
+                ?.textContent?.trim()
+            : "") ||
+          element.closest("label")?.textContent?.trim() ||
+          element.getAttribute("title")?.trim() ||
+          element.innerText?.trim() ||
+          ""
+        );
+      };
+      const unnamedControls = controls
+        .filter(
+          (element) =>
+            element.getAttribute("aria-hidden") !== "true" &&
+            !controlName(element),
+        )
+        .map(
+          (element) =>
+            `${element.tagName.toLowerCase()}${element.getAttribute("role") ? `[role=${element.getAttribute("role")}]` : ""}`,
+        );
 
-    return {
-      duplicateIds: [...new Set(duplicateIds)],
-      unnamedControls,
-      mainCount: document.querySelectorAll("main").length,
-      h1Count: document.querySelectorAll("h1").length,
-      horizontalOverflow:
-        document.documentElement.scrollWidth -
-        document.documentElement.clientWidth,
-    };
-  });
+      return {
+        duplicateIds: [...new Set(duplicateIds)],
+        unnamedControls,
+        mainCount: document.querySelectorAll("main").length,
+        h1Count: document.querySelectorAll("h1").length,
+        horizontalOverflow:
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      };
+    });
 
-  expect(audit.duplicateIds).toEqual([]);
-  expect(audit.unnamedControls).toEqual([]);
-  expect(audit.mainCount).toBe(1);
-  expect(audit.h1Count).toBeGreaterThanOrEqual(1);
-  expect(audit.horizontalOverflow).toBeLessThanOrEqual(1);
+    expect(audit.duplicateIds).toEqual([]);
+    expect(audit.unnamedControls).toEqual([]);
+    expect(audit.mainCount).toBe(1);
+    expect(audit.h1Count).toBeGreaterThanOrEqual(1);
+    expect(audit.horizontalOverflow).toBeLessThanOrEqual(1);
+  }).toPass({ timeout: 15000 });
 }
 
 test("signed-out and authenticated routes expose named controls and sound landmarks", async ({
