@@ -309,6 +309,8 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
   await canvas.scrollIntoViewIfNeeded();
   await canvas.hover({ position: { x: 20, y: 20 } });
   const bounds = (await canvas.boundingBox())!;
+  // Re-enter at the model so default hover panning cannot move the picking target.
+  await page.mouse.move(bounds.x - 10, bounds.y - 10);
   await page.mouse.move(
     bounds.x + bounds.width / 2,
     bounds.y + bounds.height / 2 - 10,
@@ -316,7 +318,7 @@ test("factory layouts place and move items, pan the floor and reopen a saved dra
   await expect(canvas).toHaveAttribute("data-grab-target", placement.ref);
   await page.mouse.down();
   await expect(canvas).toHaveAttribute("data-grab-state", "item");
-  // Hover rotates while approaching; the camera must stay fixed during the grab.
+  // Hover navigation must stop while equipment is being grabbed.
   const fixedCamera = await canvas.getAttribute("data-camera-view");
   await page.mouse.move(
     bounds.x + bounds.width / 2 + 60,
