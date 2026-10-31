@@ -20,6 +20,7 @@ import { inventoryRouter } from "./inventory";
 import { factoryRouter } from "./factory";
 import { factoryLayoutsRouter } from "./factory-layouts";
 import { networkDiagnosticsRouter } from "./network-diagnostics/router";
+import { connectivityRouter } from "./connectivity/router";
 import {
   registerDeviceInput,
   editCommissioningInput,
@@ -547,6 +548,7 @@ export const appRouter = router({
   factoryLayouts: factoryLayoutsRouter,
   factories: factoriesRouter,
   networkDiagnostics: networkDiagnosticsRouter,
+  connectivity: connectivityRouter,
   devices: router({
     heartbeatHistory: viewerProcedure
       .input(z.object({ id: z.number().int().positive() }))

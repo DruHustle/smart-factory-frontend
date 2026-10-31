@@ -114,6 +114,9 @@ jobs:
       - name: Verify independent cybersecurity workspace
         run: pnpm e2e:security
 
+      - name: Verify industrial connectivity engineering workflows
+        run: pnpm e2e:connectivity
+
       - name: Build Frontend
         run: pnpm build
 

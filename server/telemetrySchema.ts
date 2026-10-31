@@ -6,9 +6,11 @@ import {
 import { z } from "zod";
 
 import { provenanceSchema } from "./telemetryProvenance";
+import { connectivityObservationSchema } from "../shared/industrial-connectivity";
 
 export const edgeTelemetrySchema = z
   .object({
+    connectivity: connectivityObservationSchema.nullish().transform((value) => value ?? undefined),
     integration: provenanceSchema
       .nullish()
       .transform((value) => value ?? undefined),

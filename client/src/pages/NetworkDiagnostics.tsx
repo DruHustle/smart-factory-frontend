@@ -8,6 +8,7 @@ import {
   RefreshCw,
   ArrowRight,
   Radio,
+  Cable,
 } from "lucide-react";
 import {
   LineChart,
@@ -105,10 +106,10 @@ export default function NetworkDiagnostics() {
     active = useDocumentActive(),
     file = useRef<HTMLInputElement>(null);
   const [location, navigate] = useWorkspaceLocation(),
-    [streamId, setStreamId] = useState(""),
-    [gatewayId, setGatewayId] = useState("");
+    [streamId, setStreamId] = useState("");
   const params = new URLSearchParams(location.split("?")[1] ?? ""),
-    timing = params.get("tab") === "timing";
+    timing = params.get("tab") === "timing",
+    gatewayId = params.get("gateway") ?? "";
   const scenario = networkScenarios.includes(
     params.get("scenario") as (typeof networkScenarios)[number],
   )
@@ -137,7 +138,9 @@ export default function NetworkDiagnostics() {
   });
   const data = query.data,
     snapshots = data?.snapshots ?? [],
-    snapshot = snapshots.find((s) => s.gatewayId === gatewayId) ?? snapshots[0];
+    snapshot = gatewayId
+      ? snapshots.find((s) => s.gatewayId === gatewayId)
+      : snapshots[0];
   const components = snapshot?.components ?? [],
     connections = snapshot?.connections ?? [],
     ports = snapshot?.ports ?? [],
@@ -164,6 +167,18 @@ export default function NetworkDiagnostics() {
         description="Automation components, data connections and Ethernet timing evidence."
         action={
           <>
+            <Button asChild variant="outline">
+              <Link
+                href={
+                  snapshot?.gatewayId || gatewayId
+                    ? `/connectivity?gateway=${encodeURIComponent(snapshot?.gatewayId ?? gatewayId)}`
+                    : "/connectivity"
+                }
+              >
+                <Cable className="size-4" />
+                Device connectivity
+              </Link>
+            </Button>
             <Button
               variant="outline"
               size="icon"
@@ -262,18 +277,21 @@ export default function NetworkDiagnostics() {
           reports. Overview network totals cover these reports only.
         </p>
       )}
-      {snapshots.length > 1 && (
+      {(snapshots.length > 1 || (!!gatewayId && !snapshot)) && (
         <label className="flex flex-wrap items-center gap-3 text-sm">
           Diagnostics gateway
           <select
             aria-label="Diagnostics gateway"
             className="workspace-control max-w-sm"
-            value={snapshot?.gatewayId ?? ""}
+            value={snapshot?.gatewayId ?? gatewayId}
             onChange={(e) => {
-              setGatewayId(e.target.value);
+              update({ gateway: e.target.value });
               setStreamId("");
             }}
           >
+            {gatewayId && !snapshot && (
+              <option value={gatewayId}>{gatewayId} · no current report</option>
+            )}
             {snapshots.map((s) => (
               <option key={s.gatewayId} value={s.gatewayId}>
                 {s.gatewayId}
@@ -317,12 +335,18 @@ export default function NetworkDiagnostics() {
         />
       ) : !snapshot ? (
         <EmptyState
-          title="No FX / TSN collector connected"
-          description="Commission a read-only collector for a registered gateway, or import its diagnostics snapshot. Existing OPC UA and MQTT devices continue to appear on the factory floor."
+          title="No FX / TSN evidence available"
+          description="Configure an OPC UA FX connection or a TSN collector on the selected edge gateway, or import a diagnostics snapshot. Reported evidence appears here when it becomes available."
           action={
             <Button asChild variant="outline">
-              <Link href="/inventory">
-                Open assets & devices <ArrowRight className="size-4" />
+              <Link
+                href={
+                  gatewayId
+                    ? `/connectivity?gateway=${encodeURIComponent(gatewayId)}`
+                    : "/connectivity"
+                }
+              >
+                Open device connectivity <ArrowRight className="size-4" />
               </Link>
             </Button>
           }

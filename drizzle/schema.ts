@@ -14,6 +14,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   real,
   serial,
   text,
@@ -814,3 +815,35 @@ export const factoryActivity = pgTable(
     ),
   ],
 );
+
+/** Versioned connection settings reuse the registered gateway and asset identities. */
+export const industrialGatewayConfigurations = pgTable("industrial_gateway_configurations", {
+  gatewayId: integer("gateway_id").primaryKey().references(() => devices.id, { onDelete: "cascade" }),
+  revision: bigint("revision", { mode: "number" }).notNull().default(0),
+  configuration: jsonb("configuration").$type<import("../shared/industrial-connectivity").IndustrialConfiguration>(),
+  publishedConfiguration: jsonb("published_configuration").$type<import("../shared/industrial-connectivity").IndustrialConfiguration>(),
+  pendingPublication: jsonb("pending_publication"),
+  publishedRevision: bigint("published_revision", { mode: "number" }), publishedAt: timestamp("published_at", { withTimezone: true }),
+  reportedRevision: bigint("reported_revision", { mode: "number" }), lastReceivedAt: timestamp("last_received_at", { withTimezone: true }),
+  lastError: varchar("last_error", { length: 128 }), pendingProbe: jsonb("pending_probe"), probeResult: jsonb("probe_result"),
+  updatedBy: integer("updated_by").references(() => users.id, { onDelete: "set null" }), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export const industrialConnectionLatest = pgTable("industrial_connection_latest", {
+  gatewayId: integer("gateway_id").notNull().references(() => devices.id, { onDelete: "cascade" }), connectionId: varchar("connection_id", { length: 64 }).notNull(),
+  revision: bigint("revision", { mode: "number" }).notNull(), observedAt: timestamp("observed_at", { withTimezone: true }).notNull(), receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  report: jsonb("report").notNull().$type<import("../shared/industrial-connectivity").ConnectivityObservation>(),
+}, (t) => [primaryKey({ columns: [t.gatewayId, t.connectionId] })]);
+export const industrialTagLatest = pgTable("industrial_tag_latest", {
+  gatewayId: integer("gateway_id").notNull().references(() => devices.id, { onDelete: "cascade" }), connectionId: varchar("connection_id", { length: 64 }).notNull(), tagId: varchar("tag_id", { length: 64 }).notNull(),
+  revision: bigint("revision", { mode: "number" }).notNull(), observedAt: timestamp("observed_at", { withTimezone: true }).notNull(), currentEligible: boolean("current_eligible").notNull(),
+  report: jsonb("report").notNull().$type<import("../shared/industrial-connectivity").ConnectivityObservation>(),
+}, (t) => [primaryKey({ columns: [t.gatewayId, t.connectionId, t.tagId] })]);
+export const industrialObservationHistory = pgTable("industrial_observation_history", {
+  gatewayId: integer("gateway_id").notNull().references(() => devices.id, { onDelete: "cascade" }), eventId: uuid("event_id").notNull(), connectionId: varchar("connection_id", { length: 64 }).notNull(),
+  revision: bigint("revision", { mode: "number" }).notNull(), observedAt: timestamp("observed_at", { withTimezone: true }).notNull(), receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(), currentEligible: boolean("current_eligible").notNull(),
+  report: jsonb("report").notNull().$type<import("../shared/industrial-connectivity").ConnectivityObservation>(),
+}, (t) => [primaryKey({ columns: [t.gatewayId, t.eventId] }), index("industrial_history_recent").on(t.gatewayId,t.observedAt,t.eventId)]);
+export const industrialConfigurationActivity = pgTable("industrial_configuration_activity", {
+  id: bigserial("id", { mode: "bigint" }).primaryKey(), gatewayDeviceId: varchar("gateway_device_id", { length: 64 }).notNull(), revision: bigint("revision", { mode: "number" }).notNull(),
+  actor: jsonb("actor").notNull(), configuration: jsonb("configuration").notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("industrial_configuration_history").on(t.gatewayDeviceId,t.id)]);

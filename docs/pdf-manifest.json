@@ -19,8 +19,8 @@
     },
     "fx-tsn.pdf": {
       "source": "fx-tsn.md",
-      "sourceSha256": "b3fab6f03d4da278a4d33008f0e24f4a1f2ee8011647f85496798e6d53a32c87",
-      "pdfSha256": "65da817ca53f7246982f50674cd2dec662341e9142df4fffac7ec9fedb13744a"
+      "sourceSha256": "a1168a065f1347fafb5277707203ea2e4271a570a8ff09d344fe8783ed8bb820",
+      "pdfSha256": "112d0791b738c5e209cfa56c337dd89d3a69226ab25183de12e2c783331aa4d1"
     }
   },
   "diagrams": {
@@ -34,11 +34,11 @@
     },
     "fx-tsn": {
       "source": "fx-tsn.md",
-      "sourceSha256": "b3fab6f03d4da278a4d33008f0e24f4a1f2ee8011647f85496798e6d53a32c87",
+      "sourceSha256": "a1168a065f1347fafb5277707203ea2e4271a570a8ff09d344fe8783ed8bb820",
       "svg": "diagrams/fx-tsn.svg",
-      "svgSha256": "eacc77bb7ff64d1ba01daca4a2cca81ac75b898004394777c09a26c351169386",
+      "svgSha256": "5355fe333f14f6016e5aa1a9f8ca03f6319004be8215d81cb45727566cd0ba89",
       "png": "diagrams/fx-tsn.png",
-      "pngSha256": "e6963407c38fedf92eb95baaced4421599edb95945e208beb3f878253548d2c0"
+      "pngSha256": "9a7ed7784b00adf67a1b740cf6d41fc31bad9053d8f10b77cbd6028f0ebbf089"
     }
   }
 }

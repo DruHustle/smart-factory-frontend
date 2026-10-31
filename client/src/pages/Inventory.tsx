@@ -49,6 +49,7 @@ import {
   SlidersHorizontal,
   X,
   Box,
+  Cable,
 } from "lucide-react";
 import CreateDeviceDialog from "@/components/CreateDeviceDialog";
 import { CreateAssetDialog } from "@/components/CreateAssetDialog";
@@ -202,6 +203,12 @@ function LegacyInventory() {
         action={
           <>
             <FactorySelector />
+            <Button asChild variant="outline">
+              <Link href="/connectivity">
+                <Cable className="mr-2 size-4" />
+                Connectivity
+              </Link>
+            </Button>
             <Button asChild variant="outline">
               <Link
                 href="/models"
