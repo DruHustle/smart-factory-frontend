@@ -20,7 +20,9 @@ test("an individual administrator reviews signup roles, rejects requests and han
   await applicant.getByLabel("Email", { exact: true }).fill(email);
   await applicant.getByLabel("Password", { exact: true }).fill(password);
   await applicant.getByRole("button", { name: /^sign in$/i }).click();
-  await expect(applicant.getByText("Invalid email or password")).toBeVisible();
+  await expect(applicant.getByRole("alert")).toContainText(
+    "awaiting administrator approval",
+  );
 
   const rejected = await browser.newPage();
   const rejectedEmail = "rejected-applicant@example.test";
@@ -165,6 +167,39 @@ test("an individual administrator reviews signup roles, rejects requests and han
   await recovered.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     recovered.getByRole("heading", { name: "Change your password" }),
+  ).toBeVisible();
+  const chosen = "Synthetic-personally-chosen-2026!";
+  await recovered.getByLabel("New password", { exact: true }).fill(chosen);
+  await recovered.getByLabel("Confirm new password").fill(chosen);
+  await recovered.getByRole("button", { name: "Save password" }).click();
+  await expect(
+    recovered.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  const recoveredSession = await recovered.request.get("/api/trpc/auth.me");
+  expect((await recoveredSession.json()).result.data.json).toMatchObject({
+    email,
+    role: "operator",
+    passwordChangeRequired: false,
+  });
+  // A recovery is complete only after the user's own replacement password can
+  // establish a fresh session and the temporary credential no longer works.
+  await recovered.getByRole("button", { name: "Open account menu" }).click();
+  await recovered.getByRole("menuitem", { name: "Sign out" }).click();
+  await expect(
+    recovered.getByRole("button", { name: /^sign in$/i }),
+  ).toBeVisible();
+  const consumedTemporary = await recovered.request.post(
+    "/api/trpc/auth.login",
+    {
+      data: { json: { email, password: temporary } },
+    },
+  );
+  expect(consumedTemporary.status()).toBe(401);
+  await recovered.getByLabel("Email", { exact: true }).fill(email);
+  await recovered.getByLabel("Password", { exact: true }).fill(chosen);
+  await recovered.getByRole("button", { name: /^sign in$/i }).click();
+  await expect(
+    recovered.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
   await applicant.close();
   await rejected.close();

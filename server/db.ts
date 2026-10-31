@@ -308,7 +308,7 @@ export async function getUserByEmail(email: string) {
     const result = await db
       .select()
       .from(users)
-      .where(sql`lower(${users.email}) = lower(${email})`)
+      .where(sql`lower(${users.email}) = ${email.trim().toLowerCase()}`)
       .limit(1);
     return result[0];
   });

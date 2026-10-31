@@ -15,9 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Factory, Lock, Mail, User, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { userFacingApiError } from "@/lib/errors";
 
 export default function Register() {
   const policy = trpc.auth.registrationPolicy.useQuery();
@@ -31,25 +31,41 @@ export default function Register() {
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    if (new TextEncoder().encode(password).length > 72) {
+      setError(
+        "The password is too long. Use at most 72 UTF-8 bytes; accented characters and emoji can use more than one byte.",
+      );
+      return;
+    }
+    if (name.trim().length < 2 || organization.trim().length < 2) {
+      setError(
+        "Enter a full name and factory or organization of at least two characters each.",
+      );
+      return;
+    }
     setIsLoading(true);
 
     try {
       await request.mutateAsync({
-        email,
+        email: email.trim().toLowerCase(),
         password,
-        name,
-        organization,
-        jobTitle,
+        name: name.trim(),
+        organization: organization.trim(),
+        jobTitle: jobTitle.trim(),
       });
+      setPassword("");
       setSubmitted(true);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to send request. Try again.",
+    } catch (cause) {
+      setError(
+        userFacingApiError(
+          cause,
+          "Your request could not be sent. Check your connection and try again.",
+        ),
       );
     } finally {
       setIsLoading(false);
@@ -64,7 +80,7 @@ export default function Register() {
     );
   if (!policy.data?.enabled)
     return (
-      <main className="mx-auto my-16 max-w-md">
+      <main className="mx-auto my-16 max-w-md px-4">
         <Card>
           <CardHeader>
             <h1 className="text-2xl font-semibold">Account access</h1>
@@ -75,6 +91,14 @@ export default function Register() {
                 ? "Unable to check account registration. Try again shortly."
                 : "Ask your factory administrator to create your account."}
             </p>
+            {policy.error && (
+              <Button
+                onClick={() => void policy.refetch()}
+                disabled={policy.isFetching}
+              >
+                {policy.isFetching ? "Checking…" : "Try again"}
+              </Button>
+            )}
             <Button onClick={() => navigate("/login")}>Back to login</Button>
           </CardContent>
         </Card>
@@ -93,7 +117,25 @@ export default function Register() {
               approval.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This confirmation does not mean your account is active. Ask your
+              factory administrator to review your request in Administration →
+              Users & access. After approval, sign in with the password from your
+              original account request. Submitting the form again does not change
+              that password.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Already had an account? Registration does not change its password.
+              Use{" "}
+              <Link
+                href="/forgot-password"
+                className="text-primary hover:underline"
+              >
+                Forgot password
+              </Link>{" "}
+              to recover access.
+            </p>
             <Button onClick={() => navigate("/login")}>Back to login</Button>
           </CardContent>
         </Card>
@@ -121,7 +163,8 @@ export default function Register() {
 
           {/* Subtitle */}
           <CardDescription className="text-muted-foreground">
-            Enter your details for administrator approval.
+            Enter your details for administrator approval. You can sign in once
+            your request has been approved.
           </CardDescription>
         </CardHeader>
 
@@ -144,6 +187,8 @@ export default function Register() {
                   onChange={(e) => setName(e.target.value)}
                   className="pl-10 bg-background/50 border-white/20 focus:border-primary"
                   required
+                  minLength={2}
+                  maxLength={255}
                 />
               </div>
             </div>
@@ -159,6 +204,9 @@ export default function Register() {
                   id="email"
                   type="email"
                   autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  maxLength={320}
                   placeholder="name@factory.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -207,7 +255,9 @@ export default function Register() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10 bg-background/50 border-white/20 focus:border-primary"
                   minLength={12}
+                  maxLength={72}
                   required
+                  aria-describedby="registration-password-guidance"
                 />
                 <button
                   type="button"
@@ -223,13 +273,21 @@ export default function Register() {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p
+                id="registration-password-guidance"
+                className="text-xs text-muted-foreground"
+              >
                 Use at least 12 characters. Passwords are limited to 72 UTF-8
                 bytes.
               </p>
             </div>
 
             {/* Register Button - Matches Login Page Primary Glow */}
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
             <Button
               type="submit"
               disabled={isLoading}
