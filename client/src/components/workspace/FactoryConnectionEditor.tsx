@@ -7,7 +7,7 @@ import {
   connectionKey, defaultConnectionAppearance, MAX_ROUTE_POINTS,
   readConnectionAppearances, validateConnectionAppearance,
   type ConnectionAppearance, type ConnectionAppearances,
-} from "./factory-connections";
+} from "./factory-connection-settings";
 
 function load(key: string) {
   try {
@@ -109,12 +109,12 @@ export function FactoryConnectionEditor({ links, layout, controller }: {
     set({ points: next });
   };
   return (
-    <details className="floor-secondary min-w-0 border-b px-4 py-2" data-testid="connection-routing">
+    <details className="min-w-0 shrink-0 border-b px-4 py-2" data-testid="connection-routing">
       <summary className="flex cursor-pointer items-center gap-2 text-xs font-medium">
         <Cable className="size-4 shrink-0" aria-hidden="true" />
         3D wires & pipes · {available.length} connections
       </summary>
-      <div className="mt-3 min-w-0 space-y-3">
+      <div className="mt-3 max-h-72 min-w-0 space-y-3 overflow-y-auto pr-1">
         <p className="text-xs text-muted-foreground">
           Illustrative routing, not surveyed pipework or verified wiring. Appearance is saved in this browser for this account and factory/layout; it does not change operational connections or floor-plan lines. Routes are not collision-checked.
         </p>
