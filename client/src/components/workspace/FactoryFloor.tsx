@@ -50,6 +50,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FloorPlan } from "./FactoryFloorPlan";
+import { FactoryConnectionEditor, useConnectionAppearances } from "./FactoryConnectionEditor";
 import { useFloorFullscreen } from "./useFloorFullscreen";
 import { SampleTime, StatusBadge } from "./Primitives";
 import { ObservationValues } from "./ObservationValues";
@@ -110,6 +111,12 @@ export function FactoryFloor({
   const preferenceKey =
     arrangementKey ??
     `smart-factory:floor-arrangement:v1:${user?.id ?? "anonymous"}:${user?.access?.workspaceView ?? (demo ? "demo" : "live")}`;
+  // Visual routing is browser-local and isolated by account, workspace and factory/study.
+  const connectionRoutes = useConnectionAppearances(JSON.stringify([
+    user?.id ?? "anonymous",
+    user?.access?.workspaceView ?? (demo ? "demo" : "live"),
+    arrangementKey ?? layoutDocument?.name ?? "overview",
+  ]));
   const [saved, setSaved] = useState<{ key: string; offsets: FloorOffsets }>(
     () => ({
       key: preferenceKey,
@@ -384,6 +391,7 @@ export function FactoryFloor({
           "Rotate off: hovering stays still. Turn Rotate on to rotate with mouse movement · Scroll or pinch to zoom."}
         {fullscreen.expanded && " · Esc to exit fullscreen."}
       </p>
+      {view === "3d" && <FactoryConnectionEditor links={links} layout={layout} controller={connectionRoutes} />}
       {zone !== "all" && (
         <div
           className="floor-secondary border-b bg-info/5 px-4 py-3"
@@ -473,6 +481,7 @@ export function FactoryFloor({
               <Scene
                 layout={layout}
                 links={links}
+                connectionAppearances={connectionRoutes.values}
                 selected={selected}
                 onSelect={selectOnFloor}
                 dark={theme === "dark"}
