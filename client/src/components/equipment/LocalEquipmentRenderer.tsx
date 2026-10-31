@@ -16,6 +16,7 @@ import { moveCamera } from "./cameraMotion";
 import { hitVisible } from "./visibility";
 import { Button } from "@/components/ui/button";
 import { referencePreview } from "./ModelLoadingPreview";
+import { modelDelivery, verifyBundledModel } from "./modelDelivery";
 import {
   createStudioEnvironment,
   preloadStudioEnvironment,
@@ -265,17 +266,14 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       // Start delivery alongside lighting setup. This retains the same
       // authenticated, same-origin route and 20 MiB admission limit below.
       const responsePromise = (async () => {
-        const url = new URL(props.modelUrl, window.location.origin);
-        if (
-          url.origin !== window.location.origin ||
-          !url.pathname.startsWith("/api/equipment/")
-        )
-          throw new Error(
-            "Model must use authorized Smart Factory file delivery",
-          );
+        const { url } = modelDelivery(props.modelUrl, window.location.origin);
         mark("downloadStarted");
         setLoadPhase("Downloading 3D model");
-        return fetch(url, { credentials: "same-origin", signal: abort.signal });
+        return fetch(url, {
+          credentials: "same-origin",
+          redirect: "error",
+          signal: abort.signal,
+        });
       })();
       void responsePromise.catch(() => {});
       renderer.localClippingEnabled = true;
@@ -643,6 +641,12 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             bytes.set(c, offset);
             offset += c.length;
           });
+          const { bundled } = modelDelivery(
+            props.modelUrl,
+            window.location.origin,
+          );
+          if (bundled) await verifyBundledModel(bytes, bundled);
+          if (disposed) return;
           const loader = new GLTFLoader();
           loader.manager.setURLModifier((resource) => {
             if (resource.startsWith("blob:")) return resource;
@@ -1060,7 +1064,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         />
         {state !== "ready" && (
           <>
-            {state === "loading" && poster && (
+            {poster && (
               <img
                 src={poster}
                 alt=""
@@ -1069,7 +1073,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
                 decoding="async"
               />
             )}
-            {state === "loading" && poster && (
+            {poster && (
               <img
                 src={referencePreview(props.modelRevision, true)}
                 alt=""
@@ -1080,7 +1084,7 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
             )}
             <div
               className={
-                state === "loading" && poster
+                poster
                   ? "absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-3 bg-background/90 px-3 py-2 text-center text-xs"
                   : "absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/95 p-5 text-center text-sm"
               }

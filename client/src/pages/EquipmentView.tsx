@@ -54,6 +54,22 @@ export default function EquipmentView({
     enabled: !embedded,
   });
   const [modelRevision, setModelRevision] = useState("");
+  const requestedModel = new URLSearchParams(
+    hashLocation.split("?")[1] ?? "",
+  ).get("modelRevision");
+  const appliedModel = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !embedded &&
+      writable &&
+      requestedModel &&
+      appliedModel.current !== requestedModel &&
+      models.data?.imported.some((model) => model.id === requestedModel)
+    ) {
+      setModelRevision(requestedModel);
+      appliedModel.current = requestedModel;
+    }
+  }, [embedded, writable, requestedModel, models.data]);
   const selectedTemplate = trpc.equipment.bindingTemplate.useQuery(
     { revision: modelRevision },
     { enabled: !embedded && writable && !!modelRevision },

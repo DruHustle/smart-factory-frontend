@@ -1,3 +1,4 @@
+import { industrialPreview } from "@shared/industrial-assets";
 import pumpPreview from "@/assets/equipment/pump-preview.webp";
 import piPreview from "@/assets/equipment/pi-preview.webp";
 import pumpPreviewDark from "@/assets/equipment/pump-preview-dark.webp";
@@ -25,7 +26,9 @@ const previews: Record<string, readonly [string, string]> = {
 
 /** These are rendered previews of these exact public reference revisions. */
 export function referencePreview(revision?: string, dark = false) {
-  return revision ? previews[revision]?.[dark ? 1 : 0] : undefined;
+  return revision
+    ? (previews[revision]?.[dark ? 1 : 0] ?? industrialPreview(revision))
+    : undefined;
 }
 
 export default function ModelLoadingPreview({
