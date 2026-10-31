@@ -694,6 +694,7 @@ test("enabled Rotate follows mouse movement without grabbing, stops at rest and 
   await page.mouse.move(bounds.x - 10, bounds.y + 80);
   await page.mouse.move(bounds.x + bounds.width - 20, bounds.y + 80);
   expect(await view()).toEqual(rotated); // Re-entering at a distant point cannot jump.
+  await canvas.focus();
   await page.keyboard.down("Space");
   await page.mouse.move(bounds.x + bounds.width - 100, bounds.y + 120, {
     steps: 8,
