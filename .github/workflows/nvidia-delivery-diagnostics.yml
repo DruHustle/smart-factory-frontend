@@ -1,0 +1,60 @@
+name: NVIDIA delivery diagnostics
+on:
+  push:
+    branches: [verify/nvidia-production-8ec2feb]
+    paths: ['.github/workflows/nvidia-delivery-diagnostics.yml']
+permissions: { contents: read }
+defaults:
+  run: { shell: bash }
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { ref: 8ec2febe13977fc73cfa07ea1549857865b49d69, persist-credentials: false }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: 22 }
+      - name: Compare public deployed files to immutable source without credentials or writes
+        run: |
+          mkdir -p test-results/nvidia-delivery
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const dir='test-results/nvidia-delivery';
+          const origin='https://smart-factory-iot-app.vercel.app';
+          const catalog=JSON.parse(fs.readFileSync('shared/industrial-assets.catalog.json','utf8'));
+          const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+          const results=[];
+          for(const asset of catalog.assets) {
+            const paths=[...Object.values(asset.models).map(m=>m.url),asset.previewUrl,asset.licenseFileUrl,asset.sourceReceiptUrl];
+            for(const path of paths) {
+              const expected=fs.readFileSync('client/public'+path);
+              for(const variant of ['default','identity']) {
+                const headers={'cache-control':'no-cache','accept':'*/*'};
+                if(variant==='identity')headers['accept-encoding']='identity';
+                const url=origin+path+(variant==='identity'?'?delivery_check=8ec2feb':'');
+                try {
+                  const response=await fetch(url,{headers,redirect:'error',credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(20000)});
+                  const chunks=[];let size=0;
+                  const reader=response.body.getReader();
+                  while(true){const x=await reader.read();if(x.done)break;size+=x.value.length;if(size>21*1024*1024){await reader.cancel();throw Error('Response byte budget exceeded');}chunks.push(x.value);}
+                  const bytes=Buffer.concat(chunks);
+                  const selected={};for(const name of ['content-type','content-length','content-encoding','etag','x-vercel-cache','age','cache-control','vary'])selected[name]=response.headers.get(name);
+                  const row={path,variant,status:response.status,headers:selected,expectedBytes:expected.length,actualBytes:bytes.length,expectedSha256:sha(expected),actualSha256:sha(bytes),prefixHex:bytes.subarray(0,40).toString('hex'),matches:bytes.equals(expected)};
+                  results.push(row);console.log(JSON.stringify(row));
+                  if(!row.matches)fs.writeFileSync(dir+'/'+asset.slug+'-'+path.split('/').at(-1)+'-'+variant+'.response',bytes);
+                }catch(error){const row={path,variant,error:String(error)};results.push(row);console.log(JSON.stringify(row));}
+              }
+            }
+          }
+          const release=await fetch(origin+'/release.json?delivery_check=8ec2feb',{credentials:'omit',redirect:'error',signal:AbortSignal.timeout(15000)});
+          fs.writeFileSync(dir+'/release.json',await release.text());
+          fs.writeFileSync(dir+'/diagnostics.json',JSON.stringify(results,null,2)+'\n');
+          JS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: nvidia-delivery-diagnostics
+          path: test-results/nvidia-delivery/
+          retention-days: 7
