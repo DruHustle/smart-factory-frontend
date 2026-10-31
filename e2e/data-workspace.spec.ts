@@ -443,9 +443,10 @@ for (const width of [390, 1440]) {
       page.getByRole("heading", { name: "Request an account", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText("Enter your details for administrator approval.", {
-        exact: true,
-      }),
+      page.getByText(
+        "Enter your details for administrator approval. You can sign in once your request has been approved.",
+        { exact: true },
+      ),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Request approval", exact: true }),
