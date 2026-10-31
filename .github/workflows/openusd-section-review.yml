@@ -20,54 +20,45 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - name: Enable visual sections without fabricating solid caps and strengthen release evidence
+      - name: Associate the model selector with an unambiguous accessible label
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('client/src/components/equipment/LocalEquipmentRenderer.tsx'); s=p.read_text()
-          old='{props.components.some((c) => c.solid) ? (\n              <>\n                <label>\n                  Section axis'
-          new='{props.components.length > 0 ? (\n              <>\n                {!props.components.some((c) => c.solid) && (<p className="text-xs text-muted-foreground">Visual section only. Solid section caps unavailable for this model.</p>)}\n                <label>\n                  Section axis'
-          assert s.count(old)==1
-          p.write_text(s.replace(old,new))
-          p=Path('scripts/verify-release.mts'); s=p.read_text()
-          assert 'verifyIndustrialRelease' not in s
-          old='console.log(`Verified frontend ${expected} at ${origin.origin}`);'
-          assert s.count(old)==1
-          s='import { verifyIndustrialRelease } from "./industrial-release";\n'+s
-          p.write_text(s.replace(old,'const assets = await verifyIndustrialRelease(origin);\nconsole.log(JSON.stringify({ industrialAssets: assets }, null, 2));\n'+old))
-          p=Path('scripts/equipment/qualify-openusd.mjs'); s=p.read_text()
-          old='        await page\n          .getByRole("button", { name: "Restore assembly", exact: true })\n          .click();'
-          new='        await expect(page.getByText("Visual section only. Solid section caps unavailable for this model.")).toBeVisible();\n        await page.waitForFunction(() => {\n          const diagnostics = JSON.parse(document.querySelector("[data-inspection]")?.getAttribute("data-inspection") || "{}");\n          return diagnostics.section === "X" && diagnostics.caps === 0;\n        });\n'+old
-          assert s.count(old)==1
-          s=s.replace(old,new)
-          old='} finally {\n  await writeFile('
-          new='} catch (error) {\n  const page = browser.contexts().at(-1)?.pages().at(-1);\n  if (page) {\n    await page.screenshot({ path: `${directory}/failure.png`, fullPage: true }).catch(() => {});\n    await writeFile(`${directory}/failure.html`, await page.content()).catch(() => {});\n  }\n  await writeFile(`${directory}/failure.txt`, String(error.stack || error));\n  throw error;\n} finally {\n  await writeFile('
-          assert s.count(old)==1
-          p.write_text(s.replace(old,new))
-          p=Path('docs/openusd-industrial-library.md')
-          p.write_text(p.read_text()+'\nAfter deployment, the existing release verifier checks all six GLBs and every preview, license and provenance receipt against the exact qualified checkout. Missing, truncated, altered or HTML-fallback asset responses fail release verification. These checks are read-only and send no account credentials.\n')
+          p=Path('client/src/pages/EquipmentView.tsx'); s=p.read_text()
+          if 'id="local-model-template"' not in s:
+              old='                <label className="text-sm">\n                  Local model/template\n                  <select'
+              new='                <div className="text-sm">\n                  <label htmlFor="local-model-template">Local model/template</label>\n                  <select\n                    id="local-model-template"'
+              assert s.count(old)==1
+              s=s.replace(old,new)
+              old='                  </select>\n                </label>\n                {modelRevision && selectedTemplate.error && ('
+              new='                  </select>\n                </div>\n                {modelRevision && selectedTemplate.error && ('
+              assert s.count(old)==1
+              p.write_text(s.replace(old,new))
           PY
-          pnpm exec prettier --write client/src/components/equipment/LocalEquipmentRenderer.tsx scripts/verify-release.mts scripts/industrial-release.ts server/equipment/industrial-release.test.ts scripts/equipment/qualify-openusd.mjs docs/openusd-industrial-library.md
+          pnpm exec prettier --write client/src/pages/EquipmentView.tsx
       - name: Type and regression checks
         run: |
           pnpm check
+          python3 -m unittest discover -s scripts/equipment/openusd -p 'test_*.py' -v
           pnpm exec vitest run server/equipment/openusd.test.ts server/equipment/industrial-release.test.ts server/equipment/inspection.test.ts
-      - name: Retain the exact reviewed source changes on the isolated branch
+      - name: Retain source changes on the isolated branch
         env: { EXPECTED: '${{ github.sha }}' }
         run: |
           remote=$(git ls-remote origin refs/heads/feat/openusd-section-qualification | cut -f1)
           [[ "$remote" == "$EXPECTED" ]] || { echo 'Branch advanced; refusing to overwrite work.'; exit 1; }
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add client/src/components/equipment/LocalEquipmentRenderer.tsx scripts/verify-release.mts scripts/industrial-release.ts server/equipment/industrial-release.test.ts scripts/equipment/qualify-openusd.mjs docs/openusd-industrial-library.md
-          git commit -m 'Enable honest visual sections and verify every deployed NVIDIA asset byte'
-          git push origin HEAD:refs/heads/feat/openusd-section-qualification
+          git add client/src/pages/EquipmentView.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m 'Associate the imported-model selector with its accessible label'
+            git push origin HEAD:refs/heads/feat/openusd-section-qualification
+          fi
       - name: Install browser engines
         run: pnpm exec playwright install --with-deps chromium firefox webkit
-      - name: Qualify actual NVIDIA geometry and browser failure behavior
-        run: node scripts/equipment/qualify-openusd.mjs
       - name: Qualify authenticated import and persistent equipment views
         run: pnpm e2e:equipment --grep NVIDIA
+      - name: Qualify actual NVIDIA geometry and browser failure behavior
+        run: node scripts/equipment/qualify-openusd.mjs
       - name: Retain visual and end-to-end evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
