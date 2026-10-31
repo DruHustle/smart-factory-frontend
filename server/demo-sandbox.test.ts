@@ -40,6 +40,31 @@ describe("editable browser demo boundaries and workflows", () => {
     expect(first.id).not.toBe(second.id);
     expect(edited.items[0].custom).toBe(true);
   });
+  it("keeps retained server evidence for an untouched reference copy and captures local edits", () => {
+    const reference = seedDemoSandbox(
+      sandboxInventory(seeded()).map((item) => ({ ...item, isDemo: true })),
+    );
+    expect(reference.items).toHaveLength(1);
+    expect(reference.items[0].custom).toBe(false);
+    expect(
+      buildDemoAssistantContext(
+        reference,
+        "Why does My pump need attention?",
+        [],
+      ),
+    ).toBeUndefined();
+    const edited = applySandboxAction(reference, "operator", {
+      type: "sample",
+      ref: reference.items[0].ref,
+      metric: "temperature",
+      value: 85,
+    });
+    expect(
+      buildDemoAssistantContext(edited, "What is My pump temperature?", [])
+        ?.items[0].samples,
+    ).toMatchObject([{ metric: "temperature", value: 85, unit: "°C" }]);
+    expect(reference.audit).toEqual([]);
+  });
   it("persists validated changes and resets to a separate reference workspace", () => {
     const s = seeded();
     expect(demoSandbox.parse(JSON.parse(JSON.stringify(s)))).toEqual(s);

@@ -12,6 +12,15 @@ export function buildDemoAssistantContext(
 ) {
   const plan = planAssistantConversation(question, history, selectedAssetId);
   if (!s || !plan.includeEvidence) return undefined;
+  // The factory picker also initializes a reference copy. Its latest samples
+  // cannot replace the server's retained measurements, incidents and models.
+  // A selected factory or an edited simulation supplies its own bounded context.
+  if (
+    !factoryId &&
+    s.audit.length === 0 &&
+    !s.items.some((item) => item.custom)
+  )
+    return undefined;
   const factory = factoryId
     ? s.factories.find((f) => f.id === factoryId)
     : null;
