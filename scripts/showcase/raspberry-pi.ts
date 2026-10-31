@@ -36,6 +36,7 @@ export async function addRaspberryPiShowcase(
       serialNumber: "SIM-RPI-4B-01",
       kind: "simulated",
       templateRevision: t.revision,
+      zone: "Showcase",
     },
     0,
     {

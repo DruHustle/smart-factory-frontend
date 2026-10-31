@@ -9,6 +9,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getAssetRecordById, getDb, type Asset } from "./db";
 import { demoOnlyRead } from "./demoData";
+import { demoAasIdentity } from "../shared/demo-aas";
 export const passportField = z.enum(
   Object.keys(passportFields) as [
     keyof typeof passportFields,
@@ -58,15 +59,38 @@ async function database() {
 export async function previewPassport(id: number) {
   const asset = await getAssetRecordById(id);
   if (!asset || (demoOnlyRead() && !asset.isDemo)) throw missing();
+  const demo =
+    asset.isDemo && !asset.aasxImported
+      ? demoAasIdentity({
+          ...asset,
+          assetId: asset.assetId || `urn:smart-factory:demo:preview:${id}`,
+        })
+      : undefined;
   return {
     ...document(
-      asset,
+      demo ? { ...asset, ...demo } : asset,
       Object.keys(passportFields) as (keyof typeof passportFields)[],
       "",
     ),
     assetVersion: asset.aasVersion,
     assetId: asset.id,
     isDemo: asset.isDemo,
+    authoredDemo: !!demo,
+    // Explicit identity allowlist only. Connection metadata and unreviewed
+    // vendor documents never enter a portable demonstration passport.
+    ...(demo
+      ? {
+          demoIdentity: {
+            assetId: demo.assetId,
+            name: demo.name,
+            assetType: demo.assetType,
+            manufacturer: demo.manufacturer,
+            model: demo.model,
+            serialNumber: demo.serialNumber,
+            zone: demo.zone,
+          },
+        }
+      : {}),
   };
 }
 export async function publishPassport(

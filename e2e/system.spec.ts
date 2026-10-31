@@ -705,12 +705,23 @@ test("admin can inspect demo AAS data and manage user access", async ({
   await expect(
     page.getByRole("heading", { name: "AAS submodels" }),
   ).toBeVisible();
-  await page.locator("summary").getByText("Nameplate", { exact: true }).click();
+  const nameplate = page.locator("details").filter({
+    has: page.locator("summary").getByText("Nameplate", { exact: true }),
+  });
+  await nameplate.locator(":scope > summary").click();
+  // Authored examples expose an explicitly fictional demonstration contact,
+  // never an invented postal address presented as the manufacturer's contact.
   await expect(
-    page
-      .getByText(/Industrial Road 1/)
-      .filter({ visible: true })
-      .first(),
+    nameplate.getByText("Smart Factory demonstration team", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    nameplate.getByText("Example Street 1", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    nameplate.getByText(
+      "Supplied labels are preserved; manufacturer identity and specifications have not been independently verified.",
+      { exact: true },
+    ),
   ).toBeVisible();
   await page.getByRole("tab", { name: "Overview", exact: true }).click();
   await expect(
@@ -719,9 +730,43 @@ test("admin can inspect demo AAS data and manage user access", async ({
   await page.getByRole("tab", { name: "AAS & submodels", exact: true }).click();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: /export aas json/i }).click();
-  expect((await download).suggestedFilename()).toMatch(
-    /aas-environment\.json$/,
+  const aasDownload = await download;
+  expect(aasDownload.suggestedFilename()).toMatch(/aas-environment\.json$/);
+  const environment = JSON.parse(
+    await readFile(await aasDownload.path(), "utf8"),
   );
+  expect(
+    environment.assetAdministrationShells[0].assetInformation.globalAssetId,
+  ).toBe("urn:demo:asset:compressor-01");
+  expect(
+    environment.submodels.map(
+      (submodel: { idShort: string }) => submodel.idShort,
+    ),
+  ).toEqual([
+    "Nameplate",
+    "TechnicalData",
+    "HandoverDocumentation",
+    "Maintenance",
+    "MaterialComposition",
+    "Circularity",
+    "SoftwareAndFirmware",
+    "BillOfMaterials",
+    "OperationalData",
+    "DigitalProductPassport",
+    "CarbonFootprint",
+  ]);
+  const submodelIds = new Set(
+    environment.submodels.map((submodel: { id: string }) => submodel.id),
+  );
+  const references = environment.assetAdministrationShells[0].submodels;
+  expect(references).toHaveLength(11);
+  for (const reference of references) {
+    expect(reference.type).toBe("ModelReference");
+    expect(submodelIds.has(reference.keys[0].value)).toBe(true);
+  }
+  for (const submodel of environment.submodels)
+    expect(submodel.submodelElements.length).toBeGreaterThan(0);
+  expect(environment.conceptDescriptions.length).toBeGreaterThan(0);
 });
 
 test("individual administrator registers, versions, restores and imports AAS assets", async ({

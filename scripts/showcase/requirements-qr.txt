@@ -1,0 +1,3 @@
+# Test-only independent decoding of rendered passport QR pixels.
+zxing-cpp==2.3.0
+Pillow==12.3.0

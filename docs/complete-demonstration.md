@@ -6,6 +6,12 @@ Named factories can be created from Overview, populated with measured equipment/
 
 The [editable demo](editable-demo.md) lets each visitor create and reset simulated equipment, telemetry, incidents and administrative workflows in their own browser. [Factory layouts](factory-layouts.md) can be designed, saved and reopened. The shared reference dataset remains protected.
 
+[Digital passports and complete AAS models](demo-passports-and-aas.md) restore the
+printable QR nameplate and give every authored demo family eleven populated
+submodels, embedded documents, component references, engineering units and
+consistent material/lifecycle data. The demo QR opens the selected synthetic
+identity on another device without publishing operational information.
+
 The explicit showcase provides fifteen linked chapters through **Demo guide**. It uses authored simulation and historical replay; it never asserts that physical equipment is receiving or moving. The acquisition window stays fixed and is displayed on charts, so the demonstration remains useful without rewriting timestamps as time passes.
 
 | Area                         | Demonstration                                                                                                                                            |

@@ -76,6 +76,69 @@ it("keeps filtering analytics across navigation and delayed recovery events", as
   ).toBeNull();
 });
 
+it("keeps a persistent analytics callback private across ordinary to demo to ordinary navigation", async () => {
+  const { link, navigate } = await fixture("#/inventory");
+  // Retain the same callback, as the injected analytics script does after its
+  // React component unmounts for the standalone demonstration route.
+  const beforeSend = link.filterPasswordRecoveryAnalytics;
+  const normal = {
+    url: "https://factory.example/#/inventory",
+    type: "pageview",
+  };
+  const queuedDemo = {
+    url: "https://factory.example/#/passport/demo/encoded-demo-identity",
+    type: "pageview",
+  };
+  expect(beforeSend(normal)).toBe(normal);
+  navigate("#/passport/demo/encoded-demo-identity");
+  expect(beforeSend(normal)).toBeNull();
+  expect(beforeSend(queuedDemo)).toBeNull();
+  navigate("#/inventory");
+  expect(beforeSend(queuedDemo)).toBeNull();
+  expect(beforeSend(normal)).toBe(normal);
+});
+
+it.each([
+  "https://factory.example/#/passport/demo/encoded-demo-identity?view=print",
+  "https://factory.example/passport/demo/encoded-demo-identity",
+  "/passport/demo/encoded-demo-identity?view=print",
+  "#/passport/demo/encoded-demo-identity",
+  "https://factory.example/application/#/passport/demo/encoded-demo-identity",
+  "https://factory.example/#/passport/demo",
+])(
+  "suppresses a stale demo passport event URL after navigation: %s",
+  async (url) => {
+    const { link } = await fixture("#/inventory");
+    expect(
+      link.filterPasswordRecoveryAnalytics({ url, type: "pageview" }),
+    ).toBeNull();
+  },
+);
+
+it("also suppresses current pathname-based demo URLs even when event metadata omits the identity", async () => {
+  const { link } = await fixture("passport/demo/encoded-demo-identity");
+  expect(
+    link.filterPasswordRecoveryAnalytics({
+      url: "https://factory.example/",
+      type: "pageview",
+    }),
+  ).toBeNull();
+});
+
+it.each([
+  "https://factory.example/#/passport/published/approved-public-snapshot",
+  "https://factory.example/#/passport/7",
+  "https://factory.example/#/inventory",
+  "https://factory.example/#/passport/demonstration",
+])(
+  "preserves ordinary and explicitly published passport analytics: %s",
+  async (url) => {
+    const { link } = await fixture("#/inventory");
+    const event = { url, type: "pageview" };
+    expect(link.filterPasswordRecoveryAnalytics(event)).toBe(event);
+  },
+);
+
 it("redacts malformed recovery links without accepting their credentials", async () => {
   const { link, current } = await fixture(
     "#/reset-password?token=malformed&tracking=ignored",

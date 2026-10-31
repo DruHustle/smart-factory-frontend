@@ -7,6 +7,7 @@ import { useWorkspaceLocation } from "@/lib/hashLocation";
 import { Button } from "@/components/ui/button";
 import { PageHeader, EmptyState } from "@/components/workspace/Primitives";
 import { FactoryFloor } from "@/components/workspace/FactoryFloor";
+import { DemoPassportContent } from "@/components/DemoPassportContent";
 import { DEMO_ACCOUNTS } from "@shared/demo-accounts";
 import { canonicalUnits, metrics, type Metric } from "@shared/measurements";
 import {
@@ -417,9 +418,9 @@ export default function DemoSandbox() {
               </Button>
             </fieldset>
             <p className="text-xs text-muted-foreground">
-              The sample import demonstrates creation from reviewed example
-              identity fields. It does not upload or publish a private AAS
-              package.
+              The sample import creates a complete authored AAS example with
+              populated submodels and a downloadable JSON model. It does not
+              upload or publish a private AAS package.
             </p>
           </section>
           <section className="space-y-3 rounded-lg border bg-card p-4">
@@ -1053,37 +1054,20 @@ export default function DemoSandbox() {
             </Button>
           </div>
           {item && (
-            <article
-              id="demo-passport-print"
-              className="space-y-4 rounded-lg border bg-card p-6"
-            >
-              <p className="text-xs uppercase tracking-wider">
-                Digital product passport · simulated demonstration
-              </p>
-              <h1 className="text-2xl font-semibold">{item.name}</h1>
-              <dl className="grid gap-3 sm:grid-cols-2">
-                {Object.entries({
-                  "Product type": item.itemType,
-                  Manufacturer: item.manufacturer,
-                  Model: item.model,
-                  "Serial number": item.serial,
-                  "Layout zone": item.zone ?? "Unassigned",
-                  Evidence: "Authored browser simulation",
-                }).map(([label, value]) => (
-                  <div key={label} className="border-b pb-2">
-                    <dt className="text-xs text-muted-foreground">{label}</dt>
-                    <dd className="break-words font-medium">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="text-sm">
-                Voluntary prototype passport. This demonstration is not evidence
-                of product conformity or a published manufacturer passport. No
-                asset-specific repair or end-of-life guidance has been reviewed.
-              </p>
-            </article>
+            <DemoPassportContent
+              printId="demo-passport-print"
+              identity={{
+                assetId: item.identifier,
+                name: item.name,
+                assetType: item.itemType,
+                manufacturer: item.manufacturer,
+                model: item.model,
+                serialNumber: item.serial,
+                zone: item.zone,
+              }}
+            />
           )}
-          <style>{`@media print {body:has(#demo-passport-print) *:not(:has(#demo-passport-print)):not(#demo-passport-print):not(#demo-passport-print *){display:none!important}body:has(#demo-passport-print) :has(#demo-passport-print){display:contents!important}#demo-passport-print{position:static;width:100%;margin:0;border:0;padding:20pt;background:white!important;color:black!important}#demo-passport-print *{color:black!important}}`}</style>
+          <style>{`@media print {body:has(#demo-passport-print) *:not(:has(#demo-passport-print)):not(#demo-passport-print):not(#demo-passport-print *){display:none!important}body:has(#demo-passport-print) :has(#demo-passport-print){display:contents!important}#demo-passport-print{position:static;width:100%;margin:0;border:0;padding:20pt;background:white!important;color:black!important}#demo-passport-print *{color:black!important}#demo-passport-print .print\\:hidden{display:none!important}}`}</style>
         </section>
       )}
     </div>

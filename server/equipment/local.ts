@@ -16,6 +16,7 @@ import { getDb, ingestTelemetryByDeviceId } from "../db";
 import { assets, devices, assetDevices } from "../../drizzle/schema";
 import { visibleRecordSql } from "../demoData";
 import { factoryModels, referenceModels } from "../../shared/factory-models";
+import { buildDemoAasDocuments, demoAasIdentity } from "../../shared/demo-aas";
 const root = new URL("../../fixtures/equipment/", import.meta.url);
 const componentSchema = component.extend({ installedComponentId: z.uuid() });
 const viewerStateSchema = z
@@ -144,6 +145,7 @@ export async function createEquipment(
     templateRevision: string;
     existingAssetId?: number;
     sourceBindings?: z.infer<typeof localBindingSchema>[];
+    zone?: string;
   },
   actor: number,
   fixed?: {
@@ -160,6 +162,25 @@ export async function createEquipment(
   const db = await database();
   const id = fixed?.id ?? randomUUID(),
     externalAssetId = fixed?.assetId ?? "urn:smart-factory:equipment:" + id;
+  const demoIdentity = fixed?.isDemo
+    ? demoAasIdentity({
+        assetId: externalAssetId,
+        name: input.name,
+        assetType:
+          t.assetType ??
+          (t.revision === raspberryPiRevision
+            ? "gateway"
+            : t.revision.startsWith("local-import:")
+              ? "other"
+              : "pump"),
+        model: t.name,
+        serialNumber: input.serialNumber,
+        zone: input.zone,
+      })
+    : undefined;
+  const demoAas = demoIdentity
+    ? buildDemoAasDocuments(demoIdentity)
+    : undefined;
   if (
     input.existingAssetId &&
     (!input.sourceBindings?.length ||
@@ -219,7 +240,7 @@ export async function createEquipment(
                   ? "Locally imported model"
                   : "Illustrative pump/motor"),
             isDemo: fixed?.isDemo ?? false,
-            aasShell: {
+            aasShell: demoAas?.shell ?? {
               modelType: "AssetAdministrationShell",
               id: "urn:smart-factory:aas:" + id,
               assetInformation: {
@@ -234,6 +255,13 @@ export async function createEquipment(
                       : "urn:smart-factory:type:pump-motor-v1"),
               },
             },
+            ...(demoIdentity && demoAas
+              ? {
+                  ...demoIdentity,
+                  aasSubmodels: demoAas.submodels,
+                  aasConceptDescriptions: demoAas.conceptDescriptions,
+                }
+              : {}),
           })
           .onConflictDoUpdate({
             target: assets.assetId,

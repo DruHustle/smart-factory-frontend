@@ -80,6 +80,8 @@ jobs:
           python -m venv "$RUNNER_TEMP/onesa-aas"
           "$RUNNER_TEMP/onesa-aas/bin/pip" install -r scripts/equipment/requirements-aas.txt
           "$RUNNER_TEMP/onesa-aas/bin/python" scripts/equipment/validate-artifacts.py
+          node --import tsx scripts/showcase/export-aas.ts "$RUNNER_TEMP/demo-aas"
+          "$RUNNER_TEMP/onesa-aas/bin/python" scripts/showcase/validate-aas.py "$RUNNER_TEMP/demo-aas"
 
       - name: Type Check
         run: pnpm check
@@ -93,6 +95,11 @@ jobs:
 
       - name: Install Playwright Browsers
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Verify passport QR pixels, complete AAS download and privacy
+        run: |
+          "$RUNNER_TEMP/onesa-aas/bin/pip" install -r scripts/showcase/requirements-qr.txt
+          QR_DECODER_PYTHON="$RUNNER_TEMP/onesa-aas/bin/python" pnpm exec playwright test --config=playwright.passport.config.ts
 
       - name: Run E2E Smoke Tests
         env: { E2E_PORT: "3100" }

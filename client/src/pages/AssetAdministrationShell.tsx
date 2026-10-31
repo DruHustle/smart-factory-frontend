@@ -1,4 +1,6 @@
 import { currentSample } from "@shared/measurements";
+import { authoredDemoAas } from "@shared/demo-asset-projection";
+import { demoPassportPath } from "@shared/demo-passport";
 import { metrics, type Metric } from "@shared/measurements";
 import {
   ObservationTrend,
@@ -226,9 +228,11 @@ export default function AssetAdministrationShell({
     { id: assetId },
     { enabled: allowed && Number.isFinite(assetId) },
   );
+  const demoDocuments = useMemo(() => authoredDemoAas(asset), [asset]);
   const aasReady =
     !!asset &&
-    (asset.aasxImported ||
+    (!!demoDocuments ||
+      asset.aasxImported ||
       [
         asset.manufacturer,
         asset.model,
@@ -246,10 +250,11 @@ export default function AssetAdministrationShell({
         allowed &&
         Number.isFinite(assetId) &&
         aasReady &&
+        !demoDocuments &&
         ["aas", "overview"].includes(section),
     },
   );
-  const shellData = shellQuery.data;
+  const shellData = demoDocuments ?? shellQuery.data;
   const { data: events } = trpc.assets.getLifecycle.useQuery(
     { id: assetId },
     { enabled: allowed && Number.isFinite(assetId) && section === "activity" },
@@ -389,7 +394,13 @@ export default function AssetAdministrationShell({
 
   const exportAas = async () => {
     try {
-      const environment = await utils.assets.exportAas.fetch({ id: assetId });
+      const environment = demoDocuments
+        ? {
+            assetAdministrationShells: [demoDocuments.shell],
+            submodels: demoDocuments.submodels,
+            conceptDescriptions: demoDocuments.conceptDescriptions,
+          }
+        : await utils.assets.exportAas.fetch({ id: assetId });
       if (!environment) throw new Error("AAS was not found");
       const url = URL.createObjectURL(
         new Blob([JSON.stringify(environment, null, 2)], {
@@ -433,6 +444,27 @@ export default function AssetAdministrationShell({
   };
 
   const openPassportPrint = () => {
+    let passportPath = `/passport/${assetId}`;
+    if (demoDocuments && asset) {
+      try {
+        passportPath = demoPassportPath({
+          assetId: asset.assetId,
+          name: asset.name,
+          assetType: asset.assetType,
+          manufacturer: asset.manufacturer ?? "",
+          model: asset.model ?? "",
+          serialNumber: asset.serialNumber ?? "",
+          zone: asset.zone,
+        });
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Could not create the demo passport link",
+        );
+        return;
+      }
+    }
     const popup = window.open("", "_blank");
     if (!popup) {
       toast.error("Print preview was blocked", {
@@ -442,7 +474,7 @@ export default function AssetAdministrationShell({
       return;
     }
     popup.opener = null;
-    popup.location.href = `?print=1#/passport/${assetId}`;
+    popup.location.href = `?print=1#${passportPath}`;
   };
 
   const sendArmCommand = (command: Ada031Command) => {
@@ -643,8 +675,9 @@ export default function AssetAdministrationShell({
                 role="status"
                 className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm"
               >
-                <strong>Simulated engineering data.</strong> This shell is
-                served by the API demo scenario. Lifecycle changes are disabled
+                <strong>Simulated engineering data.</strong> This complete
+                demonstration model uses the selected asset's identity and
+                authored example specifications. Lifecycle changes are disabled
                 for demo assets.
               </div>
             )}
@@ -886,8 +919,9 @@ export default function AssetAdministrationShell({
                     Concept descriptions
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Imported concept metadata, shown from the package without
-                    replacing source definitions.
+                    {demoDocuments
+                      ? "Definitions and engineering units for the demonstration model."
+                      : "Imported concept metadata, shown from the package without replacing source definitions."}
                   </p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
