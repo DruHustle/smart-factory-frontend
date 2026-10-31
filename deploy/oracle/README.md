@@ -48,7 +48,7 @@ The qualified rollback sources are pinned in [rollback-sources.json](../rollback
 The pinned API rollback records the API source observed in production on 31 October 2026, paired
 with its deployed backend and edge revisions. Its frontend repository source identifies the API bundle,
 not the separate Vercel UI artifact. The prior UI source observed at that time was
-`007340d18e2833acda34c8e3c80002ae9b7ae1d8`; retain that artifact separately. Qualify the pinned API rollback against additive
+`007340d18e2833acda34c8e3c80002ae9b7ae1d8`; retain that artifact separately. Capture `/release.json` again at cutover and retain the actual current UI artifact if it has advanced. Qualify the pinned API rollback against additive
 `0035_industrial_connectivity` and the nullable backend connectivity column in a disposable restore before promoting the candidate. The candidate UI requires `industrial-connectivity-v1` in addition to `account-requests-v1`, `account-role-approval-v1` and `password-reset-v1`; the live API and matching worker must support them before frontend promotion. Set the same non-secret `PASSWORD_RESET_ORIGIN` to the canonical frontend origin on the API and worker. Reuse their existing matching `DASHBOARD_SERVICE_TOKEN` and leave SMTP/Resend/SES credentials on the worker. Verify delivery configuration and recipient policy without broadening allowed recipients.
 The pinned backend retains administrator-only infrastructure access, the reduced
 connection budget and authenticated worker receipts. ARM64 qualification retains
@@ -57,6 +57,32 @@ workflow artifact. Inspect the retained manifest for the exact runtime contract;
 do not infer compatibility from a mutable tag or an older deployment record.
 
 Retain the prior Oracle image and Vercel artifact. Stop the candidate worker before starting the prior worker. Validate the prior application's compatibility with the additive database schema and current session/evidence contracts. API-first upgrades remain mandatory. When rollback would remove a capability required by the current frontend, first restore the verified prior frontend while the candidate API still serves it, then restore the qualified API/worker pair. The connectivity frontend requires the new routes and migration; restore the prior frontend before rolling the API back. An API failure before frontend promotion can be recovered directly because the prior frontend is still active. Do not reverse migrations or delete evidence as an application rollback. Restore data only through a separately approved recovery procedure with verified backups.
+
+### Industrial telemetry during rollback
+
+The pinned prior API and worker do not understand `connectivity`. They can strip that field, accept an empty legacy observation and acknowledge it. Additive schema compatibility and a successful HTTP response therefore do not establish industrial-data preservation. The ARM64 rollback smoke qualifies application/schema/session compatibility; it does not qualify the old software to ingest new industrial observations.
+
+If industrial acquisition has been commissioned, use this order:
+
+1. Restore the prior UI while the compatible API remains available. Freeze connectivity edits and probes for the maintenance window.
+2. Stop every affected gateway service and prevent its automatic restart. Preserve its saved configuration, revision and SQLite queue. Verify that no other process is publishing under the affected gateway identities. Do not publish a higher empty/disabled revision as the first step: previously unseen reports buffered under the old revision would then fail revision validation.
+3. Keep the compatible API and singleton worker running while their commissioned MQTT deliveries and industrial outbox drain at the existing revision. Include future retries and quarantined reports in the review. Reconcile reports delivered in this drain with their gateway/event identities in retained `industrial_observation_history`, or protected acceptance evidence when the bounded history has expired; check configuration receipts against applied revision state. A forwarding timestamp alone is insufficient.
+4. Preserve any residual gateway SQLite backlog offline. Record it as held data; the normal gateway runtime has no acquisition-only drain mode. Neither the old nor the new gateway may replay those envelopes into the old consumer. An old gateway version can still forward raw payloads from the shared queue.
+5. Stop the new worker before restoring the prior API/worker pair. Keep the affected gateways stopped for the entire period in which the old services run. Preserve broker sessions, additive schema and all evidence. If any cloud industrial backlog cannot be drained or reconciled, leave the incompatible worker stopped instead of consuming that backlog.
+6. To resume industrial acquisition, restore and verify the compatible API and singleton worker first, then restart gateways with their preserved revision/configuration. Handle held reports before changing configuration.
+
+The following read-only query on the backend telemetry database includes retry-delayed and quarantined industrial records:
+
+```sql
+SELECT
+  count(*) FILTER (WHERE "DashboardForwardedAt" IS NULL
+    AND "DeliveryQuarantinedAt" IS NULL) AS pending,
+  count(*) FILTER (WHERE "DeliveryQuarantinedAt" IS NOT NULL) AS quarantined
+FROM public."TelemetryRecords"
+WHERE "ConnectivityJson" IS NOT NULL;
+```
+
+The broker's relevant delivery backlog must also be reconciled; this SQL query is not a broker-drain check. If an emergency prevents compatible drainage, preserve the queues and hold ingestion. Do not clear forwarding flags or delete dashboard duplicates to force recovery after accidental downgrade delivery: the old API may have stored the original ingestion identity without its industrial content, requiring reviewed reconciliation of both stores.
 
 Historical Render rollback configuration is not an instruction to reactivate Render. A hosting cutover requires its own reviewed plan and approval.
 
