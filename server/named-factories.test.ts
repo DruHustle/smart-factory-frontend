@@ -43,6 +43,18 @@ it("requires a full measured footprint, distinct factory tags and in-bounds rota
   expect(namedFactoryDraft.safeParse(draft).success).toBe(false);
 });
 
+it("does not trust a vendor extension as proof that an imported or registered AAS is unpublished", async () => {
+  const { isPlannedAsset, plannedAssetShell } =
+      await import("./planned-assets"),
+    assetId = "urn:smart-factory:planned:" + crypto.randomUUID(),
+    aasShell = plannedAssetShell(assetId, "Planned pump", "pump");
+  expect(isPlannedAsset({ assetId, aasShell })).toBe(true);
+  expect(isPlannedAsset({ assetId, aasShell, aasxImported: true })).toBe(false);
+  expect(isPlannedAsset({ assetId: "urn:vendor:registered", aasShell })).toBe(
+    false,
+  );
+});
+
 describe.skipIf(!process.env.TEST_DATABASE_URL)(
   "team factories and transactional activity",
   () => {
@@ -345,6 +357,74 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           sql`delete from asset_devices where "deviceId"=${Number(sensor.ref.split(":")[1])}`,
         );
       });
+    });
+    it("removes app-owned standalone 3D inventory without inventing a remote AAS publication", async () => {
+      const { createEquipment, template } = await import("./equipment/local");
+      const created = await createEquipment(
+        {
+          name: "Standalone model fixture",
+          serialNumber: crypto.randomUUID(),
+          kind: "real",
+          templateRevision: (await template()).revision,
+        },
+        engineer.id,
+      );
+      const ref = "equipment:" + created.id,
+        initial = await create();
+      const attached = await caller(engineer).factories.attach({
+        id: initial.id,
+        expectedVersion: initial.version,
+        ref,
+        tag: "CAD-01",
+        dimensions: { width: 2, depth: 2, height: 2 },
+      });
+      const oldUrl = process.env.AAS_PROVISIONING_API_URL,
+        oldToken = process.env.AAS_PROVISIONING_TOKEN;
+      vi.stubEnv("AAS_PROVISIONING_API_URL", "http://127.0.0.1:1/api/assets");
+      vi.stubEnv(
+        "AAS_PROVISIONING_TOKEN",
+        "synthetic-standalone-deletion-service-token",
+      );
+      const remote = vi
+        .spyOn(globalThis, "fetch")
+        .mockRejectedValue(
+          Error("A standalone model must not call remote AAS provisioning"),
+        );
+      try {
+        const result = await caller(admin).factories.deleteItem({
+          id: initial.id,
+          expectedVersion: attached.factory.version,
+          ref,
+        });
+        expect(result.total).toBe(0);
+        expect(remote).not.toHaveBeenCalled();
+        await expect(
+          caller(viewer).inventory.item({ ref }),
+        ).rejects.toMatchObject({ code: "NOT_FOUND" });
+        expect(
+          (
+            await (await getDb())!.execute(
+              sql`select id from equipment_workspaces where id=${created.id}`,
+            )
+          ).length,
+        ).toBe(0);
+        expect(
+          (
+            await caller(viewer).factories.activity.list({
+              factoryId: initial.id,
+            })
+          ).items.some(
+            (e) =>
+              e.action === "inventory.deleted" &&
+              e.targetRef === ref &&
+              e.actorId === admin.id,
+          ),
+        ).toBe(true);
+      } finally {
+        remote.mockRestore();
+        vi.stubEnv("AAS_PROVISIONING_API_URL", oldUrl ?? "");
+        vi.stubEnv("AAS_PROVISIONING_TOKEN", oldToken ?? "");
+      }
     });
     it("deletes only the confirmed factory member and its authoritative inventory record, retaining actor/history", async () => {
       const first = await create(),

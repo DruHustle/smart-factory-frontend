@@ -8,7 +8,10 @@ import {
 import { isPlannedAsset } from "./planned-assets";
 
 /** Shared by the existing inventory delete and the confirmed factory bin action. */
-export async function deleteAssetInventoryRecord(id: number) {
+export async function deleteAssetInventoryRecord(
+  id: number,
+  options?: { localStandalone: boolean },
+) {
   const asset = await db.getAssetRecordById(id);
   if (!asset)
     throw new TRPCError({
@@ -21,8 +24,14 @@ export async function deleteAssetInventoryRecord(id: number) {
       message: "Demo assets are read-only",
     });
   const connections = await db.getAssetConnections(id);
-  if (isPlannedAsset(asset)) {
-    // This record has never been published to the external AAS repository.
+  const shell = asset.aasShell as { id?: unknown } | null;
+  const localModel =
+    options?.localStandalone &&
+    typeof shell?.id === "string" &&
+    shell.id.startsWith("urn:smart-factory:aas:") &&
+    shell.id !== asset.assetId;
+  if (!asset.aasxImported && (isPlannedAsset(asset) || localModel)) {
+    // Planned records and database-verified standalone models are app-owned and unpublished.
   } else if (asset.aasxImported) {
     await removeImportedAasxAsset(asset);
   } else {

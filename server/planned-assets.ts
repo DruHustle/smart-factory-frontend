@@ -21,13 +21,23 @@ export function plannedAssetShell(
     submodels: [],
   };
 }
-export function isPlannedAsset(asset: { aasShell: unknown }) {
+export function isPlannedAsset(asset: {
+  assetId?: string;
+  aasShell: unknown;
+  aasxImported?: boolean;
+}) {
+  if (
+    asset.aasxImported ||
+    !asset.assetId?.startsWith("urn:smart-factory:planned:")
+  )
+    return false;
   const shell = asset.aasShell as {
     extensions?: Array<{ name?: string; value?: string }>;
   } | null;
   return (
-    shell?.extensions?.some(
-      (e) => e.name === "smartFactoryPlanned" && e.value === "true",
-    ) ?? false
+    Array.isArray(shell?.extensions) &&
+    shell.extensions.some(
+      (e) => e?.name === "smartFactoryPlanned" && e?.value === "true",
+    )
   );
 }

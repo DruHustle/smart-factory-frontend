@@ -556,7 +556,16 @@ export const factoriesRouter = router({
         }
         let cleanupWarnings: string[] = [];
         if (member.asset_id) {
-          const deletion = await deleteAssetInventoryRecord(member.asset_id);
+          const localStandalone = input.ref.startsWith("equipment:")
+            ? (
+                await db.execute(
+                  sql`select id from equipment_workspaces where id=${input.ref.slice(10)}::uuid and asset_id=${member.asset_id} and is_standalone=true`,
+                )
+              ).length > 0
+            : false;
+          const deletion = await deleteAssetInventoryRecord(member.asset_id, {
+            localStandalone,
+          });
           cleanupWarnings = deletion.edgeSyncFailures.map(
             (id) =>
               "Gateway configuration sync failed for " +
