@@ -6,7 +6,7 @@ import { createEquipment, template } from "../../server/equipment/local";
 import { seedDemonstration } from "../../server/security/demo";
 import { initialize } from "../../server/security/store";
 import { assets, devices, alerts, systemSettings } from "../../drizzle/schema";
-import { buildAasDocuments } from "../../server/aasModel";
+import { buildDemoAasDocuments, demoAasIdentity } from "../../shared/demo-aas";
 export const showcaseUuid = (name: string) => {
   const h = createHash("sha256")
     .update("smart-factory-showcase-v1:" + name)
@@ -61,25 +61,23 @@ export async function seedBasicShowcase(persistDemoVisibility = false) {
     .select()
     .from(assets)
     .where(eq(assets.assetId, externalAssetId));
-  const identity = {
+  const identity = demoAasIdentity({
     assetId: externalAssetId,
     name: "Showcase pump 01",
     assetType: "pump",
     manufacturer: "Synthetic example manufacturer",
     model: "Illustrative pump/motor",
-    manufacturerStreet: "Example 1",
-    manufacturerZipcode: "00000",
-    manufacturerCityTown: "Simulation",
-    manufacturerNationalCode: "DE",
-    manufacturerArticleNumber: "SIM-01",
-    orderCodeOfManufacturer: "SIM-01",
-  };
-  const aas = buildAasDocuments(identity);
+    serialNumber: "SIM-PUMP-01",
+    zone: "Showcase",
+  });
+  const aas = buildDemoAasDocuments(identity);
   await db
     .update(assets)
     .set({
+      ...identity,
       aasShell: aas.shell,
       aasSubmodels: aas.submodels,
+      aasConceptDescriptions: aas.conceptDescriptions,
       location: "Simulation line A",
       zone: "Showcase",
     })

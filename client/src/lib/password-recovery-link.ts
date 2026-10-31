@@ -50,18 +50,28 @@ export function subscribePasswordResetLink(listener: () => void) {
   };
 }
 
-/** The analytics SDK can outlive its React component during SPA navigation. */
+function containsSensitivePageMetadata(url: Pick<URL, "hash" | "pathname">) {
+  const paths = [url.pathname, url.hash.slice(1).split("?")[0]];
+  return paths.some(
+    (path) =>
+      path === "/reset-password" ||
+      path === "/passport/demo" ||
+      path.startsWith("/passport/demo/"),
+  );
+}
+
+/**
+ * The analytics SDK can outlive its React component during SPA navigation.
+ * Keep both recovery credentials and portable demo identity payloads out of
+ * events, including queued events delivered after the user leaves that page.
+ */
 export function filterPasswordRecoveryAnalytics<T extends { url: string }>(
   event: T,
 ): T | null {
-  if (window.location.hash.split("?")[0] === "#/reset-password") return null;
+  if (containsSensitivePageMetadata(window.location)) return null;
   try {
     const url = new URL(event.url, window.location.origin);
-    if (
-      url.hash.split("?")[0] === "#/reset-password" ||
-      url.pathname === "/reset-password"
-    )
-      return null;
+    if (containsSensitivePageMetadata(url)) return null;
   } catch {
     return null;
   }

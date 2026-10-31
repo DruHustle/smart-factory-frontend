@@ -49,5 +49,24 @@ describe("printable passport visibility", () => {
     expect(result.isDemo).toBe(false);
     expect(result.publishedAt).toBeNull();
     expect(result.publicId).toBeUndefined();
+    expect(result.demoIdentity).toBeUndefined();
+  });
+  it("does not replace imported demo package data with synthetic specifications", async () => {
+    state.getAsset.mockResolvedValue({
+      id: 3,
+      assetId: "urn:vendor:demo:imported",
+      name: "Vendor demonstration package",
+      assetType: "pump",
+      isDemo: true,
+      aasxImported: true,
+      aasVersion: 1,
+      manufacturer: "Original manufacturer",
+    });
+    const result = await previewPassport(3);
+    expect(result.authoredDemo).toBe(false);
+    expect(result.demoIdentity).toBeUndefined();
+    expect(result.fields.find((f) => f.key === "manufacturer")?.value).toBe(
+      "Original manufacturer",
+    );
   });
 });

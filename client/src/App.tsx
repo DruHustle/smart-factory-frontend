@@ -48,6 +48,7 @@ const AssetAdministrationShell = lazy(
 const Administration = lazy(() => import("./pages/Administration"));
 const UserAccess = lazy(() => import("./pages/UserAccess"));
 const ProductPassport = lazy(() => import("./pages/ProductPassport"));
+const DemoProductPassport = lazy(() => import("./pages/DemoProductPassport"));
 const ChangePassword = lazy(() => import("./pages/ChangePassword"));
 
 // Keep hash query context available to each workspace while matching the route path.
@@ -248,6 +249,22 @@ function AppRouter() {
 function App() {
   const [location] = useHashLocation();
   const recovering = location.split("?")[0] === "/reset-password";
+  const portableDemo = /^\/passport\/demo\/[^/]+$/.test(location.split("?")[0]);
+  // A QR demonstration is a self-contained, synthetic document. Do not query
+  // an account, expose workspace chrome or emit its identity to analytics.
+  if (portableDemo)
+    return (
+      <ErrorBoundary>
+        <WouterRouter hook={useHashPath}>
+          <Suspense fallback={<RouteLoading />}>
+            <Route
+              path="/passport/demo/:encoded"
+              component={DemoProductPassport}
+            />
+          </Suspense>
+        </WouterRouter>
+      </ErrorBoundary>
+    );
   return (
     <ErrorBoundary>
       <AuthProvider>

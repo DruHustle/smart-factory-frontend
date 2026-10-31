@@ -20,7 +20,7 @@ import {
   systemSettings,
   notificationInbox,
 } from "../../drizzle/schema";
-import { buildAasDocuments } from "../../server/aasModel";
+import { buildDemoAasDocuments, demoAasIdentity } from "../../shared/demo-aas";
 import { DEMO_ACCOUNTS } from "../../shared/demo-accounts";
 import { PASSPORT_DISCLAIMER } from "../../shared/passport";
 import type { Showcase } from "../../shared/showcase";
@@ -203,40 +203,21 @@ export async function seedCompleteShowcase(persistDemoVisibility = false) {
       })
       .returning();
     if (spec.assetId) {
+      const identity = demoAasIdentity({
+        assetId: spec.assetId,
+        name: spec.name,
+        assetType: spec.assetType!,
+        serialNumber: "SIM-" + spec.deviceId,
+        zone: "Showcase",
+      });
+      const aas = buildDemoAasDocuments(identity);
       const [asset] = await db
         .insert(assets)
         .values({
-          assetId: spec.assetId,
-          name: spec.name,
-          assetType: spec.assetType!,
-          manufacturer: "Synthetic example manufacturer",
-          aasShell: buildAasDocuments({
-            assetId: spec.assetId,
-            name: spec.name,
-            assetType: spec.assetType!,
-            manufacturer: "Synthetic example manufacturer",
-            model: "Illustrative example",
-            manufacturerStreet: "Example 1",
-            manufacturerZipcode: "00000",
-            manufacturerCityTown: "Simulation",
-            manufacturerNationalCode: "DE",
-            manufacturerArticleNumber: "SIM-02",
-            orderCodeOfManufacturer: "SIM-02",
-          }).shell,
-          aasSubmodels: buildAasDocuments({
-            assetId: spec.assetId,
-            name: spec.name,
-            assetType: spec.assetType!,
-            manufacturer: "Synthetic example manufacturer",
-            model: "Illustrative example",
-            manufacturerStreet: "Example 1",
-            manufacturerZipcode: "00000",
-            manufacturerCityTown: "Simulation",
-            manufacturerNationalCode: "DE",
-            manufacturerArticleNumber: "SIM-02",
-            orderCodeOfManufacturer: "SIM-02",
-          }).submodels,
-          serialNumber: "SIM-" + spec.deviceId,
+          ...identity,
+          aasShell: aas.shell,
+          aasSubmodels: aas.submodels,
+          aasConceptDescriptions: aas.conceptDescriptions,
           location: "Simulation line A",
           zone: "Showcase",
           isDemo: true,

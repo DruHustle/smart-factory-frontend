@@ -8,6 +8,7 @@ import {
   appendDemoFactoryActivity,
 } from "./demo-factories";
 import { buildPiBenchPreset, findPiBenchFactory } from "./pi-bench";
+import { demoAasIdentity } from "./demo-aas";
 import { z } from "zod";
 import { canonicalUnits, metrics, type Metric } from "./measurements";
 import type { InventoryItem } from "./inventory";
@@ -240,8 +241,14 @@ export function seedDemoSandbox(
   const items = inventory
     .filter((i) => i.isDemo)
     .slice(0, 500)
-    .map((i) =>
-      sandboxItem.parse({
+    .map((i) => {
+      const identity = demoAasIdentity({
+        assetId: i.identifier,
+        name: i.name,
+        assetType: i.itemType,
+        zone: i.zone,
+      });
+      return sandboxItem.parse({
         ref: i.ref,
         identifier: i.identifier,
         name: i.name,
@@ -251,8 +258,11 @@ export function seedDemoSandbox(
         connected: i.configured,
         gatewayId: i.gatewayId ?? null,
         equipmentId: i.equipmentId,
-      }),
-    );
+        manufacturer: identity.manufacturer,
+        model: identity.model,
+        serial: identity.serialNumber,
+      });
+    });
   // This preset represents the observed bench topology. Browser-demo values
   // remain simulated and never read the private operational sensor records.
   const preset =
@@ -410,6 +420,20 @@ export function applySandboxAction(
       identifier: old?.identifier ?? `urn:demo:sandbox:${identity}`,
       custom: old?.custom ?? true,
     });
+    if (!old) {
+      const identity = demoAasIdentity({
+        assetId: data.identifier,
+        name: data.name,
+        assetType: data.itemType,
+        manufacturer: data.manufacturer,
+        model: data.model,
+        serialNumber: data.serial,
+        zone: data.zone,
+      });
+      data.manufacturer = identity.manufacturer;
+      data.model = identity.model;
+      data.serial = identity.serialNumber;
+    }
     s.items = old
       ? s.items.map((i) => (i.ref === old.ref ? data : i))
       : [...s.items, data];

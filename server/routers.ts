@@ -15,6 +15,7 @@ import { deviceReadingSummary } from "./reporting";
 import { monitoringInput, monitoringPage } from "./monitoring";
 import { evidenceScope } from "./evidenceScope";
 import * as passports from "./passport";
+import { authoredDemoAas } from "../shared/demo-asset-projection";
 import { demoOnlyRead } from "./demoData";
 import { inventoryRouter } from "./inventory";
 import { factoryRouter } from "./factory";
@@ -686,6 +687,8 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const asset = await db.getAssetRecordById(input.id);
         if (!asset) return undefined;
+        const demo = authoredDemoAas(asset);
+        if (demo) return { ...demo, isDemo: true, missingRequiredFields: [] };
         const missingRequiredFields = asset.aasxImported
           ? []
           : requiredAasFields(asset);
@@ -709,6 +712,13 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const asset = await db.getAssetRecordById(input.id);
         if (!asset) return undefined;
+        const demo = authoredDemoAas(asset);
+        if (demo)
+          return {
+            assetAdministrationShells: [demo.shell],
+            submodels: demo.submodels,
+            conceptDescriptions: demo.conceptDescriptions,
+          };
         if (!asset.aasxImported && requiredAasFields(asset).length) {
           throw new Error(
             "Complete the manufacturer identity and postal address fields before exporting this AAS",

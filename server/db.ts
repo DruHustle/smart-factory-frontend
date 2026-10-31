@@ -30,6 +30,7 @@ import postgres from "postgres";
 import * as schema from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { buildAasDocuments } from "./aasModel";
+import { buildDemoAasDocuments } from "../shared/demo-aas";
 import { getImportedAssetSummary } from "./aasImportMapping";
 import {
   getAllowedAssetTransitions,
@@ -1409,8 +1410,9 @@ export async function initializeDemoScenario(
           serialNumber: "DEMO-WF-001",
           ratedValue: "2500",
           ratedUnit: "kW",
+          zone: "Renewable Generation",
         };
-        const aas = buildAasDocuments(identity);
+        const aas = buildDemoAasDocuments(identity);
         const [windformer] = await tx
           .insert(assets)
           .values({
@@ -1568,37 +1570,23 @@ export async function initializeDemoScenario(
 
       const compressorId = "urn:demo:asset:compressor-01";
       const transformerId = "urn:demo:asset:transformer-01";
-      const compressorAas = buildAasDocuments({
+      const compressorAas = buildDemoAasDocuments({
         assetId: compressorId,
         name: "Compressed Air Compressor 01",
         assetType: "compressor",
         manufacturer: "Atlas Copco",
         model: "GA 75 VSD+",
-        manufacturerStreet: "Industrial Road 1",
-        manufacturerZipcode: "10000",
-        manufacturerCityTown: "Demo City",
-        manufacturerNationalCode: "DE",
-        manufacturerArticleNumber: "GA75-VSD",
-        orderCodeOfManufacturer: "GA75-VSD-PLUS",
         serialNumber: "DEMO-GA75-001",
-        ratedValue: "75",
-        ratedUnit: "kW",
+        zone: "Plant A",
       });
-      const transformerAas = buildAasDocuments({
+      const transformerAas = buildDemoAasDocuments({
         assetId: transformerId,
         name: "Main Transformer 01",
         assetType: "transformer",
         manufacturer: "Siemens",
         model: "GEAFOL 1600",
-        manufacturerStreet: "Technology Avenue 1",
-        manufacturerZipcode: "10001",
-        manufacturerCityTown: "Demo City",
-        manufacturerNationalCode: "DE",
-        manufacturerArticleNumber: "GEAFOL-1600",
-        orderCodeOfManufacturer: "GEAFOL-1600",
         serialNumber: "DEMO-GEAFOL-001",
-        ratedValue: "1600",
-        ratedUnit: "kVA",
+        zone: "Plant A",
       });
       const demoAssets = await tx
         .insert(assets)
@@ -1624,6 +1612,7 @@ export async function initializeDemoScenario(
             isDemo: true,
             aasShell: compressorAas.shell,
             aasSubmodels: compressorAas.submodels,
+            aasConceptDescriptions: compressorAas.conceptDescriptions,
           },
           {
             assetId: transformerId,
@@ -1646,6 +1635,7 @@ export async function initializeDemoScenario(
             isDemo: true,
             aasShell: transformerAas.shell,
             aasSubmodels: transformerAas.submodels,
+            aasConceptDescriptions: transformerAas.conceptDescriptions,
           },
         ])
         .returning();

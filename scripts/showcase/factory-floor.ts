@@ -195,6 +195,7 @@ export async function addFactoryFloorShowcase(
         serialNumber: `SIM-FLOOR-${key}`,
         kind: "simulated",
         templateRevision: revision,
+        zone,
       },
       actor.id,
       {

@@ -1,11 +1,20 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { resolveApiBase } from "@/lib/api-base";
 import { runtimeCompatibility } from "@shared/runtime-contract";
+import { useWorkspaceLocation } from "@/lib/hashLocation";
 /** Prevent a newer UI issuing incompatible requests to an older API. */
 export function RuntimeBoundary({ children }: { children: ReactNode }) {
+  const [location] = useWorkspaceLocation();
+  // This route renders only a bounded synthetic identity and bundled demo AAS.
+  // It has no API consumer; every normal application route still requires the gate.
+  const portableDemo = /^\/passport\/demo\/[^/]+$/.test(location.split("?")[0]);
   const [state, setState] = useState<string | null | undefined>(),
     [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (portableDemo) {
+      setState(undefined);
+      return;
+    }
     const controller = new AbortController();
     setState(undefined);
     fetch(
@@ -28,8 +37,8 @@ export function RuntimeBoundary({ children }: { children: ReactNode }) {
           );
       });
     return () => controller.abort();
-  }, [attempt]);
-  if (state === null) return children;
+  }, [attempt, portableDemo]);
+  if (portableDemo || state === null) return children;
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-4 p-6">
       <h1 className="text-2xl font-semibold">Smart Factory</h1>

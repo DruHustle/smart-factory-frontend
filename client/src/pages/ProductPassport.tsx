@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useParams } from "wouter";
-import { QRCodeSVG } from "qrcode.react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
 import { passportFields } from "@shared/passport";
+import { demoPassportIdentity } from "@shared/demo-passport";
+import { PassportCard } from "@/components/PassportCard";
+import { DemoPassportContent } from "@/components/DemoPassportContent";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/workspace/Primitives";
@@ -107,9 +109,18 @@ export default function ProductPassport() {
     privatePreview && !demoPreview
       ? item.fields.filter((f) => fields.includes(f.key as Field))
       : item.fields;
+  // Only the server's explicitly authored demo identity may create a synthetic
+  // model. Imported vendor packages and old API responses stay unchanged.
+  const identity = demoPreview
+    ? demoPassportIdentity.safeParse(
+        (item as { demoIdentity?: unknown }).demoIdentity,
+      )
+    : null;
   return (
     <main className="eudpp-page min-h-screen bg-background p-4 text-foreground print:bg-white print:p-0 print:text-black">
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div
+        className={`mx-auto space-y-5 ${demoPreview ? "max-w-5xl" : "max-w-4xl"}`}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
           <p className="text-sm font-medium">
             {demoPreview
@@ -130,71 +141,56 @@ export default function ProductPassport() {
               : "This preview requires sign-in. Review the fields below before creating a public snapshot. Later asset edits do not silently change a published snapshot."}
           </p>
         )}
-        <Card className="print:break-inside-avoid print:shadow-none">
-          <CardHeader>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">
-              EU Digital Product Passport · voluntary prototype
-            </p>
-            <h1 className="text-2xl font-semibold">
-              {privatePreview && !demoPreview && !fields.includes("name")
-                ? "Product passport"
-                : item.title}
-            </h1>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_210px]">
-            <dl className="space-y-3">
-              {rows.map((row) => (
-                <div key={row.key} className="border-b pb-2">
-                  <dt className="text-xs text-muted-foreground">{row.label}</dt>
-                  <dd className="mt-1 break-words font-medium">{row.value}</dd>
-                </div>
-              ))}
-            </dl>
-            {!privatePreview && publicId && (
-              <figure
-                data-testid="passport-qr"
-                data-qr-value={url(publicId)}
-                className="space-y-2 text-center"
-                aria-label={`Published passport link for ${item.title}`}
-              >
-                <div className="inline-block rounded-md border bg-white p-3">
-                  <QRCodeSVG
-                    aria-label={`Passport QR code for ${item.title}`}
-                    role="img"
-                    value={url(publicId)}
-                    size={180}
-                    level="H"
-                  />
-                </div>
-                <figcaption className="break-all text-xs">
-                  {url(publicId)}
-                </figcaption>
-              </figure>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="print:break-inside-avoid">
-          <CardHeader>
-            <CardTitle>Use, repair and end of life</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <p className="whitespace-pre-wrap">
-              {privatePreview
-                ? guidance ||
-                  "No asset-specific guidance has been reviewed for publication. Refer to the manufacturer's approved documentation."
-                : item.reviewedGuidance ||
-                  "No asset-specific guidance has been published. Refer to the manufacturer's approved documentation."}
-            </p>
-            <p className="rounded-md border p-3">
-              <strong>Regulatory status:</strong> {item.disclaimer}
-            </p>
-            {item.publishedAt && (
-              <p className="text-xs text-muted-foreground">
-                Snapshot published {new Date(item.publishedAt).toLocaleString()}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        {demoPreview && identity?.success ? (
+          <DemoPassportContent identity={identity.data} />
+        ) : (
+          <>
+            <PassportCard
+              title={
+                privatePreview && !fields.includes("name")
+                  ? "Product passport"
+                  : item.title
+              }
+              rows={rows}
+              status={
+                privatePreview
+                  ? "Private publication preview"
+                  : "Published snapshot"
+              }
+              qr={
+                !privatePreview && publicId
+                  ? {
+                      value: url(publicId),
+                      caption: "Scan to open this reviewed public snapshot.",
+                    }
+                  : undefined
+              }
+            />
+            <Card className="print:break-inside-avoid">
+              <CardHeader>
+                <CardTitle>Use, repair and end of life</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <p className="whitespace-pre-wrap">
+                  {privatePreview
+                    ? guidance ||
+                      "No asset-specific guidance has been reviewed for publication. Refer to the manufacturer's approved documentation."
+                    : item.reviewedGuidance ||
+                      "No asset-specific guidance has been published. Refer to the manufacturer's approved documentation."}
+                </p>
+                <p className="rounded-md border p-3">
+                  <strong>Regulatory status:</strong> {item.disclaimer}
+                </p>
+                {item.publishedAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Snapshot published{" "}
+                    {new Date(item.publishedAt).toLocaleString()}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
         {privatePreview && !demoPreview && user?.access?.canEngineer && (
           <Card className="print:hidden">
             <CardHeader>
