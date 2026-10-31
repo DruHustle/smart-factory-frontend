@@ -17,6 +17,8 @@ import {
   factoryAreaColors,
   factoryAreaTitles,
 } from "./factory-spaces";
+import { Focus, Minus, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type Layout = FloorLayout;
 
@@ -153,6 +155,7 @@ export function FloorPlan({
   const panModifier = useRef(false);
   const [grabbed, setGrabbed] = useState<"item" | "floor" | null>(null);
   const [pan, setPan] = useState({ x: 0, z: 0 });
+  const [zoom, setZoom] = useState(1);
   const [preview, setPreview] = useState<{
     ref: string;
     x: number;
@@ -171,6 +174,7 @@ export function FloorPlan({
   useEffect(() => {
     cancel();
     setPan({ x: 0, z: 0 });
+    setZoom(1);
   }, [reset, layout.width, layout.depth, zoneKey]);
   const placements = layout.placements.map((p) =>
     preview?.ref === p.item.ref ? { ...p, x: preview.x, z: preview.z } : p,
@@ -187,6 +191,42 @@ export function FloorPlan({
     if (ended && canvas.current?.hasPointerCapture(ended.pointerId))
       canvas.current.releasePointerCapture(ended.pointerId);
   };
+  const changeZoom = (next: number, anchor = pan) => {
+    const bounded = Math.min(4, Math.max(0.5, next));
+    if (bounded === zoom) return;
+    // Keep the floor point under the pointer fixed while the viewport scales.
+    const ratio = zoom / bounded;
+    setPan({
+      x: anchor.x + (pan.x - anchor.x) * ratio,
+      z: anchor.z + (pan.z - anchor.z) * ratio,
+    });
+    setZoom(bounded);
+  };
+  useEffect(() => {
+    const element = canvas.current;
+    if (!element) return;
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault();
+      if (drag.current) return;
+      const matrix = element.getScreenCTM()?.inverse();
+      if (!matrix) return;
+      const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(
+        matrix,
+      );
+      const delta =
+        event.deltaY *
+        (event.deltaMode === 1
+          ? 16
+          : event.deltaMode === 2
+            ? element.clientHeight
+            : 1);
+      changeZoom(zoom * Math.exp(-delta * 0.0015), { x: point.x, z: point.y });
+    };
+    // React's delegated wheel handler is passive; the viewport must own this
+    // gesture so scrolling to zoom does not also move the surrounding page.
+    element.addEventListener("wheel", wheel, { passive: false });
+    return () => element.removeEventListener("wheel", wheel);
+  }, [zoom, pan]);
   useEffect(() => {
     const blur = () => {
       panModifier.current = false;
@@ -267,13 +307,14 @@ export function FloorPlan({
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
   };
-  return (
+  const floor = (
     <svg
       ref={canvas}
       data-interaction="grab"
       data-grab-state={grabbed ?? "idle"}
-      aria-description="Grab equipment to move it, or empty floor to pan. Release to drop. Select equipment and use arrow keys for precise placement; Escape cancels a grab or clears selection. Hold Space or Shift to pan over equipment."
-      viewBox={`${-layout.width / 2 - 2 + pan.x} ${-layout.depth / 2 - 2 + pan.z} ${layout.width + 4} ${layout.depth + 4}`}
+      aria-description="Grab equipment to move it, or empty floor to pan. Release to drop. Select equipment and use arrow keys for precise placement; Escape cancels a grab or clears selection. Hold Space or Shift to pan over equipment. Use the zoom buttons or scroll to zoom."
+      viewBox={`${-(layout.width + 4) / (2 * zoom) + pan.x} ${-(layout.depth + 4) / (2 * zoom) + pan.z} ${(layout.width + 4) / zoom} ${(layout.depth + 4) / zoom}`}
+      data-zoom={zoom.toFixed(3)}
       className="h-full w-full bg-muted/30 text-foreground"
       role="img"
       aria-label="Accessible factory floor plan"
@@ -288,7 +329,11 @@ export function FloorPlan({
         const d = drag.current;
         if (!d || d.pointerId !== e.pointerId) return;
         if (d.ref)
-          onItemDrag?.({ ref: d.ref, clientX: e.clientX, clientY: e.clientY });
+          onItemDrag?.({
+            ref: d.ref,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          });
         const point = new DOMPoint(e.clientX, e.clientY).matrixTransform(
             d.matrix,
           ),
@@ -600,5 +645,58 @@ export function FloorPlan({
         </g>
       ))}
     </svg>
+  );
+  return (
+    <div className="relative h-full w-full">
+      {floor}
+      <div
+        role="group"
+        aria-label="Floor plan zoom"
+        className="absolute right-2 top-2 flex items-center gap-1 rounded-lg border border-border bg-card/95 p-1 shadow-sm"
+      >
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8"
+          aria-label="Zoom out floor plan"
+          disabled={zoom <= 0.5}
+          onClick={() => changeZoom(zoom / 1.25)}
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <span
+          className="min-w-10 text-center text-xs tabular-nums"
+          aria-live="polite"
+        >
+          {Math.round(zoom * 100)}%
+        </span>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8"
+          aria-label="Zoom in floor plan"
+          disabled={zoom >= 4}
+          onClick={() => changeZoom(zoom * 1.25)}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8"
+          aria-label="Fit floor plan"
+          onClick={() => {
+            cancel();
+            setPan({ x: 0, z: 0 });
+            setZoom(1);
+          }}
+        >
+          <Focus className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   );
 }

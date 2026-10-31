@@ -19,6 +19,8 @@ import {
   Maximize2,
   Minimize2,
   Trash2,
+  Workflow,
+  Cable,
 } from "lucide-react";
 import { layoutFactory, type FloorLink } from "@shared/factory-floor";
 import { currentSample } from "@shared/measurements";
@@ -50,10 +52,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FloorPlan } from "./FactoryFloorPlan";
-import { FactoryConnectionEditor, useConnectionAppearances } from "./FactoryConnectionEditor";
+import {
+  FactoryConnectionEditor,
+  useConnectionAppearances,
+} from "./FactoryConnectionEditor";
 import { useFloorFullscreen } from "./useFloorFullscreen";
 import { SampleTime, StatusBadge } from "./Primitives";
 import { ObservationValues } from "./ObservationValues";
+import { FactorySchematic } from "./FactorySchematic";
+import {
+  FactoryDiagramEditor,
+  DiagramConnectionDetails,
+} from "./FactoryDiagramEditor";
+import { useFactoryDiagram } from "./useFactoryDiagram";
 const Scene = lazy(() => import("./FactoryFloorScene"));
 class FloorSceneBoundary extends Component<
   { children: ReactNode; fallback: ReactNode },
@@ -78,6 +89,7 @@ export function FactoryFloor({
   layoutDocument,
   onLayoutMove,
   arrangementKey,
+  diagramScopeKey,
   headerActions,
   editor,
   onGrabStart,
@@ -96,6 +108,7 @@ export function FactoryFloor({
   layoutDocument?: FactoryLayoutDocument;
   onLayoutMove?: (ref: string, x: number, z: number) => void;
   arrangementKey?: string;
+  diagramScopeKey?: string;
   headerActions?: ReactNode;
   editor?: ReactNode;
   onGrabStart?: () => void;
@@ -112,11 +125,17 @@ export function FactoryFloor({
     arrangementKey ??
     `smart-factory:floor-arrangement:v1:${user?.id ?? "anonymous"}:${user?.access?.workspaceView ?? (demo ? "demo" : "live")}`;
   // Visual routing is browser-local and isolated by account, workspace and factory/study.
-  const connectionRoutes = useConnectionAppearances(JSON.stringify([
+  const routingScope = JSON.stringify([
     user?.id ?? "anonymous",
     user?.access?.workspaceView ?? (demo ? "demo" : "live"),
     arrangementKey ?? layoutDocument?.name ?? "overview",
-  ]));
+  ]);
+  const connectionRoutes = useConnectionAppearances(routingScope);
+  const drawingScope = JSON.stringify([
+    user?.id ?? "anonymous",
+    user?.access?.workspaceView ?? (demo ? "demo" : "live"),
+    diagramScopeKey ?? arrangementKey ?? layoutDocument?.name ?? "overview",
+  ]);
   const [saved, setSaved] = useState<{ key: string; offsets: FloorOffsets }>(
     () => ({
       key: preferenceKey,
@@ -130,10 +149,26 @@ export function FactoryFloor({
         : readFloorOffsets(safeLocalStorage.getItem(preferenceKey)),
     [saved, preferenceKey],
   );
-  const [view, setView] = useState<"3d" | "plan">("3d"),
+  const [view, setView] = useState<"3d" | "plan" | "process" | "electrical">(
+      "3d",
+    ),
     [zone, setZone] = useState("all"),
     [reset, setReset] = useState(0),
     [search, setSearch] = useState("");
+  const schematic = view === "process" || view === "electrical";
+  const diagram = useFactoryDiagram({
+    scope: drawingScope,
+    mode: view === "electrical" ? "electrical" : "process",
+    items,
+    links,
+    demo,
+  });
+  const [selectedConnection, setSelectedConnection] = useState<string | null>(
+    null,
+  );
+  useEffect(() => {
+    setSelectedConnection(null);
+  }, [view, drawingScope]);
   const zones = [
     ...new Set([
       ...(layoutDocument?.zones.map((zone) => zone.name) ?? []),
@@ -152,6 +187,21 @@ export function FactoryFloor({
           ),
     [items, zone],
   );
+  const visibleRefs = useMemo(
+    () => new Set(visible.map((item) => item.ref)),
+    [visible],
+  );
+  const activeDiagramConnection = schematic
+    ? diagram.document.connections.find(
+        (link) =>
+          link.id === selectedConnection &&
+          visibleRefs.has(link.from) &&
+          visibleRefs.has(link.to),
+      )
+    : undefined;
+  const omittedConnections = diagram.document.connections.filter(
+    (link) => !visibleRefs.has(link.from) || !visibleRefs.has(link.to),
+  ).length;
   const baseLayout = useMemo(
     () =>
       layoutDocument
@@ -250,6 +300,7 @@ export function FactoryFloor({
   const previousSelection = useRef<string | null>(null);
   const suppressDetails = useRef(false);
   const selectOnFloor = (ref: string, revealDetails = true) => {
+    setSelectedConnection(null);
     suppressDetails.current = !revealDetails && ref !== selected;
     onSelect(ref);
   };
@@ -305,30 +356,6 @@ export function FactoryFloor({
               </option>
             ))}
           </select>
-          <div
-            className="inline-flex rounded-md border p-0.5"
-            role="group"
-            aria-label="Floor representation"
-          >
-            {(["3d", "plan"] as const).map((mode) => (
-              <Button
-                key={mode}
-                size="icon"
-                aria-label={mode === "3d" ? "3D floor" : "Floor plan"}
-                title={mode === "3d" ? "3D floor" : "Floor plan"}
-                variant={view === mode ? "default" : "ghost"}
-                aria-pressed={view === mode}
-                onClick={() => setView(mode)}
-                className="size-9"
-              >
-                {mode === "3d" ? (
-                  <Box className="size-3.5" />
-                ) : (
-                  <Layers className="size-3.5" />
-                )}
-              </Button>
-            ))}
-          </div>
           <Button
             variant="outline"
             size="icon"
@@ -364,7 +391,7 @@ export function FactoryFloor({
               <Maximize2 className="size-4" />
             )}
           </Button>
-          {!layoutDocument && (
+          {!layoutDocument && !schematic && (
             <Button
               size="icon"
               variant="ghost"
@@ -383,15 +410,107 @@ export function FactoryFloor({
           )}
         </div>
       </div>
+      <div className="border-b px-4 py-2">
+        <div
+          className="grid grid-cols-2 gap-1 rounded-md border p-1 sm:inline-flex"
+          role="group"
+          aria-label="Floor representation"
+        >
+          {(
+            [
+              { mode: "3d", label: "3D", name: "3D floor", Icon: Box },
+              {
+                mode: "plan",
+                label: "Floor plan",
+                name: "Floor plan",
+                Icon: Layers,
+              },
+              {
+                mode: "process",
+                label: "Process / P&ID",
+                name: "Process / P&ID",
+                Icon: Workflow,
+              },
+              {
+                mode: "electrical",
+                label: "Electrical",
+                name: "Electrical wiring",
+                Icon: Cable,
+              },
+            ] as const
+          ).map(({ mode, label, name, Icon }) => (
+            <Button
+              key={mode}
+              size="sm"
+              className="min-h-9 gap-1.5 px-3 text-xs"
+              aria-label={name}
+              title={name}
+              variant={view === mode ? "default" : "ghost"}
+              aria-pressed={view === mode}
+              onClick={() => setView(mode)}
+            >
+              <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+              {label}
+            </Button>
+          ))}
+        </div>
+      </div>
       <p className="border-b px-4 py-2 text-xs text-muted-foreground">
-        {movable
-          ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
-          : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
+        {schematic
+          ? "Select equipment or a connection to inspect it. Hold and drag to pan; use the zoom controls or scroll to zoom."
+          : movable
+            ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
+            : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
         {view === "3d" &&
           "Rotate off: hovering stays still. Turn Rotate on to rotate with mouse movement · Scroll or pinch to zoom."}
         {fullscreen.expanded && " · Esc to exit fullscreen."}
       </p>
-      {view === "3d" && <FactoryConnectionEditor links={links} layout={layout} controller={connectionRoutes} />}
+      {view === "3d" && (
+        <FactoryConnectionEditor
+          links={links}
+          layout={layout}
+          controller={connectionRoutes}
+        />
+      )}
+      {schematic && (
+        <>
+          <div
+            className="flex flex-wrap items-center justify-between gap-1 border-b px-4 py-2 text-[11px] text-muted-foreground"
+            aria-label="Diagram source"
+          >
+            <span>
+              {diagram.source === "demo"
+                ? "Illustrative demo diagram"
+                : diagram.source === "registered"
+                  ? "Registered process connections"
+                  : diagram.source === "local"
+                    ? "Local drawing"
+                    : "No connections defined"}{" "}
+              · Schematic, not to scale
+            </span>
+            {omittedConnections > 0 && (
+              <span>
+                {omittedConnections} connections outside the current equipment
+                selection
+              </span>
+            )}
+          </div>
+          {diagram.error && (
+            <p
+              role="alert"
+              className="border-b px-4 py-2 text-xs text-destructive"
+            >
+              {diagram.error}
+            </p>
+          )}
+          <FactoryDiagramEditor
+            key={diagram.key}
+            controller={diagram}
+            items={items}
+            onSelectConnection={setSelectedConnection}
+          />
+        </>
+      )}
       {zone !== "all" && (
         <div
           className="floor-secondary border-b bg-info/5 px-4 py-3"
@@ -434,8 +553,20 @@ export function FactoryFloor({
         data-testid="factory-floor"
         data-total-items={items.length}
         data-visible-items={visible.length}
+        data-view={view}
       >
-        {view === "plan" ? (
+        {schematic ? (
+          <FactorySchematic
+            key={`${drawingScope}:${view}`}
+            document={diagram.document}
+            items={visible}
+            selected={selected}
+            onSelect={selectOnFloor}
+            selectedConnection={activeDiagramConnection?.id ?? null}
+            onSelectConnection={setSelectedConnection}
+            reset={reset}
+          />
+        ) : view === "plan" ? (
           <FloorPlan
             layout={layout}
             links={links}
@@ -496,7 +627,7 @@ export function FactoryFloor({
           </FloorSceneBoundary>
         )}
         {editor}
-        {onInventoryDelete && (grabbedRef || selected) && (
+        {!schematic && onInventoryDelete && (grabbedRef || selected) && (
           <Button
             ref={bin}
             type="button"
@@ -516,7 +647,7 @@ export function FactoryFloor({
             {grabbedRef && <span className="text-xs">Drop to delete</span>}
           </Button>
         )}
-        {fullscreen.expanded && active && (
+        {!schematic && fullscreen.expanded && active && (
           <p
             aria-live="polite"
             className="pointer-events-none absolute bottom-12 left-3 max-w-[calc(100%-1.5rem)] rounded-md border bg-background/95 px-2 py-1 text-xs font-medium"
@@ -524,27 +655,36 @@ export function FactoryFloor({
             {active.name}
           </p>
         )}
-        <div
-          className="pointer-events-none absolute bottom-3 left-3 right-3 flex w-fit max-w-[calc(100%-1.5rem)] flex-wrap gap-x-3 gap-y-1 rounded-md border bg-background/95 px-2 py-1 text-[10px] text-muted-foreground"
-          aria-label="Floor indicator legend"
-        >
-          {[
-            ["#28a6c4", "Simulated"],
-            ["#32b881", "Fresh source"],
-            ["#dba64a", "Needs review"],
-            ["#ef6461", "Reported error"],
-            ["#8191a3", "Unknown"],
-          ].map(([color, text]) => (
-            <span key={text} className="inline-flex items-center gap-1">
-              <span
-                className="size-1.5 rounded-full"
-                style={{ backgroundColor: color }}
-              />
-              {text}
-            </span>
-          ))}
-        </div>
+        {!schematic && (
+          <div
+            className="pointer-events-none absolute bottom-3 left-3 right-3 flex w-fit max-w-[calc(100%-1.5rem)] flex-wrap gap-x-3 gap-y-1 rounded-md border bg-background/95 px-2 py-1 text-[10px] text-muted-foreground"
+            aria-label="Floor indicator legend"
+          >
+            {[
+              ["#28a6c4", "Simulated"],
+              ["#32b881", "Fresh source"],
+              ["#dba64a", "Needs review"],
+              ["#ef6461", "Reported error"],
+              ["#8191a3", "Unknown"],
+            ].map(([color, text]) => (
+              <span key={text} className="inline-flex items-center gap-1">
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                {text}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
+      {activeDiagramConnection && (
+        <DiagramConnectionDetails
+          connection={activeDiagramConnection}
+          items={visible}
+          onSelect={selectOnFloor}
+        />
+      )}
       <AlertDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
@@ -705,9 +845,11 @@ export function FactoryFloor({
       <div className="floor-secondary flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2 text-[11px] text-muted-foreground">
         <span>
           {visible.length} of {items.length} items shown ·{" "}
-          {measured
-            ? "Measured floor · reference models"
-            : "Illustrative layout"}
+          {schematic
+            ? "Engineering schematic · equipment identities shared across views"
+            : measured
+              ? "Measured floor · reference models"
+              : "Illustrative layout"}
         </span>
         <Link
           href="/inventory"
