@@ -446,6 +446,42 @@ async function grabFixture(page: Page, plan = false) {
   return { canvas, bounds, item, placement };
 }
 
+async function refitGrabTarget(
+  page: Page,
+  original: Awaited<ReturnType<typeof grabFixture>>,
+) {
+  const { canvas } = original;
+  await page
+    .getByRole("button", { name: "Fit whole factory floor", exact: true })
+    .click();
+  await expect
+    .poll(async () =>
+      JSON.parse((await canvas.getAttribute("data-camera-view"))!).zoom,
+    )
+    .toBe(1);
+  await expect
+    .poll(async () =>
+      JSON.parse((await canvas.getAttribute("data-camera-view"))!).target,
+    )
+    .toEqual([0, 0, 0]);
+  // Clicking the toolbar can scroll the page. Keep the same visible surface
+  // relative to the canvas, not its stale viewport coordinates from the fixture.
+  const position = {
+    x: original.item.x - original.bounds.x,
+    y: original.item.y - original.bounds.y,
+  };
+  await canvas.hover({ position });
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error("The refitted factory canvas is not visible.");
+  expect(bounds.width).toBe(original.bounds.width);
+  expect(bounds.height).toBe(original.bounds.height);
+  await expect(canvas).toHaveAttribute("data-grab-target", "asset:1");
+  return {
+    bounds,
+    item: { x: bounds.x + position.x, y: bounds.y + position.y },
+  };
+}
+
 test("loading, warehouse, production and exit areas follow saved named zones in 3D and plan", async ({
   page,
 }) => {
@@ -753,7 +789,9 @@ test("space beside equipment cannot start an item grab", async ({ page }) => {
 test("3D hand grabs empty floor or equipment directly; camera stays fixed during item movement", async ({
   page,
 }) => {
-  const { canvas, bounds, item, placement } = await grabFixture(page);
+  const grab = await grabFixture(page);
+  const { canvas, bounds, placement } = grab;
+  let { item } = grab;
   await expect(canvas).toHaveCSS("cursor", "grab");
   const original = await placement(),
     camera = await canvas.getAttribute("data-camera-view");
@@ -775,12 +813,7 @@ test("3D hand grabs empty floor or equipment directly; camera stays fixed during
     .poll(() => canvas.getAttribute("data-camera-view"))
     .not.toBe(camera);
   expect(await placement()).toEqual(original);
-  await page
-    .getByRole("button", { name: "Fit whole factory floor", exact: true })
-    .click();
-  await canvas.scrollIntoViewIfNeeded();
-  await page.mouse.move(item.x, item.y);
-  await expect(canvas).toHaveAttribute("data-grab-target", "asset:1");
+  ({ item } = await refitGrabTarget(page, grab));
   await canvas.focus();
   await page.keyboard.down("Space");
   const beforeSpace = await canvas.getAttribute("data-camera-view");
@@ -793,10 +826,7 @@ test("3D hand grabs empty floor or equipment directly; camera stays fixed during
     .poll(() => canvas.getAttribute("data-camera-view"))
     .not.toBe(beforeSpace);
   expect(await placement()).toEqual(original);
-  await page
-    .getByRole("button", { name: "Fit whole factory floor", exact: true })
-    .click();
-  await page.mouse.move(item.x, item.y);
+  ({ item } = await refitGrabTarget(page, grab));
   const fixedCamera = await canvas.getAttribute("data-camera-view");
   await page.mouse.down();
   await expect(canvas).toHaveAttribute("data-grab-state", "item");
@@ -862,7 +892,8 @@ test("3D grabs cancel safely and release outside the canvas; a pinch never moves
   page,
   context,
 }) => {
-  const { canvas, bounds, item, placement } = await grabFixture(page);
+  const grab = await grabFixture(page);
+  const { canvas, item, placement } = grab;
   const original = await placement();
   await page.mouse.move(item.x, item.y);
   await page.mouse.down();
@@ -912,16 +943,17 @@ test("3D grabs cancel safely and release outside the canvas; a pinch never moves
   await expect(canvas).toHaveAttribute("data-grab-state", "idle");
   const zoom = JSON.parse((await canvas.getAttribute("data-camera-view"))!).zoom;
   expect(zoom).toBeGreaterThan(0);
-  await page
-    .getByRole("button", { name: "Fit whole factory floor", exact: true })
-    .click();
-  await page.mouse.move(item.x, item.y);
+  const { bounds } = await refitGrabTarget(page, grab);
+  const fixedCamera = await canvas.getAttribute("data-camera-view");
   await page.mouse.down();
+  await expect(canvas).toHaveAttribute("data-grab-state", "item");
   await page.mouse.move(bounds.x - 25, bounds.y + bounds.height / 2, {
     steps: 10,
   });
+  expect(await canvas.getAttribute("data-camera-view")).toBe(fixedCamera);
   await page.mouse.up();
   await expect.poll(placement).not.toEqual(original);
+  expect(await canvas.getAttribute("data-camera-view")).toBe(fixedCamera);
   await expect(canvas).toHaveAttribute("data-grab-state", "idle");
   await expect(canvas).toHaveCSS("cursor", "grab");
 });
