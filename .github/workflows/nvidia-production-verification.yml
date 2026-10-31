@@ -1,0 +1,152 @@
+name: NVIDIA production verification
+on:
+  push:
+    branches: [verify/nvidia-production-8ec2feb]
+    paths: ['.github/workflows/nvidia-production-verification.yml']
+permissions:
+  contents: read
+  actions: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/verify/nvidia-production-8ec2feb'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      RELEASE_SHA: 8ec2febe13977fc73cfa07ea1549857865b49d69
+      RELEASE_ORIGIN: https://smart-factory-iot-app.vercel.app
+      API_ORIGIN: https://smart-factory-iot-app.vercel.app
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 8ec2febe13977fc73cfa07ea1549857865b49d69
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with: { version: 10.34.5 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Require successful deployment of this exact qualified main revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p test-results/nvidia-production
+          for attempt in $(seq 1 60); do
+            current=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+            [[ "$current" == "$RELEASE_SHA" ]] || { echo 'A different main revision exists; do not qualify an ambiguous release.'; exit 1; }
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$RELEASE_SHA&event=workflow_run&per_page=50" > "$RUNNER_TEMP/release-runs.json"
+            state=$(node --input-type=module -e 'import fs from "node:fs";const runs=JSON.parse(fs.readFileSync(process.argv[1])).workflow_runs.filter(r=>r.path===".github/workflows/deploy-vercel-oracle.yml");const run=runs[0];console.log(run?.status==="completed" ? run.conclusion : "pending")' "$RUNNER_TEMP/release-runs.json")
+            echo "Qualified production workflow: $state"
+            if [[ "$state" == success ]]; then
+              cp "$RUNNER_TEMP/release-runs.json" test-results/nvidia-production/deployment-workflow.json
+              break
+            fi
+            [[ "$state" == pending ]] || { echo 'Production workflow did not succeed.'; exit 1; }
+            [[ "$attempt" != 60 ]] || { echo 'No successful exact-revision deployment within this verification run.'; exit 1; }
+            sleep 30
+          done
+      - name: Verify release marker, all fifteen asset files and deployed API compatibility
+        env:
+          RUNTIME_EVIDENCE_FILE: test-results/nvidia-production/api-runtime.json
+        run: |
+          node --import tsx scripts/verify-release.mts | tee test-results/nvidia-production/release-assets.log
+          node --import tsx scripts/verify-runtime.mts | tee test-results/nvidia-production/api-runtime.log
+      - name: Verify real production models through the public read-only demo viewer
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium, expect } from '@playwright/test';
+          import { readFile, writeFile } from 'node:fs/promises';
+          import assert from 'node:assert/strict';
+          const origin = process.env.RELEASE_ORIGIN;
+          const directory = 'test-results/nvidia-production';
+          const { assets } = JSON.parse(await readFile('shared/industrial-assets.catalog.json', 'utf8'));
+          const browser = await chromium.launch({ args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+          const results = [];
+          let active;
+          try {
+            for (const width of [1440, 390]) {
+              const context = await browser.newContext({ viewport: { width, height: 1000 } });
+              const blockedWrites = [], errors = [], failedModels = [];
+              await context.route('**/api/**', async route => {
+                const request = route.request();
+                const path = new URL(request.url()).pathname;
+                if (request.method() !== 'GET' && request.method() !== 'HEAD' && !(request.method() === 'POST' && path === '/api/trpc/auth.login')) {
+                  blockedWrites.push({ method: request.method(), path });
+                  await route.abort('blockedbyclient');
+                } else await route.continue();
+              });
+              const page = await context.newPage(); active = page;
+              page.on('pageerror', error => errors.push(error.message));
+              page.on('response', response => {
+                if (response.url().includes('/models/nvidia/') && !response.ok()) failedModels.push({ url: response.url(), status: response.status() });
+              });
+              await page.goto(origin + '/#/login', { waitUntil: 'domcontentloaded' });
+              await page.getByRole('button', { name: 'Demo Viewer', exact: true }).click({ timeout: 30000 });
+              await page.getByRole('button', { name: /^sign in$/i }).click();
+              await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible({ timeout: 45000 });
+              await page.goto(origin + '/#/models', { waitUntil: 'domcontentloaded' });
+              await expect(page.getByRole('heading', { name: 'Factory models', exact: true })).toBeVisible({ timeout: 30000 });
+              await expect(page.getByRole('button', { name: 'Add to local models', exact: true })).toHaveCount(0);
+              for (const asset of assets) {
+                await page.getByLabel('Factory reference models', { exact: true }).getByRole('button', { name: asset.name, exact: true }).click();
+                for (const quality of ['compact', 'detail']) {
+                  await page.getByLabel('Rendering quality', { exact: true }).selectOption(quality);
+                  const host = page.locator('[data-state=ready]');
+                  await expect(host).toHaveAttribute('data-model-bytes', String(asset.models[quality].bytes), { timeout: 45000 });
+                  await expect(page.locator('canvas')).toHaveCount(1);
+                  await expect(page.getByLabel('Asset provenance and license')).toContainText(asset.attribution);
+                  const components = page.getByLabel('Reference components', { exact: true }).getByRole('button');
+                  await expect(components).toHaveCount(asset.models[quality].manifest.components.length);
+                  await components.first().click();
+                  await expect(components.first()).toHaveAttribute('aria-pressed', 'true');
+                  for (const text of ['Framing and visibility', 'Explode, section and inspection tools']) {
+                    const summary = page.locator('summary').filter({ hasText: new RegExp('^' + text + '$') });
+                    if (await summary.isVisible() && !await summary.evaluate(el => el.parentElement.open)) await summary.click();
+                  }
+                  await page.getByRole('button', { name: 'Isolate selected', exact: true }).click();
+                  await expect(page.getByRole('button', { name: 'Isolate selected', exact: true })).toHaveAttribute('aria-pressed', 'true');
+                  await page.getByRole('button', { name: 'Show all', exact: true }).click();
+                  await page.getByLabel('Section axis', { exact: true }).selectOption('X');
+                  await page.waitForFunction(() => {
+                    const d = JSON.parse(document.querySelector('[data-inspection]')?.getAttribute('data-inspection') || '{}');
+                    return d.section === 'X' && d.caps === 0;
+                  });
+                  await page.getByRole('button', { name: 'Restore assembly', exact: true }).click();
+                  await page.waitForFunction(() => {
+                    const d = JSON.parse(document.querySelector('[data-inspection]')?.getAttribute('data-inspection') || '{}');
+                    return d.section === 'off' && d.caps === 0 && Math.abs(d.explode) < 0.000001;
+                  });
+                  await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
+                  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1), 'No horizontal overflow');
+                  await host.scrollIntoViewIfNeeded();
+                  await host.screenshot({ path: `${directory}/${asset.slug}-${quality}-${width}.png` });
+                  results.push({ asset: asset.slug, quality, width, bytes: asset.models[quality].bytes, triangles: asset.models[quality].triangles, ready: true, selection: true, section: true, restoration: true, timing: JSON.parse(await host.getAttribute('data-load-timings')) });
+                }
+              }
+              assert.deepEqual(blockedWrites, [], 'No attempted operational writes');
+              assert.deepEqual(failedModels, [], 'All production model requests succeeded');
+              assert.deepEqual(errors, [], 'No uncaught browser errors');
+              await context.close(); active = null;
+            }
+            assert.equal(results.length, 12);
+            console.log(JSON.stringify({ release: process.env.RELEASE_SHA, productionOrigin: origin, operationalWrites: 0, cases: results }, null, 2));
+          } catch (error) {
+            if (active) await active.screenshot({ path: directory + '/failure.png', fullPage: true }).catch(() => {});
+            await writeFile(directory + '/failure.txt', String(error.stack || error));
+            throw error;
+          } finally {
+            await writeFile(directory + '/browser-results.json', JSON.stringify({ release: process.env.RELEASE_SHA, origin, cases: results }, null, 2) + '\n');
+            await browser.close();
+          }
+          JS
+      - name: Retain production verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nvidia-production-8ec2feb
+          path: test-results/nvidia-production/
+          retention-days: 14
+          if-no-files-found: warn
