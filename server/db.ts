@@ -1,5 +1,6 @@
 import {
   currentRequestDatabase,
+  withMutationActor,
   type ApplicationDatabase,
 } from "./database-scope";
 import {
@@ -964,6 +965,23 @@ export async function createAsset(
 
 /** Persist every shell from an imported AASX package in one database transaction. */
 export async function importAasxAssets(
+  ...args: Parameters<typeof persistImportedAasxAssets>
+) {
+  // The streaming HTTP import does not pass through tRPC's mutation middleware.
+  // Its server-verified author must also attribute links to existing factory devices.
+  const actor = await withDb(async (db) => {
+    const [author] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, args[1]))
+      .limit(1);
+    return author;
+  });
+  if (!actor) throw new Error("AASX import requires an existing author");
+  return withMutationActor(actor, () => persistImportedAasxAssets(...args));
+}
+
+async function persistImportedAasxAssets(
   imported: Array<{
     shell: Record<string, unknown>;
     submodels: Array<Record<string, unknown>>;

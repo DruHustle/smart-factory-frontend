@@ -286,6 +286,67 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         ),
       ).toBe(true);
     });
+    it("attributes AASX import connections to the importing engineer in the factory history", async () => {
+      const factory = await create();
+      const gateway = await caller(engineer).factories.add({
+        id: factory.id,
+        expectedVersion: factory.version,
+        item: {
+          name: "Import gateway",
+          identifier: "import-gw-" + tag.slice(0, 12),
+          kind: "device",
+          itemType: "gateway",
+          dimensions: { width: 0.5, depth: 0.5, height: 0.5 },
+        },
+      });
+      const { importAasxAssets } = await import("./db");
+      const imported = await importAasxAssets(
+        [
+          {
+            shell: {
+              id: "urn:factory-import:" + crypto.randomUUID(),
+              idShort: "ImportedPump",
+              assetInformation: { assetKind: "Instance" },
+            },
+            submodels: [],
+            conceptDescriptions: [],
+          },
+        ],
+        teammate.id,
+        {
+          mode: "gateway",
+          deviceId: Number(gateway.ref.split(":")[1]),
+          protocol: "mqtt",
+          endpoint: "mqtt://private-import-endpoint-must-not-enter-history",
+          tagMappings: [],
+        },
+      );
+      try {
+        expect(imported).toHaveLength(1);
+        const event = (
+          await caller(viewer).factories.activity.list({
+            factoryId: factory.id,
+          })
+        ).items.find((e) => e.action === "connection.added");
+        expect(event).toMatchObject({
+          targetRef: gateway.ref,
+          actorId: teammate.id,
+          actorName: teammate.name,
+          actorRole: "engineer",
+        });
+        const detail = await caller(viewer).factories.activity.get({
+          factoryId: factory.id,
+          id: event!.id,
+        });
+        expect(detail.after).toMatchObject({ endpointConfigured: true });
+        expect(JSON.stringify(detail)).not.toContain("private-import-endpoint");
+      } finally {
+        const db = (await getDb())!;
+        await db.execute(
+          sql`delete from asset_devices where "assetId"=${imported[0].id}`,
+        );
+      }
+    });
     it("audits connection changes without endpoint secrets and blocks deleting a linked device", async () => {
       const pump = await addPump(await create());
       const sensor = await caller(engineer).factories.add({
