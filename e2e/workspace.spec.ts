@@ -54,6 +54,64 @@ test.describe("unified item workspace", () => {
     process.env.WORKSPACE_E2E !== "true",
     "Requires isolated workspace fixtures",
   );
+  test("mobile inventory search text fits and finds names and identifiers", async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 960 });
+    await login(page, "engineer");
+    await inventory(page, "");
+    const search = page.getByRole("textbox", {
+      name: "Search inventory",
+      exact: true,
+    });
+    await expect(search).toHaveAttribute("placeholder", "Search inventory");
+    await expect(search).toHaveAccessibleDescription(
+      "Search by name or identifier.",
+    );
+    await page.evaluate(() => document.fonts.ready);
+    const textFits = await search.evaluate((input: HTMLInputElement) => {
+      const style = getComputedStyle(input);
+      const placeholderStyle = getComputedStyle(input, "::placeholder");
+      const context = document.createElement("canvas").getContext("2d");
+      if (!context) throw new Error("Canvas text measurement is unavailable");
+      context.font = `${placeholderStyle.fontStyle} ${placeholderStyle.fontWeight} ${placeholderStyle.fontSize} ${placeholderStyle.fontFamily}`;
+      const spacing = Number.parseFloat(placeholderStyle.letterSpacing) || 0;
+      const needed =
+        context.measureText(input.placeholder).width +
+        Math.max(0, input.placeholder.length - 1) * spacing;
+      const available =
+        input.clientWidth -
+        Number.parseFloat(style.paddingLeft) -
+        Number.parseFloat(style.paddingRight);
+      return { needed, available };
+    });
+    expect(textFits.available).toBeGreaterThanOrEqual(textFits.needed);
+    await search.fill("Workspace child A");
+    await expect(
+      page
+        .getByRole("link", { name: "Workspace child A", exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible();
+    await search.fill("workspace-child-a");
+    await expect(
+      page
+        .getByRole("link", { name: "Workspace child A", exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible();
+    await search.clear();
+    await expect(
+      page
+        .getByRole("link", { name: "Workspace child B", exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible();
+    await search.blur();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: testInfo.outputPath("mobile-inventory-search.png"),
+      fullPage: true,
+      animations: "disabled",
+    });
+  });
   test("direct IoT registration completes and accepts telemetry without a gateway or AAS", async ({
     page,
   }) => {
@@ -219,11 +277,9 @@ test.describe("unified item workspace", () => {
         .filter({ visible: true }),
     ).toBeVisible();
     await open(page, "Workspace child A");
-    const provenance = page
-      .locator("details")
-      .filter({
-        has: page.locator("summary", { hasText: "Source & freshness" }),
-      });
+    const provenance = page.locator("details").filter({
+      has: page.locator("summary", { hasText: "Source & freshness" }),
+    });
     await expect(provenance).not.toHaveAttribute("open", "");
     await provenance.locator("summary").focus();
     await page.keyboard.press("Enter");

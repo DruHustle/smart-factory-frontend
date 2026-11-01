@@ -258,16 +258,21 @@ function LegacyInventory() {
         <FilterToolbar>
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">Search inventory</span>
+            <span id="inventory-search-help" className="sr-only">
+              Search by name or identifier.
+            </span>
             <Search
               aria-hidden="true"
               className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground"
             />
             <Input
               aria-label="Search inventory"
+              aria-describedby="inventory-search-help"
+              title="Search by name or identifier"
               className="pl-9 pr-10"
               value={filter.search}
               maxLength={100}
-              placeholder="Search name or identifier"
+              placeholder="Search inventory"
               onChange={(event) => update({ search: event.target.value })}
             />
             {!!filter.search && (
