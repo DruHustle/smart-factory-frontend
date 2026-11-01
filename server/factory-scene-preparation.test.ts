@@ -4,6 +4,7 @@ import {
   FactoryScenePreparation,
   disposeFactoryScene,
 } from "../client/src/components/workspace/factory-scene-preparation";
+import { instantiateFactoryReference } from "../client/src/components/workspace/factory-graphics";
 
 function deferred() {
   let resolve!: () => void;
@@ -189,5 +190,58 @@ it("disposes attached, retired and pending viewer resources once without freeing
     geometries: [ownedGeometry],
   });
   for (const dispose of watched) expect(dispose).toHaveBeenCalledOnce();
+  expect(cachedDispose).not.toHaveBeenCalled();
+});
+
+it("releases a closed viewer's shared geometry listeners without invalidating the source or another viewer", () => {
+  const cached = new THREE.Group(),
+    sourceGeometry = new THREE.BoxGeometry(2, 3, 4),
+    sourceTexture = new THREE.Texture(),
+    sourceMaterial = new THREE.MeshStandardMaterial({ map: sourceTexture });
+  cached.add(new THREE.Mesh(sourceGeometry, sourceMaterial));
+  const materials = new Map<THREE.Material, THREE.Material>(),
+    textures = new Map<THREE.Texture, THREE.Texture>(),
+    attached = instantiateFactoryReference(cached, materials, textures),
+    pending = instantiateFactoryReference(cached, materials, textures),
+    otherViewer = instantiateFactoryReference(cached, new Map(), new Map()),
+    closedGeometry = (attached.children[0] as THREE.Mesh).geometry,
+    activeGeometry = (otherViewer.children[0] as THREE.Mesh).geometry;
+  expect((pending.children[0] as THREE.Mesh).geometry).toBe(closedGeometry);
+  const closedDispose = vi.spyOn(closedGeometry, "dispose"),
+    activeDispose = vi.spyOn(activeGeometry, "dispose"),
+    cachedDispose = vi.spyOn(sourceGeometry, "dispose"),
+    sourceTextureDispose = vi.spyOn(sourceTexture, "dispose"),
+    activeListener = vi.fn();
+  // Renderer geometry bookkeeping removes its own listener on this event.
+  const retiredListener = vi.fn(() =>
+    closedGeometry.removeEventListener("dispose", retiredListener),
+  );
+  closedGeometry.addEventListener("dispose", retiredListener);
+  activeGeometry.addEventListener("dispose", activeListener);
+  const expectedBounds = new THREE.Box3().setFromObject(otherViewer);
+  disposeFactoryScene([attached, pending], {
+    materials: materials.values(),
+    textures: textures.values(),
+  });
+  expect(closedDispose).toHaveBeenCalledOnce();
+  expect(retiredListener).toHaveBeenCalledOnce();
+  expect(closedGeometry.hasEventListener("dispose", retiredListener)).toBe(
+    false,
+  );
+  expect(activeDispose).not.toHaveBeenCalled();
+  expect(activeListener).not.toHaveBeenCalled();
+  expect(cachedDispose).not.toHaveBeenCalled();
+  expect(sourceTextureDispose).not.toHaveBeenCalled();
+  expect(new THREE.Box3().setFromObject(otherViewer)).toEqual(expectedBounds);
+  const nextViewer = instantiateFactoryReference(cached, new Map(), new Map());
+  expect((nextViewer.children[0] as THREE.Mesh).geometry).not.toBe(
+    closedGeometry,
+  );
+  expect((nextViewer.children[0] as THREE.Mesh).geometry).not.toBe(
+    activeGeometry,
+  );
+  expect(new THREE.Box3().setFromObject(nextViewer)).toEqual(expectedBounds);
+  disposeFactoryScene([otherViewer, nextViewer]);
+  expect(activeListener).toHaveBeenCalledOnce();
   expect(cachedDispose).not.toHaveBeenCalled();
 });

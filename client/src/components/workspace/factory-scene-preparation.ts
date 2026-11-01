@@ -88,7 +88,11 @@ export function disposeFactoryScene(
         object instanceof THREE.Line ||
         object instanceof THREE.Sprite
       ) {
-        if ("geometry" in object && !object.userData.sharedReferenceGeometry)
+        if (
+          "geometry" in object &&
+          (!object.userData.sharedReferenceGeometry ||
+            object.userData.viewerOwnedReferenceGeometry)
+        )
           geometries.add(object.geometry as THREE.BufferGeometry);
         for (const material of Array.isArray(object.material)
           ? object.material
