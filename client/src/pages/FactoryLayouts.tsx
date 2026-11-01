@@ -340,10 +340,7 @@ function FactoryLayoutsEditor() {
     );
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Factory layouts"
-        description="Design a floor, define zones and place your equipment."
-      />
+      <PageHeader title="Factory layouts" />
       <div className="flex flex-wrap items-center gap-2">
         <Button
           aria-label="New layout"
@@ -416,8 +413,8 @@ function FactoryLayoutsEditor() {
       </div>
       <p className="rounded-md border bg-muted/30 p-3 text-sm">
         {demo
-          ? "Demo design workspace. Create, rearrange and reopen layouts in this browser using simulated inventory."
-          : "Layouts are private to your account. Draft edits are retained in this browser; Save layout stores a version in your account."}{" "}
+          ? "Simulated inventory · saved in this browser."
+          : "Private layout · draft saved in this browser. Save to keep an account version."}{" "}
         Equipment footprints are illustrative; the layout does not operate
         machinery.
       </p>

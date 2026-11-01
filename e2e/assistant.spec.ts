@@ -455,3 +455,37 @@ test("asset links update the next question while retaining drafts and previous a
   await expect(context).toContainText("Showcase pump 01");
   expect(requests).toEqual([other.identifier]);
 });
+
+test("compact Assistant suggestions submit the full question and retain source access at 390px", async ({
+  page,
+}) => {
+  await enterSimulation(page, 390);
+  await page.goto("/#/assistant");
+  await expect(page.getByText("Read-only", { exact: true })).toBeVisible();
+  const suggestion = page.getByRole("button", {
+    name: "Import AASX: How do I import an AASX package?",
+    exact: true,
+  });
+  await expect(suggestion).toHaveText("Import AASX");
+  const sent = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" && request.url().includes("/assistant.ask"),
+  );
+  await suggestion.focus();
+  await page.keyboard.press("Enter");
+  const raw = (await sent).postDataJSON();
+  const payload = raw["0"]?.json ?? raw.json;
+  expect(payload.question).toBe("How do I import an AASX package?");
+  await expect(page.getByTestId("assistant-answer-content")).toBeVisible();
+  await expect(page.getByRole("article")).toContainText(payload.question);
+  await page.getByRole("button", { name: /Sources & context/ }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Answer evidence" }),
+  ).toContainText("Answer snapshot");
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: /Sources & context/ }),
+  ).toBeFocused();
+  await noOverflow(page);
+});

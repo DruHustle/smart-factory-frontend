@@ -219,6 +219,19 @@ test.describe("unified item workspace", () => {
         .filter({ visible: true }),
     ).toBeVisible();
     await open(page, "Workspace child A");
+    const provenance = page
+      .locator("details")
+      .filter({
+        has: page.locator("summary", { hasText: "Source & freshness" }),
+      });
+    await expect(provenance).not.toHaveAttribute("open", "");
+    await provenance.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(provenance).toHaveAttribute("open", "");
+    await expect(provenance).toContainText("Freshness policy:");
+    await expect(provenance).toContainText(
+      "Configuration does not establish availability or security.",
+    );
     const item = page.url();
     await page.reload();
     await expect(

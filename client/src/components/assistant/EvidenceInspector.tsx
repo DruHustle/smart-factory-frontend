@@ -97,15 +97,13 @@ export function EvidenceInspector({
               />
             ) : (
               <p className="text-sm text-muted-foreground">
-                No linked model is recorded for this item. Identity and source
-                evidence remain available.
+                No linked 3D model.
               </p>
             )}
             {equipment.componentId && (
               <p className="rounded-md border border-info/30 bg-info/5 p-3 text-xs leading-5">
-                {equipment.componentName ?? "Component"} has an explicit metric
-                binding to this source. Highlighting an association does not
-                establish a component fault.
+                Linked metric: {equipment.componentName ?? "Component"}.
+                Association does not establish a fault.
               </p>
             )}
           </>
@@ -121,33 +119,29 @@ export function EvidenceInspector({
           <p className="text-sm text-muted-foreground">
             {context
               ? "This equipment is no longer available in the authorized scope."
-              : "Choose equipment in the composer, or ask a workflow question without equipment context."}
+              : "Choose equipment below, or ask a workflow question."}
           </p>
         )}
         {equipment?.equipmentId && turn?.result && (
           <p className="text-xs text-muted-foreground">
-            The preview shows the current linked representation. Answer evidence
-            retains the snapshot below.
+            Current model · answer sources retain their snapshot.
           </p>
         )}
       </section>
       <section aria-label="Answer evidence" className="space-y-3 border-t pt-4">
-        <h2 className="font-semibold">
-          Sources for {turn ? "this answer" : "your next answer"}
-        </h2>
+        <h2 className="font-semibold">{turn ? "Answer sources" : "Sources"}</h2>
         {turn?.result ? (
           <p className="text-xs text-muted-foreground">
             Answer snapshot ·{" "}
             {new Date(turn.result.contextAt).toLocaleString(undefined, {
               timeZoneName: "short",
             })}
-            . Observation times are shown with each stored source.
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
             {turn?.status === "pending"
-              ? "Authorized sources will appear when this answer completes."
-              : "Approved guides and stored evidence will appear here after a question."}
+              ? "Loading sources…"
+              : "Sources appear after your first answer."}
           </p>
         )}
         {sources.length > 0 && (
@@ -194,7 +188,7 @@ export function EvidenceInspector({
                       <p className="text-xs text-info">
                         [{index + 1}]{" "}
                         {source.kind === "live-data"
-                          ? "Stored workspace evidence"
+                          ? "Stored evidence"
                           : "Operator guide"}
                       </p>
                       {link?.kind === "internal" ? (

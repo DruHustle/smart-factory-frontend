@@ -466,6 +466,13 @@ export default function Assistant() {
           ? "How do I create an asset and provision its AAS?"
           : "How do I review source freshness?",
       ];
+  const suggestionLabels = selectedContext
+    ? ["Investigate", "Latest observations", "Inspect equipment"]
+    : [
+        "Open incidents",
+        "Import AASX",
+        user?.access?.canEngineer ? "Create an asset" : "Source freshness",
+      ];
   const inspectorContext = selectedTurn
     ? selectedTurn.context
     : selectedContext;
@@ -483,12 +490,9 @@ export default function Assistant() {
     >
       <PageHeader
         title="Assistant"
-        description="Understand equipment through evidence."
         action={
           <div className="flex items-center gap-2">
-            <Badge className="hidden sm:inline-flex" variant="outline">
-              Read-only
-            </Badge>
+            <Badge variant="outline">Read-only</Badge>
             <Button
               variant="outline"
               size="sm"
@@ -520,10 +524,10 @@ export default function Assistant() {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2 text-xs text-muted-foreground">
             <span>
               {selectedTurn?.result
-                ? `${wide ? "Inspecting answer snapshot" : "Snapshot"} · ${time(selectedTurn.result.contextAt)}`
+                ? `Snapshot · ${time(selectedTurn.result.contextAt)}`
                 : user?.access?.demoOnly
-                  ? "Isolated simulation workspace"
-                  : "Authorized workspace · advisory"}
+                  ? "Demo · simulated"
+                  : "Workspace · advisory"}
             </span>
             <Button
               variant="ghost"
@@ -543,7 +547,7 @@ export default function Assistant() {
               }}
             >
               <BookOpen className="size-4" />
-              {wide ? "Evidence & context" : "Evidence & context"}
+              Evidence & context
               {selectedTurn?.result?.sources.length
                 ? ` (${selectedTurn.result.sources.length})`
                 : ""}
@@ -572,11 +576,6 @@ export default function Assistant() {
                     <h2 className="text-lg font-semibold">
                       What would you like to understand?
                     </h2>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Ask about equipment observations, source evidence or an
-                      application workflow. Answers are advisory and link to
-                      their supporting records.
-                    </p>
                     {selectedContext && (
                       <p className="mt-2 text-sm">
                         Selected equipment ·{" "}
@@ -585,16 +584,18 @@ export default function Assistant() {
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col gap-2 sm:items-start">
-                  {suggestions.map((s) => (
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map((s, index) => (
                     <Button
                       key={s}
                       type="button"
                       variant="outline"
-                      className="h-auto justify-start whitespace-normal py-2 text-left text-sm"
+                      className="h-auto min-h-10 whitespace-normal py-2 text-sm"
+                      aria-label={`${suggestionLabels[index]}: ${s}`}
+                      title={s}
                       onClick={() => submit(undefined, s)}
                     >
-                      {s}
+                      {suggestionLabels[index]}
                     </Button>
                   ))}
                 </div>
@@ -871,13 +872,13 @@ export default function Assistant() {
             </div>
             <p
               id="assistant-question-help"
-              className={`mt-2 text-xs ${session.draft.length > 500 || (attempted && invalid) ? "text-destructive" : "text-muted-foreground"}`}
+              className={`text-xs ${session.draft.length > 500 || (attempted && invalid) ? "mt-2 text-destructive" : "sr-only text-muted-foreground sm:not-sr-only sm:mt-2"}`}
             >
               {session.draft.length > 500
                 ? "Use no more than 500 characters. Your draft is retained."
                 : attempted && session.draft.trim().length < 1
                   ? "Enter a question."
-                  : "Enter to send · Shift+Enter for a new line · Advisory and read-only"}
+                  : "Enter to send · Shift+Enter for a new line"}
             </p>
           </form>
         </div>

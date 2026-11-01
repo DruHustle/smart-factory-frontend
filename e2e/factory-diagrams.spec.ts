@@ -890,6 +890,23 @@ for (const width of [390, 1440]) {
       await expect(
         exportPanel.getByLabel("Engineering export validation"),
       ).toContainText("missing engineering fields");
+      const validation = exportPanel.getByLabel(
+        "Engineering export validation",
+      );
+      const fields = validation.locator("details");
+      await expect(fields).not.toHaveAttribute("open", "");
+      await fields.locator("summary").focus();
+      await page.keyboard.press("Enter");
+      await expect(fields.locator("li").first()).toBeVisible();
+      await fields.locator("summary").press("Enter");
+      await expect(fields.locator("li").first()).not.toBeVisible();
+      const scope = exportPanel
+        .locator("details")
+        .filter({ has: page.locator("summary", { hasText: "Export scope" }) });
+      await scope.locator("summary").click();
+      await expect(scope).toContainText("connections outside this zone");
+      await expect(scope).toContainText("Exports do not change equipment");
+      await scope.locator("summary").click();
       const project = exportPanel.getByLabel("Project", { exact: true });
       await project.pressSequentially("Plant Alpha");
       await expect(project).toHaveValue("Plant Alpha");

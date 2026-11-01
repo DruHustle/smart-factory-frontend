@@ -88,9 +88,7 @@ export function FactoryDiagramEditor({
       </summary>
       <div className="mt-3 max-h-80 space-y-3 overflow-y-auto pr-1">
         <p className="text-xs text-muted-foreground">
-          Add documented connections or import a diagram JSON file. Drawings are
-          saved in this browser for this account and factory. Export to transfer
-          them to another browser.
+          Saved in this browser for this account and factory.
         </p>
         {blocked && (
           <Button
@@ -161,8 +159,7 @@ export function FactoryDiagramEditor({
           />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Import replaces this view’s drawing. Export first to retain an
-          existing drawing. Equipment references must belong to this factory.
+          Import replaces this drawing. Export first to keep a copy.
         </p>
         {message && (
           <p role="status" className="text-xs text-muted-foreground">

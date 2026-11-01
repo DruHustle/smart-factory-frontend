@@ -190,7 +190,6 @@ function LegacyInventory() {
     <div className="min-w-0 space-y-[var(--workspace-gap)]">
       <PageHeader
         title="Assets & devices"
-        description="Find equipment, inspect observations and open the right workspace."
         action={
           <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
             <div className="w-full min-w-0 sm:w-auto">
@@ -413,7 +412,11 @@ function LegacyInventory() {
                             <p>
                               {[item.zone, item.location]
                                 .filter(Boolean)
-                                .join(" · ") || "Unspecified location"}
+                                .join(" · ") || (
+                                <span className="sr-only">
+                                  Location unspecified
+                                </span>
+                              )}
                             </p>
                             <p className="mt-1 break-words text-xs text-muted-foreground">
                               {item.route}
@@ -421,11 +424,11 @@ function LegacyInventory() {
                           </td>
                           <td className="p-3">
                             <StatusBadge status={item.status} />
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {item.configured
-                                ? "Connection configured"
-                                : "No configured connection"}
-                            </p>
+                            {!item.configured && (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                No configured connection
+                              </p>
+                            )}
                           </td>
                           <td className="p-3 text-xs">
                             <ItemMeasurements item={item} />
@@ -433,12 +436,10 @@ function LegacyInventory() {
                               value={item.sampleAt}
                               historical={!currentSample(item)}
                             />
-                            <p className="mt-1 capitalize">
-                              {item.mode} evidence
-                            </p>
+                            <p className="mt-1 capitalize">{item.mode}</p>
                           </td>
                           <td className="p-3">
-                            <Capabilities item={item} />
+                            <Capabilities item={item} emptyPlaceholder />
                           </td>
                           <td className="p-2">
                             <DropdownMenu>
@@ -752,7 +753,20 @@ function ItemMeasurements({ item }: { item: InventoryItem }) {
     </div>
   );
 }
-function Capabilities({ item }: { item: InventoryItem }) {
+function Capabilities({
+  item,
+  emptyPlaceholder = false,
+}: {
+  item: InventoryItem;
+  emptyPlaceholder?: boolean;
+}) {
+  if (!item.aas && !item.equipmentId && !item.lifecycle)
+    return emptyPlaceholder ? (
+      <span className="text-xs text-muted-foreground">
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">No AAS or 3D model</span>
+      </span>
+    ) : null;
   return (
     <div className="flex flex-wrap gap-1">
       {item.aas && <Badge variant="secondary">AAS</Badge>}
@@ -761,9 +775,6 @@ function Capabilities({ item }: { item: InventoryItem }) {
         <span className="text-xs capitalize text-muted-foreground">
           {item.lifecycle}
         </span>
-      )}
-      {!item.aas && !item.equipmentId && (
-        <span className="text-xs text-muted-foreground">No AAS / 3D</span>
       )}
     </div>
   );

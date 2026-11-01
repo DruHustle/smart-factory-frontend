@@ -174,7 +174,6 @@ function LegacyHome() {
     >
       <PageHeader
         title="Overview"
-        description="Your connected factory, at a glance."
         action={
           <>
             <FactorySelector />
@@ -210,18 +209,16 @@ function LegacyHome() {
           <span className="flex min-w-0 items-center gap-2">
             <CircleAlert className="size-4 shrink-0 text-warning" aria-hidden />
             <span>
-              <strong>Demo factory · simulated evidence.</strong>{" "}
-              {user?.access?.canSwitchData
-                ? "Switch to Live data to view your operational installation."
-                : "Live data requires an individual account on your operational installation."}
+              <strong>Demo factory · simulated</strong>
             </span>
           </span>
           {demo && (
             <Link
               href="/sandbox"
+              aria-label="Open editable demo"
               className="inline-flex min-h-11 items-center gap-1 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
             >
-              Open editable demo
+              Editable demo
             </Link>
           )}
           <Link
@@ -383,10 +380,7 @@ function LegacyHome() {
                 <EmptyState title="Connection summary unavailable" />
               )}
               <p className="mt-2 text-[10px] text-muted-foreground">
-                {demo
-                  ? "Simulated source evidence"
-                  : "Reported observation states"}{" "}
-                · Unknown remains unknown
+                {demo ? "Simulated" : "Reported states"}
               </p>
             </CardContent>
           </Card>

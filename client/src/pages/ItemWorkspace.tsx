@@ -161,16 +161,16 @@ export default function ItemWorkspace() {
         eyebrow={
           <Link href={safeReturn} className="underline underline-offset-4">
             {safeReturn === "/" || safeReturn.startsWith("/?")
-              ? "Overview / Return to overview"
+              ? "Return to overview"
               : safeReturn.startsWith("/cybersecurity")
-                ? "Cybersecurity / Return to investigation"
+                ? "Return to cybersecurity"
                 : safeReturn.startsWith("/monitoring")
-                  ? "Monitoring / Return to observations"
+                  ? "Return to monitoring"
                   : safeReturn.startsWith("/alerts")
-                    ? "Alerts / Return to investigation"
+                    ? "Return to alerts"
                     : safeReturn === "/analytics"
-                      ? "Analytics / Return to analysis"
-                      : "Assets & devices / Return to results"}
+                      ? "Return to analytics"
+                      : "Return to results"}
           </Link>
         }
         description={`${i.itemType} · ${i.zone || i.location || "Location unspecified"}`}
@@ -216,7 +216,7 @@ export default function ItemWorkspace() {
         className={`flex flex-wrap items-center rounded-lg border bg-card ${is3D ? "gap-2 p-2 text-xs" : "gap-3 p-3 text-sm"}`}
       >
         <Badge variant="outline" className="capitalize">
-          {i.mode} evidence
+          {i.mode}
         </Badge>
         <span>{i.route}</span>
         <span>
@@ -332,7 +332,7 @@ function ItemOverview({
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <section className="space-y-4 rounded-lg border bg-card p-5">
-        <h2 className="font-semibold">Identity & capabilities</h2>
+        <h2 className="font-semibold">Item details</h2>
         <dl className="grid grid-cols-[auto_1fr] gap-3 text-sm">
           <dt className="text-muted-foreground">Record</dt>
           <dd className="break-all">{i.ref}</dd>
@@ -343,15 +343,13 @@ function ItemOverview({
           <dt className="text-muted-foreground">AAS</dt>
           <dd>
             {i.aas
-              ? "Available · engineering permission required"
-              : "Independent item · no AAS required"}
+              ? engineering
+                ? "Available"
+                : "Engineering access required"
+              : "Not linked"}
           </dd>
           <dt className="text-muted-foreground">3D</dt>
-          <dd>
-            {i.equipmentId
-              ? "Explicit linked representation"
-              : "No linked representation"}
-          </dd>
+          <dd>{i.equipmentId ? "Linked model" : "Not linked"}</dd>
         </dl>
         {i.aas && engineering && (
           <Button asChild variant="outline">
@@ -373,11 +371,7 @@ function ItemOverview({
         <dl className="space-y-3 text-sm">
           <div>
             <dt className="text-muted-foreground">Configuration</dt>
-            <dd>
-              {i.configured
-                ? "Connection configured · availability assessed separately"
-                : "Never configured"}
-            </dd>
+            <dd>{i.configured ? "Configured" : "Never configured"}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Connectivity observation</dt>
@@ -392,20 +386,23 @@ function ItemOverview({
               {i.quality} quality
             </dd>
           </div>
-          <div>
-            <dt className="text-muted-foreground">Freshness policy</dt>
-            <dd>
-              {i.freshnessMs
-                ? `${i.freshnessMs / 1000} seconds for this source`
-                : "No commissioned freshness policy; current availability unknown"}
-            </dd>
-          </div>
         </dl>
-        <p className="text-xs text-muted-foreground">
-          A configured link or receiving gateway does not prove this item is
-          live or secure. Historical and simulated observations retain their
-          provenance.
-        </p>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-medium">
+            Source & freshness
+          </summary>
+          <div className="mt-2 space-y-2">
+            <p>
+              {i.freshnessMs
+                ? `Freshness policy: ${i.freshnessMs / 1000} seconds.`
+                : "No commissioned freshness policy; current availability unknown."}
+            </p>
+            <p>
+              Configuration does not establish availability or security.
+              Historical and simulated observations retain their provenance.
+            </p>
+          </div>
+        </details>
       </section>
     </div>
   );

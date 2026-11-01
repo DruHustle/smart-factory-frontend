@@ -89,9 +89,7 @@ export function EngineeringDrawingExport({
       </summary>
       <div className="mt-3 space-y-3">
         <p className="text-xs text-muted-foreground">
-          Editable CAD and A3 PDF sheets include the full saved drawing, even
-          connections outside this zone. Drawing units are millimetres;
-          schematic scale is NTS.
+          Full drawing · DXF / A3 PDF · millimetres · NTS
         </p>
         <div
           className="max-h-80 space-y-3 overflow-y-auto pr-1"
@@ -210,13 +208,18 @@ export function EngineeringDrawingExport({
                   : "Drawing fields complete · engineering review remains required"}
             </p>
             {!!issues.length && (
-              <ul className="mt-2 max-h-32 list-disc space-y-1 overflow-y-auto pl-4">
-                {issues.map((issue, i) => (
-                  <li key={i}>
-                    {issue.target} · {issue.field}: {issue.message}
-                  </li>
-                ))}
-              </ul>
+              <details className="mt-2" open={fatal.length > 0 || undefined}>
+                <summary className="cursor-pointer">
+                  Review {issues.length} fields
+                </summary>
+                <ul className="mt-2 max-h-32 list-disc space-y-1 overflow-y-auto pl-4">
+                  {issues.map((issue, i) => (
+                    <li key={i}>
+                      {issue.target} · {issue.field}: {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </div>
         </div>
@@ -242,11 +245,15 @@ export function EngineeringDrawingExport({
             Preview / save PDF
           </Button>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          Missing values remain “Not supplied” in the schedule. Demo equipment
-          is explicitly marked illustrative. CAD files contain drawing data
-          only; equipment or operational connections are not changed.
-        </p>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">Export scope</summary>
+          <p className="mt-2">
+            Includes the full saved drawing and connections outside this zone.
+            Missing fields are marked “Not supplied”; demo equipment is
+            illustrative. Exports do not change equipment or operational
+            connections.
+          </p>
+        </details>
         {error && (
           <p role="alert" className="text-xs text-destructive">
             {error}
