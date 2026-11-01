@@ -43,7 +43,7 @@ const roleDescriptions: Record<(typeof roles)[number], string> = {
   engineer:
     "Maintain assets, connections, thresholds and commissioned controls, as well as acknowledge incidents.",
   admin:
-    "Full engineering access, plus account administration, role assignments and destructive changes.",
+    "Highest application role: full engineering access, account approval, role assignments and destructive changes.",
 };
 type Account = inferRouterOutputs<AppRouter>["users"]["list"][number];
 type AccountRequest =
@@ -227,7 +227,32 @@ export default function UserAccess({
             {requests.isFetching ? "Refreshing…" : "Refresh requests"}
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <details className="rounded-lg border bg-muted/20 p-3 text-sm">
+            <summary className="cursor-pointer font-medium">
+              How account approval works
+            </summary>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-muted-foreground">
+              <li>
+                Ask the person to choose Register on the sign-in page and submit
+                their own details and password. Their request appears here.
+              </li>
+              <li>
+                Verify their identity and factory affiliation, then approve only
+                the role their work needs. Viewer is the starting role.
+              </li>
+              <li>
+                Tell them when approval is complete. They sign in with their
+                original requested password and select Live data. Confirm
+                approval directly; this page does not confirm email delivery.
+              </li>
+            </ol>
+            <p className="mt-3 text-muted-foreground">
+              You do not need their password to approve a request. Create
+              account is available when registration is not suitable; it uses a
+              temporary password that must be changed at first sign-in.
+            </p>
+          </details>
           {requests.isLoading ? (
             <p role="status">Loading requests…</p>
           ) : requests.error ? (
@@ -246,7 +271,8 @@ export default function UserAccess({
             />
           ) : !requests.data?.length ? (
             <p className="text-sm text-muted-foreground">
-              No requests awaiting review.
+              No requests awaiting review. Ask colleagues to choose Register on
+              the sign-in page, then refresh this list.
             </p>
           ) : (
             <ul className="divide-y">
@@ -340,7 +366,8 @@ export default function UserAccess({
             <DialogTitle>Approve account request</DialogTitle>
             <DialogDescription>
               Review the person's identity and factory affiliation before
-              choosing the role they need for their work.
+              choosing the role they need for their work. Approval activates
+              their chosen password; you do not need to set or receive it.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -390,6 +417,13 @@ export default function UserAccess({
                 {roleDescriptions[approvalRole]}
               </p>
             </div>
+            {approvalRole === "admin" && (
+              <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+                Administrator access includes approving other accounts and
+                changing their roles. Grant it only to someone responsible for
+                managing this installation.
+              </p>
+            )}
             <label className="flex items-start gap-2 text-sm">
               <input
                 type="checkbox"
@@ -613,6 +647,12 @@ export default function UserAccess({
             Engineers maintain assets, connections, thresholds and commissioned
             controls. Administrators also manage accounts and destructive
             changes.
+          </p>
+          <p>
+            Administrator (Admin) is the highest application role; there is no
+            separate Superadmin account type. The first individual administrator
+            is established through trusted deployment setup. Later accounts and
+            role assignments are managed here.
           </p>
           <p>
             Before resetting a password, verify the person's identity through

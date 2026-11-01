@@ -7,6 +7,7 @@ export default defineConfig({
   testMatch: [
     "data-workspace.spec.ts",
     "password-recovery.spec.ts",
+    "account-access-guidance.spec.ts",
     "factory-connections-theme.spec.ts",
     "factory-diagrams.spec.ts",
   ],

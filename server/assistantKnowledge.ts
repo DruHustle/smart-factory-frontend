@@ -712,6 +712,38 @@ function guideAnswer(section: KnowledgeSection) {
   return answer;
 }
 
+function freshnessGuideAnswer(
+  plan: ReturnType<typeof planAssistantConversation>,
+  sections: KnowledgeSection[],
+) {
+  if (
+    plan.includeEvidence ||
+    !/\bhow (?:(?:do|can|should) (?:i|we)|to) (?:review|check|inspect|assess)\b/i.test(
+      plan.resolvedQuestion,
+    ) ||
+    !/\bfreshness\b/i.test(plan.resolvedQuestion)
+  )
+    return null;
+  // The advertised how-to must not rank generic "review" or "source" matches
+  // above the reviewed freshness procedure. Current readings keep their evidence path.
+  const matches = [
+    ["docs/operations.md", "Observe and investigate"],
+    ["docs/assistant-concepts.md", "Unknown and stale status"],
+  ].flatMap(([file, heading]) => {
+    const section = sections.find(
+      (item) => item.source.file === file && item.heading === heading,
+    );
+    return section ? [{ section, score: 1 }] : [];
+  });
+  if (matches.length !== 2) return null;
+  return {
+    answer: matches
+      .map(({ section }) => `### ${section.heading}\n\n${guideAnswer(section)}`)
+      .join("\n\n"),
+    matches,
+  };
+}
+
 function conceptAnswer(
   plan: ReturnType<typeof planAssistantConversation>,
   sections: KnowledgeSection[],
@@ -973,7 +1005,9 @@ export async function answerFactoryQuestion(
       options.factoryId,
     ),
   ]);
-  const explanation = plan.concept ? conceptAnswer(plan, sections) : null;
+  const explanation =
+    freshnessGuideAnswer(plan, sections) ??
+    (plan.concept ? conceptAnswer(plan, sections) : null);
   if (explanation)
     return {
       answer: explanation.answer,

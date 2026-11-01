@@ -18,6 +18,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { userFacingApiError } from "@/lib/errors";
+import { FirstAdministratorHelp } from "@/components/FirstAdministratorHelp";
 
 export default function Register() {
   const policy = trpc.auth.registrationPolicy.useQuery();
@@ -99,6 +100,7 @@ export default function Register() {
                 {policy.isFetching ? "Checking…" : "Try again"}
               </Button>
             )}
+            <FirstAdministratorHelp />
             <Button onClick={() => navigate("/login")}>Back to login</Button>
           </CardContent>
         </Card>
@@ -121,9 +123,14 @@ export default function Register() {
             <p className="text-sm text-muted-foreground">
               This confirmation does not mean your account is active. Ask your
               factory administrator to review your request in Administration →
-              Users & access. After approval, sign in with the password from your
-              original account request. Submitting the form again does not change
-              that password.
+              Users & access. After approval, sign in with the password from
+              your original account request. Submitting the form again does not
+              change that password.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Your administrator can approve access without knowing your
+              password. Ask them to confirm when the review is complete; this
+              page does not confirm an approval email was sent.
             </p>
             <p className="text-sm text-muted-foreground">
               Already had an account? Registration does not change its password.
@@ -136,6 +143,7 @@ export default function Register() {
               </Link>{" "}
               to recover access.
             </p>
+            <FirstAdministratorHelp />
             <Button onClick={() => navigate("/login")}>Back to login</Button>
           </CardContent>
         </Card>
@@ -169,6 +177,18 @@ export default function Register() {
         </CardHeader>
 
         <CardContent className="space-y-6">
+          <ol
+            aria-label="Account approval steps"
+            className="list-decimal space-y-1 rounded-lg border bg-muted/20 py-3 pl-8 pr-3 text-sm text-muted-foreground"
+          >
+            <li>
+              Request access with your personal email and chosen password.
+            </li>
+            <li>
+              An administrator verifies your identity and assigns your role.
+            </li>
+            <li>Sign in after the administrator confirms approval.</li>
+          </ol>
           {/* Registration Form */}
           <form onSubmit={handleRegister} className="space-y-4">
             {/* Full Name Field */}
@@ -309,6 +329,8 @@ export default function Register() {
               Sign In
             </button>
           </div>
+
+          <FirstAdministratorHelp />
 
           {/* Footer - Matches Login Page */}
           <div className="mt-6 text-center text-xs text-muted-foreground space-y-1">

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { answerFactoryQuestion } from "./assistantKnowledge";
+import * as assistantProvider from "./assistantProvider";
 
 const database = vi.hoisted(() => ({
   getAssets: vi.fn(),
@@ -98,9 +99,71 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("Smart Factory documentation assistant", () => {
+  it.each([
+    "How do I review source freshness?",
+    "How can I check source freshness?",
+  ])(
+    "answers the freshness how-to with focused local guidance: %s",
+    async (question) => {
+      const provider = vi.spyOn(
+        assistantProvider,
+        "generateAssistantCompletion",
+      );
+      const fetcher = vi.fn();
+      vi.stubGlobal("fetch", fetcher);
+
+      const result = await answerFactoryQuestion(question, {
+        role: "engineer",
+        selection: { provider: "local" },
+      });
+
+      expect(
+        result.sources.map(({ path, section }) => ({ path, section })),
+      ).toEqual([
+        { path: "docs/operations.md", section: "Observe and investigate" },
+        {
+          path: "docs/assistant-concepts.md",
+          section: "Unknown and stale status",
+        },
+      ]);
+      expect(
+        result.sources.every((source) => source.kind === "documentation"),
+      ).toBe(true);
+      expect(result.answer).toMatch(/acquisition time, receipt time/);
+      expect(result.answer).toContain("configured freshness");
+      expect(result.answer).toContain("gateway heartbeat is not a substitute");
+      expect(result.answer).not.toMatch(/Entra ID|bcrypt|password-recovery/);
+      expect(result.provider).toBe("local");
+      expect(result.model).toBeNull();
+      for (const read of Object.values(database))
+        expect(read).not.toHaveBeenCalled();
+      expect(provider).not.toHaveBeenCalled();
+      expect(fetcher).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps current equipment evidence when a freshness question also requests a reading", async () => {
+    const result = await answerFactoryQuestion(
+      "How do I check the freshness and latest temperature on Compressor 01?",
+      {
+        selectedAssetId: "urn:factory:compressor:01",
+        selection: { provider: "local" },
+      },
+    );
+
+    expect(database.getLatestAssetReadings).toHaveBeenCalledWith([
+      "urn:factory:compressor:01",
+    ]);
+    expect(result.answer).toContain("temperature=53.2");
+    expect(result.sources.some((source) => source.kind === "live-data")).toBe(
+      true,
+    );
+  });
+
   it.each([
     "Review the source observation.",
     "What is the latest temperature on Compressor 01?",

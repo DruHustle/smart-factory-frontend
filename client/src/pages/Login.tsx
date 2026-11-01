@@ -23,6 +23,7 @@ import { trpc } from "@/lib/trpc";
 import { safeSessionStorage } from "@/lib/storage";
 import { userFacingApiError } from "@/lib/errors";
 import { DEMO_ACCOUNTS, type DemoAccount } from "../../../shared/demo-accounts";
+import { FirstAdministratorHelp } from "@/components/FirstAdministratorHelp";
 
 const DEMO_ACCOUNT_CACHE_KEY = "smart-factory:demo-account-shortcuts:v1";
 const BUILD_ENABLES_DEMO_ACCOUNTS =
@@ -242,12 +243,14 @@ export default function Login() {
 
           <div className="space-y-2 text-center">
             <p className="text-sm text-muted-foreground">
-              New to Smart Factory?
+              Need personal access? Register for administrator approval.
             </p>
             <Button asChild variant="outline" className="w-full">
               <Link href="/register">Register</Link>
             </Button>
           </div>
+
+          <FirstAdministratorHelp />
 
           {/* Demo Accounts Section */}
           {demoAccountsQuery.isLoading && demoAccounts.length === 0 && (
@@ -280,6 +283,10 @@ export default function Login() {
                   </Button>
                 ))}
               </div>
+              <p className="text-xs text-center text-muted-foreground">
+                Shared demo accounts explore demonstration data. They cannot
+                approve personal accounts or grant Live access.
+              </p>
             </div>
           )}
 
