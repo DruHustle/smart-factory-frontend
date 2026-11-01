@@ -21,12 +21,34 @@ export type DiagramConnection = {
   toTerminal?: string;
   designation?: string;
   specification?: string;
+  engineering?: {
+    service?: string;
+    nominalSize?: string;
+    material?: string;
+    designPressure?: string;
+    designTemperature?: string;
+    voltage?: string;
+    conductor?: string;
+    protection?: string;
+    signal?: string;
+  };
+};
+export type DrawingMetadata = {
+  project: string;
+  number: string;
+  revision: string;
+  preparedBy: string;
+  checkedBy: string;
+  date: string;
+  sheetPrefix: string;
+  purpose: "draft" | "review";
 };
 export type FactoryDiagram = {
   version: 1;
   mode: DiagramMode;
   title: string;
   connections: DiagramConnection[];
+  drawing?: DrawingMetadata;
 };
 
 export const MAX_DIAGRAM_CONNECTIONS = 500;
@@ -83,6 +105,20 @@ const connectionSchema = z
     toTerminal: singleLine(80).optional(),
     designation: singleLine(120).optional(),
     specification: singleLine(240).optional(),
+    engineering: z
+      .object({
+        service: singleLine(80).optional(),
+        nominalSize: singleLine(80).optional(),
+        material: singleLine(80).optional(),
+        designPressure: singleLine(80).optional(),
+        designTemperature: singleLine(80).optional(),
+        voltage: singleLine(80).optional(),
+        conductor: singleLine(80).optional(),
+        protection: singleLine(80).optional(),
+        signal: singleLine(80).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 const diagramSchema = z
@@ -91,6 +127,28 @@ const diagramSchema = z
     mode: z.enum(["process", "electrical"]),
     title: singleLine(160).min(1, "Enter a drawing title."),
     connections: z.array(connectionSchema).max(MAX_DIAGRAM_CONNECTIONS),
+    drawing: z
+      .object({
+        project: singleLine(100),
+        number: singleLine(60),
+        revision: singleLine(24),
+        preparedBy: singleLine(80),
+        checkedBy: singleLine(80),
+        date: z
+          .string()
+          .regex(/^(?:\d{4}-\d{2}-\d{2})?$/)
+          .refine(
+            (value) =>
+              !value ||
+              (!Number.isNaN(Date.parse(value)) &&
+                new Date(value).toISOString().slice(0, 10) === value),
+            "Use a valid drawing date.",
+          ),
+        sheetPrefix: singleLine(16).regex(/^[a-zA-Z0-9_-]*$/),
+        purpose: z.enum(["draft", "review"]),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine((diagram, ctx) => {

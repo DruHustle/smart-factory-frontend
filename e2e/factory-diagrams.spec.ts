@@ -265,7 +265,7 @@ async function openDiagramEditor(page: Page) {
   if (
     !(await editor.evaluate((element) => (element as HTMLDetailsElement).open))
   )
-    await editor.locator("summary").click();
+    await editor.locator(":scope > summary").click();
   return editor;
 }
 
@@ -852,5 +852,191 @@ for (const width of [390, 1440]) {
     ).toBe(true);
     expect(control.writes).toEqual([]);
     expect(control.errors).toEqual([]);
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`engineering CAD and PDF sheets preserve scoped metadata at ${width}px`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const control = await fixture(page, { noWebGL: true });
+    const { engineeringFixture } =
+      await import("../scripts/engineering/fixtures");
+    const { mkdir } = await import("node:fs/promises");
+    const { resolve } = await import("node:path");
+    const evidence = resolve(
+      process.env.CAD_EVIDENCE_DIR || "test-results/cad-exports",
+      String(width),
+    );
+    await mkdir(evidence, { recursive: true });
+    for (const mode of ["process", "electrical"] as const) {
+      await page
+        .getByRole("button", {
+          name: mode === "process" ? "Process / P&ID" : "Electrical wiring",
+          exact: true,
+        })
+        .click();
+      const document = engineeringFixture(mode);
+      document.connections = document.connections.map((c) => ({
+        ...c,
+        to: c.to === "asset:4" ? "asset:1" : c.to,
+      }));
+      delete document.drawing;
+      await importDiagram(page, document);
+      const exportPanel = page.getByTestId("engineering-drawing-export");
+      if (!(await exportPanel.evaluate((e) => (e as HTMLDetailsElement).open)))
+        await exportPanel.locator(":scope > summary").click();
+      await expect(
+        exportPanel.getByLabel("Engineering export validation"),
+      ).toContainText("missing engineering fields");
+      const project = exportPanel.getByLabel("Project", { exact: true });
+      await project.pressSequentially("Plant Alpha");
+      await expect(project).toHaveValue("Plant Alpha");
+      await exportPanel
+        .getByLabel("Drawing number", { exact: true })
+        .fill(mode === "process" ? "PID-UI" : "ELE-UI");
+      await exportPanel
+        .getByLabel("Drawing revision", { exact: true })
+        .fill("A");
+      await exportPanel
+        .getByLabel("Prepared by", { exact: true })
+        .pressSequentially("Ada Lovelace");
+      await exportPanel
+        .getByLabel("Checked by", { exact: true })
+        .fill("Grace Hopper");
+      await exportPanel
+        .getByLabel("Drawing date", { exact: true })
+        .fill("2026-11-01");
+      await exportPanel
+        .getByLabel("Sheet prefix", { exact: true })
+        .fill(mode === "process" ? "P" : "E");
+      await exportPanel
+        .getByRole("button", { name: "Save sheet details", exact: true })
+        .click();
+      await expect(
+        exportPanel.getByLabel("Engineering export validation"),
+      ).toContainText("Drawing fields complete");
+      await expect(
+        exportPanel.getByRole("button", {
+          name: "Export editable DXF",
+          exact: true,
+        }),
+      ).toBeEnabled();
+      if (width === 1440 && mode === "process") {
+        await project.fill("Unsaved local draft");
+        await page.evaluate(() => {
+          const key = Object.keys(localStorage).find(
+            (k) =>
+              k.startsWith("smart-factory:diagram:v1:") &&
+              k.endsWith(":process"),
+          )!;
+          const oldValue = localStorage.getItem(key)!;
+          const value = JSON.parse(oldValue);
+          value.drawing.checkedBy = "Concurrent reviewer";
+          const newValue = JSON.stringify(value);
+          localStorage.setItem(key, newValue);
+          window.dispatchEvent(
+            new StorageEvent("storage", {
+              key,
+              oldValue,
+              newValue,
+              storageArea: localStorage,
+            }),
+          );
+        });
+        await expect(exportPanel.getByRole("alert")).toContainText(
+          "Drawing changed in another tab",
+        );
+        await expect(
+          exportPanel.getByRole("button", {
+            name: "Save sheet details",
+            exact: true,
+          }),
+        ).toBeDisabled();
+        await expect(
+          exportPanel.getByRole("button", {
+            name: "Export editable DXF",
+            exact: true,
+          }),
+        ).toBeDisabled();
+        await exportPanel
+          .getByRole("button", { name: "Reload sheet details", exact: true })
+          .click();
+        await expect(project).toHaveValue("Plant Alpha");
+        await expect(
+          exportPanel.getByLabel("Checked by", { exact: true }),
+        ).toHaveValue("Concurrent reviewer");
+      }
+      const downloaded = page.waitForEvent("download");
+      await exportPanel
+        .getByRole("button", { name: "Export editable DXF", exact: true })
+        .click();
+      const file = await downloaded;
+      expect(file.suggestedFilename()).toBe(
+        `${mode === "process" ? "PID-UI" : "ELE-UI"}-A.dxf`,
+      );
+      await file.saveAs(resolve(evidence, `${mode}.dxf`));
+      const dxf = await readFile(resolve(evidence, `${mode}.dxf`), "utf8");
+      expect(dxf).toContain("AC1021");
+      expect(dxf).toContain("Plant Alpha");
+      expect(dxf).toContain("Ada Lovelace");
+      expect(dxf).toContain("\nATTRIB\n");
+      const popupPromise = page.waitForEvent("popup");
+      await exportPanel
+        .getByRole("button", { name: "Preview / save PDF", exact: true })
+        .click();
+      const popup = await popupPromise;
+      await expect(popup.locator("[data-sheet]")).toHaveCount(3);
+      await expect(
+        popup.getByRole("button", { name: "Print / save as PDF", exact: true }),
+      ).toBeVisible();
+      await popup.pdf({
+        path: resolve(evidence, `${mode}.pdf`),
+        preferCSSPageSize: true,
+        printBackground: true,
+      });
+      await popup.close();
+      await exportPanel
+        .getByLabel("Drawing sheet details", { exact: true })
+        .evaluate((e) => (e.scrollTop = 0));
+      await page
+        .getByTestId("diagram-configuration")
+        .evaluate((e) => ((e as HTMLDetailsElement).open = false));
+      await page.evaluate(() => {
+        (document.activeElement as HTMLElement | null)?.blur();
+        window.scrollTo(0, 0);
+      });
+      await page.screenshot({
+        path: resolve(evidence, `${mode}-setup.png`),
+        fullPage: true,
+      });
+      await page.reload();
+      await expect(page.getByLabel("Layout name", { exact: true })).toHaveValue(
+        "Diagram review",
+      );
+      await page
+        .getByRole("button", {
+          name: mode === "process" ? "Process / P&ID" : "Electrical wiring",
+          exact: true,
+        })
+        .click();
+      await page
+        .getByTestId("engineering-drawing-export")
+        .locator(":scope > summary")
+        .click();
+      await expect(
+        page
+          .getByTestId("engineering-drawing-export")
+          .getByLabel("Project", { exact: true }),
+      ).toHaveValue("Plant Alpha");
+    }
+    expect(control.writes).toEqual([]);
+    expect(control.errors).toEqual([]);
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
   });
 }

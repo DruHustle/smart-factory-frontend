@@ -122,6 +122,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.90.2
         version: 5.90.16(react@19.2.3)
+      '@tarikjabiri/dxf':
+        specifier: 2.9.0
+        version: 2.9.0
       '@trpc/client':
         specifier: ^11.6.0
         version: 11.8.1(@trpc/server@11.8.1(typescript@5.9.3))(typescript@5.9.3)
@@ -1903,6 +1906,10 @@ packages:
     resolution: {integrity: sha512-bpMGOmV4OPmif7TNMteU/Ehf/hoC0Kf98PDc0F4BZkFrEapRMEqI/V6YS0lyzwSV6PQpY1y4xxArUIfBW5LVxQ==}
     peerDependencies:
       react: ^18 || ^19
+
+  '@tarikjabiri/dxf@2.9.0':
+    resolution: {integrity: sha512-Ox32ynIo5cE2s8oErEWLhcq9CN8Cqu36hKLsE0r173yyq0WePNGIMz+5Y761XD+dSa5ElS4fqWCQaKYp2i+qhw==}
+    engines: {node: '>=18'}
 
   '@trpc/client@11.8.1':
     resolution: {integrity: sha512-L/SJFGanr9xGABmuDoeXR4xAdHJmsXsiF9OuH+apecJ+8sUITzVT1EPeqp0ebqA6lBhEl5pPfg3rngVhi/h60Q==}
@@ -4994,6 +5001,8 @@ snapshots:
     dependencies:
       '@tanstack/query-core': 5.90.16
       react: 19.2.3
+
+  '@tarikjabiri/dxf@2.9.0': {}
 
   '@trpc/client@11.8.1(@trpc/server@11.8.1(typescript@5.9.3))(typescript@5.9.3)':
     dependencies:

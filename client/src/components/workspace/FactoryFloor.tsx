@@ -65,6 +65,7 @@ import {
   DiagramConnectionDetails,
 } from "./FactoryDiagramEditor";
 import { useFactoryDiagram } from "./useFactoryDiagram";
+import { EngineeringDrawingExport } from "./EngineeringDrawingExport";
 const Scene = lazy(() => import("./FactoryFloorScene"));
 class FloorSceneBoundary extends Component<
   { children: ReactNode; fallback: ReactNode },
@@ -530,6 +531,7 @@ export function FactoryFloor({
             items={items}
             onSelectConnection={setSelectedConnection}
           />
+          <EngineeringDrawingExport key={`cad-${diagram.key}`} controller={diagram} items={items} />
         </>
       )}
       {zone !== "all" && (
