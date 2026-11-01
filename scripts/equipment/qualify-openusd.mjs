@@ -1,8 +1,9 @@
 /** Actual browser rendering and negative delivery tests; no production accounts/data. */
-import { chromium, firefox, webkit, expect } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { server } from "./render-fixture.mjs";
+import { qualifyBrowser } from "./browser-compatibility.mjs";
 const { assets } = JSON.parse(
   await readFile("shared/industrial-assets.catalog.json", "utf8"),
 );
@@ -85,6 +86,25 @@ try {
           page.getByRole("img", { name: "Interactive 3D equipment model" }),
         ).toHaveCount(1);
         await expect(page.locator("canvas")).toHaveCount(1);
+        await expect(host).toHaveAttribute(
+          "data-contact-shadow",
+          "model-derived",
+        );
+        await expect(host).toHaveAttribute("data-contact-visible", "true");
+        const dimensions = JSON.parse(
+          await host.getAttribute("data-model-dimensions"),
+        );
+        const expectedDimensions = asset.slug.includes("conveyor")
+          ? [1.54, 2.31, 4]
+          : asset.slug.includes("rack")
+            ? [4, 3.01, 1.08]
+            : [0.401, 1.579, 0.838];
+        dimensions.forEach((value, axis) =>
+          assert.ok(
+            Math.abs(value - expectedDimensions[axis]) < 0.035,
+            "Authored metre scale survives browser loading",
+          ),
+        );
         await expect(
           page.getByLabel("Asset provenance and license"),
         ).toContainText(asset.attribution);
@@ -112,6 +132,7 @@ try {
         await expect(
           page.getByRole("button", { name: "Isolate selected", exact: true }),
         ).toHaveAttribute("aria-pressed", "true");
+        await expect(host).toHaveAttribute("data-contact-visible", "false");
         await page
           .getByRole("button", { name: "Show all", exact: true })
           .click();
@@ -137,6 +158,7 @@ try {
           );
           return d.section === "X" && d.caps === 0;
         });
+        await expect(host).toHaveAttribute("data-contact-visible", "false");
         await page
           .getByRole("button", { name: "Restore assembly", exact: true })
           .click();
@@ -153,6 +175,7 @@ try {
             Math.abs(d.explode) < 0.000001
           );
         });
+        await expect(host).toHaveAttribute("data-contact-visible", "true");
         await expect(
           page.getByLabel("Section axis", { exact: true }),
         ).toHaveValue("off");
@@ -177,6 +200,8 @@ try {
           bytes: asset.models[quality].bytes,
           triangles: asset.models[quality].triangles,
           timing,
+          dimensions,
+          contactShadow: "model-derived",
           restoredAssembly: true,
         });
       }
@@ -255,42 +280,20 @@ try {
     results.push({ name: mode, safeFallback: true });
     await context.close();
   }
-  for (const [name, engine] of [
-    ["firefox", firefox],
-    ["webkit", webkit],
-  ]) {
-    const other = await engine.launch();
+  // Preserve completed model evidence even if a native compatibility engine hangs.
+  await writeFile(
+    `${directory}/results.json`,
+    JSON.stringify(results, null, 2) + "\n",
+  );
+  const failures = [];
+  for (const name of ["firefox", "webkit"]) {
     try {
-      const page = await other.newPage({
-        viewport: { width: 1024, height: 900 },
-      });
-      const errors = [];
-      page.on("pageerror", (e) => errors.push(e.message));
-      await page.goto("http://127.0.0.1:3139/__equipment-render/?gallery");
-      const host = page.locator("[data-state=ready], [data-state=unsupported]");
-      await host.waitFor({ timeout: 45000 });
-      const state = await host.getAttribute("data-state");
-      if (state === "unsupported")
-        await expect(
-          host.locator(`img[src="${assets[0].previewUrl}"]`).first(),
-        ).toBeVisible();
-      await expect(
-        page
-          .getByLabel("Reference components", { exact: true })
-          .getByRole("button")
-          .first(),
-      ).toBeVisible();
-      await noOverflow(page);
-      assert.deepEqual(errors, []);
-      await page.screenshot({
-        path: `${directory}/${name}.png`,
-        fullPage: true,
-      });
-      results.push({ name, state });
-    } finally {
-      await other.close();
+      results.push(await qualifyBrowser(name, directory));
+    } catch (error) {
+      failures.push(String(error));
     }
   }
+  if (failures.length) throw Error(failures.join("\n"));
   console.log(JSON.stringify(results, null, 2));
 } catch (error) {
   const page = browser.contexts().at(-1)?.pages().at(-1);

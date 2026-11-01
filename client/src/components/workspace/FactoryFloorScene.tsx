@@ -563,8 +563,6 @@ export default function FactoryFloorScene({
           p.model &&
           ![
             "warehouse-rack",
-            "loading-door",
-            "exit-door",
             "raspberry-pi-5",
             "esp32-wrover-dht11",
           ].includes(p.model) &&
@@ -653,9 +651,20 @@ export default function FactoryFloorScene({
           halfHeight = 0;
         // Fit the projected bounds, including the outermost equipment labels.
         // A width/depth heuristic clips corners after an isometric rotation.
+        // A small hardware bench has no warehouse walls or zone labels. The
+        // factory's two-metre margin doubled its footprint and hid board detail.
+        const margin = benchHardware ? 0.15 : 2;
         const bounds = new THREE.Box3(
-          new THREE.Vector3(-layout.width / 2 - 2, -0.5, -layout.depth / 2 - 2),
-          new THREE.Vector3(layout.width / 2 + 2, maxItemHeight, layout.depth / 2 + 2),
+          new THREE.Vector3(
+            -layout.width / 2 - margin,
+            benchHardware ? -0.85 : -0.5,
+            -layout.depth / 2 - margin,
+          ),
+          new THREE.Vector3(
+            layout.width / 2 + margin,
+            maxItemHeight,
+            layout.depth / 2 + margin,
+          ),
         );
         if (connectionLayer.root.children.length)
           bounds.union(new THREE.Box3().setFromObject(connectionLayer.root));
