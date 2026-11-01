@@ -563,7 +563,7 @@ test.describe("unified item workspace", () => {
           animations: "disabled",
         });
       });
-  for (const width of [1440, 390]) {
+  for (const width of [1440, 390, 360, 320]) {
     test(`inventory keeps factory context and primary actions together at ${width}px`, async ({
       page,
     }, testInfo) => {
@@ -594,6 +594,24 @@ test.describe("unified item workspace", () => {
           "Inventory results should not be pushed below a tall action toolbar",
         ).toBeLessThan(450);
       }
+      const clippedControls = await page
+        .locator("header.sticky")
+        .locator("button, select, a[href]")
+        .evaluateAll((controls) =>
+          controls
+            .filter((control) => {
+              const box = control.getBoundingClientRect();
+              return box.width > 0 && (box.left < 0 || box.right > innerWidth);
+            })
+            .map(
+              (control) =>
+                control.getAttribute("aria-label") || control.textContent,
+            ),
+        );
+      expect(
+        clippedControls,
+        "Every global header control must remain within the viewport",
+      ).toEqual([]);
       const data = page.getByRole("combobox", {
         name: "Data workspace",
         exact: true,

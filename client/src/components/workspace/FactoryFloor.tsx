@@ -356,58 +356,62 @@ export function FactoryFloor({
               </option>
             ))}
           </select>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-9"
-            aria-label="Fit whole factory floor"
-            title="Fit whole factory floor"
-            onClick={() => {
-              setZone("all");
-              setReset((n) => n + 1);
-            }}
-          >
-            <Focus className="size-4" />
-          </Button>
-          <Button
-            ref={fullscreen.button}
-            size="icon"
-            variant="outline"
-            className="size-9"
-            aria-label={
-              fullscreen.expanded ? "Exit fullscreen" : "Enter fullscreen"
-            }
-            title={
-              fullscreen.expanded ? "Exit fullscreen (Esc)" : "Enter fullscreen"
-            }
-            aria-pressed={fullscreen.expanded}
-            aria-busy={fullscreen.pending}
-            disabled={fullscreen.pending}
-            onClick={() => void fullscreen.toggle()}
-          >
-            {fullscreen.expanded ? (
-              <Minimize2 className="size-4" />
-            ) : (
-              <Maximize2 className="size-4" />
-            )}
-          </Button>
-          {!layoutDocument && !schematic && (
+          <div className="flex shrink-0 items-center gap-1">
             <Button
+              variant="outline"
               size="icon"
-              variant="ghost"
               className="size-9"
-              aria-label="Reset arrangement"
-              title="Reset arrangement"
-              disabled={!Object.keys(offsets).length}
+              aria-label="Fit whole factory floor"
+              title="Fit whole factory floor"
               onClick={() => {
-                safeLocalStorage.removeItem(preferenceKey);
-                setSaved({ key: preferenceKey, offsets: {} });
+                setZone("all");
                 setReset((n) => n + 1);
               }}
             >
-              <RotateCcw className="size-4" />
+              <Focus className="size-4" />
             </Button>
-          )}
+            <Button
+              ref={fullscreen.button}
+              size="icon"
+              variant="outline"
+              className="size-9"
+              aria-label={
+                fullscreen.expanded ? "Exit fullscreen" : "Enter fullscreen"
+              }
+              title={
+                fullscreen.expanded
+                  ? "Exit fullscreen (Esc)"
+                  : "Enter fullscreen"
+              }
+              aria-pressed={fullscreen.expanded}
+              aria-busy={fullscreen.pending}
+              disabled={fullscreen.pending}
+              onClick={() => void fullscreen.toggle()}
+            >
+              {fullscreen.expanded ? (
+                <Minimize2 className="size-4" />
+              ) : (
+                <Maximize2 className="size-4" />
+              )}
+            </Button>
+            {!layoutDocument && !schematic && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-9"
+                aria-label="Reset arrangement"
+                title="Reset arrangement"
+                disabled={!Object.keys(offsets).length}
+                onClick={() => {
+                  safeLocalStorage.removeItem(preferenceKey);
+                  setSaved({ key: preferenceKey, offsets: {} });
+                  setReset((n) => n + 1);
+                }}
+              >
+                <RotateCcw className="size-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       <div className="border-b px-4 py-2">
@@ -566,7 +570,7 @@ export function FactoryFloor({
         </div>
       )}
       <div
-        className={`overview-floor-viewport relative min-w-0 ${measured ? "h-[32rem]" : "h-[21rem]"}`}
+        className={`overview-floor-viewport relative min-w-0 ${measured ? "h-[24rem] sm:h-[32rem]" : "h-[21rem]"}`}
         data-testid="factory-floor"
         data-total-items={items.length}
         data-visible-items={visible.length}

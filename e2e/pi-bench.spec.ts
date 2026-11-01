@@ -62,7 +62,7 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
       `Factory status and rotation control must not overlap at ${width}px`,
     ).toBe(true);
     if (width === 390) {
-      const representations = floor.getByRole("group", {
+      const representations = page.getByRole("group", {
         name: "Floor representation",
       });
       const rows = await representations
@@ -74,12 +74,12 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
         new Set(rows).size,
         "All four representations should fit a single mobile toolbar row",
       ).toBe(1);
-      const help = floor
+      const help = page
         .locator("summary")
         .filter({ hasText: /^View controls$/ });
       await help.click();
       await expect(
-        floor.getByText(/Rotate off: hovering stays still/),
+        page.getByText(/Rotate off: hovering stays still/),
       ).toBeVisible();
       await help.click();
     }

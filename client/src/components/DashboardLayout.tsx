@@ -503,14 +503,14 @@ function DashboardLayoutContent({
         tabIndex={-1}
         className="min-w-0 max-w-full overflow-x-clip bg-background"
       >
-        <header className="sticky top-0 z-40 flex h-16 min-w-0 items-center justify-between gap-2 border-b bg-background/95 px-3 md:px-6">
+        <header className="sticky top-0 z-40 flex h-16 min-w-0 items-center justify-between gap-2 border-b bg-background/95 px-3 max-[359px]:h-auto max-[359px]:flex-wrap max-[359px]:py-2 md:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger aria-label="Toggle navigation" />
-            <span className="hidden truncate text-sm font-medium sm:block">
+            <span className="hidden truncate text-sm font-medium max-[359px]:block sm:block">
               {pageTitle}
             </span>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1 max-[359px]:w-full max-[359px]:justify-end">
             <DataWorkspaceSwitch />
             <ThemeMenu />
             <Button asChild variant="ghost" size="icon">
