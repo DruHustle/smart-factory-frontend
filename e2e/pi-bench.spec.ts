@@ -44,9 +44,18 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
         page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       )
       .toBe(true);
+    // Full-page captures should place the sticky header at the page top and
+    // avoid retaining keyboard focus from the preceding login/viewport change.
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement)
+        document.activeElement.blur();
+      window.scrollTo(0, 0);
+    });
+    await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
     await page.screenshot({
       path: `test-results/public-demo/pi-bench-3d-${width}.png`,
       fullPage: true,
+      animations: "disabled",
     });
   }
   await page.setViewportSize({ width: 1440, height: 900 });
