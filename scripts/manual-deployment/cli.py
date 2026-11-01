@@ -160,6 +160,27 @@ class Session:
         self.output = None
         self.steps = []
 
+    def release_holds(self):
+        """Find local review holds even when a manifest uses another receipt directory."""
+        directories = {self.release}
+        for supplied in (self.args.manifest, self.args.bundle):
+            if supplied:
+                artifact = Path(supplied).expanduser().resolve()
+                if artifact.is_relative_to(EVIDENCE.resolve()):
+                    for parent in artifact.parents:
+                        if parent == EVIDENCE.resolve():
+                            break
+                        directories.add(parent)
+        return sorted(str(path / "release-hold.json") for path in directories
+                      if (path / "release-hold.json").exists() or (path / "release-hold.json").is_symlink())
+
+    def promotion_gate(self):
+        if self.args.operation in ("backend", "frontend", "all"):
+            holds = self.release_holds()
+            require(not holds, "Release is held for review: " + ", ".join(holds)
+                    + ". Inspect the recorded findings and qualify the corrected candidate in a new release directory."
+                    + " Status, verification and recovery remain available.")
+
     def begin(self):
         self.output = self.release / ("invocation-" + self.args.operation + "-" + uuid.uuid4().hex[:8])
         self.output.mkdir(parents=True, mode=0o700)
@@ -455,12 +476,14 @@ def main(argv=None):
                 "order": ["qualified API with additive migrations", "one qualified worker", "runtime verification", "gated Vercel UI", "release verification"],
                 "artifacts": {key: str(Path(value).expanduser().resolve()) if value else None
                               for key, value in (("manifest", args.manifest), ("bundle", args.bundle), ("sourcePackage", args.source_package))},
+                "releaseHolds": session.release_holds(),
                 "note": "A plan is not release qualification or deployment approval. Edge packaging does not install gateways."}
         print(json.dumps(plan, indent=2), flush=True)
         if args.operation == "inventory" or not (args.execute or args.validate):
             return 0
         require(args.release_dir, "Supply --release-dir under locals-tools/deployment-evidence so receipts can be reused.")
         session.begin()
+        session.promotion_gate()
         if args.validate:
             if args.operation == "all":
                 session.coordinated_inputs()

@@ -85,6 +85,47 @@ class WorkspaceCliTests(unittest.TestCase):
             manifest.assert_called_once_with(verify_bundle=True)
             run.assert_not_called()
 
+    def test_review_hold_blocks_promotion_and_validation_before_loading_engines(self):
+        held = self.path / "held"
+        held.mkdir()
+        # Presence is sufficient, including a damaged or empty review record.
+        (held / "release-hold.json").write_text("not valid JSON")
+        for operation in ("backend", "frontend", "all"):
+            for mode in ("--execute", "--validate"):
+                with self.subTest(operation=operation, mode=mode), \
+                     patch.object(cli, "load_module", side_effect=AssertionError("engine")), \
+                     patch.object(cli, "capture", side_effect=AssertionError("remote")), \
+                     patch.object(cli.Session, "run", side_effect=AssertionError("process")):
+                    self.assertEqual(self.run_main(operation, mode, "--release-dir", str(held)), 1)
+        reports = list(held.glob("invocation-*/result.json"))
+        self.assertEqual(len(reports), 6)
+        for report in reports:
+            value = json.loads(report.read_text())
+            self.assertEqual(value["status"], "FAILED")
+            self.assertIn("Release is held for review", value["message"])
+            self.assertNotIn("not valid JSON", value["message"])
+
+    def test_changing_receipt_directory_does_not_bypass_artifact_review_hold(self):
+        held = self.path / "held artifact"
+        (held / "qualification").mkdir(parents=True)
+        (held / "release-hold.json").write_text("{}")
+        for flag, filename in (("--manifest", "release-manifest.json"), ("--bundle", "qualified.zip")):
+            with self.subTest(flag=flag), patch.object(cli.Session, "manifest") as manifest:
+                self.assertEqual(self.run_main("backend", "--validate", "--release-dir", str(self.path / "new receipts"),
+                                               flag, str(held / "qualification" / filename)), 1)
+                manifest.assert_not_called()
+
+    def test_review_hold_preserves_read_only_diagnostics_and_offline_plans(self):
+        held = self.path / "diagnostics"
+        held.mkdir()
+        (held / "release-hold.json").write_text("{}")
+        with patch.object(cli.Session, "begin", side_effect=AssertionError("offline write")):
+            self.assertEqual(self.run_main("all", "--dry-run", "--release-dir", str(held)), 0)
+        for operation in ("status", "verify", "recover"):
+            with self.subTest(operation=operation), patch.object(cli.Session, operation) as action:
+                self.assertEqual(self.run_main(operation, "--execute", "--release-dir", str(held)), 0)
+                action.assert_called_once()
+
     def test_all_validation_rejects_wrong_checkout_before_artifact_verification(self):
         with patch.object(cli.Session, "manifest") as manifest:
             self.assertEqual(self.run_main("all", "--validate", "--release-dir", str(self.path / "wrong-head"), "--sha", "f" * 40), 1)

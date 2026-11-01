@@ -123,6 +123,16 @@ separately selected physical target. API edge labels alone do not attest a Pi.
 
 ## Status, failure and recovery
 
+A local `release-hold.json` records a candidate that must not be promoted after
+review findings. Its presence in the release directory, or an ancestor of the
+selected manifest/bundle within deployment evidence, blocks `backend`, `frontend`
+and `all` in both `--validate` and `--execute` modes before any deployment command.
+Even an unreadable or malformed hold blocks promotion. Offline plans list holds;
+status, verification and recovery remain available. Preserve the held artifacts
+and findings, correct the source, and qualify a new candidate in a new release
+directory. This is an operational guard for local records, not tamper protection
+or a substitute for exact-revision release approval.
+
 ```bash
 bash "$MANUAL/status.sh" --execute --release-dir "$RELEASE" --manifest "$MANIFEST"
 bash "$MANUAL/recover.sh" --execute --release-dir "$RELEASE" --manifest "$MANIFEST"
