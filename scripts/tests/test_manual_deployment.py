@@ -5,6 +5,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -249,14 +250,14 @@ class WorkspaceCliTests(unittest.TestCase):
 
     def test_launcher_and_installer_reject_recovered_root_before_executing_copies(self):
         root = self.path / "workspace with spaces"
-        for name in ("locals-tools", "smart-factory-frontend", "smart-factory-backend", "smart-factory-edge"):
+        for name in ("local-tools", "smart-factory-frontend", "smart-factory-backend", "smart-factory-edge"):
             (root / name).mkdir(parents=True)
-        home = root / "locals-tools/manual deployment"
+        home = root / "local-tools/manual deployment"
         home.mkdir()
         launcher = home / "deploy.py"
         launcher.write_bytes((SOURCE.parent / "launcher.py").read_bytes())
         for suffix in ("recovered", "recovered/legacy"):
-            recovered = root / "locals-tools" / suffix
+            recovered = root / "local-tools" / suffix
             core = recovered / "smart-factory-frontend/scripts/manual-deployment/cli.py"
             core.parent.mkdir(parents=True)
             marker = self.path / (suffix.replace("/", "-") + ".executed")
@@ -270,6 +271,121 @@ class WorkspaceCliTests(unittest.TestCase):
                 self.assertIn("active", result.stderr)
                 self.assertFalse(marker.exists())
                 self.assertFalse((home / "config.json").exists())
+
+    def test_physical_local_tools_install_and_plans_from_unrelated_directories(self):
+        root = self.path / "physical workspace with spaces"
+        root.mkdir()
+        (root / "AGENTS.md").write_text("# fixture\n")
+        (root / "local-tools").mkdir()
+        repos = {}
+        for name in cli.COMPONENTS:
+            repo = root / ("smart-factory-" + name)
+            repo.mkdir()
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            subprocess.run(["git", "-C", str(repo), "remote", "add", "origin",
+                            f"https://github.com/DruHustle/smart-factory-{name}.git"], check=True)
+            (repo / "fixture.txt").write_text(name + "\n")
+            if name == "frontend":
+                destination = repo / "scripts/manual-deployment"
+                destination.parent.mkdir()
+                shutil.copytree(SOURCE.parent, destination)
+            subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(repo), "-c", "user.name=Fixture",
+                            "-c", "user.email=fixture@example.test", "-c", "commit.gpgsign=false",
+                            "commit", "-qm", "fixture"], check=True)
+            repos[name] = repo
+        installer = SOURCE.parent / "install.py"
+        command = [sys.executable, str(installer), "--workspace", str(root),
+                   "--source-root", str(root), "--execute"]
+        for _ in range(2):
+            installed = subprocess.run(command, cwd="/", capture_output=True, text=True, timeout=30)
+            self.assertEqual(installed.returncode, 0, installed.stderr)
+        home = root / "local-tools/manual deployment"
+        self.assertTrue(home.is_dir())
+        self.assertFalse((root / "local-tools").is_symlink())
+        self.assertFalse((root / "locals-tools").exists())
+        self.assertFalse((root / "locals-tools").is_symlink())
+        self.assertEqual(json.loads((home / "config.json").read_text()), {"sourceRoot": "."})
+        for script, cwd in (("deploy-all.sh", "/"), ("status.sh", "/private/tmp")):
+            release = root / "local-tools/deployment-evidence" / (script + " evidence")
+            result = subprocess.run(["bash", str(home / script), "--dry-run", "--release-dir", str(release)],
+                                    cwd=cwd, capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            plan = json.loads(result.stdout)
+            self.assertEqual(plan["mode"], "offline-plan")
+            self.assertEqual(plan["releaseDirectory"], str(release))
+            self.assertEqual({key: value["path"] for key, value in plan["repositories"].items()},
+                             {key: str(path) for key, path in repos.items()})
+            self.assertFalse(release.exists())
+
+    def test_installer_rejects_linked_tools_and_destinations(self):
+        root = self.path / "unsafe workspace"
+        root.mkdir()
+        for name in ("smart-factory-frontend", "smart-factory-backend", "smart-factory-edge"):
+            (root / name).mkdir()
+        outside = self.path / "external files"
+        outside.mkdir()
+        tools = root / "local-tools"
+        tools.symlink_to(outside, target_is_directory=True)
+        command = [sys.executable, str(SOURCE.parent / "install.py"), "--workspace", str(root),
+                   "--source-root", str(root), "--execute"]
+        linked = subprocess.run(command, cwd="/", capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(linked.returncode, 0)
+        self.assertIn("physical local-tools", linked.stderr)
+        self.assertEqual(list(outside.iterdir()), [])
+        tools.unlink()
+        tools.mkdir()
+        home = tools / "manual deployment"
+        home.symlink_to(outside, target_is_directory=True)
+        linked_home = subprocess.run(command, cwd="/", capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(linked_home.returncode, 0)
+        self.assertIn("physical directory", linked_home.stderr)
+        self.assertEqual(list(outside.iterdir()), [])
+        home.unlink()
+        home.mkdir()
+        (home / "deploy.py").symlink_to(outside / "deploy.py")
+        linked_launcher = subprocess.run(command, cwd="/", capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(linked_launcher.returncode, 0)
+        self.assertIn("symlink", linked_launcher.stderr)
+        self.assertFalse((outside / "deploy.py").exists())
+        (home / "deploy.py").unlink()
+        (home / "config.json").symlink_to(outside / "config.json")
+        linked_config = subprocess.run(command, cwd="/", capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(linked_config.returncode, 0)
+        self.assertIn("symlink", linked_config.stderr)
+        self.assertFalse((outside / "config.json").exists())
+
+    def test_cli_rejects_linked_tools_and_escaping_evidence(self):
+        root = self.path / "linked tools workspace"
+        root.mkdir()
+        (root / "AGENTS.md").write_text("# fixture\n")
+        outside = self.path / "external evidence"
+        outside.mkdir()
+        tools = root / "local-tools"
+        tools.symlink_to(outside, target_is_directory=True)
+        with patch.object(cli, "ROOT", root), self.assertRaisesRegex(cli.ReleaseError, "physical local-tools"):
+            cli.source_root(str(root))
+        tools.unlink()
+        tools.mkdir()
+        (tools / "deployment-evidence").symlink_to(outside, target_is_directory=True)
+        with patch.object(cli, "ROOT", root), self.assertRaisesRegex(cli.ReleaseError, "stay inside"):
+            cli.source_root(str(root))
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_prepare_rejects_escaping_lock_directory_before_starting_engine(self):
+        root = self.path / "lock workspace"
+        tools = root / "local-tools"
+        tools.mkdir(parents=True)
+        outside = self.path / "external locks"
+        outside.mkdir()
+        (tools / "release-tools").symlink_to(outside, target_is_directory=True)
+        args = cli.parser().parse_args(["prepare", "--execute", "--release-dir", str(self.path / "release")])
+        session = cli.Session(args, self.sources)
+        with patch.object(cli, "ROOT", root), patch.object(cli, "load_module", return_value=Mock()), \
+             patch.object(session, "run") as run, self.assertRaisesRegex(cli.ReleaseError, "inside"):
+            session.prepare()
+        run.assert_not_called()
+        self.assertFalse((outside / "manual-locks").exists())
 
     def test_explicit_workspace_lock_never_uses_home(self):
         package = self.path / "source-package"

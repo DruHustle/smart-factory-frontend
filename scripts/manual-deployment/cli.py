@@ -21,14 +21,14 @@ import urllib.request
 import uuid
 
 ROOT = next((path for path in Path(__file__).resolve().parents
-             if (path / "AGENTS.md").is_file() and (path / "locals-tools").is_dir()
+             if (path / "AGENTS.md").is_file() and (path / "local-tools").is_dir()
              and (path / "smart-factory-frontend").is_dir()), None)
 if ROOT is None:
     # Permit unit-test imports in standalone CI. Actual commands validate the
     # canonical workspace before resolving sources or writing any evidence.
     ROOT = Path(__file__).resolve().parents[3]
-HERE = ROOT / "locals-tools/manual deployment"
-EVIDENCE = ROOT / "locals-tools/deployment-evidence"
+HERE = ROOT / "local-tools/manual deployment"
+EVIDENCE = ROOT / "local-tools/deployment-evidence"
 REPOSITORY = "DruHustle/smart-factory-frontend"
 API = "https://api.152-70-22-84.sslip.io"
 UI = "https://smart-factory-iot-app.vercel.app"
@@ -89,12 +89,16 @@ def load_module(path):
 
 
 def source_root(explicit=None):
-    require((ROOT / "AGENTS.md").is_file() and (ROOT / "locals-tools").is_dir(),
-            "Run the manual tools from the canonical Smart Factory workspace; see README.md.")
+    tools = ROOT / "local-tools"
+    require((ROOT / "AGENTS.md").is_file() and tools.is_dir() and not tools.is_symlink(),
+            "Expected a physical local-tools directory in the canonical Smart Factory workspace; see README.md.")
+    for name in ("manual deployment", "deployment-evidence"):
+        require((tools / name).resolve().is_relative_to(tools.resolve()),
+                "The " + name + " path must stay inside the physical local-tools directory.")
     selected = explicit or json.loads((HERE / "config.json").read_text())["sourceRoot"]
     path = Path(selected).expanduser()
     path = within(path if path.is_absolute() else ROOT / path, ROOT)
-    require(not path.is_relative_to(ROOT / "locals-tools/recovered"), "Recovered copies are not active release sources.")
+    require(not path.is_relative_to((tools / "recovered").resolve()), "Recovered copies are not active release sources.")
     return path
 
 
@@ -326,7 +330,7 @@ class Session:
         module = load_module(self.repo / "scripts/prepare-manual-release.py")
         module.load_source_package(package)
         self.run([sys.executable, self.repo / "scripts/prepare-manual-release.py", "--source-package", package,
-                  "--work-dir", self.release / "qualification", "--lock-dir", ROOT / "locals-tools/release-tools/manual-locks",
+                  "--work-dir", self.release / "qualification", "--lock-dir", within(ROOT / "local-tools/release-tools/manual-locks", ROOT / "local-tools"),
                   "--prepare"], "qualify-arm64")
 
     def backend(self):
@@ -451,7 +455,7 @@ def parser():
     modes.add_argument("--validate", action="store_true", help="Validate local inputs and qualified bundle without contacting any target.")
     modes.add_argument("--execute", action="store_true", help="Perform the requested action; backend/frontend/all require release authorization for this exact candidate.")
     p.add_argument("--source-root", help="Workspace-contained parent of the three component checkouts; see config.json.")
-    p.add_argument("--release-dir", help="Persistent release directory under locals-tools/deployment-evidence; reuse for status/recovery.")
+    p.add_argument("--release-dir", help="Persistent release directory under local-tools/deployment-evidence; reuse for status/recovery.")
     p.add_argument("--manifest")
     p.add_argument("--bundle")
     p.add_argument("--baseline")
@@ -481,7 +485,7 @@ def main(argv=None):
         print(json.dumps(plan, indent=2), flush=True)
         if args.operation == "inventory" or not (args.execute or args.validate):
             return 0
-        require(args.release_dir, "Supply --release-dir under locals-tools/deployment-evidence so receipts can be reused.")
+        require(args.release_dir, "Supply --release-dir under local-tools/deployment-evidence so receipts can be reused.")
         session.begin()
         session.promotion_gate()
         if args.validate:

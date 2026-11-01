@@ -1,8 +1,8 @@
 # Smart Factory manual deployment
 
-`local-tools/manual deployment/` is the entry point. In this workspace,
-`local-tools` links to the existing `locals-tools`; evidence remains under
-`locals-tools/deployment-evidence`. All paths below preserve the space.
+`local-tools/manual deployment/` is the entry point. The physical `local-tools`
+directory also contains release evidence under `local-tools/deployment-evidence`.
+All paths below preserve the space.
 
 The maintained target is the existing Oracle ARM64 API and **one** worker,
 followed by Vercel. Backend here includes Node API plus Device, Identity,
@@ -29,7 +29,7 @@ No new environment file is sourced by these launchers.
 SF_ROOT='/Users/andrewgotora/Software Development/GitHub/smart-factory'
 MANUAL="$SF_ROOT/local-tools/manual deployment"
 SOURCES="$SF_ROOT"
-RELEASE="$SF_ROOT/locals-tools/deployment-evidence/manual-reviewed-release"
+RELEASE="$SF_ROOT/local-tools/deployment-evidence/manual-reviewed-release"
 
 python3 "$MANUAL/deploy.py" inventory
 bash "$MANUAL/deploy-all.sh" --dry-run --release-dir "$RELEASE"
@@ -109,7 +109,7 @@ credentials, virtualenvs, queues, caches or generated files.
 
 ```bash
 bash "$MANUAL/package-edge.sh" --execute --release-dir "$RELEASE" \
-  --wheels "$SF_ROOT/locals-tools/release-tools/pi-wheels"
+  --wheels "$SF_ROOT/local-tools/release-tools/pi-wheels"
 ```
 
 The command prints the checksummed bundle path. On the commissioned Pi, after

@@ -12,7 +12,7 @@ From the frontend repository, reproduce the complete checked-in catalog with a p
 BLENDER='/absolute/path/to/Blender.app/Contents/MacOS/Blender'
 "$BLENDER" --background --factory-startup --threads 4 \
   --python scripts/equipment/blender_gap_assets.py -- \
-  --evidence-dir '/absolute/path/to/locals-tools/deployment-evidence/blender/source-scenes'
+  --evidence-dir '/absolute/path/to/local-tools/deployment-evidence/blender/source-scenes'
 pnpm exec vitest run server/equipment/authored-assets.test.ts \
   server/equipment/openusd.test.ts server/equipment/industrial-release.test.ts \
   server/equipment/factory-models.test.ts

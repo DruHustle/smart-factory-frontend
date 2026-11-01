@@ -2,8 +2,7 @@
 
 For the canonical multi-repository Smart Factory workspace, start with the
 [manual deployment commands](../scripts/manual-deployment/README.md). The active
-launchers live in `local-tools/manual deployment/` (an alias of the established
-`locals-tools/manual deployment/`). They keep source preparation, fixture locks,
+launchers live in `local-tools/manual deployment/`. They keep source preparation, fixture locks,
 logs and receipts inside the workspace, support offline plans from any working
 directory, and reuse the qualification/deployment engines described below.
 They also cover the gated Vercel release, edge packaging and release verification.
