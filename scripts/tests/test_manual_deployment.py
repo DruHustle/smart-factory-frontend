@@ -218,7 +218,7 @@ class WorkspaceCliTests(unittest.TestCase):
 
     def test_evidence_cannot_escape_workspace_by_symlink(self):
         link = self.path / "redirect"
-        link.symlink_to("/private/tmp", target_is_directory=True)
+        link.symlink_to(self.path.parent, target_is_directory=True)
         with self.assertRaises(cli.ReleaseError):
             cli.within(link / "output", cli.EVIDENCE)
 
@@ -306,7 +306,9 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertFalse((root / "locals-tools").exists())
         self.assertFalse((root / "locals-tools").is_symlink())
         self.assertEqual(json.loads((home / "config.json").read_text()), {"sourceRoot": "."})
-        for script, cwd in (("deploy-all.sh", "/"), ("status.sh", "/private/tmp")):
+        unrelated = self.path / "unrelated working directory"
+        unrelated.mkdir()
+        for script, cwd in (("deploy-all.sh", "/"), ("status.sh", unrelated)):
             release = root / "local-tools/deployment-evidence" / (script + " evidence")
             result = subprocess.run(["bash", str(home / script), "--dry-run", "--release-dir", str(release)],
                                     cwd=cwd, capture_output=True, text=True, timeout=30)
