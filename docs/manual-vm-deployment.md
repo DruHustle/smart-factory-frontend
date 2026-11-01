@@ -1,5 +1,16 @@
 # Manual VM release from the reviewed source package
 
+For the canonical multi-repository Smart Factory workspace, start with the
+[manual deployment commands](../scripts/manual-deployment/README.md). The active
+launchers live in `local-tools/manual deployment/` (an alias of the established
+`locals-tools/manual deployment/`). They keep source preparation, fixture locks,
+logs and receipts inside the workspace, support offline plans from any working
+directory, and reuse the qualification/deployment engines described below.
+They also cover the gated Vercel release, edge packaging and release verification.
+
+The standalone downloadable installer described below remains a supported private
+source-delivery option; it is not needed by the workspace launchers.
+
 The downloadable `smart_factory_deploy_vm.py` installer contains the reviewed
 source changes for all three repositories. It prepares and qualifies a native
 ARM64 candidate and an independent connectivity-aware fallback on your own

@@ -1,5 +1,8 @@
 # Smart Factory
 
+Workspace operators: use the [manual deployment commands](scripts/manual-deployment/README.md)
+for API/worker qualification, Vercel promotion, edge packaging and verification.
+
 One industrial workspace for AAS-backed assets, independent devices, gateways, native 3D equipment and OT security evidence. React, Vite and the existing orange/white/cyan themes share an Express/tRPC API and PostgreSQL inventory.
 
 Production topology is **Vercel UI → Oracle ARM64 API**, with a separate **singleton Oracle telemetry/notification worker** and the existing private BaSyx stack. Render workflows are retained only for gated rollback history. See the [current deployment runbook](deploy/oracle/README.md), [architecture](docs/architecture.md) and [operating guide](docs/operations.md). Dated qualification documents establish only their recorded revision and environment; they do not establish the current runtime.

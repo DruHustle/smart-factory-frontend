@@ -814,6 +814,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-package", required=True, type=Path)
     parser.add_argument("--work-dir", type=Path)
+    parser.add_argument("--lock-dir", type=Path, help="Shared private fixture-lock directory; workspace tools set this explicitly to keep all local files inside the workspace.")
     parser.add_argument("--deploy-core", type=Path, default=Path(__file__).with_name("deploy-vm.py"))
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="Check prerequisites without building or accessing production (default).")
@@ -823,7 +824,7 @@ def main(argv=None):
     try:
         package = arguments.source_package.absolute()
         plan, digest = load_source_package(package)
-        base = private_directory(Path.home() / ".smart-factory-manual")
+        base = private_directory(arguments.lock_dir.absolute() if arguments.lock_dir else Path.home() / ".smart-factory-manual")
         work = private_directory(arguments.work_dir.absolute() if arguments.work_dir else base / digest[:20])
         with exclusive_lock(work / "prepare.lock"), exclusive_lock(base / "fixture.lock"):
             result = prepare(package, plan, digest, work, arguments.deploy_core.absolute(), not arguments.prepare)

@@ -78,6 +78,7 @@ jobs:
           python -m unittest discover -s scripts/tests -p 'test_deploy_vm.py' -v
           python -m unittest discover -s scripts/tests -p 'test_prepare_manual_release.py' -v
           python -m unittest discover -s scripts/tests -p 'test_manual_installer.py' -v
+          python -m unittest discover -s scripts/tests -p 'test_manual_deployment.py' -v
       - name: Validate AAS 3.0 and packaged model/document fixtures
         run: |
           python -m venv "$RUNNER_TEMP/onesa-aas"
