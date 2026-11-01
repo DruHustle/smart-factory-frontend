@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { accountRequests, passwordResetTokens, users } from "../drizzle/schema";
 import { getDb } from "./db";
 import { isDemoAccount } from "../shared/demo-accounts";
-import { audit } from "./security/store";
+import { audit, type Conn } from "./security/store";
 import { individualSecurityUser } from "./security/users";
 
 const recoveryDeliveryStatuses = [
@@ -40,6 +40,13 @@ async function database() {
 
 const normalized = (email: string) => email.trim().toLowerCase();
 
+/** Serialize a signup with private administrator setup for the same identity. */
+export async function lockRegistrationIdentity(tx: Conn, email: string) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(20261101, hashtext(${normalized(email)}))`,
+  );
+}
+
 /** Internal credential lookup; never expose a pending request's hash or existence. */
 export async function pendingRegistrationCredential(emailInput: string) {
   const db = await database();
@@ -68,23 +75,26 @@ export async function requestRegistration(input: {
   const db = await database();
   const email = normalized(input.email);
   if (isDemoAccount(email)) return;
-  const [existing] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(sql`lower(${users.email}) = ${email}`)
-    .limit(1);
-  if (existing) return;
-  await db
-    .insert(accountRequests)
-    .values({
-      kind: "registration",
-      email,
-      name: input.name,
-      organization: input.organization,
-      jobTitle: input.jobTitle || null,
-      passwordHash: input.passwordHash,
-    })
-    .onConflictDoNothing();
+  await db.transaction(async (tx) => {
+    await lockRegistrationIdentity(tx, email);
+    const [existing] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`lower(${users.email}) = ${email}`)
+      .limit(1);
+    if (existing) return;
+    await tx
+      .insert(accountRequests)
+      .values({
+        kind: "registration",
+        email,
+        name: input.name,
+        organization: input.organization,
+        jobTitle: input.jobTitle || null,
+        passwordHash: input.passwordHash,
+      })
+      .onConflictDoNothing();
+  });
 }
 
 /** Give the same answer for unknown, demo and known identities. */

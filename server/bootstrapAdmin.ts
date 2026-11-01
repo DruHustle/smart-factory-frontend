@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
-import { users } from "../drizzle/schema";
+import { accountRequests, users } from "../drizzle/schema";
 import { sharedDemoIdentity } from "../shared/access-policy";
 import { isDemoAccount } from "../shared/demo-accounts";
 import { sdk } from "./_core/sdk";
+import { lockRegistrationIdentity } from "./accountRequests";
 import { getDb } from "./db";
 import { audit } from "./security/store";
 import { individualSecurityUser } from "./security/users";
@@ -44,6 +45,7 @@ export async function bootstrapAdministrator(input: {
       throw new Error(
         "An individual administrator already exists. Use User access or the explicit administrator recovery procedure.",
       );
+    await lockRegistrationIdentity(tx, email);
     const [existing] = await tx
       .select()
       .from(users)
@@ -59,6 +61,10 @@ export async function bootstrapAdministrator(input: {
       if (!existing.password)
         throw new Error(
           "The existing account must recover its local password before administrator bootstrap.",
+        );
+      if (!(await sdk.comparePassword(input.password, existing.password)))
+        throw new Error(
+          "The existing account's current password is required for administrator bootstrap. Use the explicit account recovery procedure if it is unavailable.",
         );
       // Keep the existing credential and activation requirements. Revoke old
       // sessions so privilege changes require a fresh, explicit sign-in.
@@ -83,6 +89,32 @@ export async function bootstrapAdministrator(input: {
         })
         .returning({ id: users.id });
       id = created.id;
+    }
+    // A public request does not establish ownership of the supplied email.
+    // Never adopt its credential or profile for this trusted setup operation.
+    const superseded = await tx
+      .update(accountRequests)
+      .set({
+        status: "dismissed",
+        passwordHash: null,
+        reviewedAt: new Date(),
+        reviewedBy: null,
+      })
+      .where(
+        and(
+          eq(accountRequests.kind, "registration"),
+          eq(accountRequests.status, "pending"),
+          sql`lower(${accountRequests.email}) = ${email}`,
+        ),
+      )
+      .returning({ id: accountRequests.id });
+    for (const request of superseded) {
+      await audit(tx, "account_registration_superseded", null, {
+        requestId: request.id,
+        userId: id,
+        source: "private_deployment_task",
+        reason: "administrator_bootstrap",
+      });
     }
     await audit(tx, "account_administrator_bootstrapped", null, {
       userId: id,
