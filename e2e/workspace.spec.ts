@@ -563,4 +563,90 @@ test.describe("unified item workspace", () => {
           animations: "disabled",
         });
       });
+  for (const width of [1440, 390]) {
+    test(`inventory keeps factory context and primary actions together at ${width}px`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 960 });
+      await login(page, "engineer");
+      await inventory(page);
+      const factory = await page
+        .getByLabel("Active factory", { exact: true })
+        .boundingBox();
+      const create = await page
+        .getByRole("button", { name: "Create factory", exact: true })
+        .boundingBox();
+      expect(factory).not.toBeNull();
+      expect(create).not.toBeNull();
+      expect(
+        Math.abs(factory!.y - create!.y),
+        "Factory selection and creation must share a row",
+      ).toBeLessThanOrEqual(2);
+      await expect(
+        page.getByRole("button", { name: "Add item", exact: true }),
+      ).toBeVisible();
+      if (width === 390) {
+        const results = await page
+          .getByRole("status", { name: "Inventory results" })
+          .boundingBox();
+        expect(
+          results!.y,
+          "Inventory results should not be pushed below a tall action toolbar",
+        ).toBeLessThan(450);
+      }
+      const data = page.getByRole("combobox", {
+        name: "Data workspace",
+        exact: true,
+      });
+      expect(
+        await data.evaluate((select) => {
+          const element = select as HTMLSelectElement,
+            style = getComputedStyle(element);
+          const canvas = document.createElement("canvas"),
+            context = canvas.getContext("2d")!;
+          context.font = style.font;
+          return (
+            element.clientWidth -
+              parseFloat(style.paddingLeft) -
+              parseFloat(style.paddingRight) -
+              24 >=
+            context.measureText(element.selectedOptions[0].textContent ?? "")
+              .width
+          );
+        }),
+        "The selected data mode must fit without clipping",
+      ).toBe(true);
+      await page
+        .getByRole("button", { name: "Inventory tools", exact: true })
+        .click();
+      await expect(
+        page.getByRole("menuitem", { name: "Connectivity", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("menuitem", { name: "Factory models", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("menuitem", {
+          name: "Export AutomationML",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByRole("button", { name: "Inventory tools", exact: true }),
+      ).toBeFocused();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        )
+        .toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`inventory-toolbar-${width}.png`),
+        fullPage: true,
+        animations: "disabled",
+      });
+    });
+  }
 });

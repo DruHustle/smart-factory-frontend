@@ -506,7 +506,7 @@ function DashboardLayoutContent({
         <header className="sticky top-0 z-40 flex h-16 min-w-0 items-center justify-between gap-2 border-b bg-background/95 px-3 md:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger aria-label="Toggle navigation" />
-            <span className="truncate text-sm font-medium">
+            <span className="hidden truncate text-sm font-medium sm:block">
               {pageTitle}
             </span>
           </div>

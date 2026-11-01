@@ -192,44 +192,58 @@ function LegacyInventory() {
         title="Assets & devices"
         description="Find equipment, inspect observations and open the right workspace."
         action={
-          <>
-            <FactorySelector />
-            <Button asChild variant="outline">
-              <Link href="/connectivity">
-                <Cable className="mr-2 size-4" />
-                Connectivity
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link
-                href="/models"
-                onPointerEnter={() =>
-                  void loadEquipmentRenderer().catch(() => {})
-                }
-                onFocus={() => void loadEquipmentRenderer().catch(() => {})}
-              >
-                <Box className="mr-2 size-4" />
-                Factory models
-              </Link>
-            </Button>
-            {user?.access?.canEngineer && (
-              <>
-                <Button
-                  variant="outline"
-                  aria-label="Export AutomationML"
-                  onClick={() =>
-                    window.location.assign("/api/assets/export/automationml")
-                  }
-                >
-                  Export AutomationML
-                </Button>
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+            <div className="w-full min-w-0 sm:w-auto">
+              <FactorySelector />
+            </div>
+            <div className="flex items-center gap-2">
+              {user?.access?.canEngineer && (
                 <Button onClick={() => setAdd(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="size-4" />
                   Add item
                 </Button>
-              </>
-            )}
-          </>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <MoreHorizontal className="size-4" />
+                    Inventory tools
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="/connectivity">
+                      <Cable className="size-4" /> Connectivity
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/models"
+                      onPointerEnter={() =>
+                        void loadEquipmentRenderer().catch(() => {})
+                      }
+                      onFocus={() =>
+                        void loadEquipmentRenderer().catch(() => {})
+                      }
+                    >
+                      <Box className="size-4" /> Factory models
+                    </Link>
+                  </DropdownMenuItem>
+                  {user?.access?.canEngineer && (
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        window.location.assign(
+                          "/api/assets/export/automationml",
+                        )
+                      }
+                    >
+                      Export AutomationML
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
         }
       />
       <SectionNav

@@ -347,7 +347,7 @@ export function FactoryFloor({
               setZone(e.target.value);
               onSelect("");
             }}
-            className="workspace-control h-9 w-32 max-w-36"
+            className="workspace-control h-9 w-40 max-w-full shrink-0"
           >
             <option value="all">Whole factory</option>
             {zones.map((name) => (
@@ -412,7 +412,7 @@ export function FactoryFloor({
       </div>
       <div className="border-b px-4 py-2">
         <div
-          className="grid grid-cols-2 gap-1 rounded-md border p-1 sm:inline-flex"
+          className="grid grid-cols-4 gap-1 rounded-md border p-1 sm:inline-flex"
           role="group"
           aria-label="Floor representation"
         >
@@ -442,7 +442,7 @@ export function FactoryFloor({
             <Button
               key={mode}
               size="sm"
-              className="min-h-9 gap-1.5 px-3 text-xs"
+              className="min-h-12 flex-col gap-1 px-1 text-xs sm:min-h-9 sm:flex-row sm:gap-1.5 sm:px-3"
               aria-label={name}
               title={name}
               variant={view === mode ? "default" : "ghost"}
@@ -450,21 +450,38 @@ export function FactoryFloor({
               onClick={() => setView(mode)}
             >
               <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-              {label}
+              <span className="sm:hidden">
+                {mode === "process" ? "P&ID" : label}
+              </span>
+              <span className="hidden sm:inline">{label}</span>
             </Button>
           ))}
         </div>
       </div>
-      <p className="border-b px-4 py-2 text-xs text-muted-foreground">
-        {schematic
-          ? "Select equipment or a connection to inspect it. Hold and drag to pan; use the zoom controls or scroll to zoom."
-          : movable
-            ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
-            : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
-        {view === "3d" &&
-          "Rotate off: hovering stays still. Turn Rotate on to rotate with mouse movement · Scroll or pinch to zoom."}
-        {fullscreen.expanded && " · Esc to exit fullscreen."}
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 border-b px-4 py-2 text-xs text-muted-foreground">
+        <p>
+          {schematic
+            ? "Select a symbol to inspect · Drag to pan"
+            : movable
+              ? "Drag items to move · Drag empty floor to pan"
+              : "Select equipment to inspect · Drag to pan"}
+        </p>
+        <details className="group min-w-0">
+          <summary className="cursor-pointer rounded-sm text-foreground underline decoration-border underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            View controls
+          </summary>
+          <p className="mt-2 max-w-xl leading-relaxed">
+            {schematic
+              ? "Select equipment or a connection to inspect it. Hold and drag to pan; use the zoom controls or scroll to zoom."
+              : movable
+                ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
+                : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
+            {view === "3d" &&
+              "Rotate off: hovering stays still. Turn Rotate on to rotate with mouse movement · Scroll or pinch to zoom."}
+            {fullscreen.expanded && " · Esc to exit fullscreen."}
+          </p>
+        </details>
+      </div>
       {view === "3d" && (
         <FactoryConnectionEditor
           links={links}

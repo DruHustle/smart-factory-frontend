@@ -61,6 +61,28 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
         rotate!.y + rotate!.height <= status!.y,
       `Factory status and rotation control must not overlap at ${width}px`,
     ).toBe(true);
+    if (width === 390) {
+      const representations = floor.getByRole("group", {
+        name: "Floor representation",
+      });
+      const rows = await representations
+        .getByRole("button")
+        .evaluateAll((buttons) =>
+          buttons.map((button) => button.getBoundingClientRect().y),
+        );
+      expect(
+        new Set(rows).size,
+        "All four representations should fit a single mobile toolbar row",
+      ).toBe(1);
+      const help = floor
+        .locator("summary")
+        .filter({ hasText: /^View controls$/ });
+      await help.click();
+      await expect(
+        floor.getByText(/Rotate off: hovering stays still/),
+      ).toBeVisible();
+      await help.click();
+    }
     // Full-page captures should place the sticky header at the page top and
     // avoid retaining keyboard focus from the preceding login/viewport change.
     await page.evaluate(() => {

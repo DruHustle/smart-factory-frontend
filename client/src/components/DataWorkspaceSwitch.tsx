@@ -35,7 +35,7 @@ export function DataWorkspaceSwitch() {
             ? "demo"
             : (user?.access?.workspaceView ?? "configured")
         }
-        className="h-9 w-28 rounded-md border border-input bg-card px-2 text-xs"
+        className="h-9 w-40 shrink-0 rounded-md border border-input bg-card px-2 text-xs"
         onChange={(e) => {
           if (!canSwitch) return;
           const workspace = e.target.value;
