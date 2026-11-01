@@ -1,7 +1,12 @@
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { accountRequests, passwordResetTokens, users } from "../drizzle/schema";
+import {
+  accountRequests,
+  loginRateLimits,
+  passwordResetTokens,
+  users,
+} from "../drizzle/schema";
 import { sharedDemoIdentity } from "../shared/access-policy";
 import { sdk } from "./_core/sdk";
 import { requestPasswordReset } from "./accountRequests";
@@ -275,6 +280,17 @@ export async function resetPasswordWithToken(
           eq(accountRequests.kind, "password_reset"),
           eq(accountRequests.status, "pending"),
           sql`lower(${accountRequests.email}) = ${current.email}`,
+        ),
+      );
+    // A redeemed one-time token proves control of this account. Remove only
+    // its failed-sign-in counter so the new credential is usable immediately;
+    // unrelated identities and source-IP abuse limits remain in force.
+    await tx
+      .delete(loginRateLimits)
+      .where(
+        eq(
+          loginRateLimits.keyHash,
+          hashToken(`email:${normalizeEmail(user.email)}`),
         ),
       );
     return { id: user.id };

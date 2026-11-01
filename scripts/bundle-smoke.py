@@ -2,7 +2,8 @@
 """Acceptance checks for the real six-process image with disposable dependencies."""
 from pathlib import Path
 from http.cookiejar import CookieJar
-import json, os, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse
+from datetime import datetime, timezone
+import json, os, re, secrets, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse, uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ['docker', 'compose', '--env-file', '/dev/null', '-p', 'smart-factory-bundle-test', '-f', str(ROOT / 'docker-compose.bundle-test.yml')]
@@ -42,8 +43,211 @@ def wait(check, timeout=90):
         time.sleep(1)
     raise AssertionError('Acceptance condition timed out')
 
+INDUSTRIAL_MQTT_PUBLISHER = '''
+import json, socket, struct, sys
+def field(value):
+    value=value.encode(); return struct.pack('!H',len(value))+value
+def receive(sock, size):
+    result=b''
+    while len(result)<size:
+        part=sock.recv(size-len(result))
+        if not part: raise RuntimeError('Fixture broker closed before acknowledgement')
+        result+=part
+    return result
+def send(sock,kind,payload):
+    size=len(payload); encoded=b''
+    while True:
+        byte=size%128; size//=128; encoded+=bytes([byte | (128 if size else 0)])
+        if not size: break
+    sock.sendall(bytes([kind])+encoded+payload)
+payload=json.loads(sys.argv[1])
+with socket.create_connection(('broker',1883),timeout=10) as sock:
+    send(sock,0x10,field('MQTT')+bytes([4,0xc2])+struct.pack('!H',30)+field('bundle-industrial-publisher')+field('review')+field('isolated-review-broker'))
+    assert receive(sock,4)==bytes([0x20,2,0,0])
+    send(sock,0x32,field('factory/test/test/'+payload['deviceId']+'/telemetry')+struct.pack('!H',1)+json.dumps(payload,separators=(',',':'),allow_nan=False).encode())
+    assert receive(sock,4)==bytes([0x40,2,0,1])
+    send(sock,0xe0,b'')
+'''
+
+def prepare_industrial_rollback(opener):
+    """Commission a synthetic gateway through the real dashboard/provisioner."""
+    gateway_id='bundle-industrial-gateway'
+    device=trpc(opener,'devices.create',{'deviceId':gateway_id,'name':'Disposable industrial rollback fixture','type':'gateway','route':'direct','freshnessSeconds':120})
+    connection={'connectionId':'rollback-mqtt','name':'Synthetic rollback observations','protocol':'mqtt',
+        'endpoint':'mqtt://127.0.0.1:1883','enabled':True,'intervalMs':1000,
+        'mode':'simulated','scenarioRunId':'bundle-industrial-rollback',
+        'tags':[
+            {'tagId':'pressure','name':'Pressure','dataType':'float32','unit':'bar','source':{'topic':'fixture/pressure','path':'/value'}},
+            {'tagId':'counter','name':'Exact counter','dataType':'uint64','source':{'topic':'fixture/counter','path':'/value'}},
+            {'tagId':'missing','name':'Unavailable Boolean','dataType':'boolean','source':{'topic':'fixture/state','path':'/value'}},
+        ]}
+    saved=trpc(opener,'connectivity.save',{'gatewayDeviceId':gateway_id,'expectedRevision':0,'connections':[connection]})
+    assert saved['saved'] is True and saved['revision']==1
+    sent=trpc(opener,'connectivity.publish',{'gatewayDeviceId':gateway_id,'expectedRevision':1})
+    assert sent['published'] is True and sent['revision']==1, 'Synthetic configuration did not traverse DeviceService to the broker.'
+    return {'gatewayDeviceId':gateway_id,'devicePk':device['id'],'revision':1,'connectionId':'rollback-mqtt','reports':[]}
+
+def publish_industrial_rollback(fixture):
+    """Publish a new immutable observation through MQTT and the actual worker."""
+    now=datetime.now(timezone.utc)
+    observed_at=now.isoformat(timespec='milliseconds').replace('+00:00','Z')
+    report={'schemaVersion':'industrial-observation/v1','connectionId':fixture['connectionId'],
+        'configurationRevision':fixture['revision'],'eventId':str(uuid.uuid4()),'observedAt':observed_at,
+        'state':'degraded','tags':[
+            {'tagId':'pressure','dataType':'float32','value':12.5+len(fixture['reports']),'unit':'bar','quality':'good','qualityBasis':'payload'},
+            {'tagId':'counter','dataType':'uint64','value':'18446744073709551615','quality':'uncertain','qualityBasis':'payload'},
+            {'tagId':'missing','dataType':'boolean','value':None,'quality':'bad','qualityBasis':'payload','nativeStatus':'source_value_missing'},
+        ]}
+    payload={'deviceId':fixture['gatewayDeviceId'],'gatewayId':fixture['gatewayDeviceId'],'timestamp':int(now.timestamp()*1000),
+        'integration':{'mode':'simulated','scenarioRunId':'bundle-industrial-rollback','sourceQuality':'unknown',
+            'sourceConnection':'online','timestampOrigin':'gateway','gatewayReceivedAt':observed_at,'retained':False},
+        'connectivity':report}
+    run(COMPOSE+['exec','-T','bundle','python3','-c',INDUSTRIAL_MQTT_PUBLISHER,json.dumps(payload,separators=(',',':'))])
+    event_id=report['eventId']
+    wait(lambda:sql(f"SELECT count(*) FROM industrial_observation_history WHERE gateway_id={fixture['devicePk']} AND event_id='{event_id}'::uuid")=='1')
+    fixture['reports'].append(report)
+
+def verify_industrial_rollback(fixture, opener):
+    """Compare raw durable envelopes and API history, including quality and precision."""
+    assert sql(f"SELECT count(*) FROM industrial_observation_history WHERE gateway_id={fixture['devicePk']}")==str(len(fixture['reports']))
+    for expected in fixture['reports']:
+        event_id=expected['eventId']
+        persisted=json.loads(sql(f"SELECT report::text FROM industrial_observation_history WHERE gateway_id={fixture['devicePk']} AND event_id='{event_id}'::uuid"))
+        assert persisted==expected, 'An industrial envelope changed across the image transition.'
+        worker_record=run(COMPOSE+['exec','-T','backend-database','psql','-U','postgres','-d','telemetry','-qAtc',
+            f'''SELECT count(*) FROM "TelemetryRecords" WHERE "DeviceId"='{fixture['gatewayDeviceId']}' AND "ConnectivityJson"::jsonb->>'eventId'='{event_id}' AND "DashboardForwardedAt" IS NOT NULL AND "DeliveryQuarantinedAt" IS NULL'''],True).strip()
+        # Dashboard commit precedes the worker's durable delivery receipt.
+        if worker_record!='1':
+            wait(lambda:run(COMPOSE+['exec','-T','backend-database','psql','-U','postgres','-d','telemetry','-qAtc',
+                f'''SELECT count(*) FROM "TelemetryRecords" WHERE "DeviceId"='{fixture['gatewayDeviceId']}' AND "ConnectivityJson"::jsonb->>'eventId'='{event_id}' AND "DashboardForwardedAt" IS NOT NULL AND "DeliveryQuarantinedAt" IS NULL'''],True).strip()=='1')
+    for tag in fixture['reports'][0]['tags']:
+        history=trpc(opener,'connectivity.history',{'gatewayDeviceId':fixture['gatewayDeviceId'],'connectionId':fixture['connectionId'],'tagId':tag['tagId'],'limit':10},query=True)
+        by_id={row['eventId']:row for row in history}
+        for expected in fixture['reports']:
+            actual=by_id[expected['eventId']]
+            wanted=next(item for item in expected['tags'] if item['tagId']==tag['tagId'])
+            assert actual['configurationRevision']==expected['configurationRevision']
+            assert all(actual[key]==value for key,value in wanted.items())
+            assert actual['currentEligible'] is False, 'Synthetic data became a current live measurement.'
+    assert sql(f"SELECT count(*) FROM sensor_readings WHERE \"deviceId\"={fixture['devicePk']}")=='0', 'Industrial observations were flattened into legacy measurements.'
+
+def credential_request(opener, procedure, value=None, query=False, expected=200):
+    """Do not include request values or response bodies in credential failures."""
+    path = '/api/trpc/' + procedure
+    if query: path += '?input=' + urllib.parse.quote(json.dumps({'json': value}))
+    try:
+        status, data = http(opener, path, None if query else value)
+    except Exception:
+        raise AssertionError('Packaged account request failed: ' + procedure) from None
+    if status != expected:
+        raise AssertionError(f'Packaged account request {procedure} returned HTTP {status}; expected {expected}.')
+    if expected != 200: return data
+    try:
+        return data['result']['data']['json']
+    except (KeyError, TypeError):
+        raise AssertionError('Packaged account response is invalid: ' + procedure) from None
+
+def packaged_password_recovery(administrator, previous_session, user_id):
+    """Real packaged API -> worker -> private SMTP -> emailed link -> identity.
+
+    The account was registered and approved earlier in this same test. Run this
+    only after the original notification and rollback assertions: enabling the
+    synthetic sender and revoking this viewer's session must not affect them.
+    """
+    email = 'viewer@example.com'
+    os.environ['BUNDLE_TEST_EMAIL_ENABLED'] = 'true'
+    os.environ['BUNDLE_TEST_SMTP_PASSWORD'] = 'isolated-mail-capture-password'
+    run(COMPOSE + ['up', '-d', '--wait', 'mail-capture'])
+    run(COMPOSE + ['up', '-d', '--no-deps', 'bundle'])
+    anonymous = urllib.request.build_opener()
+    wait(lambda: http(anonymous, '/health/ready')[0] == 200)
+    wait(lambda: run(COMPOSE + ['exec', '-T', 'bundle', 'supervisorctl', '-c', '/app/deploy/render/supervisord.conf', 'status'], True).count('RUNNING') == 6)
+    wait(lambda: (http(anonymous, '/api/runtime/contract')[1].get('worker') or {}).get('compatible') is True)
+    assert credential_request(anonymous, 'auth.passwordResetPolicy', query=True) == {'delivery': 'email'}
+    assert credential_request(previous_session, 'auth.me', query=True)['id'] == user_id
+    assert credential_request(anonymous, 'auth.requestPasswordReset', {'email': email}) == {'submitted': True}
+
+    captured = None
+    def reset_mail_arrived():
+        nonlocal captured
+        # This capture API has no host port. Its stdout is retained only in this
+        # process's memory and is never written to logs or qualification evidence.
+        try:
+            messages = json.loads(run(COMPOSE + ['exec', '-T', 'mail-capture', 'python3', '-c',
+                "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8025/messages',timeout=5).read().decode('utf-8'))"], True))
+            matching = [message for message in messages if message.get('to') == [email]
+                and message.get('subject') == 'Reset your Smart Factory password']
+        except Exception:
+            raise AssertionError('Private reset-email capture is unavailable.') from None
+        if not matching: return False
+        assert len(matching) == 1, 'Expected one synthetic reset email.'
+        captured = matching[0]
+        return True
+    wait(reset_mail_arrived)
+    assert captured is not None and isinstance(captured.get('text'), str), 'Reset email has no text body.'
+    links = re.findall(r'https?://[^\s<>\"]+', captured['text'])
+    assert len(links) == 1, 'Expected one reset link in the synthetic email.'
+    reset_link = links[0]
+    parsed = urllib.parse.urlsplit(reset_link)
+    expected_origin = urllib.parse.urlsplit(BASE)
+    assert (parsed.scheme, parsed.netloc, parsed.path, parsed.query) == (expected_origin.scheme, expected_origin.netloc, '/', ''), 'Reset email origin or document path is incorrect.'
+    fragment_path, separator, fragment_query = parsed.fragment.partition('?')
+    assert fragment_path == '/reset-password' and separator == '?', 'Reset email hash route is incorrect.'
+    try:
+        parameters = urllib.parse.parse_qs(fragment_query, strict_parsing=True)
+    except ValueError:
+        raise AssertionError('Reset email parameters are invalid.') from None
+    assert set(parameters) == {'token'} and len(parameters['token']) == 1, 'Reset email must contain one token parameter.'
+    token = parameters['token'][0]
+    assert re.fullmatch(r'[A-Za-z0-9_-]{43}', token), 'Reset email token format is invalid.'
+    assert reset_link == BASE + '/#/reset-password?token=' + token, 'Reset email URL is not canonical.'
+
+    accepted_request = None
+    def delivery_visible():
+        nonlocal accepted_request
+        queue = credential_request(administrator, 'users.pendingRequests', query=True)
+        accepted_request = next((item for item in queue if item['email'] == email and item['kind'] == 'password_reset'), None)
+        return accepted_request is not None and (accepted_request.get('recoveryDelivery') or {}).get('status') == 'accepted'
+    wait(delivery_visible)
+    assert accepted_request is not None
+    assert set(accepted_request) <= {'id', 'kind', 'email', 'name', 'organization', 'jobTitle', 'createdAt', 'recoveryDelivery'}, 'Account request exposed an unexpected field.'
+    delivery = accepted_request['recoveryDelivery']
+    assert set(delivery) == {'status', 'failureCode', 'attempts', 'expiresAt'}, 'Delivery status exposed an unexpected field.'
+    assert delivery['attempts'] >= 1 and delivery['failureCode'] is None
+    assert token not in json.dumps(accepted_request) and reset_link not in json.dumps(accepted_request), 'Account request exposed a reset credential.'
+    assert sql(f"SELECT count(*) FROM password_reset_tokens WHERE user_id={user_id} AND delivery_status='accepted' AND delivery_payload='' AND used_at IS NULL AND expires_at>now()") == '1'
+    # Requesting a reset and accepting its email must not invalidate a session.
+    assert credential_request(previous_session, 'auth.me', query=True)['id'] == user_id
+    new_password = 'Bundle-recovered-' + secrets.token_urlsafe(24)
+    assert credential_request(anonymous, 'auth.resetPassword', {'token': token, 'newPassword': new_password}) == {'reset': True}
+    assert credential_request(previous_session, 'auth.me', query=True) is None
+    credential_request(previous_session, 'assets.list', query=True, expected=401)
+    credential_request(anonymous, 'auth.login', {'email': email, 'password': 'Bundle-test-Password-123!'}, expected=401)
+    replay = credential_request(anonymous, 'auth.resetPassword', {'token': token, 'newPassword': new_password + 'x'}, expected=400)
+    assert replay['error']['json']['data']['code'] == 'BAD_REQUEST'
+    assert 'invalid' in replay['error']['json']['message'].lower()
+    recovered = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+    signed_in = credential_request(recovered, 'auth.login', {'email': email, 'password': new_password})['user']
+    assert signed_in['id'] == user_id and signed_in['passwordChangeRequired'] is False
+    # In render-bundle mode auth.me delegates to the real C# IdentityService.
+    profile = credential_request(recovered, 'auth.me', query=True)
+    assert profile['id'] == user_id and profile['email'] == email and profile['role'] == 'viewer'
+    credential_request(recovered, 'assets.list', query=True)
+    assert sql(f"SELECT count(*) FROM password_reset_tokens WHERE user_id={user_id} AND delivery_status='accepted' AND delivery_payload='' AND used_at IS NOT NULL") == '1'
+    pending_after = credential_request(administrator, 'users.pendingRequests', query=True)
+    assert not any(item['email'] == email and item['kind'] == 'password_reset' for item in pending_after)
+    print('PASS: packaged account recovery traverses the API, real SMTP worker and emailed link; old credentials are rejected and a new session reaches IdentityService.')
+    return {'apiRequestQueued': True, 'workerSmtpAccepted': True, 'emailedLinkOriginAndRouteValidated': True,
+        'administratorDeliveryStatusVerified': True, 'tokenRedeemed': True, 'previousPasswordRejected': True,
+        'previousSessionRejected': True, 'tokenReplayRejected': True, 'newPasswordIdentityVerified': True,
+        'productionAccountVerified': False, 'productionMailboxVerified': False}
+
 completed = False
 try:
+    # The early restart/rollback checks intentionally exercise unconfigured mail.
+    # Only the final isolated recovery stage may enable the private test sender.
+    os.environ['BUNDLE_TEST_EMAIL_ENABLED'] = 'false'
+    os.environ['BUNDLE_TEST_SMTP_PASSWORD'] = ''
     run(COMPOSE + ['up','-d','--wait','database','backend-database','redis','broker'])
     # Repeated pre-deploy tasks must be idempotent and need no mounted disk.
     for _ in range(2): run(COMPOSE + ['run','--rm','--entrypoint','python3','bundle','/app/deploy/render/migrate.py'])
@@ -226,23 +430,45 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     rollback_image=os.environ.get('BUNDLE_ROLLBACK_IMAGE')
     if rollback_image:
         current_image=os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')
+        candidate_runtime=runtime
+        rollback_sources=json.loads((ROOT/'deploy/rollback-sources.json').read_text())
+        assert 'industrial-connectivity-v1' in candidate_runtime['capabilities']
+        industrial_fixture=prepare_industrial_rollback(engineer)
+        publish_industrial_rollback(industrial_fixture)
+        verify_industrial_rollback(industrial_fixture,viewer)
+        fallback_runtime=None
         user=next(u for u in trpc(admin,'users.list',query=True) if u['id']==engineer_id)
         trpc(admin,'users.setEnabled',{'id':engineer_id,'enabled':False,'expectedVersion':user['accessVersion']})
         assert http(engineer,'/api/trpc/assets.list')[0]==401
-        for image_reference in [rollback_image,current_image]:
+        for position,image_reference in enumerate([rollback_image,current_image]):
             os.environ['BUNDLE_IMAGE']=image_reference
             run(COMPOSE+['up','-d','--no-deps','bundle'])
             wait(lambda:http(plain,'/health/ready')[0]==200)
             wait(lambda:(http(plain,'/api/runtime/contract')[1].get('worker') or {}).get('compatible') is True)
+            transition_runtime=http(plain,'/api/runtime/contract')[1]
+            expected_sources=rollback_sources if position==0 else {'frontend':candidate_runtime['source'],'backend':candidate_runtime['backendSource'],'edge':candidate_runtime['edgeSource']}
+            assert transition_runtime['source']==expected_sources['frontend']
+            assert transition_runtime['backendSource']==expected_sources['backend'] and transition_runtime['edgeSource']==expected_sources['edge']
+            assert transition_runtime['schema']['ready'] is True and transition_runtime['schema']['digest']==candidate_runtime['schema']['digest']
+            assert transition_runtime['worker']['fresh'] is True and transition_runtime['worker']['compatible'] is True
+            # The selected-model chooser is additive and is hidden on the qualified
+            # fallback API. Every core workspace capability must remain available.
+            required_capabilities = set(candidate_runtime['capabilities']) - {'assistant-provider-selection-v1'}
+            assert required_capabilities.issubset(transition_runtime['capabilities'])
+            if position==0: fallback_runtime=transition_runtime
             assert trpc(viewer,'auth.me',query=True)['id']==viewer_id
             assert http(engineer,'/api/trpc/assets.list')[0]==401
             assert sql('SELECT count(*) FROM sensor_readings WHERE "assetId" IS NULL')=='2'
+            publish_industrial_rollback(industrial_fixture)
+            verify_industrial_rollback(industrial_fixture,viewer)
         if named_factory:
             assert trpc(viewer,'factories.get',{'id':named_factory},query=True)['items']==[]
             assert any(row['action']=='inventory.deleted' for row in trpc(viewer,'factories.activity.list',{'factoryId':named_factory},query=True)['items'])
         runtime=http(plain,'/api/runtime/contract')[1]
-        rollback_evidence={'qualifiedPriorImage':rollback_image,'restoredCandidateImage':current_image,'revokedAccountStayedRejected':True,'activeViewerPreserved':True,'telemetryIdentitiesPreserved':True,'schemaCompatible':True}
-        print('PASS: rollback and roll-forward to a compatible hardened image preserve sessions, revocation, schema and telemetry identities.')
+        assert fallback_runtime is not None and len(industrial_fixture['reports'])==3
+        rollback_evidence={'qualifiedPriorImage':rollback_image,'restoredCandidateImage':current_image,'revokedAccountStayedRejected':True,'activeViewerPreserved':True,'telemetryIdentitiesPreserved':True,'schemaCompatible':True,
+            'runtime':fallback_runtime,'industrialObservationsPreserved':True,'industrialObservationCount':3,'industrialFallbackIngestionVerified':True}
+        print('PASS: rollback and roll-forward preserve sessions, revocation, schema and all three industrial observations; the fallback also ingests new MQTT observations without dropping quality or exact 64-bit values.')
     # The explicit public-demo installer must not change private inventory or queue email.
     sql("INSERT INTO users(\"openId\",email,name,role) VALUES('demo-bundle-owner','admin@dev.local','Synthetic demo owner','admin')")
     private_before=sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(d) ORDER BY id)::text,'')) FROM devices d WHERE \"isDemo\"=false")
@@ -267,9 +493,14 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','start','notification'])
     wait(lambda: run(COMPOSE+['exec','-T','bundle','supervisorctl','-c','/app/deploy/render/supervisord.conf','status'], True).count('RUNNING') == 6)
     print('PASS: packaged demo installer is explicit and idempotent, preserves operational inventory and global visibility, and requests no email or current connectivity.')
+    password_recovery_evidence = packaged_password_recovery(admin, viewer, viewer_id)
+    final_runtime = http(plain, '/api/runtime/contract')[1]
+    assert all(final_runtime[key] == runtime[key] for key in ['source', 'backendSource', 'edgeSource'])
+    assert final_runtime['schema']['ready'] is True and final_runtime['worker']['fresh'] is True and final_runtime['worker']['compatible'] is True
+    runtime = final_runtime
     image=json.loads(run(['docker','image','inspect',os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')],True))[0]
     output=Path(os.environ.get('QUALIFICATION_EVIDENCE_DIR',str(Path(tempfile.gettempdir())/'factory-arm64-bundle-evidence')));output.mkdir(parents=True,exist_ok=True)
-    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'compatibleRollback':rollback_evidence,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
+    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'compatibleRollback':rollback_evidence,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'packagedPasswordRecovery':password_recovery_evidence,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
     completed = True
 finally:
     try:
@@ -277,4 +508,4 @@ finally:
             logfile = Path(os.environ.get('TMPDIR', '/tmp')) / 'smart-factory-bundle-smoke.log'
             logfile.write_text(run(COMPOSE+['logs','--no-color'], True))
             print('Synthetic acceptance-test failure log: ' + str(logfile))
-    finally: run(COMPOSE+['down','--volumes','--remove-orphans'])
+    finally: run(COMPOSE+['--profile','mail-capture','down','--volumes','--remove-orphans'])

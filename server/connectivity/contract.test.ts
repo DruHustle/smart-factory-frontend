@@ -37,6 +37,28 @@ describe("Industrial connectivity wire boundaries", () => {
     c.tags[1].tagId = c.tags[0].tagId;
     expect(industrialConnectionSchema.safeParse(c).success).toBe(false);
   });
+  it("uses the same OPC UA node identity forms as the gateway", () => {
+    const c = structuredClone(fixture.configuration.connections[0]);
+    for (const source of [
+      { nodeId: "ns=2;s=Pressure", namespaceUri: "urn:fixture:line1" },
+      { nodeId: "Pressure", namespaceUri: "urn:fixture:line1" },
+      { nodeId: "ns=two;s=Pressure" },
+      { nodeId: "i=-1" },
+    ]) {
+      c.tags[0].source = source;
+      expect(industrialConnectionSchema.safeParse(c).success).toBe(false);
+    }
+    for (const source of [
+      { nodeId: "s=Pressure", namespaceUri: "urn:fixture:line1" },
+      { nodeId: "ns=2;s=Pressure" },
+      { nodeId: "i=42" },
+      { nodeId: "ns=2;s=" + "x".repeat(505) },
+      { nodeId: "s=" + "x".repeat(510), namespaceUri: "urn:fixture:line1" },
+    ]) {
+      c.tags[0].source = source;
+      expect(industrialConnectionSchema.safeParse(c).success).toBe(true);
+    }
+  });
   it.each([
     [
       "embedded credentials",

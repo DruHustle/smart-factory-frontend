@@ -11,6 +11,7 @@ import {
 } from "vitest";
 import {
   accountRequests,
+  loginRateLimits,
   passwordResetTokens,
   users,
   type InsertUser,
@@ -356,6 +357,34 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       expect(
         await sdk.comparePassword(passwords[1 - winner], userAfter.password!),
       ).toBe(false);
+    });
+
+    it("clears only the proven account's sign-in throttle after a valid reset", async () => {
+      const user = await individual();
+      const { token } = await issued(user);
+      const database = (await getDb())!;
+      const key = (value: string) =>
+        createHash("sha256").update(value).digest("hex");
+      const accountKey = key(`email:${user.email}`);
+      const otherKey = key("email:other@example.test");
+      const ipKey = key("ip:192.0.2.1");
+      await database.insert(loginRateLimits).values(
+        [accountKey, otherKey, ipKey].map((keyHash) => ({
+          keyHash,
+          attempts: 21,
+          resetAt: new Date(Date.now() + 15 * 60_000),
+        })),
+      );
+      await expect(
+        resetPasswordWithToken("a".repeat(43), newPassword),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      expect(await database.select().from(loginRateLimits)).toHaveLength(3);
+      await resetPasswordWithToken(token, newPassword);
+      const remaining = await database.select().from(loginRateLimits);
+      expect(remaining.map((row) => row.keyHash).sort()).toEqual(
+        [otherKey, ipKey].sort(),
+      );
+      expect(remaining.every((row) => row.attempts === 21)).toBe(true);
     });
 
     it("serializes repeated requests, revokes older links and retains one pending manual request", async () => {

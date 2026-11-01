@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import { getDb } from "./db";
 import {
   requiredCapabilities,
+  optionalCapabilities,
   runtimeContractVersion,
   type RuntimeContract,
 } from "../shared/runtime-contract";
@@ -84,7 +85,7 @@ export async function getRuntimeContract(): Promise<RuntimeContract> {
       revision: expected.revision,
       digest: expected.digest,
     },
-    capabilities: [...requiredCapabilities],
+    capabilities: [...requiredCapabilities, ...optionalCapabilities],
     deployment: bundle ? "bundle" : "standalone",
     versioned: !!source && (!bundle || (!!backendSource && !!edgeSource)),
   };

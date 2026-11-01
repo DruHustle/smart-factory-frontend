@@ -50,7 +50,20 @@ export const connectivityProtocols = [
 const dataType = z.enum(connectivityDataTypes);
 const opcSource = z
   .object({ nodeId: text(512), namespaceUri: text(256).optional() })
-  .strict();
+  .strict()
+  .superRefine((source, ctx) => {
+    const pattern = source.namespaceUri
+      ? /^(?:i=[0-9]{1,10}|s=.{1,510}|g=[0-9a-fA-F-]{36}|b=[A-Za-z0-9+/=]+)$/
+      : /^(?:ns=[0-9]{1,5};)?(?:i=[0-9]{1,10}|s=.{1,510}|g=[0-9a-fA-F-]{36}|b=[A-Za-z0-9+/=]+)$/;
+    if (!pattern.test(source.nodeId))
+      ctx.addIssue({
+        code: "custom",
+        path: ["nodeId"],
+        message: source.namespaceUri
+          ? "With a namespace URI, enter an identifier such as s=Pressure without an ns= prefix"
+          : "Enter an OPC UA node identifier such as ns=2;s=Pressure",
+      });
+  });
 const modbusSource = z
   .object({
     address: z.number().int().min(0).max(65535),

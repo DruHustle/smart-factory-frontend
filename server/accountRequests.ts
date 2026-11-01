@@ -1,10 +1,36 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { accountRequests, users } from "../drizzle/schema";
+import { accountRequests, passwordResetTokens, users } from "../drizzle/schema";
 import { getDb } from "./db";
 import { isDemoAccount } from "../shared/demo-accounts";
 import { audit } from "./security/store";
+import { individualSecurityUser } from "./security/users";
+
+const recoveryDeliveryStatuses = [
+  "pending",
+  "accepted",
+  "failed",
+  "unconfigured",
+  "blocked",
+  "expired",
+] as const;
+const recoveryDeliveryFailureCodes = [
+  "already_used",
+  "expired",
+  "account_changed",
+  "shared_identity",
+  "mail_not_configured",
+  "recipient_not_allowed",
+  "invalid_delivery_payload",
+  "delivery_failed",
+] as const;
+export type RecoveryDelivery = {
+  status: (typeof recoveryDeliveryStatuses)[number];
+  failureCode: (typeof recoveryDeliveryFailureCodes)[number] | "unknown" | null;
+  attempts: number;
+  expiresAt: Date;
+};
 
 async function database() {
   const db = await getDb();
@@ -13,6 +39,23 @@ async function database() {
 }
 
 const normalized = (email: string) => email.trim().toLowerCase();
+
+/** Internal credential lookup; never expose a pending request's hash or existence. */
+export async function pendingRegistrationCredential(emailInput: string) {
+  const db = await database();
+  const [request] = await db
+    .select({ passwordHash: accountRequests.passwordHash })
+    .from(accountRequests)
+    .where(
+      and(
+        eq(accountRequests.kind, "registration"),
+        eq(accountRequests.status, "pending"),
+        sql`lower(${accountRequests.email}) = ${normalized(emailInput)}`,
+      ),
+    )
+    .limit(1);
+  return request?.passwordHash ?? null;
+}
 
 /** A request never grants a session or an active account. */
 export async function requestRegistration(input: {
@@ -67,7 +110,7 @@ export async function requestPasswordReset(emailInput: string) {
 
 export async function pendingAccountRequests() {
   const db = await database();
-  return db
+  const pending = db
     .select({
       id: accountRequests.id,
       kind: accountRequests.kind,
@@ -80,7 +123,80 @@ export async function pendingAccountRequests() {
     .from(accountRequests)
     .where(eq(accountRequests.status, "pending"))
     .orderBy(desc(accountRequests.createdAt))
-    .limit(200);
+    .limit(200)
+    .as("pending_requests");
+  // Bound the request set before looking up its newest queue row. This query
+  // never selects a password, token, token hash, encrypted payload or reset URL.
+  const latest = db
+    .select({
+      status: sql<string>`case
+        when ${passwordResetTokens.usedAt} is not null then 'blocked'
+        when ${passwordResetTokens.expiresAt} <= now() then 'expired'
+        when ${users.disabledAt} is not null or ${passwordResetTokens.authVersion} <> ${users.authVersion}
+          or not (${individualSecurityUser()}) then 'blocked'
+        else ${passwordResetTokens.deliveryStatus} end`.as("delivery_status"),
+      failureCode: sql<string | null>`case
+        when ${passwordResetTokens.usedAt} is not null then 'already_used'
+        when ${passwordResetTokens.expiresAt} <= now() then 'expired'
+        when ${users.disabledAt} is not null or ${passwordResetTokens.authVersion} <> ${users.authVersion} then 'account_changed'
+        when not (${individualSecurityUser()}) then 'shared_identity'
+        else ${passwordResetTokens.lastError} end`.as("failure_code"),
+      attempts: passwordResetTokens.attempts,
+      expiresAt: passwordResetTokens.expiresAt,
+    })
+    .from(passwordResetTokens)
+    .innerJoin(users, eq(users.id, passwordResetTokens.userId))
+    .where(
+      and(
+        sql`lower(${users.email}) = lower(${pending.email})`,
+        sql`${passwordResetTokens.email} = lower(${pending.email})`,
+        sql`${passwordResetTokens.createdAt} >= ${pending.createdAt}`,
+      ),
+    )
+    .orderBy(desc(passwordResetTokens.id))
+    .limit(1)
+    .as("latest_recovery_delivery");
+  const rows = await db
+    .select({
+      id: pending.id,
+      kind: pending.kind,
+      email: pending.email,
+      name: pending.name,
+      organization: pending.organization,
+      jobTitle: pending.jobTitle,
+      createdAt: pending.createdAt,
+      delivery: {
+        status: latest.status,
+        failureCode: latest.failureCode,
+        attempts: latest.attempts,
+        expiresAt: latest.expiresAt,
+      },
+    })
+    .from(pending)
+    .leftJoinLateral(latest, eq(pending.kind, "password_reset"))
+    .orderBy(desc(pending.createdAt));
+  return rows.map(({ delivery, ...request }) => {
+    const recoveryDelivery: RecoveryDelivery | null = delivery?.expiresAt
+      ? {
+          status: recoveryDeliveryStatuses.includes(
+            delivery.status as RecoveryDelivery["status"],
+          )
+            ? (delivery.status as RecoveryDelivery["status"])
+            : "failed",
+          failureCode:
+            delivery.failureCode === null
+              ? null
+              : recoveryDeliveryFailureCodes.includes(
+                    delivery.failureCode as (typeof recoveryDeliveryFailureCodes)[number],
+                  )
+                ? (delivery.failureCode as (typeof recoveryDeliveryFailureCodes)[number])
+                : "unknown",
+          attempts: delivery.attempts,
+          expiresAt: delivery.expiresAt,
+        }
+      : null;
+    return { ...request, recoveryDelivery };
+  });
 }
 
 export async function approveRegistration(

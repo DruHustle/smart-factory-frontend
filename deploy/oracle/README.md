@@ -8,6 +8,11 @@ The [16 October manifest](release-manifest.json) is historical evidence. It does
 
 ## Prepare a candidate
 
+For the reviewed private source delivery, use the
+[manual VM installer guide](../../docs/manual-vm-deployment.md). Its standalone
+installer builds and qualifies both native ARM64 images locally before an explicit
+VM deployment; it does not depend on publishing the reviewed changes to GitHub.
+
 Use clean pinned revisions of all three repositories. Never package environment files or keys. Set full source SHAs as build arguments; never use branch names as runtime identity.
 
 ```bash
@@ -45,11 +50,25 @@ After approved promotion, inspect `/release.json`, `/api/runtime/contract`, logi
 ## Rollback
 
 The qualified rollback sources are pinned in [rollback-sources.json](../rollback-sources.json).
-The pinned API rollback records the API source observed in production on 31 October 2026, paired
-with its deployed backend and edge revisions. Its frontend repository source identifies the API bundle,
-not the separate Vercel UI artifact. The prior UI source observed at that time was
-`007340d18e2833acda34c8e3c80002ae9b7ae1d8`; retain that artifact separately. Capture `/release.json` again at cutover and retain the actual current UI artifact if it has advanced. Qualify the pinned API rollback against additive
-`0035_industrial_connectivity` and the nullable backend connectivity column in a disposable restore before promoting the candidate. The candidate UI requires `industrial-connectivity-v1` in addition to `account-requests-v1`, `account-role-approval-v1` and `password-reset-v1`; the live API and matching worker must support them before frontend promotion. Set the same non-secret `PASSWORD_RESET_ORIGIN` to the canonical frontend origin on the API and worker. Reuse their existing matching `DASHBOARD_SERVICE_TOKEN` and leave SMTP/Resend/SES credentials on the worker. Verify delivery configuration and recipient policy without broadening allowed recipients.
+The pinned fallback uses the reviewed connectivity-aware sources
+`9baf7022c18d2b52f0f0d02618d72dff52f75ec2`,
+`591dbe921632045645f4404283612fec0b962257` and
+`01ce7bf49ad26e898545a4815e26dca01d0c6206`.
+Its frontend repository source identifies the API bundle, not the separate
+Vercel UI artifact. This independently qualified fallback is distinct from the
+older image currently installed on the VM; preserve that installed image under
+its own protected reference. Capture `/release.json` at cutover and retain the
+current UI artifact. Qualification must run the fallback against additive
+`0035_industrial_connectivity`, retain its actual runtime contract, and verify
+new industrial observations through MQTT, the worker, the API and history before,
+during and after rollback. A successful old-version HTTP response alone cannot
+prove data preservation. The candidate UI requires `industrial-connectivity-v1`
+in addition to `account-requests-v1`, `account-role-approval-v1` and
+`password-reset-v1`; the live API and matching worker must support them before
+frontend promotion. Set the same non-secret `PASSWORD_RESET_ORIGIN` to the
+canonical frontend origin on the API and worker. Reuse their existing matching
+`DASHBOARD_SERVICE_TOKEN` and leave SMTP/Resend/SES credentials on the worker.
+Verify delivery configuration and recipient policy without broadening allowed recipients.
 The pinned backend retains administrator-only infrastructure access, the reduced
 connection budget and authenticated worker receipts. ARM64 qualification retains
 both tested image archives, image inspection and archive checksums in the same
@@ -58,9 +77,15 @@ do not infer compatibility from a mutable tag or an older deployment record.
 
 Retain the prior Oracle image and Vercel artifact. Stop the candidate worker before starting the prior worker. Validate the prior application's compatibility with the additive database schema and current session/evidence contracts. API-first upgrades remain mandatory. When rollback would remove a capability required by the current frontend, first restore the verified prior frontend while the candidate API still serves it, then restore the qualified API/worker pair. The connectivity frontend requires the new routes and migration; restore the prior frontend before rolling the API back. An API failure before frontend promotion can be recovered directly because the prior frontend is still active. Do not reverse migrations or delete evidence as an application rollback. Restore data only through a separately approved recovery procedure with verified backups.
 
-### Industrial telemetry during rollback
+### Downgrading to a legacy image without connectivity
 
-The pinned prior API and worker do not understand `connectivity`. They can strip that field, accept an empty legacy observation and acknowledge it. Additive schema compatibility and a successful HTTP response therefore do not establish industrial-data preservation. The ARM64 rollback smoke qualifies application/schema/session compatibility; it does not qualify the old software to ingest new industrial observations.
+The older production image retained before this release does not understand
+`connectivity`. It can strip that field, accept an empty legacy observation and
+acknowledge it. It is not the connectivity-aware fallback pinned above. Additive
+schema compatibility and a successful HTTP response do not establish industrial
+data preservation. Never select the legacy retained image as an automatic
+fallback once industrial acquisition has started. Use the following procedure
+only for a separately reviewed downgrade to that legacy software.
 
 If industrial acquisition has been commissioned, use this order:
 

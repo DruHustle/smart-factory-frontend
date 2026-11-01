@@ -56,6 +56,7 @@ const walkthroughQueries = new Set([
   "system.showcase",
   "system.infrastructure",
   "assistant.context",
+  "assistant.providers",
   "inventory.list",
   "factory.floor",
   "networkDiagnostics.overview",
@@ -132,6 +133,7 @@ const accessBoundary = t.middleware(
         "auth.requestPasswordReset",
         "auth.resetPassword",
         "assistant.ask",
+        "assistant.askSelected",
       ].includes(path) &&
       (demonstrationOnly(ctx.user) ||
         requestedDataWorkspace(ctx.req?.headers?.cookie) === "demo")

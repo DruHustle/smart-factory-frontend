@@ -43,6 +43,7 @@ const readOnlyMutations = new Set([
   "auth.requestPasswordReset",
   "auth.resetPassword",
   "assistant.ask",
+  "assistant.askSelected",
 ]);
 const operationalMutations = Object.entries(appRouter._def.procedures).filter(
   ([path, procedure]) =>
@@ -50,6 +51,35 @@ const operationalMutations = Object.entries(appRouter._def.procedures).filter(
 );
 
 describe("central shared-walkthrough containment", () => {
+  it("keeps provider choices and selected questions local in shared and individual Demo views", async () => {
+    vi.stubEnv("ASSISTANT_PROVIDER", "gemini");
+    vi.stubEnv("ASSISTANT_GEMINI_API_KEY", "never-transmit-fixture-key");
+    const fetcher = vi.spyOn(globalThis, "fetch");
+    for (const context of [
+      userContext(
+        DEMO_ACCOUNTS.find((account) => account.role === "viewer")!.email,
+        "viewer",
+      ),
+      userContext("individual@example.test", "viewer", "individual", "demo"),
+    ]) {
+      const caller = appRouter.createCaller(context);
+      expect(
+        (await caller.assistant.providers()).providers.map((p) => p.id),
+      ).toEqual(["auto", "local"]);
+      await expect(
+        caller.assistant.askSelected({
+          question: "Review the factory pump",
+          selection: { provider: "gemini" },
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      const answer = await caller.assistant.askSelected({
+        question: "What is your name?",
+        selection: { provider: "local" },
+      });
+      expect(answer.execution).toEqual({ provider: "local", model: null });
+    }
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   for (const account of DEMO_ACCOUNTS) {
     it(`denies every operational mutation for shared ${account.role} even with a Live preference`, async () => {
       vi.stubEnv("ENABLE_DEMO_ACCOUNTS", "true");

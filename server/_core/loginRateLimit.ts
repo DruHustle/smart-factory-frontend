@@ -101,11 +101,15 @@ export function createLoginRateLimit(
       "auth.resetPassword",
       "auth.register",
     ].includes(paths[0]);
+    // Recovery must remain available after failed sign-ins. Keep each public
+    // account flow's quota independent, while retaining the existing shared
+    // login/change-password quota and all IP, identity and token limits.
+    const scope = requestPath ? `${paths[0]}:` : "";
     try {
       const windows = await Promise.all(
         identifiers.map(async (identifier) => ({
           ...(await store.record(
-            createHash("sha256").update(identifier).digest("hex"),
+            createHash("sha256").update(`${scope}${identifier}`).digest("hex"),
             15 * 60_000,
           )),
           limit: identifier.startsWith("ip:")
@@ -125,7 +129,12 @@ export function createLoginRateLimit(
             Math.max(1, Math.ceil((blocked.resetAt.getTime() - now) / 1000)),
           ),
         );
-        return void reject(429, "Too many login attempts. Try again later.");
+        return void reject(
+          429,
+          requestPath
+            ? "Too many account requests. Try again later."
+            : "Too many login attempts. Try again later.",
+        );
       }
       next();
     } catch {

@@ -5,6 +5,7 @@ import type { User } from "../drizzle/schema";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import * as db from "./db";
+import * as assistantKnowledge from "./assistantKnowledge";
 
 function contextFor(role?: User["role"]): TrpcContext {
   const user = role
@@ -44,6 +45,15 @@ describe("role based access control", () => {
     await expect(
       caller.assistant.ask({ question: "How do I import an AASX package?" }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.assistant.providers()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(
+      caller.assistant.askSelected({
+        question: "Review the source",
+        selection: { provider: "local" },
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("allows viewers to use the documentation assistant", async () => {
@@ -54,6 +64,37 @@ describe("role based access control", () => {
     expect(result.sources.length).toBeGreaterThan(0);
     expect(result).not.toHaveProperty("provider");
     expect(result).not.toHaveProperty("model");
+  });
+
+  it("validates provider and model choices before loading or sending factory evidence", async () => {
+    vi.stubEnv("ASSISTANT_PROVIDER", "disabled");
+    try {
+      const caller = appRouter.createCaller(contextFor("viewer"));
+      const answer = vi.spyOn(assistantKnowledge, "answerFactoryQuestion");
+      expect(
+        (await caller.assistant.providers()).providers.map((p) => p.id),
+      ).toEqual(["auto", "local"]);
+      await expect(
+        caller.assistant.ask({
+          question: "Review the pump",
+          selection: { provider: "openai", model: "unapproved-model" },
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      await expect(
+        caller.assistant.askSelected({
+          question: "Review the pump",
+          selection: { provider: "openai", model: "unapproved-model" },
+        }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+      expect(answer).not.toHaveBeenCalled();
+      const result = await caller.assistant.askSelected({
+        question: "What is your name?",
+        selection: { provider: "local" },
+      });
+      expect(result.execution).toEqual({ provider: "local", model: null });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("lets viewers read the asset catalog but prevents shell and lifecycle access", async () => {

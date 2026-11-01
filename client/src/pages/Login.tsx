@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { safeSessionStorage } from "@/lib/storage";
+import { userFacingApiError } from "@/lib/errors";
 import { DEMO_ACCOUNTS, type DemoAccount } from "../../../shared/demo-accounts";
 
 const DEMO_ACCOUNT_CACHE_KEY = "smart-factory:demo-account-shortcuts:v1";
@@ -63,6 +64,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const [lastConfirmedDemoAccounts, setLastConfirmedDemoAccounts] =
     useState<DemoAccountShortcut[]>(initialDemoAccounts);
   const demoAccountsQuery = trpc.auth.demoAccounts.useQuery(undefined, {
@@ -85,18 +87,24 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await login(email.trim().toLowerCase(), password);
       if (result.success) {
         toast.success("Login successful!");
         navigate("/");
       } else {
-        toast.error(result.error || "Login failed");
+        setError(result.error || "Sign-in could not be completed. Try again.");
       }
-    } catch (error) {
-      toast.error("Network error. Please try again.");
+    } catch (cause) {
+      setError(
+        userFacingApiError(
+          cause,
+          "Sign-in is temporarily unavailable. Check your connection and try again.",
+        ),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -105,11 +113,15 @@ export default function Login() {
   const fillDemoCredentials = (demoEmail: string, demoPassword: string) => {
     setEmail(demoEmail);
     setPassword(demoPassword);
+    setError("");
     toast.info("Demo credentials filled");
   };
 
   return (
-    <main data-theme-scope="fixed-dark" className="dark relative flex min-h-screen items-center justify-center bg-background text-foreground bg-[url('/images/industrial-blur-bg.webp')] bg-cover bg-center p-4 sm:p-6">
+    <main
+      data-theme-scope="fixed-dark"
+      className="dark relative flex min-h-screen items-center justify-center bg-background text-foreground bg-[url('/images/industrial-blur-bg.webp')] bg-cover bg-center p-4 sm:p-6"
+    >
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -148,11 +160,15 @@ export default function Login() {
                   id="email"
                   type="email"
                   autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  maxLength={320}
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 bg-background/50 border-white/20 focus:border-primary"
                   required
+                  aria-describedby={error ? "login-error" : undefined}
                 />
               </div>
             </div>
@@ -196,6 +212,16 @@ export default function Login() {
             </div>
 
             {/* Sign In Button */}
+            {error && (
+              <div id="login-error" role="alert" className="space-y-2 text-sm">
+                <p className="text-destructive">{error}</p>
+                <p className="text-muted-foreground">
+                  If you requested an account, an administrator must approve it
+                  before you can sign in. Password reset does not approve a
+                  pending registration.
+                </p>
+              </div>
+            )}
             <Button
               type="submit"
               disabled={isLoading}

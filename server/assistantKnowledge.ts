@@ -13,6 +13,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import * as db from "./db";
 import { generateAssistantCompletion } from "./assistantProvider";
+import type { AssistantSelection } from "../shared/assistant-providers";
 import { answerDemoQuestion } from "./demo-assistant";
 import type { DemoAssistantContext } from "../shared/demo-assistant";
 import {
@@ -839,6 +840,10 @@ function localGroundedAnswer(
     paragraphs.push(
       "### Current system data\n\nThe live database snapshot could not be loaded, so I cannot verify current asset or telemetry state.",
     );
+  } else if (asksForState && runtime.status === "disabled") {
+    paragraphs.push(
+      "I don’t have a current equipment observation for this question. Open Monitoring to inspect the source’s recorded value, quality and observation time, or select equipment for a focused question.",
+    );
   }
   if (matches.length === 0)
     paragraphs.push(
@@ -908,6 +913,7 @@ export async function answerFactoryQuestion(
     role?: AssistantRole;
     selectedAssetId?: string;
     history?: AssistantHistoryMessage[];
+    selection?: AssistantSelection;
     demoContext?: DemoAssistantContext;
     factoryId?: string;
   } = {},
@@ -1036,7 +1042,7 @@ export async function answerFactoryQuestion(
   ];
   const result = demoOnlyRead()
     ? { configured: false, completion: null }
-    : await generateAssistantCompletion(messages);
+    : await generateAssistantCompletion(messages, fetch, options.selection);
   if (result.completion) {
     return {
       answer: guardAssistantAnswer(result.completion.answer),

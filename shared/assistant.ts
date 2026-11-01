@@ -172,6 +172,10 @@ export type AssistantAnswer = {
   sources: AssistantSource[];
   contextAt: string;
   presentation?: AssistantPresentation;
+  execution?: {
+    provider: "local" | import("./assistant-providers").AssistantProviderName;
+    model: string | null;
+  };
 };
 export function validatedAssistantPresentation(
   value: unknown,

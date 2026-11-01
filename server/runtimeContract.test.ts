@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   runtimeCompatibility,
   requiredCapabilities,
+  optionalCapabilities,
   runtimeContractVersion,
 } from "../shared/runtime-contract";
 import { disposableDatabase } from "./test/disposableDatabase";
@@ -14,6 +15,24 @@ const compatible = {
   capabilities: [...requiredCapabilities],
   versioned: true,
 };
+it("keeps an older qualified API compatible when additive provider selection is absent", () => {
+  expect(
+    (requiredCapabilities as readonly string[]).includes(
+      "assistant-provider-selection-v1",
+    ),
+  ).toBe(false);
+  expect(optionalCapabilities).toContain("assistant-provider-selection-v1");
+  expect(runtimeCompatibility(compatible, true)).toBeNull();
+  expect(
+    runtimeCompatibility(
+      {
+        ...compatible,
+        capabilities: [...requiredCapabilities, ...optionalCapabilities],
+      },
+      true,
+    ),
+  ).toBeNull();
+});
 it("rejects ready-but-incompatible, unversioned and incomplete services", () => {
   expect(runtimeCompatibility({ status: "ready" })).toBeTruthy();
   expect(
@@ -36,6 +55,9 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
     disposableDatabase("runtime");
     it("compares migration content hashes rather than health or timestamps", async () => {
       expect((await getRuntimeContract()).schema.ready).toBe(true);
+      expect((await getRuntimeContract()).capabilities).toContain(
+        "assistant-provider-selection-v1",
+      );
       const expected = await migrationManifest();
       expect(expected.digest).toMatch(/^[a-f0-9]{64}$/);
       await (await getDb())!.execute(
