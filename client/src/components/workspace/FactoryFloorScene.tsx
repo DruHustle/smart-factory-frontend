@@ -153,9 +153,11 @@ export default function FactoryFloorScene({
   zone: string;
   onMove?: FloorMove;
 } & FloorDragHandlers) {
-  const [rotateOnHover, setRotateOnHover] = useState(false);
-  const rotateOnHoverRef = useRef(false);
-  rotateOnHoverRef.current = rotateOnHover;
+  const [rotateEnabled, setRotateEnabled] = useState(false);
+  const rotateEnabledRef = useRef(false);
+  rotateEnabledRef.current = rotateEnabled;
+  const [rotationActive, setRotationActive] = useState(false);
+  const rotationActiveRef = useRef(false);
   const appearances = useRef(connectionAppearances);
   appearances.current = connectionAppearances;
   const host = useRef<HTMLDivElement>(null),
@@ -167,7 +169,7 @@ export default function FactoryFloorScene({
   const runtime = useRef<{
     focus: (ref: string | null) => void;
     reset: () => void;
-    resetHover: () => void;
+    pauseRotation: () => void;
     connections: () => void;
     statuses: (items: Layout["placements"]) => void;
     positions: (items: Layout["placements"]) => void;
@@ -285,7 +287,7 @@ export default function FactoryFloorScene({
       renderer.domElement.tabIndex = 0;
       renderer.domElement.setAttribute(
         "aria-description",
-        "With Rotate off, press and hold the left mouse button on empty floor, then drag to pan left/right or up/down. Release to stop; hovering does not move the view. Enable Rotate to orbit with mouse movement. Press and hold equipment to grab it. Rotation pauses while grabbing. Release to drop. Right-drag or Shift-drag also rotates; scroll or pinch zooms. Hold Space while dragging to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.",
+        "With Rotate off, press and hold the left mouse button on empty floor, then drag to pan left/right or up/down. Release to stop; hovering does not move the view. Enable Rotate, then click empty floor to start mouse-controlled rotation. Click again to stop. Press and hold equipment to grab it. Grabbing or leaving the floor stops rotation. Release to drop. Right-drag or Shift-drag also rotates; scroll or pinch zooms. Hold Space while dragging to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.",
       );
       renderer.domElement.dataset.floorNodeCount = String(
         layout.placements.length,
@@ -340,6 +342,12 @@ export default function FactoryFloorScene({
       const resetHover = () => {
         hoverPoint = undefined;
       };
+      const setRotation = (active: boolean) => {
+        rotationActiveRef.current = active;
+        setRotationActive(active);
+        resetHover();
+      };
+      const pauseRotation = () => setRotation(false);
       const hoverOffset = new THREE.Vector3(),
         hoverRotation = new THREE.Spherical();
       scene.add(new THREE.HemisphereLight(0xdceaff, 0x4b535b, 0.75));
@@ -503,7 +511,9 @@ export default function FactoryFloorScene({
           p.dimensions && !benchBoard
             ? fitFactoryDimensions(proxy, p.dimensions)
             : proxy;
-        const proxySize = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3());
+        const proxySize = new THREE.Box3()
+          .setFromObject(body)
+          .getSize(new THREE.Vector3());
         group.userData.connectionSize = proxySize.toArray();
         body.userData.floorItemRef = p.item.ref;
         group.add(body);
@@ -561,11 +571,9 @@ export default function FactoryFloorScene({
         objects.set(p.item.ref, group);
         if (
           p.model &&
-          ![
-            "warehouse-rack",
-            "raspberry-pi-5",
-            "esp32-wrover-dht11",
-          ].includes(p.model) &&
+          !["warehouse-rack", "raspberry-pi-5", "esp32-wrover-dht11"].includes(
+            p.model,
+          ) &&
           (p.model !== "raspberry-pi-4b" || p.item.equipmentId)
         )
           void referenceModel(p.model)
@@ -646,8 +654,12 @@ export default function FactoryFloorScene({
       updateConnections = () => {
         connectionLayer.update(links, objects, appearances.current);
         renderer.domElement.dataset.connectionRendering = "physical-meshes";
-        renderer.domElement.dataset.connectionRoutes = JSON.stringify(connectionLayer.summary);
-        renderer.domElement.dataset.connectionCount = String(connectionLayer.summary.length);
+        renderer.domElement.dataset.connectionRoutes = JSON.stringify(
+          connectionLayer.summary,
+        );
+        renderer.domElement.dataset.connectionCount = String(
+          connectionLayer.summary.length,
+        );
         renderer.shadowMap.needsUpdate = true;
         dirty = true;
       };
@@ -704,6 +716,7 @@ export default function FactoryFloorScene({
         dirty = true;
       };
       const fit = () => {
+        pauseRotation();
         // Clear remaining orbit/pan inertia before establishing the fitted view.
         const damping = controls.enableDamping;
         controls.enableDamping = false;
@@ -723,7 +736,7 @@ export default function FactoryFloorScene({
       };
       runtime.current = {
         reset: fit,
-        resetHover,
+        pauseRotation,
         connections: updateConnections,
         zones: (zones) => {
           for (const [index, area] of zones.entries()) {
@@ -800,7 +813,14 @@ export default function FactoryFloorScene({
       const pointers = new Set<number>();
       let panModifier = false;
       let start:
-        | { x: number; y: number; pointerId: number; select: boolean }
+        | {
+            x: number;
+            y: number;
+            pointerId: number;
+            select: boolean;
+            mouse: boolean;
+            wasRotating: boolean;
+          }
         | undefined;
       let dragging:
         | {
@@ -837,7 +857,7 @@ export default function FactoryFloorScene({
       };
       const cancel = (releaseCapture = true) => {
         dragEvents.current.onItemDrag?.(null);
-        resetHover();
+        pauseRotation();
         start = undefined;
         if (dragging) {
           const ended = dragging;
@@ -855,7 +875,8 @@ export default function FactoryFloorScene({
         hand();
       };
       const down = (e: PointerEvent) => {
-        resetHover();
+        const wasRotating = rotationActiveRef.current;
+        pauseRotation();
         if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
         pointers.add(e.pointerId);
         if (!e.isPrimary || pointers.size > 1) {
@@ -871,7 +892,14 @@ export default function FactoryFloorScene({
           !e.ctrlKey &&
           !e.metaKey &&
           !panModifier;
-        start = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, select };
+        start = {
+          x: e.clientX,
+          y: e.clientY,
+          pointerId: e.pointerId,
+          select,
+          mouse: e.pointerType === "mouse",
+          wasRotating,
+        };
         if (select) {
           setRay(e);
           const ref = picked(),
@@ -904,7 +932,8 @@ export default function FactoryFloorScene({
         // Pan is handled only by OrbitControls during a held pointer grab.
         // With Rotate off, ordinary mouse movement must never move the camera.
         if (
-          !rotateOnHoverRef.current ||
+          !rotateEnabledRef.current ||
+          !rotationActiveRef.current ||
           e.pointerType !== "mouse" ||
           e.buttons !== 0 ||
           pointers.size ||
@@ -977,8 +1006,10 @@ export default function FactoryFloorScene({
           renderer.domElement.dataset.grabTarget = ref ?? "floor";
           renderer.domElement.title = ref
             ? `Grab ${layout.placements.find((p) => p.item.ref === ref)?.item.name ?? "equipment"}`
-            : rotateOnHoverRef.current
-              ? "Move the mouse to rotate; hold and drag to pan"
+            : rotateEnabledRef.current
+              ? rotationActiveRef.current
+                ? "Click to stop rotation"
+                : "Click to rotate; drag to pan"
               : "Hold the left mouse button and drag to pan; release to stop";
         }
       };
@@ -1014,11 +1045,16 @@ export default function FactoryFloorScene({
           setRay(e);
           const ref = picked();
           if (ref) choose.current(ref);
+          else if (began.mouse && rotateEnabledRef.current) {
+            const active = !began.wasRotating;
+            setRotation(active);
+            if (active) hoverPoint = { x: e.clientX, y: e.clientY };
+          }
         }
         hand();
       };
       const focusEquipment = (e: MouseEvent) => {
-        resetHover();
+        pauseRotation();
         setRay(e as PointerEvent);
         const ref = picked(),
           object = ref && objects.get(ref);
@@ -1041,8 +1077,10 @@ export default function FactoryFloorScene({
         dirty = true;
       };
       const pointerCancel = (e: PointerEvent) => {
-        pointers.delete(e.pointerId);
-        cancel();
+        const tracked = pointers.delete(e.pointerId);
+        // OrbitControls releases capture after our pointer-up handler. That
+        // normal release must not undo a click which just activated rotation.
+        if (tracked || e.type === "pointercancel") cancel();
       };
       const blur = () => {
         pointers.clear();
@@ -1057,7 +1095,7 @@ export default function FactoryFloorScene({
         else resetHover();
       };
       cancelForResize = () => {
-        if (pointers.size || dragging) blur();
+        if (pointers.size || dragging || rotationActiveRef.current) blur();
       };
       const spaceDown = (e: KeyboardEvent) => {
         const target = e.target;
@@ -1067,7 +1105,9 @@ export default function FactoryFloorScene({
           !(
             target instanceof HTMLElement &&
             (target.isContentEditable ||
-              ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName))
+              ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(
+                target.tagName,
+              ))
           )
         ) {
           e.preventDefault();
@@ -1097,7 +1137,8 @@ export default function FactoryFloorScene({
         }
         if (e.key === "Escape") {
           e.preventDefault();
-          if (dragging) cancel();
+          if (rotationActiveRef.current) pauseRotation();
+          else if (dragging) cancel();
           else choose.current("");
           return;
         }
@@ -1148,7 +1189,7 @@ export default function FactoryFloorScene({
       renderer.domElement.addEventListener("lostpointercapture", pointerCancel);
       renderer.domElement.addEventListener("pointermove", pointerMove);
       renderer.domElement.addEventListener("pointerenter", resetHover);
-      renderer.domElement.addEventListener("pointerleave", resetHover);
+      renderer.domElement.addEventListener("pointerleave", pauseRotation);
       renderer.domElement.addEventListener("keydown", keyDown);
       renderer.domElement.addEventListener("pointerdown", down, true);
       renderer.domElement.addEventListener("pointerup", up, true);
@@ -1205,7 +1246,7 @@ export default function FactoryFloorScene({
         document.removeEventListener("visibilitychange", visibility);
         renderer.domElement.removeEventListener("pointermove", pointerMove);
         renderer.domElement.removeEventListener("pointerenter", resetHover);
-        renderer.domElement.removeEventListener("pointerleave", resetHover);
+        renderer.domElement.removeEventListener("pointerleave", pauseRotation);
         renderer.domElement.removeEventListener("keydown", keyDown);
         renderer.domElement.removeEventListener("pointerdown", down, true);
         renderer.domElement.removeEventListener("pointerup", up, true);
@@ -1255,27 +1296,42 @@ export default function FactoryFloorScene({
           <span
             className="rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground"
             role="status"
+            title={ready ? `${loaded} detailed models ready` : undefined}
           >
-            {ready
-              ? `${layout.placements.length} items on floor · ${loaded} detailed models ready`
-              : "Preparing factory floor…"}
+            {ready ? (
+              <>
+                {layout.placements.length} items
+                <span className="sr-only">{` on floor · ${loaded} detailed models ready`}</span>
+              </>
+            ) : (
+              "Preparing factory floor…"
+            )}
           </span>
           <button
             type="button"
-            aria-pressed={rotateOnHover}
+            aria-pressed={rotateEnabled}
             aria-label="Rotate with mouse movement"
+            data-rotation-state={
+              !rotateEnabled ? "off" : rotationActive ? "active" : "paused"
+            }
             title={
-              rotateOnHover
-                ? "Rotate on: move the mouse to orbit"
+              rotateEnabled
+                ? rotationActive
+                  ? "Click the floor to stop rotation"
+                  : "Click empty floor, then move the mouse to rotate"
                 : "Rotate off: hold the left mouse button and drag to pan"
             }
             onClick={() => {
-              runtime.current?.resetHover();
-              setRotateOnHover((value) => !value);
+              runtime.current?.pauseRotation();
+              setRotateEnabled((value) => !value);
             }}
             className="pointer-events-auto ml-auto shrink-0 rounded-md border bg-background/95 px-3 py-2 text-xs font-medium shadow-sm"
           >
-            {rotateOnHover ? "Rotate: On" : "Rotate: Off · Pan"}
+            {rotateEnabled
+              ? rotationActive
+                ? "Rotate: Active"
+                : "Rotate: Paused"
+              : "Rotate: Off · Pan"}
           </button>
         </div>
       )}

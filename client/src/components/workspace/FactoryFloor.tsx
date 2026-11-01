@@ -464,13 +464,6 @@ export function FactoryFloor({
         </div>
       </div>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 border-b px-4 py-2 text-xs text-muted-foreground">
-        <p>
-          {schematic
-            ? "Select a symbol to inspect · Drag to pan"
-            : movable
-              ? "Drag items to move · Drag empty floor to pan"
-              : "Select equipment to inspect · Drag to pan"}
-        </p>
         <details className="group min-w-0">
           <summary className="cursor-pointer rounded-sm text-foreground underline decoration-border underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             View controls
@@ -482,7 +475,7 @@ export function FactoryFloor({
                 ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
                 : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
             {view === "3d" &&
-              "Rotate off: hovering stays still. Turn Rotate on to rotate with mouse movement · Scroll or pinch to zoom."}
+              "With Rotate on, click empty floor to start mouse rotation; click again to stop. Scroll or pinch to zoom."}
             {fullscreen.expanded && " · Esc to exit fullscreen."}
           </p>
         </details>
@@ -531,7 +524,11 @@ export function FactoryFloor({
             items={items}
             onSelectConnection={setSelectedConnection}
           />
-          <EngineeringDrawingExport key={`cad-${diagram.key}`} controller={diagram} items={items} />
+          <EngineeringDrawingExport
+            key={`cad-${diagram.key}`}
+            controller={diagram}
+            items={items}
+          />
         </>
       )}
       {zone !== "all" && (
