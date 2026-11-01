@@ -190,6 +190,46 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertEqual(session.steps[0]["exitCode"], 7)
         self.assertEqual(Path(session.steps[0]["log"]).stat().st_mode & 0o777, 0o600)
 
+    def test_failure_guidance_distinguishes_local_work_from_remote_jobs(self):
+        for label, expected, forbidden in (
+            ("qualify-arm64", "before retrying", "detached VM"),
+            ("deploy-api-worker", "detached VM", "GitHub Actions"),
+            ("dispatch-frontend", "GitHub Actions", "detached VM"),
+            ("await-frontend", "GitHub Actions", "detached VM"),
+        ):
+            args = cli.parser().parse_args(["prepare", "--release-dir", str(self.path / label)])
+            session = cli.Session(args, self.sources)
+            with contextlib.redirect_stdout(io.StringIO()):
+                session.begin()
+                with self.assertRaises(cli.ReleaseError) as failure:
+                    session.run([sys.executable, "-c", "raise SystemExit(7)"], label, cwd=self.path)
+            self.assertIn(expected, str(failure.exception))
+            self.assertNotIn(forbidden, str(failure.exception))
+
+    def test_launcher_and_installer_reject_recovered_root_before_executing_copies(self):
+        root = self.path / "workspace with spaces"
+        for name in ("locals-tools", "smart-factory-frontend", "smart-factory-backend", "smart-factory-edge"):
+            (root / name).mkdir(parents=True)
+        home = root / "locals-tools/manual deployment"
+        home.mkdir()
+        launcher = home / "deploy.py"
+        launcher.write_bytes((SOURCE.parent / "launcher.py").read_bytes())
+        for suffix in ("recovered", "recovered/legacy"):
+            recovered = root / "locals-tools" / suffix
+            core = recovered / "smart-factory-frontend/scripts/manual-deployment/cli.py"
+            core.parent.mkdir(parents=True)
+            marker = self.path / (suffix.replace("/", "-") + ".executed")
+            core.write_text("from pathlib import Path\nPath(" + repr(str(marker)) + ").touch()\n")
+            for command in (
+                [launcher, "inventory", "--source-root", recovered],
+                [SOURCE.parent / "install.py", "--workspace", root, "--source-root", recovered, "--execute"],
+            ):
+                result = subprocess.run([sys.executable, *map(str, command)], capture_output=True, text=True, cwd=self.path)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("active", result.stderr)
+                self.assertFalse(marker.exists())
+                self.assertFalse((home / "config.json").exists())
+
     def test_explicit_workspace_lock_never_uses_home(self):
         package = self.path / "source-package"
         work, locks = self.path / "qualification", self.path / "locks"

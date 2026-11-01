@@ -192,8 +192,12 @@ class Session:
                 except subprocess.TimeoutExpired:
                     print(label + " still running; protected log: " + str(log), flush=True)
         self.steps.append({"stage": label, "exitCode": code, "log": str(log)})
-        require(code == 0, label + " failed (exit " + str(code) + "). Inspect " + str(log)
-                + "; a detached VM deployment may continue. Use status with the same release directory.")
+        guidance = " Correct the reported prerequisite or failure before retrying."
+        if label in ("deploy-api-worker", "vm-status"):
+            guidance = " A detached VM deployment may continue. Use status with the same release directory."
+        elif label in ("dispatch-frontend", "await-frontend"):
+            guidance = " Check the saved frontend request/run receipt and GitHub Actions before dispatching again."
+        require(code == 0, label + " failed (exit " + str(code) + "). Inspect " + str(log) + "." + guidance)
 
     def manifest(self, verify_bundle=False):
         require(self.args.manifest, "Supply --manifest from completed ARM64 qualification.")

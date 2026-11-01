@@ -13,7 +13,7 @@ args, _ = options.parse_known_args()
 selected = args.source_root or json.loads(Path(__file__).with_name("config.json").read_text())["sourceRoot"]
 source = Path(selected).expanduser()
 source = (source if source.is_absolute() else root / source).resolve()
-if not source.is_relative_to(root) or (root / "locals-tools/recovered") in source.parents:
+if not source.is_relative_to(root) or source.is_relative_to(root / "locals-tools/recovered"):
     raise SystemExit("Source root must be an active checkout within the Smart Factory workspace.")
 core = source / "smart-factory-frontend/scripts/manual-deployment/cli.py"
 if not core.is_file():

@@ -13,8 +13,9 @@ it does not install software or actuate hardware.
 
 Python 3.9+, Git and the three existing repositories are required for offline
 plans. `config.json` selects their parent; `--source-root` overrides it. The
-review currently selects `locals-tools/worktrees/review-20261101`, preserving
-the original checkouts and their local edits. Use clean committed sources for
+workspace configuration selects the active component checkouts; use
+`deploy.py inventory` to confirm the exact paths and revisions. Preserved review
+worktrees can be selected explicitly with `--source-root`. Use clean committed sources for
 packaging. Frontend qualification pins must match backend and edge commits.
 
 For qualification: native ARM64 Docker with the containerd image store, Buildx,
@@ -27,7 +28,7 @@ No new environment file is sourced by these launchers.
 ```bash
 SF_ROOT='/Users/andrewgotora/Software Development/GitHub/smart-factory'
 MANUAL="$SF_ROOT/local-tools/manual deployment"
-SOURCES="$SF_ROOT/locals-tools/worktrees/review-20261101"
+SOURCES="$SF_ROOT"
 RELEASE="$SF_ROOT/locals-tools/deployment-evidence/manual-reviewed-release"
 
 python3 "$MANUAL/deploy.py" inventory

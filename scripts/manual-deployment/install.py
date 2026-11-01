@@ -15,7 +15,7 @@ def main():
     root, sources = args.workspace.expanduser().resolve(), args.source_root.expanduser().resolve()
     if not all((root / name).is_dir() for name in ("locals-tools", "smart-factory-frontend", "smart-factory-backend", "smart-factory-edge")):
         raise SystemExit("Expected the canonical Smart Factory workspace and its existing locals-tools directory.")
-    if not sources.is_relative_to(root) or (root / "locals-tools/recovered") in sources.parents:
+    if not sources.is_relative_to(root) or sources.is_relative_to(root / "locals-tools/recovered"):
         raise SystemExit("Select active sources inside the canonical workspace.")
     source = Path(__file__).resolve().parent
     target = root / "locals-tools/manual deployment"
