@@ -726,3 +726,11 @@ html:has(.overview-floor) {
   .overview-floor-viewport {
   height: clamp(24rem, 60vh, 36rem);
 }
+
+/* Keep an inline mobile 3D bench compact; diagrams and fullscreen retain room. */
+@media (max-width: 639px) {
+  .overview-floor[data-measured="true"]:not(.floor-expanded)
+    .overview-floor-viewport[data-view="3d"] {
+    height: 24rem;
+  }
+}

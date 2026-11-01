@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 
 test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway path", async ({
   page,
-}) => {
+}, testInfo) => {
+  const layoutMetrics: Record<string, number>[] = [];
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/login");
   await page.getByRole("button", { name: "Demo Admin", exact: true }).click();
@@ -62,6 +63,9 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
       `Factory status and rotation control must not overlap at ${width}px`,
     ).toBe(true);
     if (width === 390) {
+      await expect
+        .poll(async () => (await scene.boundingBox())?.height ?? Infinity)
+        .toBeLessThanOrEqual(400);
       const representations = page.getByRole("group", {
         name: "Floor representation",
       });
@@ -83,6 +87,21 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
       ).toBeVisible();
       await help.click();
     }
+    const viewerBox = await page
+      .getByRole("region", { name: "Factory floor overview", exact: true })
+      .boundingBox();
+    const viewportBox = await floor.boundingBox();
+    const controlsHeight = viewportBox!.y - viewerBox!.y;
+    layoutMetrics.push({
+      width,
+      canvasHeight: viewportBox!.height,
+      viewerControlsHeight: controlsHeight,
+    });
+    if (width === 390)
+      expect(
+        controlsHeight,
+        "Mobile viewer controls should leave room for the factory",
+      ).toBeLessThan(350);
     // Full-page captures should place the sticky header at the page top and
     // avoid retaining keyboard focus from the preceding login/viewport change.
     await page.evaluate(() => {
@@ -97,6 +116,10 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
       animations: "disabled",
     });
   }
+  await testInfo.attach("pi-bench-layout-metrics", {
+    body: Buffer.from(JSON.stringify(layoutMetrics, null, 2)),
+    contentType: "application/json",
+  });
   await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.getByRole("button", { name: "Floor plan", exact: true }).click();
