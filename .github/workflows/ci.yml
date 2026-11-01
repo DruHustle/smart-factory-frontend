@@ -257,7 +257,7 @@ jobs:
       - name: Verify layout editing under delayed account responses and draft capacity
         run: pnpm exec playwright test --config=playwright.layout-review.config.ts
       - name: Verify graphical navigation, source scope, typography and model preview
-        run: pnpm e2e:experience --grep 'Overview graphics'
+        run: pnpm e2e:experience --grep 'Overview graphics' --output=test-results/overview-graphics
         env:
           OVERVIEW_EVIDENCE_DIR: test-results/visual-first
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -285,7 +285,7 @@ jobs:
         env:
           VISUAL_WORKSPACE_EVIDENCE_DIR: test-results/evidence-led
       - name: Verify individual infrastructure authorization and registration
-        run: pnpm e2e:workspace --grep 'private .*cannot inspect installation infrastructure|individual administrator|registration and role-filtered'
+        run: pnpm e2e:workspace --grep 'private .*cannot inspect installation infrastructure|individual administrator|registration and role-filtered' --output=test-results/infrastructure-private
         env:
           VISUAL_WORKSPACE_EVIDENCE_DIR: test-results/evidence-led-private
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
