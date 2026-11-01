@@ -288,4 +288,56 @@ describe("editable engineering deliverables", () => {
           expect(p.value.length * p.height).toBeLessThanOrEqual(p.width);
         }
   });
+  it("connects every off-sheet callout to its equipment port with a bounded clear jog", () => {
+    for (const mode of ["process", "electrical"] as const) {
+      const { document, items } = engineeringComplexFixture(mode);
+      const drawing = buildEngineeringDrawing(document, items);
+      let checked = 0;
+      for (const sheet of drawing.sheets)
+        for (const [index, label] of sheet.primitives.entries()) {
+          if (
+            label.type !== "text" ||
+            !/^C\d{3} \/ page \d+$/.test(label.value)
+          )
+            continue;
+          const connection =
+            document.connections[Number(label.value.slice(1, 4)) - 1];
+          const equipment = sheet.primitives.find(
+            (p) =>
+              p.type === "insert" &&
+              [connection.from, connection.to].includes(p.attributes.REF),
+          );
+          if (!equipment || equipment.type !== "insert")
+            throw Error("Callout equipment is missing");
+          const terminalPoints = drawing.blocks[equipment.block].flatMap((p) =>
+            p.type === "line" && p.layer === "TERMINALS" ? p.points : [],
+          );
+          const rightPort = Math.max(...terminalPoints.map((p) => p[0]));
+          const wire = sheet.primitives[index - 1];
+          if (wire.type !== "line") throw Error("Callout wire is missing");
+          expect(wire.points[0]).toEqual([
+            equipment.at[0] + rightPort,
+            equipment.at[1],
+          ]);
+          expect(wire.points[1][0]).toBeGreaterThan(equipment.at[0] + 35);
+          for (const [j, point] of wire.points.entries()) {
+            expect(point[0]).toBeGreaterThanOrEqual(10);
+            expect(point[0]).toBeLessThanOrEqual(406);
+            expect(point[1]).toBeGreaterThanOrEqual(equipment.at[1]);
+            expect(point[1]).toBeLessThan(224);
+            if (j)
+              expect(
+                point[0] === wire.points[j - 1][0] ||
+                  point[1] === wire.points[j - 1][1],
+              ).toBe(true);
+          }
+          expect(label.at[1] - wire.points.at(-1)![1]).toBeGreaterThanOrEqual(
+            4,
+          );
+          expect(label.at[1]).toBeLessThan(224);
+          checked++;
+        }
+      expect(checked).toBe(4);
+    }
+  });
 });

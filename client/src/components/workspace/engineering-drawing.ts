@@ -428,19 +428,22 @@ export function buildEngineeringDrawing(
         [a, b],
         [b, a],
       ]) {
+        // Join an actual symbol port. Route outside the name column and below
+        // the equipment, clear of the overview wires and callout text.
         const out = connectionSheet(p.page, i).primitives,
-          dy = -22 - (groups[p.page].indexOf(i) % 4) * 6;
+          dy = 30 + (groups[p.page].indexOf(i) % 4) * 4;
         line(
           out,
           layer,
-          [p.x, p.y - 12],
-          [p.x, p.y + dy],
-          [p.x + 24, p.y + dy],
+          [p.x + 12, p.y],
+          [p.x + 40, p.y],
+          [p.x + 40, p.y + dy],
+          [p.x + 55, p.y + dy],
         );
         text(
           out,
           p.x + 2,
-          p.y + dy - 2,
+          p.y + dy + 4,
           `${key} / page ${sheets.indexOf(connectionSheet(other.page, i)) + 1}`,
           2.2,
           "TAGS",
