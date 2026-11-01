@@ -36,6 +36,9 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
     "data-graphics-environment",
     "baked-hdr-studio",
   );
+  await expect(
+    page.getByText("Login successful!", { exact: true }),
+  ).toHaveCount(0);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await scene.scrollIntoViewIfNeeded();
@@ -44,6 +47,20 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
         page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       )
       .toBe(true);
+    const floor = page.getByTestId("factory-floor");
+    const status = await floor.getByRole("status").boundingBox();
+    const rotate = await floor
+      .getByRole("button", { name: "Rotate with mouse movement", exact: true })
+      .boundingBox();
+    expect(status).not.toBeNull();
+    expect(rotate).not.toBeNull();
+    expect(
+      status!.x + status!.width <= rotate!.x ||
+        rotate!.x + rotate!.width <= status!.x ||
+        status!.y + status!.height <= rotate!.y ||
+        rotate!.y + rotate!.height <= status!.y,
+      `Factory status and rotation control must not overlap at ${width}px`,
+    ).toBe(true);
     // Full-page captures should place the sticky header at the page top and
     // avoid retaining keyboard focus from the preceding login/viewport change.
     await page.evaluate(() => {

@@ -1234,25 +1234,35 @@ export default function FactoryFloorScene({
     <div className="relative h-full w-full">
       <div ref={host} className={`h-full w-full ${failed ? "hidden" : ""}`} />
       {!failed && (
-        <button
-          type="button"
-          aria-pressed={rotateOnHover}
-          aria-label="Rotate with mouse movement"
-          title={
-            rotateOnHover
-              ? "Rotate on: move the mouse to orbit"
-              : "Rotate off: hold the left mouse button and drag to pan"
-          }
-          onClick={() => {
-            runtime.current?.resetHover();
-            setRotateOnHover((value) => !value);
-          }}
-          className="absolute right-3 top-3 z-10 rounded-md border bg-background/95 px-3 py-2 text-xs font-medium shadow-sm"
-        >
-          {rotateOnHover ? "Rotate: On" : "Rotate: Off · Pan"}
-        </button>
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start justify-between gap-2">
+          <span
+            className="rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground"
+            role="status"
+          >
+            {ready
+              ? `${layout.placements.length} items on floor · ${loaded} detailed models ready`
+              : "Preparing factory floor…"}
+          </span>
+          <button
+            type="button"
+            aria-pressed={rotateOnHover}
+            aria-label="Rotate with mouse movement"
+            title={
+              rotateOnHover
+                ? "Rotate on: move the mouse to orbit"
+                : "Rotate off: hold the left mouse button and drag to pan"
+            }
+            onClick={() => {
+              runtime.current?.resetHover();
+              setRotateOnHover((value) => !value);
+            }}
+            className="pointer-events-auto ml-auto shrink-0 rounded-md border bg-background/95 px-3 py-2 text-xs font-medium shadow-sm"
+          >
+            {rotateOnHover ? "Rotate: On" : "Rotate: Off · Pan"}
+          </button>
+        </div>
       )}
-      {failed ? (
+      {failed && (
         <>
           <FloorPlan
             layout={layout}
@@ -1271,17 +1281,6 @@ export default function FactoryFloorScene({
           >
             3D unavailable on this device · Showing floor plan
           </p>
-        </>
-      ) : (
-        <>
-          <span
-            className="pointer-events-none absolute top-3 left-3 rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground"
-            role="status"
-          >
-            {ready
-              ? `${layout.placements.length} items on floor · ${loaded} detailed models ready`
-              : "Preparing factory floor…"}
-          </span>
         </>
       )}
     </div>
