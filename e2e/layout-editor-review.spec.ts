@@ -794,7 +794,8 @@ test("enabled Rotate starts and stops on empty-floor clicks and stays paused aft
 test("Rotate mode leaves held floor pans and equipment selection unlatched", async ({
   page,
 }) => {
-  const { canvas, bounds, item, placement } = await grabFixture(page);
+  const grab = await grabFixture(page);
+  const { canvas, bounds, placement } = grab;
   const original = await placement();
   const view = async () =>
     JSON.parse((await canvas.getAttribute("data-camera-view"))!);
@@ -822,19 +823,18 @@ test("Rotate mode leaves held floor pans and equipment selection unlatched", asy
     );
   await page.mouse.move(point.x + 45, point.y + 30, { steps: 8 });
   expect(await view()).toEqual(panned);
-  // Restore the fitted camera to the fixture's known visible item coordinates.
-  await page
-    .getByRole("button", { name: "Fit whole factory floor", exact: true })
-    .click();
-  await page.mouse.move(item.x, item.y, { steps: 8 });
-  await expect(canvas).toHaveAttribute("data-grab-target", "asset:1");
+  // Toolbar clicks can scroll the page. Reuse the existing helper to refit
+  // and resolve the same visible equipment surface against current bounds.
+  const { item, bounds: refittedBounds } = await refitGrabTarget(page, grab);
   const selectedView = await view();
   await page.mouse.click(item.x, item.y);
   await expect(rotate).toHaveAttribute("data-rotation-state", "paused");
   await expect(
     page.getByLabel("Selected floor item", { exact: true }),
   ).toBeVisible();
-  await page.mouse.move(point.x, point.y, { steps: 8 });
+  await page.mouse.move(refittedBounds.x + 80, refittedBounds.y + 110, {
+    steps: 8,
+  });
   expect(await view()).toEqual(selectedView);
   expect(await placement()).toEqual(original);
 });

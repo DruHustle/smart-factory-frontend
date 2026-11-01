@@ -864,11 +864,10 @@ export function FactoryFloor({
       )}
       <div className="floor-secondary flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2 text-[11px] text-muted-foreground">
         <span>
-          {visible.length} of {items.length} items shown ·{" "}
           {schematic
-            ? "Engineering schematic · equipment identities shared across views"
+            ? "Engineering schematic"
             : measured
-              ? "Measured floor · reference models"
+              ? "Measured floor"
               : "Illustrative layout"}
         </span>
         <Link
@@ -880,7 +879,7 @@ export function FactoryFloor({
       </div>
       <details className="floor-secondary border-t px-4 py-2">
         <summary className="cursor-pointer text-xs font-medium">
-          Find an item · {items.length} available
+          Find an item · {items.length}
         </summary>
         <div className="mt-3 space-y-2">
           <input
