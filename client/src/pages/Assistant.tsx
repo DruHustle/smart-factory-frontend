@@ -14,6 +14,7 @@ import {
   ArrowDown,
   BookOpen,
   LoaderCircle,
+  Square,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -32,6 +33,7 @@ import {
   readAssistantSession,
   updateAssistantSession,
   resetAssistantSession,
+  registerAssistantCancellation,
   type AssistantTurn,
   type TurnContext,
 } from "@/lib/assistant-session";
@@ -53,6 +55,11 @@ import { EquipmentContextSelect } from "@/components/assistant/EquipmentContextS
 import { AssistantModelSelect } from "@/components/assistant/AssistantModelSelect";
 import { assistantProviderLabels } from "@shared/assistant-providers";
 import { useRuntimeCapability } from "@/components/RuntimeBoundary";
+import { userFacingApiError } from "@/lib/errors";
+import {
+  announceSessionExpired,
+  isUnauthorizedError,
+} from "@/lib/session-expiry";
 
 function time(value: string) {
   const at = Date.parse(value);
@@ -87,6 +94,10 @@ export default function Assistant() {
   const pane = useRef<HTMLDivElement>(null),
     input = useRef<HTMLTextAreaElement>(null),
     requestPending = useRef(false),
+    runningRequest = useRef<{
+      controller: AbortController;
+      cancel: () => void;
+    } | null>(null),
     composing = useRef(false),
     follow = useRef(session.followLatest),
     position = useRef(session.scrollTop),
@@ -122,8 +133,6 @@ export default function Assistant() {
   const selectedTurn =
     session.turns.find((t) => t.id === session.selectedTurnId) ??
     session.turns.at(-1);
-  const ask = trpc.assistant.ask.useMutation();
-  const selectedAsk = trpc.assistant.askSelected.useMutation();
   const utils = trpc.useUtils();
   const selectionSupported = useRuntimeCapability(
     "assistant-provider-selection-v1",
@@ -149,6 +158,9 @@ export default function Assistant() {
       window.removeEventListener("resize", resize);
     };
   }, []);
+  // Navigation, account changes and workspace changes must stop remote work as
+  // well as discard its result. Cancelled turns remain retryable in memory.
+  useEffect(() => () => runningRequest.current?.cancel(), [owner]);
   useLayoutEffect(() => {
     if (input.current) {
       input.current.style.height = "0px";
@@ -229,12 +241,34 @@ export default function Assistant() {
       requestPending.current = false;
       return;
     }
+    const controller = new AbortController();
+    const cancel = () => {
+      controller.abort();
+      updateAssistantSession(
+        owner,
+        (s) => ({
+          ...s,
+          turns: s.turns.map((t) =>
+            t.id === turn.id && t.status === "pending"
+              ? { ...t, status: "cancelled", error: undefined }
+              : t,
+          ),
+        }),
+        generation,
+      );
+    };
+    runningRequest.current = { controller, cancel };
+    const unregisterCancellation = registerAssistantCancellation(cancel);
     try {
       // The separate additive endpoint fails visibly if the API rolls back while
       // this page is open. An older ask schema must never drop an explicit choice.
       const raw = await (turn.request.selection
-          ? selectedAsk.mutateAsync(turn.request)
-          : ask.mutateAsync(turn.request)),
+          ? utils.client.assistant.askSelected.mutate(turn.request, {
+              signal: controller.signal,
+            })
+          : utils.client.assistant.ask.mutate(turn.request, {
+              signal: controller.signal,
+            })),
         presentation = validatedAssistantPresentation(
           (raw as AssistantAnswer).presentation,
           raw.sources.length,
@@ -243,6 +277,7 @@ export default function Assistant() {
           ...raw,
           presentation,
         };
+      controller.signal.throwIfAborted();
       updateAssistantSession(
         owner,
         (s) => ({
@@ -265,6 +300,13 @@ export default function Assistant() {
         generation,
       );
     } catch (error) {
+      if (controller.signal.aborted) {
+        cancel();
+        return;
+      }
+      // Direct client calls allow cancellation; preserve the shared mutation
+      // policy for expired sessions and avoid exposing proxy/parser failures.
+      if (isUnauthorizedError(error)) announceSessionExpired();
       if (
         error instanceof Error &&
         error.message.includes("selected AI provider or model")
@@ -279,10 +321,10 @@ export default function Assistant() {
               ? {
                   ...t,
                   status: "failed",
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : "The answer could not be loaded. Retry when the service is available.",
+                  error: userFacingApiError(
+                    error,
+                    "The answer could not be loaded. Retry when the service is available.",
+                  ),
                 }
               : t,
           ),
@@ -290,7 +332,11 @@ export default function Assistant() {
         generation,
       );
     } finally {
-      requestPending.current = false;
+      unregisterCancellation();
+      if (runningRequest.current?.controller === controller) {
+        runningRequest.current = null;
+        requestPending.current = false;
+      }
     }
   };
   const submit = (event?: FormEvent, suggestion?: string) => {
@@ -627,12 +673,19 @@ export default function Assistant() {
                             />
                             Checking authorized evidence…
                           </div>
-                        ) : turn.status === "failed" ? (
+                        ) : turn.status === "failed" ||
+                          turn.status === "cancelled" ? (
                           <div
-                            role="alert"
-                            className="space-y-3 rounded-md border border-destructive/40 p-3"
+                            role={
+                              turn.status === "cancelled" ? "status" : "alert"
+                            }
+                            className={`space-y-3 rounded-md border p-3 ${turn.status === "failed" ? "border-destructive/40" : "border-border"}`}
                           >
-                            <p className="text-sm">{turn.error}</p>
+                            <p className="text-sm">
+                              {turn.status === "cancelled"
+                                ? "Answer stopped. Your draft is retained."
+                                : turn.error}
+                            </p>
                             <Button
                               type="button"
                               variant="outline"
@@ -769,6 +822,18 @@ export default function Assistant() {
                 >
                   <Send aria-hidden className="size-4" />
                 </Button>
+                {busy && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mb-1 h-10 shrink-0"
+                    onClick={() => runningRequest.current?.cancel()}
+                    aria-label="Stop answer"
+                  >
+                    <Square aria-hidden className="size-3" /> Stop
+                  </Button>
+                )}
               </div>
               <div className="mt-2 flex min-w-0 items-center justify-between gap-2 border-t pt-1">
                 <EquipmentContextSelect

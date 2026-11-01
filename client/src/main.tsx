@@ -6,7 +6,7 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { httpBatchLink } from "@trpc/client";
+import { httpBatchLink, httpLink, splitLink } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/storage";
@@ -58,15 +58,31 @@ const getTRPCUrl = () =>
 
 const trpcClient = trpc.createClient({
   links: [
-    httpBatchLink({
-      url: getTRPCUrl(),
-      transformer: superjson,
-      fetch(input, init) {
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          credentials: "include",
-        });
-      },
+    splitLink({
+      // An assistant cancellation must close its own request even while an
+      // unrelated dashboard request is still in flight.
+      condition: (op) =>
+        op.path === "assistant.ask" || op.path === "assistant.askSelected",
+      true: httpLink({
+        url: getTRPCUrl(),
+        transformer: superjson,
+        fetch(input, init) {
+          return globalThis.fetch(input, {
+            ...(init ?? {}),
+            credentials: "include",
+          });
+        },
+      }),
+      false: httpBatchLink({
+        url: getTRPCUrl(),
+        transformer: superjson,
+        fetch(input, init) {
+          return globalThis.fetch(input, {
+            ...(init ?? {}),
+            credentials: "include",
+          });
+        },
+      }),
     }),
   ],
 });

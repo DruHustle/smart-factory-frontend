@@ -437,7 +437,9 @@ export async function generateAssistantCompletion(
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
   fetcher: typeof fetch = fetch,
   selection?: AssistantSelection,
+  requestSignal?: AbortSignal,
 ): Promise<{ completion?: AssistantCompletion; configured: boolean }> {
+  requestSignal?.throwIfAborted();
   validateAssistantSelection(selection);
   if (selection?.provider === "local") return { configured: false };
   const explicit = selection && selection.provider !== "auto";
@@ -450,10 +452,14 @@ export async function generateAssistantCompletion(
   // All provider/model fallbacks share one budget. A series of slow errors must
   // reach the grounded local answer before the API proxy abandons the request.
   const deadline = new AbortController();
+  const signal = requestSignal
+    ? AbortSignal.any([deadline.signal, requestSignal])
+    : deadline.signal;
   const timer = setTimeout(() => deadline.abort(), 24_000);
   try {
     for (const provider of order) {
-      if (deadline.signal.aborted) break;
+      requestSignal?.throwIfAborted();
+      if (signal.aborted) break;
       const config = providerConfig(provider);
       if (
         !config.apiKey &&
@@ -466,17 +472,22 @@ export async function generateAssistantCompletion(
       for (const model of selection?.model
         ? [selection.model]
         : config.models) {
-        if (deadline.signal.aborted) break;
+        requestSignal?.throwIfAborted();
+        if (signal.aborted) break;
         try {
           const answer = await requestModel(
             config,
             model,
             messages,
             fetcher,
-            deadline.signal,
+            signal,
           );
+          requestSignal?.throwIfAborted();
           return { completion: { provider, model, answer }, configured };
         } catch (error) {
+          // User cancellation is not provider failure. Never start another
+          // model or fabricate a completed local answer after the caller left.
+          requestSignal?.throwIfAborted();
           const status =
             error instanceof ProviderRequestError ? error.status : undefined;
           // Invalid or unavailable model IDs use the configured model fallback.

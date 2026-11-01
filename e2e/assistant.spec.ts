@@ -2,8 +2,7 @@ import { test, expect, type Route } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { enterSimulation, noOverflow } from "./visual-workspace-helpers";
 const out =
-  process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ??
-  "test-results/visual-workspaces";
+  process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ?? "test-results/visual-workspaces";
 const question = "Why does Showcase pump 01 need attention?";
 const input = (page: import("@playwright/test").Page) =>
   page.getByRole("textbox", { name: "Ask the Smart Factory Assistant" });
@@ -246,6 +245,72 @@ test("Assistant keeps Markdown safe, citations stable, IME and mobile compositio
     .toBeLessThanOrEqual(430);
   await noOverflow(page);
 });
+test("Assistant stops a pending answer, preserves the draft and retries the same context", async ({
+  page,
+}) => {
+  mkdirSync(out, { recursive: true });
+  await enterSimulation(page, 390);
+  await page.goto("/#/assistant");
+  const bodies: string[] = [];
+  let pending: Route | undefined;
+  await page.route("**/api/trpc/assistant.ask*", async (route) => {
+    bodies.push(route.request().postData() ?? "");
+    if (bodies.length === 1) {
+      pending = route;
+      return;
+    }
+    await route.continue();
+  });
+  await input(page).fill(question);
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect.poll(() => !!pending).toBe(true);
+  await page.screenshot({ path: `${out}/assistant-pending-390.png` });
+  const failed = page.waitForEvent("requestfailed", {
+    predicate: (r) => r.url().includes("/assistant.ask"),
+  });
+  await page.getByRole("button", { name: "Stop answer", exact: true }).click();
+  await failed;
+  await expect(
+    page.getByText("Answer stopped. Your draft is retained."),
+  ).toBeVisible();
+  await expect(input(page)).toHaveValue(question);
+  await page.screenshot({ path: `${out}/assistant-stopped-390.png` });
+  await expect(page.getByTestId("assistant-answer-content")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Retry this question", exact: true })
+    .click();
+  await expect(page.getByTestId("assistant-answer-content")).toBeVisible();
+  expect(bodies).toHaveLength(2);
+  expect(bodies[1]).toBe(bodies[0]);
+  await noOverflow(page);
+});
+
+test("Assistant cancels when leaving the page and does not strand a pending turn", async ({
+  page,
+}) => {
+  await enterSimulation(page);
+  await page.goto("/#/assistant");
+  let started = false;
+  await page.route("**/api/trpc/assistant.ask*", async () => {
+    started = true;
+  });
+  await input(page).fill(question);
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect.poll(() => started).toBe(true);
+  const failed = page.waitForEvent("requestfailed", {
+    predicate: (r) => r.url().includes("/assistant.ask"),
+  });
+  await page.goto("/#/inventory");
+  await failed;
+  await page.goto("/#/assistant");
+  await expect(
+    page.getByText("Answer stopped. Your draft is retained."),
+  ).toBeVisible();
+  await expect(input(page)).toHaveValue(question);
+  await expect(
+    page.getByRole("button", { name: "New conversation", exact: true }),
+  ).toBeEnabled();
+});
 test("Assistant handles unavailable WebGL and clears sensitive state on logout", async ({
   page,
 }) => {
@@ -294,11 +359,20 @@ for (const [width, theme] of [
     try {
       await enterSimulation(page, width, theme);
       await page.goto("/#/assistant");
+      await expect(
+        page.getByRole("heading", {
+          name: "What would you like to understand?",
+        }),
+      ).toBeVisible();
       await page.screenshot({
         path: `${out}/assistant-empty-${width}-${theme}.png`,
         fullPage: true,
       });
       await ask(page);
+      await page.screenshot({
+        path: `${out}/assistant-answer-${width}-${theme}.png`,
+        fullPage: true,
+      });
       if (width < 1280)
         await page.getByRole("button", { name: /Sources & context/ }).click();
       await expect(page.locator("[data-state=ready]")).toBeVisible({

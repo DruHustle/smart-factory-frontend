@@ -66,6 +66,34 @@ describe("role based access control", () => {
     expect(result).not.toHaveProperty("model");
   });
 
+  it.each(["ask", "askSelected"] as const)(
+    "forwards request cancellation through assistant.%s",
+    async (endpoint) => {
+      const controller = new AbortController();
+      const answer = vi.spyOn(assistantKnowledge, "answerFactoryQuestion");
+      const caller = appRouter.createCaller(contextFor("viewer"), {
+        signal: controller.signal,
+      });
+      await caller.assistant[endpoint]({
+        question: "What is your name?",
+        selection: { provider: "local" },
+      });
+      expect(answer).toHaveBeenCalledWith(
+        "What is your name?",
+        expect.objectContaining({ signal: controller.signal }),
+      );
+      answer.mockClear();
+      controller.abort();
+      await expect(
+        caller.assistant[endpoint]({
+          question: "What is your name?",
+          selection: { provider: "local" },
+        }),
+      ).rejects.toThrow();
+      expect(answer).not.toHaveBeenCalled();
+    },
+  );
+
   it("validates provider and model choices before loading or sending factory evidence", async () => {
     vi.stubEnv("ASSISTANT_PROVIDER", "disabled");
     try {

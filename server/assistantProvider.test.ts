@@ -8,6 +8,78 @@ afterEach(() => {
 });
 
 describe("Smart Factory assistant provider routing", () => {
+  it("does not start an already cancelled request, even in local mode", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetcher = vi.fn();
+    await expect(
+      generateAssistantCompletion(
+        [],
+        fetcher,
+        { provider: "local" },
+        controller.signal,
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("aborts an in-flight provider and never retries or falls back after user cancellation", async () => {
+    vi.stubEnv("ASSISTANT_PROVIDER", "gemini");
+    vi.stubEnv("ASSISTANT_GEMINI_API_KEY", "gemini-test-key");
+    vi.stubEnv("ASSISTANT_GROQ_API_KEY", "groq-test-key");
+    const controller = new AbortController();
+    let transportSignal: AbortSignal | undefined;
+    const fetcher = vi.fn(
+      (_input: string | URL | Request, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          transportSignal = init?.signal ?? undefined;
+          transportSignal!.addEventListener(
+            "abort",
+            () => reject(transportSignal!.reason),
+            { once: true },
+          );
+        }),
+    );
+    const result = generateAssistantCompletion(
+      [{ role: "user", content: "Inspect the pump" }],
+      fetcher,
+      undefined,
+      controller.signal,
+    );
+    const rejected = expect(result).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    controller.abort();
+    await rejected;
+    expect(transportSignal?.aborted).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a provider response body that stalled after sending headers", async () => {
+    vi.stubEnv("ASSISTANT_PROVIDER", "gemini");
+    vi.stubEnv("ASSISTANT_GEMINI_API_KEY", "gemini-test-key");
+    const controller = new AbortController();
+    const cancel = vi.fn();
+    const fetcher = vi.fn(
+      async () => new Response(new ReadableStream({ cancel })),
+    );
+    const result = generateAssistantCompletion(
+      [],
+      fetcher,
+      undefined,
+      controller.signal,
+    );
+    const rejected = expect(result).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    controller.abort();
+    await rejected;
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
   it("uses Gemini first and falls back to Groq when Gemini is unavailable", async () => {
     vi.stubEnv("ASSISTANT_PROVIDER", "openai_compatible");
     vi.stubEnv("ASSISTANT_GEMINI_API_KEY", "gemini-test-key");

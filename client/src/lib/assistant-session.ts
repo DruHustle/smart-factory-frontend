@@ -16,7 +16,7 @@ export type AssistantTurn = {
     demoContext?: DemoAssistantContext;
     factoryId?: string;
   };
-  status: "pending" | "complete" | "failed";
+  status: "pending" | "complete" | "failed" | "cancelled";
   result?: AssistantAnswer;
   error?: string;
 };
@@ -34,10 +34,25 @@ export type AssistantSession = {
 };
 let generation = 0;
 let current: AssistantSession | null = null;
+let cancelPendingRequest: (() => void) | null = null;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
+/** Session revocation must stop transport immediately, before React unmounts. */
+export function registerAssistantCancellation(cancel: () => void) {
+  cancelPendingRequest?.();
+  cancelPendingRequest = cancel;
+  return () => {
+    if (cancelPendingRequest === cancel) cancelPendingRequest = null;
+  };
+}
+function cancelAssistantRequest() {
+  const cancel = cancelPendingRequest;
+  cancelPendingRequest = null;
+  cancel?.();
+}
 /** Memory only: retained across internal routes, never persisted as private evidence in Web Storage. */
 export function clearAssistantSession() {
+  cancelAssistantRequest();
   generation++;
   current = null;
   emit();
@@ -64,6 +79,7 @@ export function updateAssistantSession(
 }
 export function resetAssistantSession(owner: string) {
   if (current?.owner !== owner) return;
+  cancelAssistantRequest();
   current = {
     ...current,
     generation: ++generation,
@@ -103,6 +119,7 @@ export function useAssistantSession(owner: string) {
   );
   useEffect(() => {
     if (current?.owner !== owner) {
+      cancelAssistantRequest();
       current = initial;
       emit();
     }
