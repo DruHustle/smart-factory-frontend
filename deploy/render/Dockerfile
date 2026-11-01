@@ -63,7 +63,11 @@ COPY --from=backend-build --chown=app:app /published/telemetry /services/telemet
 COPY --from=backend-build --chown=app:app /published/identity /services/identity
 COPY --from=backend-build --chown=app:app /published/analytics /services/analytics
 COPY --from=backend-build --chown=app:app /published/notification /services/notification
-COPY --from=backend deploy/migrations/ /app/telemetry-migrations/
+# Migration assets remain root-owned and readable by the non-root runtime,
+# independently of the host checkout's umask. The application cannot edit them.
+COPY --from=backend --chown=0:0 deploy/migrations/ /app/telemetry-migrations/
+RUN find /app/telemetry-migrations -type d -exec chmod 0555 {} + \
+    && find /app/telemetry-migrations -type f -exec chmod 0444 {} +
 COPY --chown=app:app deploy/render/ ./deploy/render/
 ENV NODE_ENV=production ASPNETCORE_ENVIRONMENT=Production DOTNET_ENVIRONMENT=Production \
     API_ONLY=true BACKEND_DEPLOYMENT_MODE=render-bundle \

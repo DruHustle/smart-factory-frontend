@@ -35,6 +35,26 @@ Docker hosts and x86 emulation are refused. Existing qualification fixture
 resources are also refused for separate inspection; the installer does not
 remove someone else's stack to free a name or port.
 
+### Correction for an unreadable telemetry migration manifest
+
+The initial private installer could build migration files with permissions that
+prevented the application's non-root user from reading them. Its acceptance test
+stopped with `UnauthorizedAccessException` for
+`/app/telemetry-migrations/manifest.json`, before any VM access.
+
+The corrected installer creates verified build contexts from the exact tracked
+Git blobs, with ordinary source-file permissions inside a private work directory.
+This also corrects the independently pinned fallback without changing its source.
+The candidate image explicitly keeps migration files root-owned and readable,
+with no write permission for the application. Both images must pass a migration
+readability check as their configured non-root user before the full test suite.
+
+Replace the downloaded installer with the corrected version and run its normal
+`--deploy` command. Its changed source package selects a new private work
+directory and new image tags, preserving the earlier failed run for inspection.
+Both images are rebuilt and all qualification gates run again. Do not point the
+corrected installer at the old release's work directory.
+
 ## Commands
 
 Save the downloaded installer in Downloads, then run:

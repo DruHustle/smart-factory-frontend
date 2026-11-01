@@ -32,6 +32,7 @@ import stat
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import uuid
 import zipfile
@@ -53,6 +54,8 @@ LABELS = ("org.opencontainers.image.revision", "io.smartfactory.backend.revision
 FIXTURE_PROJECT = "smart-factory-bundle-test"
 MAX_METADATA = 4 * 1024**2
 MIN_FREE_BYTES = 12 * 1024**3
+BUILD_CONTEXT_POLICY = "exact-git-blobs-normalized-modes-v1"
+MAX_CONTEXT_BYTES = 1024**3
 SHA = re.compile(r"[a-f0-9]{40}\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 IMAGE_DIGEST = re.compile(r"sha256:[a-f0-9]{64}\Z")
@@ -356,6 +359,154 @@ def checkout_sources(commands, package, plan):
     return paths
 
 
+def tracked_source_files(commands, directory, revision):
+    """Read immutable Git tree identities, independent of checkout permissions."""
+    require(isinstance(revision, str) and SHA.fullmatch(revision), "Build context needs an immutable source revision.")
+    records = git(commands, directory, "ls-tree", "-rz", "--full-tree", revision,
+                  stage="Read exact tracked source identities").stdout
+    require(records.endswith("\0"), "The tracked source inventory is empty or incomplete.")
+    files = {}
+    for record in records[:-1].split("\0"):
+        metadata, separator, name = record.partition("\t")
+        fields = metadata.split(" ")
+        path = PurePosixPath(name)
+        require(separator and len(fields) == 3 and fields[0] in ("100644", "100755")
+                and fields[1] == "blob" and SHA.fullmatch(fields[2]),
+                "Build contexts support only tracked regular source files, not links or submodules.")
+        require(name and not path.is_absolute() and str(path) == name and ".." not in path.parts
+                and ".git" not in path.parts and "\\" not in name and name not in files,
+                "The tracked source inventory has an unsafe or duplicate path.")
+        files[name] = {"blob": fields[2], "mode": 0o755 if fields[0] == "100755" else 0o644}
+    require(len(files) <= 50000, "The tracked source inventory exceeds its budget.")
+    return files
+
+
+def extract_source_context(archive_path, destination, expected):
+    """Materialize an exact Git export inside a newly owned private boundary.
+
+    Git archive can honor export-ignore/export-subst attributes. Matching every
+    filename, executable bit and Git blob hash rejects any such altered export.
+    Only this new staging tree is chmod'd; original checkouts remain private.
+    """
+    private_directory(destination.parent)
+    require(not destination.exists() and not destination.is_symlink(), "A source context destination already exists; nothing was changed.")
+    directories = {str(parent) for name in expected for parent in PurePosixPath(name).parents if str(parent) != "."}
+    destination.mkdir(mode=0o700)
+    seen, files_seen, total = set(), set(), 0
+    with tarfile.open(archive_path, "r:") as archive:
+        for member in archive:
+            path = PurePosixPath(member.name)
+            name = str(path)
+            require(name and name != "." and not path.is_absolute() and ".." not in path.parts
+                    and ".git" not in path.parts and "\\" not in member.name
+                    and member.name.rstrip("/") == name and name not in seen,
+                    "The source archive has an unsafe or duplicate path.")
+            seen.add(name)
+            if member.isdir():
+                require(name in directories, "The source archive contains an untracked directory.")
+                continue
+            require(member.isfile() and name in expected, "The source archive contains a link, special or untracked file.")
+            total += member.size
+            require(0 <= member.size <= MAX_CONTEXT_BYTES and total <= MAX_CONTEXT_BYTES,
+                    "The source archive exceeds its extraction budget.")
+            mode = expected[name]["mode"]
+            require((member.mode & 0o111 != 0) == (mode == 0o755), "A source executable bit differs from its exact Git tree.")
+            target = destination / name
+            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            blob = hashlib.sha1(("blob " + str(member.size) + "\0").encode("ascii"))
+            stream = archive.extractfile(member)
+            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            size = 0
+            with os.fdopen(descriptor, "wb") as output:
+                while True:
+                    block = stream.read(1024 * 1024)
+                    if not block:
+                        break
+                    size += len(block)
+                    blob.update(block)
+                    output.write(block)
+                require(size == member.size and blob.hexdigest() == expected[name]["blob"],
+                        "A source archive blob differs from the exact reviewed Git content.")
+                os.fchmod(output.fileno(), mode)
+            files_seen.add(name)
+    require(files_seen == set(expected), "The source archive omitted tracked files; export attributes cannot change release content.")
+    # Every path below is derived from the exact Git inventory and was created
+    # inside this new tree; no symlink or existing user path can be followed.
+    for name in sorted(directories, key=lambda value: value.count("/"), reverse=True):
+        (destination / name).chmod(0o755)
+    destination.chmod(0o755)
+    return destination
+
+
+@contextlib.contextmanager
+def normalized_source_contexts(commands, paths, revisions):
+    require(paths and set(paths) == set(revisions) and set(paths) <= {"frontend", "backend"},
+            "Only exact frontend/backend source contexts may be staged.")
+    private_directory(commands.work)
+    with tempfile.TemporaryDirectory(prefix="source-contexts-", dir=commands.work) as temporary:
+        boundary = private_directory(Path(temporary))
+        staged = {}
+        for name, directory in paths.items():
+            expected = tracked_source_files(commands, directory, revisions[name])
+            archive = boundary / (name + ".tar")
+            git(commands, directory, "-c", "tar.umask=000", "archive", "--format=tar", "--output=" + str(archive), revisions[name],
+                stage="Export exact " + name + " source context", timeout=300)
+            regular_file(archive, MAX_CONTEXT_BYTES + 64 * 1024**2)
+            staged[name] = extract_source_context(archive, boundary / name, expected)
+            archive.unlink()
+        yield staged
+
+
+RUNTIME_INPUT_CHECK = r'''
+import hashlib,json,os,pathlib,re,sys
+try:
+    if os.getuid() == 0:
+        raise RuntimeError("The runtime input check must use the configured non-root image user.")
+    expected=json.loads(sys.argv[1])
+    root=pathlib.Path("/app/telemetry-migrations")
+    manifest=(root/"manifest.json").read_bytes()
+    if hashlib.sha256(manifest).hexdigest()!=expected["manifestSha256"]:
+        raise RuntimeError("Runtime migration manifest differs from the reviewed source.")
+    names=json.loads(manifest)
+    if names!=expected["names"]:
+        raise RuntimeError("Runtime migration order differs from the reviewed source.")
+    hashes=[]
+    for name in names:
+        if not isinstance(name,str) or re.fullmatch(r"[A-Za-z0-9_.-]+\.sql",name) is None:
+            raise RuntimeError("Runtime migration filename is invalid.")
+        value=hashlib.sha256((root/name).read_bytes()).hexdigest()
+        if value!=expected["files"][name]:
+            raise RuntimeError("Runtime migration content differs from the reviewed source.")
+        hashes.append(value)
+    value=hashlib.sha256("\n".join(hashes).encode()).hexdigest()
+    if value!=expected["digest"]:
+        raise RuntimeError("Runtime migration digest differs from the reviewed source.")
+    print(json.dumps({"nonRoot":True,"migrationCount":len(names),"digest":value}))
+except Exception:
+    print("Runtime migration inputs are unreadable or differ from the exact reviewed source.",file=sys.stderr)
+    sys.exit(1)
+'''
+
+
+def verify_runtime_inputs(commands, tag, backend_context):
+    root = backend_context / "deploy/migrations"
+    manifest = regular_file(root / "manifest.json", MAX_METADATA).read_bytes()
+    names = json.loads(manifest)
+    require(isinstance(names, list) and names and len(names) <= 1024
+            and all(isinstance(name, str) and re.fullmatch(r"[A-Za-z0-9_.-]+\.sql", name) for name in names)
+            and len(names) == len(set(names)), "The reviewed migration manifest is invalid.")
+    hashes = {name: file_digest(regular_file(root / name, MAX_METADATA)) for name in names}
+    expected = {"names": names, "manifestSha256": hashlib.sha256(manifest).hexdigest(), "files": hashes,
+                "digest": hashlib.sha256("\n".join(hashes[name] for name in names).encode()).hexdigest()}
+    response = docker(commands, "run", "--rm", "--pull=never", "--network", "none", "--read-only",
+                      "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--entrypoint", "python3",
+                      tag, "-I", "-B", "-c", RUNTIME_INPUT_CHECK, json.dumps(expected, separators=(",", ":")),
+                      stage="Verify non-root migration inputs in " + tag.split(":", 1)[1].split("-", 1)[0], timeout=120)
+    proof = json.loads(response.stdout)
+    require(proof == {"nonRoot": True, "migrationCount": len(names), "digest": expected["digest"]},
+            "The configured non-root runtime did not verify every exact migration input.")
+
+
 @contextlib.contextmanager
 def exclusive_lock(path):
     descriptor = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
@@ -488,6 +639,8 @@ def load_core(path, candidate):
 
 
 def build_images(commands, paths, plan, state, save_state, endpoint):
+    require(state.get("buildContextPolicy") == BUILD_CONTEXT_POLICY,
+            "This preparation predates the normalized source-context policy. Use the replacement installer with a new work directory.")
     builder = "sf-manual-" + state["runId"]
     existing = docker(commands, "buildx", "inspect", builder, optional=True, stage="Check unique local builder")
     require(existing.returncode != 0, "An existing builder has this run's name; it was not changed. Use a new work directory.")
@@ -506,36 +659,44 @@ def build_images(commands, paths, plan, state, save_state, endpoint):
                 require(state.get("ownedImages", {}).get(role) == existing_image.get("Id"),
                         "A release image tag already exists without this preparation's matching ownership receipt.")
                 validate_image(existing_image, source_ids)
-                continue
-            frontend = paths[role]["frontend"]
-            arguments = ["buildx", "build", "--builder", builder, "--platform", "linux/arm64", "--load",
-                         "--provenance=false", "--build-context", "backend=" + str(paths[role]["backend"])]
-            for key, name in (("SOURCE_REVISION", "frontend"), ("BACKEND_SOURCE_REVISION", "backend"),
-                              ("EDGE_SOURCE_REVISION", "edge")):
-                arguments += ["--build-arg", key + "=" + source_ids[name]]
-            arguments += ["--file", str(frontend / "deploy/render/Dockerfile"), "--tag", tag, str(frontend)]
-            docker(commands, *arguments, stage="Build native ARM64 " + role, timeout=3600)
-            built = image_inspection(commands, tag)
-            validate_image(built, source_ids)
-            state.setdefault("ownedImages", {})[role] = built["Id"]
-            save_state("BUILT_" + role.upper())
+            with normalized_source_contexts(commands, {name: paths[role][name] for name in ("frontend", "backend")},
+                                            {name: source_ids[name] for name in ("frontend", "backend")}) as contexts:
+                if not existing_image:
+                    frontend = contexts["frontend"]
+                    arguments = ["buildx", "build", "--builder", builder, "--platform", "linux/arm64", "--load",
+                                 "--provenance=false", "--build-context", "backend=" + str(contexts["backend"])]
+                    for key, name in (("SOURCE_REVISION", "frontend"), ("BACKEND_SOURCE_REVISION", "backend"),
+                                      ("EDGE_SOURCE_REVISION", "edge")):
+                        arguments += ["--build-arg", key + "=" + source_ids[name]]
+                    arguments += ["--file", str(frontend / "deploy/render/Dockerfile"), "--tag", tag, str(frontend)]
+                    docker(commands, *arguments, stage="Build native ARM64 " + role, timeout=3600)
+                    built = image_inspection(commands, tag)
+                    validate_image(built, source_ids)
+                    state.setdefault("ownedImages", {})[role] = built["Id"]
+                    save_state("BUILT_" + role.upper())
+                verify_runtime_inputs(commands, tag, contexts["backend"])
     finally:
         if created:
             docker(commands, "buildx", "rm", builder, stage="Remove owned temporary builder", timeout=180)
 
 
-def qualification(commands, candidate, tags, evidence):
+def qualification(commands, candidate, tags, evidence, source_revision):
     fixture_empty(commands)
     # The repository smoke script owns this previously empty Compose project and
     # removes its containers, volumes and networks in its own finally block.
-    commands.run([sys.executable, "scripts/bundle-smoke.py"], "Actual packaged acceptance and fallback tests",
-                 cwd=candidate, timeout=2400,
-                 extra={"BUNDLE_IMAGE": tags["candidate"], "BUNDLE_ROLLBACK_IMAGE": tags["rollback"],
-                        "QUALIFICATION_EVIDENCE_DIR": str(evidence)})
-    fixture_empty(commands)
-    commands.run([sys.executable, "scripts/audit-container.py", tags["candidate"],
-                  "--output", str(evidence / "container-audit.json")],
-                 "Audit exact local candidate image", cwd=candidate, timeout=1200)
+    # The SMTP fixture is bind-mounted into a restricted container. Its tracked
+    # script also needs readable source permissions, without opening checkouts.
+    # Neither qualification script requires Git metadata in its working tree.
+    with normalized_source_contexts(commands, {"frontend": candidate}, {"frontend": source_revision}) as contexts:
+        source = contexts["frontend"]
+        commands.run([sys.executable, "scripts/bundle-smoke.py"], "Actual packaged acceptance and fallback tests",
+                     cwd=source, timeout=2400,
+                     extra={"BUNDLE_IMAGE": tags["candidate"], "BUNDLE_ROLLBACK_IMAGE": tags["rollback"],
+                            "QUALIFICATION_EVIDENCE_DIR": str(evidence)})
+        fixture_empty(commands)
+        commands.run([sys.executable, "scripts/audit-container.py", tags["candidate"],
+                      "--output", str(evidence / "container-audit.json")],
+                     "Audit exact local candidate image", cwd=source, timeout=1200)
 
 
 def export_release(commands, plan, state, evidence, core, prerequisites):
@@ -601,11 +762,13 @@ def prepare(package, plan, plan_hash, work, core_path, check_only=False):
                 "This work directory belongs to a different or invalid source package.")
         expected_tags = {role: "factory-qualified:" + role + "-" + state["runId"] for role in ("candidate", "rollback")}
         require(state.get("tags") == expected_tags, "The saved unique image tags were changed.")
+        require(state.get("buildContextPolicy") == BUILD_CONTEXT_POLICY,
+                "This work directory predates the normalized source-context policy. Use the replacement installer with a new work directory.")
     else:
         require({path.name for path in work.iterdir()} <= {"prepare.lock"},
                 "A new preparation requires an empty work directory; existing unrelated files were not changed.")
         run_id = uuid.uuid4().hex
-        state = {"stateVersion": 1, "planSha256": plan_hash, "runId": run_id,
+        state = {"stateVersion": 1, "buildContextPolicy": BUILD_CONTEXT_POLICY, "planSha256": plan_hash, "runId": run_id,
                  "tags": {role: "factory-qualified:" + role + "-" + run_id for role in ("candidate", "rollback")}}
     commands = Commands(work, clean_environment(os.environ))
     def save_state(status):
@@ -631,7 +794,7 @@ def prepare(package, plan, plan_hash, work, core_path, check_only=False):
                 regular_file(path, MAX_METADATA)
                 path.unlink()
         save_state("QUALIFYING")
-        qualification(commands, paths["candidate"]["frontend"], state["tags"], evidence)
+        qualification(commands, paths["candidate"]["frontend"], state["tags"], evidence, plan["candidate"]["frontend"]["sha"])
         save_state("QUALIFIED")
         for role in paths:
             for name in REPOSITORIES:

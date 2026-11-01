@@ -4,6 +4,7 @@ Synthetic OCI metadata exercises the real release verifier. These tests do not
 claim to build, boot or scan a container image and never contact the VM.
 """
 import copy
+import contextlib
 import hashlib
 import importlib.util
 import io
@@ -297,7 +298,8 @@ class DockerIsolationTests(TemporaryTest):
         self.assertFalse(any("build" in call[0] for call in commands.calls))
 
     def test_builder_is_local_unique_and_removed_even_when_build_fails(self):
-        state = {"runId": "a" * 32, "tags": {role: "factory-qualified:" + role + "-test" for role in ("candidate", "rollback")}}
+        state = {"runId": "a" * 32, "buildContextPolicy": prepare.BUILD_CONTEXT_POLICY,
+                 "tags": {role: "factory-qualified:" + role + "-test" for role in ("candidate", "rollback")}}
         paths = {role: {name: self.root / role / name for name in prepare.REPOSITORIES} for role in state["tags"]}
         def response(arguments, stage, options):
             if arguments[1:3] == ["buildx", "inspect"] and "--bootstrap" not in arguments:
@@ -308,8 +310,9 @@ class DockerIsolationTests(TemporaryTest):
                 raise RuntimeError("synthetic build failure")
             return ""
         commands = FakeCommands(self.root, response)
-        with self.assertRaisesRegex(RuntimeError, "synthetic build failure"):
-            prepare.build_images(commands, paths, plan_fixture(), state, Mock(), "unix:///local.sock")
+        with patch.object(prepare, "normalized_source_contexts", return_value=contextlib.nullcontext(paths["candidate"])):
+            with self.assertRaisesRegex(RuntimeError, "synthetic build failure"):
+                prepare.build_images(commands, paths, plan_fixture(), state, Mock(), "unix:///local.sock")
         create = next(call[0] for call in commands.calls if call[0][1:3] == ["buildx", "create"])
         self.assertEqual(create[-1], "unix:///local.sock")
         self.assertNotIn("--use", create)
@@ -320,7 +323,8 @@ class DockerIsolationTests(TemporaryTest):
         self.assertEqual(commands.calls[-1][0], ["docker", "buildx", "rm", "sf-manual-" + state["runId"]])
 
     def test_existing_unowned_tag_is_refused_without_retag_or_removal(self):
-        state = {"runId": "a" * 32, "tags": {role: "factory-qualified:" + role + "-test" for role in ("candidate", "rollback")}}
+        state = {"runId": "a" * 32, "buildContextPolicy": prepare.BUILD_CONTEXT_POLICY,
+                 "tags": {role: "factory-qualified:" + role + "-test" for role in ("candidate", "rollback")}}
         def response(arguments, stage, options):
             if arguments[1:3] == ["buildx", "inspect"] and "--bootstrap" not in arguments:
                 return subprocess.CompletedProcess(arguments, 1, "", "")
@@ -335,13 +339,245 @@ class DockerIsolationTests(TemporaryTest):
     def test_real_smoke_then_scanner_commands_use_owned_tags_and_evidence(self):
         commands = FakeCommands(self.root)
         tags = {role: "factory-qualified:" + role + "-unique" for role in ("candidate", "rollback")}
-        prepare.qualification(commands, self.root / "candidate", tags, self.root / "evidence")
+        with patch.object(prepare, "normalized_source_contexts", return_value=contextlib.nullcontext({"frontend": self.root / "normalized"})):
+            prepare.qualification(commands, self.root / "candidate", tags, self.root / "evidence", "a" * 40)
         smoke = next(call for call in commands.calls if "scripts/bundle-smoke.py" in call[0])
         self.assertEqual(smoke[2]["extra"], {"BUNDLE_IMAGE": tags["candidate"], "BUNDLE_ROLLBACK_IMAGE": tags["rollback"],
                                            "QUALIFICATION_EVIDENCE_DIR": str(self.root / "evidence")})
         self.assertEqual(commands.calls[-1][0], [sys.executable, "scripts/audit-container.py", tags["candidate"],
                                                "--output", str(self.root / "evidence/container-audit.json")])
         self.assertTrue(all("ssh" not in call[0] and "push" not in call[0] for call in commands.calls))
+        self.assertEqual(smoke[2]["cwd"], self.root / "normalized")
+
+
+class SourceContextTests(TemporaryTest):
+    def setUp(self):
+        super().setUp()
+        self.old_umask = os.umask(0o077)
+        self.environment = prepare.clean_environment(os.environ)
+
+    def tearDown(self):
+        os.umask(self.old_umask)
+        super().tearDown()
+
+    def repository(self):
+        repository = self.root / "source"
+        repository.mkdir(mode=0o700)
+        def git(*arguments):
+            return subprocess.run(["git", "-C", str(repository), *arguments], env=self.environment,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True).stdout.strip()
+        git("init", "--initial-branch=fixture")
+        files = {"deploy/migrations/manifest.json": b'["one.sql"]\n',
+                 "deploy/migrations/one.sql": b"-- Exact synthetic migration\nSELECT 1;\n",
+                 "scripts/tests/smtp-capture.py": b"# Synthetic capture fixture\n",
+                 "scripts/executable.sh": b"#!/bin/sh\nexit 0\n", "empty.txt": b""}
+        for name, value in files.items():
+            path = repository / name
+            path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            path.write_bytes(value)
+        (repository / "scripts/executable.sh").chmod(0o700)
+        git("add", ".")
+        git("-c", "user.name=Test", "-c", "user.email=synthetic@example.test", "commit", "-m", "Exact source context fixture")
+        return repository, git("rev-parse", "HEAD"), files, git
+
+    def commands(self, callback=None):
+        def response(arguments, stage, options):
+            if arguments[0] == "git":
+                return subprocess.run(arguments, env=self.environment, check=True, text=True,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return callback(arguments, stage, options) if callback else ""
+        return FakeCommands(self.root, response, self.environment)
+
+    def test_exact_git_export_normalizes_only_private_staged_files(self):
+        repository, revision, files, unused = self.repository()
+        original_modes = {name: stat.S_IMODE((repository / name).stat().st_mode) for name in files}
+        with prepare.normalized_source_contexts(self.commands(), {"backend": repository}, {"backend": revision}) as contexts:
+            staged = contexts["backend"]
+            self.assertEqual(stat.S_IMODE(staged.parent.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(staged.stat().st_mode), 0o755)
+            self.assertFalse((staged / ".git").exists())
+            for name, value in files.items():
+                self.assertEqual((staged / name).read_bytes(), value)
+                self.assertEqual(stat.S_IMODE((staged / name).stat().st_mode), 0o755 if name.endswith(".sh") else 0o644)
+                self.assertEqual(stat.S_IMODE((staged / name).parent.stat().st_mode), 0o755)
+            self.assertEqual({name: stat.S_IMODE((repository / name).stat().st_mode) for name in files}, original_modes)
+            self.assertEqual((repository / "deploy/migrations/manifest.json").stat().st_mode & 0o777, 0o600)
+        self.assertFalse(staged.parent.exists())
+        self.assertEqual({name: (repository / name).read_bytes() for name in files}, files)
+
+    def test_export_ignore_and_substitution_cannot_change_exact_source(self):
+        for attribute, expected_error in (("empty.txt export-ignore\n", "omitted tracked files"),
+                                           ("empty.txt export-subst\n", "blob differs")):
+            with self.subTest(attribute=attribute):
+                repository, unused, files, git = self.repository()
+                (repository / ".gitattributes").write_text(attribute)
+                (repository / "empty.txt").write_text("$Format:%H$\n")
+                git("add", ".")
+                git("-c", "user.name=Test", "-c", "user.email=synthetic@example.test", "commit", "-m", "Unsafe export attributes fixture")
+                revision = git("rev-parse", "HEAD")
+                with self.assertRaisesRegex(RuntimeError, expected_error):
+                    with prepare.normalized_source_contexts(self.commands(), {"frontend": repository}, {"frontend": revision}):
+                        self.fail("Filtered export accepted")
+                self.assertEqual(list(self.root.glob("source-contexts-*")), [])
+                shutil.rmtree(repository)
+
+    def test_extraction_refuses_existing_paths_links_traversal_and_wrong_modes(self):
+        value = b"synthetic source"
+        expected = {"safe.txt": {"blob": hashlib.sha1(b"blob " + str(len(value)).encode() + b"\0" + value).hexdigest(), "mode": 0o644}}
+        archive = self.root / "source.tar"
+        write_archive(archive, {"safe.txt": value}, compressed=False)
+        existing = self.root / "existing"
+        existing.mkdir(mode=0o700)
+        (existing / "preserve").write_bytes(b"unchanged")
+        with self.assertRaisesRegex(RuntimeError, "already exists"):
+            prepare.extract_source_context(archive, existing, expected)
+        self.assertEqual((existing / "preserve").read_bytes(), b"unchanged")
+        for index, options in enumerate(({"entries": {"../outside": value}}, {"entries": {"safe.txt": value}, "link": "safe.txt"},
+                                          {"entries": {"safe.txt": b"different"}})):
+            write_archive(archive, compressed=False, **options)
+            with self.assertRaises(RuntimeError):
+                prepare.extract_source_context(archive, self.root / ("bad-" + str(index)), expected)
+        self.assertFalse((self.root.parent / "outside").exists())
+        write_archive(archive, {"safe.txt": value}, compressed=False)
+        with self.assertRaisesRegex(RuntimeError, "executable bit"):
+            prepare.extract_source_context(archive, self.root / "wrong-mode", {"safe.txt": {**expected["safe.txt"], "mode": 0o755}})
+
+    def test_smoke_and_scanner_use_verified_normalized_fixture_until_completion(self):
+        repository, revision, unused, unused_git = self.repository()
+        observed = []
+        def child(arguments, stage, options):
+            if arguments[0] != "docker":
+                source = options["cwd"]
+                self.assertNotEqual(source, repository)
+                self.assertEqual((source / "scripts/tests/smtp-capture.py").stat().st_mode & 0o777, 0o644)
+                self.assertEqual(source.parent.stat().st_mode & 0o777, 0o700)
+                self.assertEqual((repository / "scripts/tests/smtp-capture.py").stat().st_mode & 0o777, 0o600)
+                observed.append(source)
+            return ""
+        tags = {role: "factory-qualified:" + role + "-fixture" for role in ("candidate", "rollback")}
+        prepare.qualification(self.commands(child), repository, tags, self.root / "evidence", revision)
+        self.assertEqual(len(observed), 2)
+        self.assertEqual(observed[0], observed[1])
+        self.assertFalse(observed[0].parent.exists())
+
+    def test_nonroot_runtime_guard_has_no_network_root_override_or_writes(self):
+        repository, unused, unused_files, unused_git = self.repository()
+        def response(arguments, stage, options):
+            expected = json.loads(arguments[-1])
+            return json.dumps({"nonRoot": True, "migrationCount": len(expected["names"]), "digest": expected["digest"]})
+        commands = FakeCommands(self.root, response)
+        prepare.verify_runtime_inputs(commands, "factory-qualified:rollback-fixture", repository)
+        arguments = commands.calls[0][0]
+        self.assertIn("--pull=never", arguments)
+        self.assertEqual(arguments[arguments.index("--network") + 1], "none")
+        self.assertIn("--read-only", arguments)
+        self.assertEqual(arguments[arguments.index("--cap-drop") + 1], "ALL")
+        self.assertNotIn("--user", arguments)
+        self.assertNotIn("--volume", arguments)
+        self.assertIn("-I", arguments)
+        self.assertIn("-B", arguments)
+        self.assertIn("os.getuid() == 0", arguments[arguments.index("-c") + 1])
+        commands.handler = lambda *unused: json.dumps({"nonRoot": True, "migrationCount": 0, "digest": "0" * 64})
+        with self.assertRaisesRegex(RuntimeError, "did not verify every exact"):
+            prepare.verify_runtime_inputs(commands, "factory-qualified:candidate-fixture", repository)
+
+    def test_old_build_policy_blocks_cached_images_before_docker_use(self):
+        commands = FakeCommands(self.root)
+        with self.assertRaisesRegex(RuntimeError, "predates the normalized"):
+            prepare.build_images(commands, {}, plan_fixture(), {"ownedImages": {"candidate": "old-image"}}, Mock(), "unix:///local.sock")
+        self.assertEqual(commands.calls, [])
+
+    def test_new_and_reused_images_for_both_roles_verify_staged_runtime_inputs(self):
+        plan = plan_fixture()
+        state = {"runId": "a" * 32, "buildContextPolicy": prepare.BUILD_CONTEXT_POLICY,
+                 "tags": {role: "factory-qualified:" + role + "-fixture" for role in ("candidate", "rollback")}}
+        paths = {role: {name: self.root / role / name for name in prepare.REPOSITORIES} for role in state["tags"]}
+        contexts = {role: {name: self.root / ("normalized-" + role) / name for name in ("frontend", "backend")} for role in state["tags"]}
+        built, guarded = set(), []
+        def response(arguments, stage, options):
+            if arguments[1:3] == ["buildx", "inspect"] and "--bootstrap" not in arguments:
+                return subprocess.CompletedProcess(arguments, 1, "", "")
+            if arguments[1:3] == ["image", "inspect"]:
+                role = next(role for role, tag in state["tags"].items() if tag == arguments[-1])
+                if role not in built:
+                    return subprocess.CompletedProcess(arguments, 1, "", "")
+                sources = {name: value["sha"] for name, value in plan["candidate"].items()} if role == "candidate" else prepare.FALLBACK
+                return json.dumps([oci_fixture(state["tags"][role], sources)[1]])
+            if arguments[1:3] == ["buildx", "build"]:
+                role = next(role for role, tag in state["tags"].items() if tag in arguments)
+                self.assertEqual(arguments[-1], str(contexts[role]["frontend"]))
+                self.assertIn("backend=" + str(contexts[role]["backend"]), arguments)
+                built.add(role)
+            return ""
+        def normalized(commands, source_paths, source_ids):
+            role = next(role for role in paths if source_paths["frontend"] == paths[role]["frontend"])
+            expected = {name: plan["candidate"][name]["sha"] for name in ("frontend", "backend")} if role == "candidate" else {name: prepare.FALLBACK[name] for name in ("frontend", "backend")}
+            self.assertEqual(source_ids, expected)
+            return contextlib.nullcontext(contexts[role])
+        def guard(commands, tag, backend):
+            role = next(role for role, value in state["tags"].items() if value == tag)
+            self.assertIn(role, built)
+            self.assertEqual(backend, contexts[role]["backend"])
+            guarded.append(role)
+        commands = FakeCommands(self.root, response)
+        with patch.object(prepare, "normalized_source_contexts", side_effect=normalized), patch.object(prepare, "verify_runtime_inputs", side_effect=guard):
+            prepare.build_images(commands, paths, plan, state, Mock(), "unix:///local.sock")
+            self.assertEqual(guarded, ["candidate", "rollback"])
+            self.assertEqual(sum(call[0][1:3] == ["buildx", "build"] for call in commands.calls), 2)
+            guarded.clear()
+            prepare.build_images(commands, paths, plan, state, Mock(), "unix:///local.sock")
+            self.assertEqual(guarded, ["candidate", "rollback"])
+            self.assertEqual(sum(call[0][1:3] == ["buildx", "build"] for call in commands.calls), 2,
+                             "Owned existing images should be checked without being rebuilt.")
+
+    def test_actual_dropped_linux_uid_reads_normalized_migrations_but_not_original_modes(self):
+        if not sys.platform.startswith("linux") or os.getuid() != 0:
+            self.skipTest("Actual dropped-UID proof requires Linux root with SETUID/SETGID.")
+        caps = next(line.split()[1] for line in Path("/proc/self/status").read_text().splitlines() if line.startswith("CapEff:"))
+        if int(caps, 16) & 0xc0 != 0xc0:
+            self.skipTest("Actual dropped-UID proof requires SETUID/SETGID; run the local test with those permissions.")
+        repository, revision, unused, unused_git = self.repository()
+        captured = []
+        def runtime_arguments(arguments, stage, options):
+            captured.append(arguments)
+            value = json.loads(arguments[-1])
+            return json.dumps({"nonRoot": True, "migrationCount": len(value["names"]), "digest": value["digest"]})
+        prepare.verify_runtime_inputs(FakeCommands(self.root, runtime_arguments), "factory-qualified:candidate-fixture", repository)
+        runtime_code = captured[0][captured[0].index("-c") + 1]
+        self.assertEqual(runtime_code.count('pathlib.Path("/app/telemetry-migrations")'), 1)
+        # Only redirect the fixed container path into this synthetic image tree;
+        # execute the exact code and hash expectations used by docker run.
+        runtime_code = runtime_code.replace('pathlib.Path("/app/telemetry-migrations")', 'pathlib.Path(sys.argv[2])')
+        with tempfile.TemporaryDirectory(prefix="factory-image-permissions-") as image_parent:
+            Path(image_parent).chmod(0o755)  # Only this disposable image-copy boundary.
+            image = Path(image_parent) / "synthetic-image"
+            shutil.copytree(repository / "deploy/migrations", image)
+            def probe():
+                return subprocess.run([sys.executable, "-I", "-B", "-c",
+                    "import hashlib,json,os,pathlib,sys; p=pathlib.Path(sys.argv[1]); assert os.getuid()==65534; "
+                    "names=json.loads((p/'manifest.json').read_bytes()); "
+                    "print(hashlib.sha256('\\n'.join(hashlib.sha256((p/n).read_bytes()).hexdigest() for n in names).encode()).hexdigest()); "
+                    "assert not os.access(p/'manifest.json',os.W_OK); assert not os.access(p,os.W_OK)", str(image)],
+                    user=65534, group=65534, extra_groups=[], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            denied = probe()
+            self.assertNotEqual(denied.returncode, 0)
+            self.assertIn("PermissionError", denied.stderr)
+            def image_guard():
+                return subprocess.run([sys.executable, "-I", "-B", "-c", runtime_code, captured[0][-1], str(image)],
+                                      user=65534, group=65534, extra_groups=[], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.assertNotEqual(image_guard().returncode, 0)
+            shutil.rmtree(image)
+            with prepare.normalized_source_contexts(self.commands(), {"backend": repository}, {"backend": revision}) as contexts:
+                shutil.copytree(contexts["backend"] / "deploy/migrations", image)
+                allowed = probe()
+                self.assertEqual(allowed.returncode, 0, allowed.stderr)
+                self.assertEqual((repository / "deploy/migrations/manifest.json").stat().st_mode & 0o777, 0o600)
+                expected_hash = hashlib.sha256((repository / "deploy/migrations/one.sql").read_bytes()).hexdigest()
+                self.assertEqual(allowed.stdout.strip(), hashlib.sha256(expected_hash.encode()).hexdigest())
+                checked = image_guard()
+                self.assertEqual(checked.returncode, 0, checked.stderr)
+                self.assertEqual(json.loads(checked.stdout), {"nonRoot": True, "migrationCount": 1,
+                                                             "digest": hashlib.sha256(expected_hash.encode()).hexdigest()})
 
 
 class ArchiveIdentityTests(TemporaryTest):
@@ -431,6 +667,31 @@ class ArchiveIdentityTests(TemporaryTest):
 
 
 class LifecycleAndExportTests(TemporaryTest):
+    def test_previous_permission_policy_receipt_is_refused_without_mutation(self):
+        state = {"stateVersion": 1, "planSha256": "d" * 64, "runId": "a" * 32,
+                 "tags": {role: "factory-qualified:" + role + "-" + "a" * 32 for role in ("candidate", "rollback")},
+                 "ownedImages": {"candidate": "previous-image"}}
+        path = self.root / "prepare-state.json"
+        path.write_bytes(encoded(state))
+        with patch.object(prepare, "Commands") as commands:
+            with self.assertRaisesRegex(RuntimeError, "predates the normalized"):
+                prepare.prepare(self.root, plan_fixture(), "d" * 64, self.root, SOURCE, False)
+        commands.assert_not_called()
+        self.assertEqual(json.loads(path.read_bytes()), state)
+
+    def test_failed_image_input_guard_never_starts_fixture_or_exports(self):
+        paths = {"candidate": {"frontend": self.root / "candidate"}}
+        with patch.object(prepare, "verify_source_heads"), \
+                patch.object(prepare, "prerequisite_check", return_value={"endpoint": "unix:///local.sock"}), \
+                patch.object(prepare, "checkout_sources", return_value=paths), patch.object(prepare, "load_core"), \
+                patch.object(prepare, "build_images", side_effect=RuntimeError("non-root migration input denied")), \
+                patch.object(prepare, "qualification") as qualification, patch.object(prepare, "export_release") as export:
+            with self.assertRaisesRegex(RuntimeError, "non-root migration input denied"):
+                prepare.prepare(self.root, plan_fixture(), "d" * 64, self.root, SOURCE, False)
+        qualification.assert_not_called()
+        export.assert_not_called()
+        self.assertEqual(json.loads((self.root / "prepare-state.json").read_text())["status"], "FAILED")
+
     def test_new_work_directory_refuses_unrelated_files_without_mutation(self):
         evidence = self.root / "evidence"
         evidence.mkdir()
