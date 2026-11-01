@@ -529,6 +529,14 @@ for (const width of [390, 1440]) {
     await page
       .getByLabel("Layout name", { exact: true })
       .fill("Other diagram review");
+    // Both drafts intentionally begin with the same name. Wait for the renamed
+    // draft list to render before identifying the remaining original by name.
+    await expect(
+      page.getByRole("button", {
+        name: "Other diagram review · 3 items",
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(feeder).toBeVisible();
     await page
       .getByRole("button", { name: "Diagram review · 3 items", exact: true })

@@ -23,13 +23,33 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
     page.getByRole("heading", { name: "Current Pi + DHT11 setup" }),
   ).toBeVisible();
   await expect(page.getByText("Hardware topology: DHT11")).toBeVisible();
-  await expect(
-    page.getByRole("img", { name: "Interactive 3D factory floor" }),
-  ).toBeVisible();
-  await page.screenshot({
-    path: "test-results/public-demo/pi-bench-3d.png",
-    fullPage: true,
+  const scene = page.getByRole("img", {
+    name: "Interactive 3D factory floor",
+    exact: true,
   });
+  await expect(scene).toBeVisible();
+  await expect(
+    page.getByTestId("factory-floor").getByRole("status"),
+  ).toHaveText("2 items on floor · 0 detailed models ready");
+  // These bench boards use detailed procedural geometry, not downloaded GLBs.
+  await expect(scene).toHaveAttribute(
+    "data-graphics-environment",
+    "baked-hdr-studio",
+  );
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await scene.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
+    await page.screenshot({
+      path: `test-results/public-demo/pi-bench-3d-${width}.png`,
+      fullPage: true,
+    });
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.getByRole("button", { name: "Floor plan", exact: true }).click();
   const plan = page.getByRole("img", {

@@ -1,4 +1,5 @@
 import { useFactorySelection } from "@/lib/factory-selection";
+import { useWorkspaceLocation } from "@/lib/hashLocation";
 import {
   useEffect,
   useLayoutEffect,
@@ -79,6 +80,7 @@ export default function Assistant() {
     active = useDocumentActive(),
     reduce = useMediaQuery("(prefers-reduced-motion: reduce)");
   const { id: factoryId, demo: factoryDemo } = useFactorySelection();
+  const [location] = useWorkspaceLocation();
   const sandbox = useDemoSandbox();
   const owner = `${factoryId ?? "all"}:${user?.id ?? "signed-out"}:${user?.role ?? ""}:${user?.access?.demoOnly ? "demo" : (user?.access?.workspaceView ?? "configured")}`;
   const [session, setSession] = useAssistantSession(owner),
@@ -209,13 +211,20 @@ export default function Assistant() {
     [owner],
   );
   useEffect(() => {
-    if (session.turns.length || session.selectedAssetId !== "automatic") return;
-    const requested = new URLSearchParams(
-      window.location.hash.split("?")[1] ?? "",
-    ).get("asset");
-    if (requested && requested.length >= 3 && requested.length <= 128)
-      setSession((s) => ({ ...s, selectedAssetId: requested }));
-  }, [owner]);
+    const requested = new URLSearchParams(location.split("?")[1] ?? "").get(
+      "asset",
+    );
+    if (!requested || requested.length < 3 || requested.length > 128) return;
+    if (readAssistantSession(owner)?.selectedAssetId === requested) return;
+    // An explicit item link changes the next question's context. Earlier turns
+    // keep their captured evidence, and navigation never submits the draft.
+    runningRequest.current?.cancel();
+    setSession((s) => ({
+      ...s,
+      selectedAssetId: requested,
+      selectedAssetName: null,
+    }));
+  }, [owner, location]);
   const inspect = (id: string, n?: number) => {
     inspectorOpener.current =
       document.activeElement instanceof HTMLElement
@@ -357,12 +366,18 @@ export default function Assistant() {
           content: t.result!.answer.slice(0, 1200),
         },
       ]);
+    const selectedDemoItem = factoryDemo
+      ? sandbox?.items.find(
+          (item) => item.identifier === current.selectedAssetId,
+        )
+      : undefined;
     const context =
       current.selectedAssetId === "automatic"
         ? null
         : {
             assetId: current.selectedAssetId,
             name:
+              selectedDemoItem?.name ??
               contextQuery.data?.name ??
               current.selectedAssetName ??
               "Selected equipment",

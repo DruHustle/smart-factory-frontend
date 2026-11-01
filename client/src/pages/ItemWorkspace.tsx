@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SecuritySummary from "@/components/SecuritySummary";
 import { AssetConnectivity } from "@/components/connectivity/AssetConnectivity";
-import { Cable } from "lucide-react";
+import { Bot, Cable } from "lucide-react";
 const Aas = lazy(() => import("./AssetAdministrationShell"));
 const Device = lazy(() => import("./DeviceDetail"));
 const loadEquipment = () => import("./EquipmentView");
@@ -177,6 +177,16 @@ export default function ItemWorkspace() {
         action={
           <>
             <StatusBadge status={i.status} />
+            {i.kind !== "device" && (
+              <Button asChild size="sm" variant="outline">
+                <Link
+                  href={`/assistant?asset=${encodeURIComponent(i.identifier)}`}
+                >
+                  <Bot className="size-4" aria-hidden="true" />
+                  Ask Assistant
+                </Link>
+              </Button>
+            )}
             {gateway && (
               <Button asChild size="sm" variant="outline">
                 <Link

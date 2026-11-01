@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useId,
   useMemo,
   useRef,
@@ -222,10 +223,10 @@ export function FactorySchematic({
           : (layout.height - height) / 2,
     });
   };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = svg.current;
     if (!element) return;
-    const observer = new ResizeObserver(() => {
+    const measure = () => {
       const bounds = element.getBoundingClientRect();
       setViewport((previous) =>
         Math.abs(previous.width - bounds.width) < 1 &&
@@ -233,7 +234,11 @@ export function FactorySchematic({
           ? previous
           : { width: bounds.width, height: bounds.height },
       );
-    });
+    };
+    // Initialize before the first paint: keyboard selection must not race the
+    // observer's first delivery and suddenly refit an already visible drawing.
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -249,7 +254,7 @@ export function FactorySchematic({
     ]),
   ]);
   const previousFrame = useRef({ reset, topology, width: 0, height: 0, frame });
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previous = previousFrame.current;
     const explicitFit = previous.reset !== reset;
     if (

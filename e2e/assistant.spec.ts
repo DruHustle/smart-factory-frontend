@@ -1,17 +1,18 @@
 import { test, expect, type Route } from "@playwright/test";
 import { mkdirSync } from "node:fs";
-import { enterSimulation, noOverflow } from "./visual-workspace-helpers";
+import { enterSimulation, noOverflow, rpc } from "./visual-workspace-helpers";
 const out =
   process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ?? "test-results/visual-workspaces";
 const question = "Why does Showcase pump 01 need attention?";
 const input = (page: import("@playwright/test").Page) =>
   page.getByRole("textbox", { name: "Ask the Smart Factory Assistant" });
 async function ask(page: import("@playwright/test").Page, text = question) {
+  const answers = page.getByTestId("assistant-answer-content");
+  const previous = await answers.count();
   await input(page).fill(text);
   await page.getByRole("button", { name: "Ask", exact: true }).click();
-  await expect(
-    page.getByTestId("assistant-answer-content").last(),
-  ).toBeVisible();
+  await expect(answers).toHaveCount(previous + 1);
+  await expect(answers.last()).toBeVisible();
 }
 function response(route: Route, data: unknown) {
   return route.fulfill({
@@ -395,3 +396,62 @@ for (const [width, theme] of [
       await context.close();
     }
   });
+
+test("asset links update the next question while retaining drafts and previous answer context", async ({
+  page,
+}) => {
+  const showcase = await enterSimulation(page);
+  const inventory = await (
+    await page.request.get(
+      rpc("inventory.list", {
+        view: "assets",
+        search: "",
+        page: 0,
+        pageSize: 25,
+      }),
+    )
+  ).json();
+  const other = inventory.result.data.json.items.find(
+    (item: { identifier: string }) => item.identifier !== showcase.assetId,
+  );
+  expect(
+    other,
+    "fixture needs two independently addressable assets",
+  ).toBeTruthy();
+  await page.goto("/#/assistant?asset=" + encodeURIComponent(showcase.assetId));
+  const context = page.getByRole("combobox", {
+    name: "Assistant asset context",
+  });
+  await expect(context).toContainText("Showcase pump 01");
+  await ask(page);
+  const prior = await page.getByRole("article").first().innerText();
+  await input(page).fill("Keep this unsent inspection question");
+  const requests: string[] = [];
+  await page.route("**/api/trpc/assistant.ask*", async (route) => {
+    const body = route.request().postDataJSON();
+    requests.push((body.json ?? body["0"].json).selectedAssetId);
+    await route.continue();
+  });
+  await page.goto("/#/inventory/" + encodeURIComponent(other.ref));
+  await page.getByRole("link", { name: "Ask Assistant", exact: true }).click();
+  await expect(context).toContainText(other.name);
+  await expect(input(page)).toHaveValue("Keep this unsent inspection question");
+  expect(await page.getByRole("article").first().innerText()).toBe(prior);
+  expect(requests).toEqual([]);
+  await ask(page, "What stored evidence is available for this asset?");
+  expect(requests).toEqual([other.identifier]);
+  const second = page.getByRole("article").nth(1);
+  await expect(second).toContainText(`Context: ${other.name}`);
+  const secondSnapshot = await second.innerText();
+  await input(page).fill("Another unsent question");
+  // Change only the hash query while Assistant remains mounted.
+  await page.goto("/#/assistant?asset=" + encodeURIComponent(showcase.assetId));
+  await expect(context).toContainText("Showcase pump 01");
+  await expect(input(page)).toHaveValue("Another unsent question");
+  expect(await second.innerText()).toBe(secondSnapshot);
+  await page.goto("/#/assistant?asset=x");
+  await expect(context).toContainText("Showcase pump 01");
+  await page.goto("/#/assistant");
+  await expect(context).toContainText("Showcase pump 01");
+  expect(requests).toEqual([other.identifier]);
+});
