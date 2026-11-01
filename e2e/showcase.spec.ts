@@ -33,6 +33,24 @@ async function enterDemo(page: import("@playwright/test").Page, width: number) {
   mkdirSync(dir, { recursive: true });
   return { s, dir, errors };
 }
+test("inventory location display avoids repeated zones and retains provenance", async ({
+  page,
+}) => {
+  await enterDemo(page, 1440);
+  await page.goto("/#/inventory?search=Assembly%20control%20cabinet");
+  const row = page.getByRole("row").filter({
+    has: page.getByRole("link", {
+      name: "Assembly control cabinet",
+      exact: true,
+    }),
+  });
+  await expect(row).toBeVisible();
+  await expect(row.getByRole("cell").nth(1).locator("p").first()).toHaveText(
+    "Assembly · illustrative floor",
+  );
+  await expect(row).toContainText("Linked devices");
+  await expect(row).toContainText(/simulated/i);
+});
 for (const width of [390, 1440]) {
   test(`recorded analytics and isolated inbox at ${width}px`, async ({
     page,

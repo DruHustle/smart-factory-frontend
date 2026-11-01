@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { itemHref, type InventoryItem } from "@shared/inventory";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { inventoryLocation } from "@/lib/inventory-location";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, SampleTime, StatusBadge } from "./Primitives";
@@ -389,12 +390,7 @@ export function SystemItemList({
                         : item.itemType === "gateway"
                           ? "Gateway"
                           : "Device";
-                  const location = [item.zone, item.location]
-                    .filter(Boolean)
-                    .filter(
-                      (value, index, values) => values.indexOf(value) === index,
-                    )
-                    .join(" · ");
+                  const location = inventoryLocation(item.zone, item.location);
                   return (
                     <li key={item.ref} className="min-w-0">
                       <Link

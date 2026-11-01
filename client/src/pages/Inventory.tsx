@@ -2,6 +2,7 @@ import { FactorySelector } from "@/components/workspace/FactorySelector";
 import { FactoryWorkspace } from "@/components/workspace/FactoryWorkspace";
 import { useFactorySelection } from "@/lib/factory-selection";
 import { inventoryFilters } from "@/lib/list-filters";
+import { inventoryLocation } from "@/lib/inventory-location";
 import { currentSample } from "@shared/measurements";
 import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
@@ -410,9 +411,7 @@ function LegacyInventory() {
                           </td>
                           <td className="p-3">
                             <p>
-                              {[item.zone, item.location]
-                                .filter(Boolean)
-                                .join(" · ") || (
+                              {inventoryLocation(item.zone, item.location) || (
                                 <span className="sr-only">
                                   Location unspecified
                                 </span>
