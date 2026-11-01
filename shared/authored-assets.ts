@@ -1,4 +1,4 @@
-import catalog from "./authored-assets.catalog.json";
+import catalog from "./authored-assets.catalog.json" with { type: "json" };
 import type { IndustrialAsset } from "./industrial-assets";
 
 /** Original Blender references; independently authored, never NVIDIA-certified assets. */

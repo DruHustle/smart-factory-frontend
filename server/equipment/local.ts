@@ -6,6 +6,7 @@ import {
   component,
   importedTemplate,
   importedBytes,
+  importModel,
   localBindingSchema,
 } from "./packages";
 import { inspectGlb } from "./model-budget";
@@ -171,10 +172,17 @@ export async function createEquipment(
     isDemo: boolean;
   },
 ) {
-  const t = await template(input.templateRevision);
-  if (input.templateRevision !== t.revision)
+  const source = await template(input.templateRevision);
+  if (input.templateRevision !== source.revision)
     throw new Error("Unsupported template revision");
-  await modelBytes(t.revision);
+  const bytes = await modelBytes(source.revision);
+  // Native authored aliases are convenience selectors. Installed workspaces use
+  // the established DB-backed package format so an older compatible image can
+  // still read their bytes, metadata and stable component mappings after rollback.
+  const t = {
+    ...source,
+    revision: await durableModelRevision(source.revision, actor, bytes),
+  };
   const db = await database();
   const id = fixed?.id ?? randomUUID(),
     externalAssetId = fixed?.assetId ?? "urn:smart-factory:equipment:" + id;
@@ -708,6 +716,23 @@ function stablePartId(equipment: string, part: string) {
     .digest("hex");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
+async function durableModelRevision(
+  revision: string,
+  actor: number,
+  bytes?: Buffer,
+) {
+  const authored = authoredAssets.find(
+    (asset) => asset.models.compact.revision === revision,
+  );
+  if (!authored) return revision;
+  return (
+    await importModel(
+      bytes ?? (await modelBytes(revision)),
+      authored.models.compact.manifest,
+      actor,
+    )
+  ).revision;
+}
 export async function modelChange(
   id: string,
   revision: string,
@@ -756,8 +781,9 @@ export async function replaceModel(
   const p = await modelChange(id, revision, expectedVersion);
   if (p.reviewToken !== reviewToken)
     throw new Error("Model change must match the reviewed mapping");
+  const storedRevision = await durableModelRevision(revision, actor);
   const r = await query(
-    sql`update equipment_workspaces set template_revision=${revision},components=${JSON.stringify(p.components)}::jsonb,version=version+1,updated_by=${actor} where id=${id} and version=${expectedVersion} returning version`,
+    sql`update equipment_workspaces set template_revision=${storedRevision},components=${JSON.stringify(p.components)}::jsonb,version=version+1,updated_by=${actor} where id=${id} and version=${expectedVersion} returning version`,
   );
   if (!r.length) throw new Error("Model revision conflict");
   return { version: Number(r[0].version) };

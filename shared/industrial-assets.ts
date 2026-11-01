@@ -1,4 +1,4 @@
-import catalog from "./industrial-assets.catalog.json";
+import catalog from "./industrial-assets.catalog.json" with { type: "json" };
 
 /** Reviewed, immutable public references. Never a source of operational telemetry. */
 export interface IndustrialComponent {
