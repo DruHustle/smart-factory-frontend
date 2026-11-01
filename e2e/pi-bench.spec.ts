@@ -83,7 +83,7 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
         .filter({ hasText: /^View controls$/ });
       await help.click();
       await expect(
-        page.getByText(/Rotate off: hovering stays still/),
+        page.getByText(/With Rotate on, click empty floor to start mouse rotation; click again to stop/),
       ).toBeVisible();
       await help.click();
     }
