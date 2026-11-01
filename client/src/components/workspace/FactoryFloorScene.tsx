@@ -16,6 +16,10 @@ import {
   isBenchHardwareLayout,
 } from "./FactoryEnvironment";
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
+import {
+  FactoryScenePreparation,
+  disposeFactoryScene,
+} from "./factory-scene-preparation";
 import { floorItemAtRay } from "./floor-picking";
 import { factoryAreas, factoryAreaColors } from "./factory-spaces";
 import {
@@ -50,32 +54,6 @@ const indicatorColor = (item: Layout["placements"][number]["item"]) =>
           : item.status === "offline"
             ? 0xef6461
             : 0x8191a3;
-function disposeObject(root: THREE.Object3D) {
-  const geometries = new Set<THREE.BufferGeometry>(),
-    materials = new Set<THREE.Material>(),
-    textures = new Set<THREE.Texture>();
-  root.traverse((object) => {
-    if (
-      object instanceof THREE.Mesh ||
-      object instanceof THREE.Line ||
-      object instanceof THREE.Sprite
-    ) {
-      if ("geometry" in object && !object.userData.sharedReferenceGeometry)
-        geometries.add(object.geometry as THREE.BufferGeometry);
-      for (const material of Array.isArray(object.material)
-        ? object.material
-        : [object.material]) {
-        materials.add(material);
-        for (const value of Object.values(material))
-          if (value instanceof THREE.Texture) textures.add(value);
-      }
-    }
-    if (object instanceof THREE.DirectionalLight) object.shadow.dispose();
-  });
-  textures.forEach((t) => t.dispose());
-  materials.forEach((m) => m.dispose());
-  geometries.forEach((g) => g.dispose());
-}
 const models = new Map<string, Promise<THREE.Group>>();
 function referenceModel(slug: string) {
   if (!models.has(slug)) {
@@ -256,6 +234,7 @@ export default function FactoryFloorScene({
       }
       let cancelForResize = () => {};
       let disposed = false,
+        scenePrepared = false,
         dirty = true,
         frame = 0;
       const scene = new THREE.Scene();
@@ -277,7 +256,7 @@ export default function FactoryFloorScene({
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = dark ? 0.95 : 1.05;
       let studio: THREE.Texture | undefined;
-      void createStudioEnvironment()
+      const environment = createStudioEnvironment()
         .then((texture) => {
           if (disposed) {
             texture.dispose();
@@ -327,6 +306,27 @@ export default function FactoryFloorScene({
         ),
       );
       const controls = new OrbitControls(camera, renderer.domElement);
+      const preparation = new FactoryScenePreparation(
+        renderer,
+        camera,
+        scene,
+        environment,
+      );
+      const pendingReferences = new Set<THREE.Object3D>();
+      void preparation
+        .enqueue(() => ({
+          object: scene,
+          activate: () => {
+            scenePrepared = true;
+            renderer.shadowMap.needsUpdate = true;
+            dirty = true;
+          },
+        }))
+        .catch(() => {
+          if (disposed) return;
+          setFailed(true);
+          cleanup?.();
+        });
       controls.enableDamping = false;
       controls.cursorStyle = "grab";
       controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
@@ -571,59 +571,71 @@ export default function FactoryFloorScene({
           void referenceModel(p.model)
             .then((model) => {
               if (disposed) return;
-              const copy = instantiateFactoryReference(
-                  model,
-                  viewerMaterials,
-                  viewerTextures,
-                  finishMaterial,
-                ),
-                box = new THREE.Box3().setFromObject(copy),
-                size = box.getSize(new THREE.Vector3()),
-                center = box.getCenter(new THREE.Vector3());
-              const scale =
-                (factoryModelSize[p.model!] ?? 2.7) /
-                Math.max(size.x, size.y, size.z, 0.001);
-              copy.position.sub(center);
-              const normalized = new THREE.Group();
-              normalized.userData.floorItemRef = p.item.ref;
-              normalized.add(copy);
-              if (p.dimensions)
-                normalized.scale.set(
-                  p.dimensions.width / Math.max(size.x, 0.00001),
-                  p.dimensions.height / Math.max(size.y, 0.00001),
-                  p.dimensions.depth / Math.max(size.z, 0.00001),
-                );
-              else normalized.scale.setScalar(scale);
-              const height = p.dimensions?.height ?? size.y * scale;
-              normalized.position.y = height / 2 + 0.025;
-              group.userData.modelHeight = height;
-              group.userData.connectionSize = [
-                p.dimensions?.width ?? size.x * scale,
-                height,
-                p.dimensions?.depth ?? size.z * scale,
-              ];
-              name.position.y = height + 0.8;
-              marker.position.set(
-                -Math.min((p.dimensions?.width ?? size.x * scale) / 2, 0.64),
-                height + 0.32,
-                0,
-              );
-              normalized.traverse((o) => {
-                if (o instanceof THREE.Mesh) {
-                  o.castShadow = true;
-                  o.receiveShadow = true;
-                }
+              return preparation.enqueue(() => {
+                const copy = instantiateFactoryReference(
+                    model,
+                    viewerMaterials,
+                    viewerTextures,
+                    finishMaterial,
+                  ),
+                  box = new THREE.Box3().setFromObject(copy),
+                  size = box.getSize(new THREE.Vector3()),
+                  center = box.getCenter(new THREE.Vector3());
+                const scale =
+                  (factoryModelSize[p.model!] ?? 2.7) /
+                  Math.max(size.x, size.y, size.z, 0.001);
+                copy.position.sub(center);
+                const normalized = new THREE.Group();
+                normalized.userData.floorItemRef = p.item.ref;
+                normalized.add(copy);
+                if (p.dimensions)
+                  normalized.scale.set(
+                    p.dimensions.width / Math.max(size.x, 0.00001),
+                    p.dimensions.height / Math.max(size.y, 0.00001),
+                    p.dimensions.depth / Math.max(size.z, 0.00001),
+                  );
+                else normalized.scale.setScalar(scale);
+                const height = p.dimensions?.height ?? size.y * scale;
+                normalized.position.y = height / 2 + 0.025;
+                normalized.traverse((o) => {
+                  if (o instanceof THREE.Mesh) {
+                    o.castShadow = true;
+                    o.receiveShadow = true;
+                  }
+                });
+                pendingReferences.add(normalized);
+                return {
+                  object: normalized,
+                  activate: () => {
+                    group.userData.modelHeight = height;
+                    group.userData.connectionSize = [
+                      p.dimensions?.width ?? size.x * scale,
+                      height,
+                      p.dimensions?.depth ?? size.z * scale,
+                    ];
+                    name.position.y = height + 0.8;
+                    marker.position.set(
+                      -Math.min(
+                        (p.dimensions?.width ?? size.x * scale) / 2,
+                        0.64,
+                      ),
+                      height + 0.32,
+                      0,
+                    );
+                    group.remove(body);
+                    retired.push(body);
+                    group.add(normalized);
+                    pendingReferences.delete(normalized);
+                    setLoaded((n) => n + 1);
+                    renderer.shadowMap.needsUpdate = true;
+                    renderer.domElement.dataset.referenceMaterialCount = String(
+                      viewerMaterials.size,
+                    );
+                    updateConnections();
+                    dirty = true;
+                  },
+                };
               });
-              group.remove(body);
-              retired.push(body);
-              group.add(normalized);
-              setLoaded((n) => n + 1);
-              renderer.shadowMap.needsUpdate = true;
-              renderer.domElement.dataset.referenceMaterialCount = String(
-                viewerMaterials.size,
-              );
-              updateConnections();
-              dirty = true;
             })
             .catch(() => {
               /* The labelled proxy remains available when a reference cannot load. */
@@ -724,7 +736,7 @@ export default function FactoryFloorScene({
             );
             next.position.copy(prior.sprite.position);
             scene.remove(prior.sprite);
-            disposeObject(prior.sprite);
+            disposeFactoryScene([prior.sprite]);
             scene.add(next);
             zoneLabels.set(index, { sprite: next, count: area.count });
             dirty = true;
@@ -1154,7 +1166,7 @@ export default function FactoryFloorScene({
       const tick = () => {
         if (disposed) return;
         frame = requestAnimationFrame(tick);
-        if (document.hidden) return;
+        if (document.hidden || !scenePrepared) return;
         controls.update();
         if (dirty) {
           renderer.render(scene, camera);
@@ -1162,7 +1174,7 @@ export default function FactoryFloorScene({
           setReady(true);
         }
       };
-      tick();
+      frame = requestAnimationFrame(tick);
       return () => {
         if (disposed) return;
         cameraMemory.current = {
@@ -1175,6 +1187,7 @@ export default function FactoryFloorScene({
           zoom: camera.zoom,
         };
         disposed = true;
+        preparation.dispose();
         cancel();
         cancelAnimationFrame(frame);
         observer.disconnect();
@@ -1198,15 +1211,19 @@ export default function FactoryFloorScene({
         renderer.domElement.removeEventListener("pointerup", up, true);
         renderer.domElement.removeEventListener("webglcontextlost", lost);
         // Disposing GPU resources preserves the cached CPU references for reuse.
-        retired.forEach(disposeObject);
         connectionLayer.dispose();
-        disposeObject(scene);
-        studio?.dispose();
-        metalGrain.dispose();
-        contactMaterial.map?.dispose();
-        contactMaterial.dispose();
-        contactGeometry.dispose();
+        disposeFactoryScene([scene, ...retired, ...pendingReferences], {
+          materials: [contactMaterial, ...viewerMaterials.values()],
+          textures: [
+            metalGrain,
+            ...viewerTextures.values(),
+            ...(studio ? [studio] : []),
+          ],
+          geometries: [contactGeometry],
+        });
+        pendingReferences.clear();
         renderer.dispose();
+        renderer.forceContextLoss();
         renderer.domElement.remove();
       };
     }
