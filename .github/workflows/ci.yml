@@ -234,8 +234,26 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: { python-version: "3.11" }
+      - name: Install isolated engineering export verifiers
+        run: |
+          python -m venv "$RUNNER_TEMP/smart-factory-cad"
+          "$RUNNER_TEMP/smart-factory-cad/bin/pip" install -r scripts/engineering/requirements-verification.txt
+      - name: Audit editable CAD and vector PDF engineering sheets
+        run: |
+          node --import tsx scripts/engineering/export-fixtures.ts test-results/cad-validation/fixtures
+          node --import tsx scripts/engineering/export-complex.ts test-results/cad-validation/complex
+          node scripts/engineering/qualify-files.mjs test-results/cad-validation/fixtures
+          node scripts/engineering/qualify-files.mjs test-results/cad-validation/complex
+          "$RUNNER_TEMP/smart-factory-cad/bin/python" scripts/engineering/verify-dxf.py test-results/cad-validation/fixtures
+          "$RUNNER_TEMP/smart-factory-cad/bin/python" scripts/engineering/verify-dxf.py test-results/cad-validation/complex
       - name: Verify Demo/Live and factory overview UI contracts
         run: pnpm exec playwright test --config=playwright.overview-contract.config.ts
+        env:
+          CAD_EVIDENCE_DIR: test-results/cad-exports
+      - name: Audit actual browser engineering downloads
+        run: '"$RUNNER_TEMP/smart-factory-cad/bin/python" scripts/engineering/verify-browser-exports.py test-results/cad-exports'
       - name: Verify layout editing under delayed account responses and draft capacity
         run: pnpm exec playwright test --config=playwright.layout-review.config.ts
       - name: Verify graphical navigation, source scope, typography and model preview

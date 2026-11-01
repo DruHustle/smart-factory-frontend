@@ -50,7 +50,7 @@ For a fresh verification environment, install Python 3.11 and Poppler, set the a
 workspace="/absolute/path/to/smart-factory"
 python3.11 -m venv "$workspace/locals-tools/release-tools/cad-verification-python311"
 cad_python="$workspace/locals-tools/release-tools/cad-verification-python311/bin/python"
-"$cad_python" -m pip install 'ezdxf==1.4.3' 'matplotlib==3.10.8' 'pypdf==6.1.3'
+"$cad_python" -m pip install -r scripts/engineering/requirements-verification.txt
 "$cad_python" scripts/engineering/verify-dxf.py test-results/engineering-fixtures
 "$cad_python" scripts/engineering/verify-dxf.py test-results/engineering-complex
 pdftoppm -png -r 120 test-results/engineering-fixtures/process.pdf test-results/engineering-fixtures/process-pdf
@@ -58,3 +58,8 @@ pdftoppm -png -r 120 test-results/engineering-fixtures/electrical.pdf test-resul
 ```
 
 The workspace qualification reused `locals-tools/release-tools/frontend-review-python311` with these exact package versions. `scripts/engineering/verify-browser-exports.py <CAD_EVIDENCE_DIR>` independently audits the four files downloaded by the browser tests and their PDF previews. Set `CAD_EVIDENCE_DIR` to an absolute evidence directory when invoking Playwright; otherwise the exports are saved to `test-results/cad-exports`.
+
+The maintained `visual-workspaces` CI job runs the simple and dense export audits,
+the complete diagram browser suite, and independent checks of its actual DXF/PDF
+downloads. Its retained `test-results` artifact includes generated sheets and
+verification receipts for review.
