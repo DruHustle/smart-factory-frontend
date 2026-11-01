@@ -64,6 +64,7 @@ export function floorModel(
   if (/warehouse_rack/.test(type)) return "warehouse-rack";
   if (/loading_door/.test(type)) return "loading-door";
   if (/exit_door/.test(type)) return "exit-door";
+  if (/sensor|transmitter|transducer/.test(type)) return "process-sensor";
   if (/conveyor|infeed|outfeed/.test(type)) return "conveyor";
   if (/robot|palletiz/.test(type)) return "robot-arm";
   if (/tank|vessel|mixer/.test(type)) return "storage-tank";

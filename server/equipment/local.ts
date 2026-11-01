@@ -16,6 +16,7 @@ import { getDb, ingestTelemetryByDeviceId } from "../db";
 import { assets, devices, assetDevices } from "../../drizzle/schema";
 import { visibleRecordSql } from "../demoData";
 import { factoryModels, referenceModels } from "../../shared/factory-models";
+import { authoredAssets } from "../../shared/authored-assets";
 import { buildDemoAasDocuments, demoAasIdentity } from "../../shared/demo-aas";
 const root = new URL("../../fixtures/equipment/", import.meta.url);
 const componentSchema = component.extend({ installedComponentId: z.uuid() });
@@ -101,6 +102,21 @@ export async function bundledModelCatalog() {
   }));
 }
 export async function template(revision?: string) {
+  const authored = authoredAssets.find(
+    (asset) => asset.models.compact.revision === revision,
+  );
+  if (authored) {
+    const model = authored.models.compact;
+    return {
+      ...model.manifest,
+      revision: model.revision,
+      sha256: model.sha256,
+      assetType: authored.assetType,
+      assetTypeId: `urn:smart-factory:type:${authored.slug}-illustrative`,
+      status:
+        "Original Blender illustrative reference; not manufacturer CAD or an installed-asset attestation",
+    } as LocalTemplate;
+  }
   const factory = factoryModels.find(
     (model) => revision === `smart-factory-illustrative-${model.slug}-1`,
   );
@@ -653,27 +669,34 @@ export async function initializeLocalEquipmentDemos() {
 
 export async function modelBytes(revision: string) {
   const t = await template(revision);
+  const authored = authoredAssets.find(
+    (asset) => asset.models.compact.revision === revision,
+  )?.models.compact;
   const factory = factoryModels.find(
     (model) => revision === `smart-factory-illustrative-${model.slug}-1`,
   );
   const bytes = revision.startsWith("local-import:")
     ? await importedBytes(revision)
-    : await readFile(
-        new URL(
-          factory
-            ? `factory/${factory.slug}/model.glb`
-            : revision === raspberryPiRevision
-              ? "raspberry-pi-4b/model.glb"
-              : [
-                    "smart-factory-illustrative-pump-motor-1",
-                    "smart-factory-illustrative-pump-motor-2",
-                    "smart-factory-illustrative-pump-motor-3",
-                  ].includes(revision)
-                ? `revisions/${revision.split("-").at(-1)}/model.glb`
-                : "pump-motor.glb",
-          root,
-        ),
-      );
+    : authored
+      ? await readFile(
+          new URL(`../../client/public${authored.url}`, import.meta.url),
+        )
+      : await readFile(
+          new URL(
+            factory
+              ? `factory/${factory.slug}/model.glb`
+              : revision === raspberryPiRevision
+                ? "raspberry-pi-4b/model.glb"
+                : [
+                      "smart-factory-illustrative-pump-motor-1",
+                      "smart-factory-illustrative-pump-motor-2",
+                      "smart-factory-illustrative-pump-motor-3",
+                    ].includes(revision)
+                  ? `revisions/${revision.split("-").at(-1)}/model.glb`
+                  : "pump-motor.glb",
+            root,
+          ),
+        );
   if (createHash("sha256").update(bytes).digest("hex") !== t.sha256)
     throw new Error("Model revision hash mismatch");
   inspectGlb(bytes);

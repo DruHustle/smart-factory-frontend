@@ -54,7 +54,8 @@ it("uses varied illustrative references and preserves unknown equipment as proxi
     "PLC cabinet": "control-cabinet",
     "Edge gateway": "raspberry-pi-4b",
     "Pump motor": "pump-motor",
-    "Unknown sensor": null,
+    "Unknown sensor": "process-sensor",
+    "Unclassified equipment": null,
   };
   for (const [name, slug] of Object.entries(expected))
     expect(floorModel({ name, itemType: "other" })).toBe(slug);

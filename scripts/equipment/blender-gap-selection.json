@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "dataset": "nvidia/simready-assets",
+  "revision": "4763fbfaa4f8e97658e68b57d01b4c86659e08b5",
+  "entries": 2679,
+  "inventorySha256": "ce7a35e79a853716f0084b970b577d3e09791976254be926ba9d6c7d08562cf7",
+  "reviewedOn": "2026-11-01",
+  "method": "Complete paginated root inventory; case-insensitive semantic name review. Scoped to this pinned catalog, not a claim about all NVIDIA products.",
+  "terms": {
+    "sensor": [],
+    "transmit": [],
+    "transduc": [],
+    "probe": [],
+    "door": [
+      "bodyPart_door_assembled_c01",
+      "bodyPart_door_front_a01",
+      "bodyPart_door_front_b01",
+      "bodyPart_door_front_c01",
+      "bodyPart_door_rear_a01",
+      "bodyPart_door_rear_b01",
+      "bodyPart_door_rear_c01",
+      "bodyPart_door_rear_d01",
+      "facilityFurniture_lockerUnit_multiDoor_a01"
+    ],
+    "garage": [],
+    "shutter": [],
+    "exit": [],
+    "compress": [
+      "airSystem_compressor_a01",
+      "airSystem_compressor_b01",
+      "airSystem_compressor_c01",
+      "airSystem_compressor_d01",
+      "engineComponent_turbocompressor_a01",
+      "engineComponent_turbocompressor_b01",
+      "equipment_airCompressor_a01",
+      "equipment_airCompressor_b01",
+      "serviceTool_compressor_valveSpring_a01"
+    ]
+  },
+  "selection": {
+    "loading-door": "Only vehicle doors and multi-door locker named; dock gate is not a sectional loading door.",
+    "exit-door": "No personnel or exit door family found.",
+    "process-sensor": "No process sensor/transmitter/transducer/probe family found; unrelated medical pressure monitors and handheld service gauges are not suitable."
+  },
+  "excluded": "Compressors already present; retain future NVIDIA reuse rather than authoring duplicates."
+}

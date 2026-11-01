@@ -4,6 +4,8 @@
 
 The Factory models page (`/#/models`, linked from Assets & devices) includes three reviewed NVIDIA SimReady references: a transfer conveyor, warehouse storage rack and industrial mobile cart. Existing Smart Factory equipment models remain available.
 
+Three [original Blender references](blender-authored-assets.md) fill reviewed gaps in the pinned catalog: sectional loading door, personnel door and process transmitter. They are independently authored under MIT, with separate provenance and no NVIDIA certification claim.
+
 Selecting a model loads it automatically. Only the selected GLB is fetched. Compact geometry is the default, with detailed geometry available explicitly. Real previews remain visible during loading and when WebGL2 is unavailable. Component selection, focus, hide/isolate, sectioning and illustrative explosion use the existing viewer. Bundled model files must pass SHA-256 verification before parsing. No external model-resource URLs are admitted. No NVIDIA account, runtime API, CUDA installation or GPU server is needed for ordinary browsing.
 
 ## Licensing and provenance
