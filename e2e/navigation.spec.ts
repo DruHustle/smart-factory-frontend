@@ -120,12 +120,9 @@ async function checkLayout(
     expect(row.paddingLeft).toBe("8px");
     expect(row.rowHeight).toBe(
       collapsed &&
-        ![
-          "Operations",
-          "Insights",
-          "Infrastructure",
-          "Tools & settings",
-        ].includes(row.text!)
+        !["Operations", "Insights", "Infrastructure", "Workspace"].includes(
+          row.text!,
+        )
         ? 32
         : 40,
     );
@@ -273,3 +270,48 @@ for (const persona of personas)
       expect(errors).toEqual([]);
     });
   }
+
+test("Workspace preserves the previous collapsed-group preference and reveals active routes", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.WORKSPACE_E2E !== "true",
+    "Uses the isolated private installation fixture",
+  );
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await login(page, { role: "user", demo: false });
+  await page.evaluate(() =>
+    localStorage.setItem(
+      "sidebar-collapsed-groups",
+      JSON.stringify(["Tools & settings", "Operations"]),
+    ),
+  );
+  await page.reload();
+  const nav = page.getByRole("navigation", { name: "Primary navigation" });
+  const workspace = nav.getByRole("button", { name: "Workspace", exact: true });
+  await expect(workspace).toHaveAttribute("aria-expanded", "false");
+  await expect(
+    nav.getByRole("button", { name: "Operations", exact: true }),
+  ).toHaveAttribute("aria-expanded", "false");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("sidebar-collapsed-groups") ?? "[]"),
+      ),
+    )
+    .toEqual(["Workspace", "Operations"]);
+  await workspace.focus();
+  await page.keyboard.press("Enter");
+  await expect(workspace).toHaveAttribute("aria-expanded", "true");
+  await nav.getByRole("link", { name: "Assistant", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Assistant", exact: true }),
+  ).toBeVisible();
+  await workspace.click();
+  await expect(workspace).toHaveAttribute("aria-expanded", "false");
+  await page.reload();
+  await expect(workspace).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    nav.getByRole("link", { name: "Assistant", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+});

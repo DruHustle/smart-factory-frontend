@@ -174,7 +174,7 @@ function DashboardLayoutContent({
         ? saved
             .map((label: unknown) =>
               // Preserve the renamed group's saved collapsed state.
-              label === "Workspace" ? "Tools & settings" : label,
+              label === "Tools & settings" ? "Workspace" : label,
             )
             .filter(
               (label): label is string =>

@@ -103,7 +103,7 @@ async function typography(page: Page, width: number) {
     "Operations",
     "Insights",
     "Infrastructure",
-    "Tools & settings",
+    "Workspace",
   ]);
   const actual = await labels.evaluateAll((nodes) =>
     nodes.map((node) => {
