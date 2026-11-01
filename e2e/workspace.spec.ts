@@ -86,6 +86,10 @@ test.describe("unified item workspace", () => {
       return { needed, available };
     });
     expect(textFits.available).toBeGreaterThanOrEqual(textFits.needed);
+    await testInfo.attach("placeholder-measurement", {
+      body: JSON.stringify(textFits),
+      contentType: "application/json",
+    });
     await search.fill("Workspace child A");
     await expect(
       page
@@ -105,6 +109,9 @@ test.describe("unified item workspace", () => {
         .filter({ visible: true }),
     ).toBeVisible();
     await search.blur();
+    await expect(
+      page.getByText("Login successful!", { exact: true }),
+    ).toHaveCount(0);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: testInfo.outputPath("mobile-inventory-search.png"),
