@@ -245,9 +245,31 @@ for (const width of [390, 1440])
             await (await page.request.get("/api/trpc/factory.floor")).json()
           ).result.data.json;
           expect(snapshot.complete).toBe(true);
-          expect(snapshot.items.length).toBeGreaterThan(50);
+          expect(snapshot.items).toHaveLength(52);
           expect(snapshot.total).toBe(snapshot.items.length);
           expect(snapshot.links.length).toBeGreaterThan(30);
+          // The authored showcase has six procedural gateway/clock boards.
+          // Every other item must finish its downloaded reference; accepting
+          // just a few models would miss a stalled or truncated staging queue.
+          const proceduralDeviceIds = [
+            "smart-factory-public-simulator",
+            "showcase.gateway:process",
+            "showcase.gateway:assembly",
+            "showcase.gateway:packaging",
+            "showcase.gateway:network",
+            "showcase.floor:grandmaster",
+          ];
+          expect(
+            (snapshot.items as InventoryItem[])
+              .filter(
+                (item) =>
+                  item.kind === "device" &&
+                  proceduralDeviceIds.includes(item.identifier),
+              )
+              .map((item) => item.identifier)
+              .sort(),
+          ).toEqual([...proceduralDeviceIds].sort());
+          const expectedDetailedModels = 46;
           const count = String(snapshot.total),
             floor = page.getByTestId("factory-floor");
           await expect(floor).toHaveAttribute("data-total-items", count);
@@ -268,7 +290,7 @@ for (const width of [390, 1440])
               },
               { timeout: 30000 },
             )
-            .toBeGreaterThan(5);
+            .toBe(expectedDetailedModels);
           await expect(
             page.getByRole("heading", {
               name: "Factory observations",
@@ -285,6 +307,8 @@ for (const width of [390, 1440])
           await timingEvidence.click();
           await capture(page, `factory-floor-${theme}-${width}`, {
             total: snapshot.total,
+            detailedModelsReady: expectedDetailedModels,
+            proceduralDeviceIds,
             complete: snapshot.complete,
             styles,
             source: s.anchor,
