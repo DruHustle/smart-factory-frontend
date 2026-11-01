@@ -92,6 +92,19 @@ export async function measureOrbit(
   }
   if (fence && !gl.isContextLost()) gl.deleteSync(fence);
   const elapsedMs = performance.now() - started;
+  const incompleteReason = !active()
+    ? "Measurement interrupted. Keep the equipment view open and retry."
+    : document.hidden
+      ? "Measurement paused while the page was hidden. Keep this tab visible and retry."
+      : gl.isContextLost()
+        ? "The graphics context was lost. Reload the model and retry."
+        : synchronizationFailed
+          ? "Graphics synchronization failed. Reload the model and retry."
+          : intervals.length === 0
+            ? "No frames were measured after warmup. Keep this tab visible, let the model finish loading, and retry."
+            : elapsedMs < warmupMs + durationMs
+              ? "Measurement ended before the requested duration. Retry when the model is ready."
+              : null;
   if (active()) {
     r.camera.position.copy(eye);
     r.controls.target.copy(target);
@@ -99,10 +112,12 @@ export async function measureOrbit(
   }
   const sorted = [...intervals].sort((a, b) => a - b),
     percentile = (p: number) =>
-      Math.round(
-        (sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ??
-          0) * 100,
-      ) / 100;
+      sorted.length === 0
+        ? null
+        : Math.round(
+            sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] *
+              100,
+          ) / 100;
   const memory = (
     performance as Performance & {
       memory?: { usedJSHeapSize: number; totalJSHeapSize: number };
@@ -111,11 +126,8 @@ export async function measureOrbit(
   return {
     protocol: "smart-factory-active-orbit-v2",
     measurementStartedAt: performance.timeOrigin + started,
-    completed:
-      !synchronizationFailed &&
-      !document.hidden &&
-      !gl.isContextLost() &&
-      elapsedMs >= warmupMs + durationMs,
+    completed: incompleteReason === null,
+    incompleteReason,
     synchronization:
       "one completed GPU frame in flight; nonblocking WebGL fence with overdue-query drain",
     synchronizedFrames,
