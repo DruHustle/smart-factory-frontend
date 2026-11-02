@@ -56,13 +56,13 @@ After approved promotion, inspect `/release.json`, `/api/runtime/contract`, logi
 
 The qualified rollback sources are pinned in [rollback-sources.json](../rollback-sources.json).
 The pinned fallback uses the reviewed connectivity-aware sources
-`9baf7022c18d2b52f0f0d02618d72dff52f75ec2`,
-`591dbe921632045645f4404283612fec0b962257` and
-`01ce7bf49ad26e898545a4815e26dca01d0c6206`.
+`b5e148b3f14c92ab3bde48ea05c6bcfb025d2eda`,
+`e5634a58276dfacbc1e117db2f5a72b44b2228be` and
+`1deb53c43e25c08e7bedbb9f51583844e1a051b0`.
 Its frontend repository source identifies the API bundle, not the separate
-Vercel UI artifact. This independently qualified fallback is distinct from the
-older image currently installed on the VM; preserve that installed image under
-its own protected reference. Capture `/release.json` at cutover and retain the
+Vercel UI artifact. This fallback identifies the release observed in production
+on 2026-11-02; independently qualify it with the candidate and preserve the
+installed image under its own protected reference. Capture `/release.json` at cutover and retain the
 current UI artifact. Qualification must run the fallback against additive
 `0035_industrial_connectivity`, retain its actual runtime contract, and verify
 new industrial observations through MQTT, the worker, the API and history before,

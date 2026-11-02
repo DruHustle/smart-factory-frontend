@@ -43,9 +43,9 @@ REPOSITORIES = {
     for name in ("frontend", "backend", "edge")
 }
 FALLBACK = {
-    "frontend": "9baf7022c18d2b52f0f0d02618d72dff52f75ec2",
-    "backend": "591dbe921632045645f4404283612fec0b962257",
-    "edge": "01ce7bf49ad26e898545a4815e26dca01d0c6206",
+    "frontend": "b5e148b3f14c92ab3bde48ea05c6bcfb025d2eda",
+    "backend": "e5634a58276dfacbc1e117db2f5a72b44b2228be",
+    "edge": "1deb53c43e25c08e7bedbb9f51583844e1a051b0",
 }
 MEMBERS = {"candidate.tar.gz", "rollback.tar.gz", "archive.sha256", "image.json",
            "rollback-image.json", "result.json", "container-audit.json"}
