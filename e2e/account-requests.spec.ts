@@ -5,6 +5,7 @@ test("registration requests approval and password help is reachable from login",
 }) => {
   await page.goto("/#/login");
   await page.getByRole("link", { name: "Register" }).click();
+  await page.getByRole("button", { name: "Operator", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Request an account" }),
   ).toBeVisible();

@@ -411,7 +411,7 @@ test("public equipment demonstration is read-only and local files require authen
     "Public demonstration uses the existing demo regression server",
   );
   await page.goto("/#/login");
-  await page.getByRole("button", { name: "Demo Viewer", exact: true }).click();
+  await page.getByRole("button", { name: "Viewer", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),

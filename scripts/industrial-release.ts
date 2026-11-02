@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { industrialAssets } from "../shared/industrial-assets";
+import { bundledAssets } from "../shared/bundled-assets";
 
 const publicRoot = resolve(import.meta.dirname, "../client/public");
 const digest = (bytes: Uint8Array) =>
@@ -24,7 +24,7 @@ export async function verifyIndustrialRelease(
       "Asset verification requires an HTTPS origin without credentials or a path",
     );
   const receipts: { path: string; bytes: number; sha256: string }[] = [];
-  for (const asset of industrialAssets) {
+  for (const asset of bundledAssets) {
     const paths = [
       ...Object.values(asset.models).map((m) => m.url),
       asset.previewUrl,
@@ -32,7 +32,7 @@ export async function verifyIndustrialRelease(
       asset.sourceReceiptUrl,
     ];
     for (const path of paths) {
-      if (!/^\/models\/nvidia\/[a-z-]+\/[a-zA-Z0-9.-]+$/.test(path))
+      if (!/^\/models\/(nvidia|authored)\/[a-z-]+\/[a-zA-Z0-9.-]+$/.test(path))
         throw new Error("Unreviewed release asset path");
       const expected = readFileSync(publicRoot + path);
       if (!expected.length || expected.length > 20 * 1024 * 1024)

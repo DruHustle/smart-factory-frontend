@@ -176,6 +176,40 @@ test("the real API honors local mode and rejects unavailable or arbitrary provid
   }
 });
 
+test("switching data workspace cancels an answer and clears its previous private context", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/#/assistant");
+  let started = false;
+  await page.route("**/api/trpc/assistant.ask*", async () => {
+    started = true;
+  });
+  await page
+    .getByLabel("Ask the Smart Factory Assistant")
+    .fill("Review private factory evidence");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect.poll(() => started).toBe(true);
+  const aborted = page.waitForEvent("requestfailed", {
+    predicate: (request) => request.url().includes("/assistant.ask"),
+  });
+  await page
+    .getByRole("combobox", { name: "Data workspace", exact: true })
+    .selectOption("demo");
+  await aborted;
+  await expect(
+    page.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await page.goto("/#/assistant");
+  await expect(page.getByLabel("Ask the Smart Factory Assistant")).toHaveValue(
+    "",
+  );
+  await expect(page.getByRole("article")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Stop answer", exact: true }),
+  ).toHaveCount(0);
+});
+
 test("a compatible older API keeps the Assistant usable without selection requests", async ({
   page,
 }) => {

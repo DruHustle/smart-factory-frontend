@@ -3,7 +3,7 @@
 from pathlib import Path
 from http.cookiejar import CookieJar
 from datetime import datetime, timezone
-import json, os, re, secrets, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse, uuid
+import hashlib, json, os, re, secrets, subprocess, tempfile, time, urllib.request, urllib.error, urllib.parse, uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ['docker', 'compose', '--env-file', '/dev/null', '-p', 'smart-factory-bundle-test', '-f', str(ROOT / 'docker-compose.bundle-test.yml')]
@@ -42,6 +42,70 @@ def wait(check, timeout=90):
         except (OSError, AssertionError): pass
         time.sleep(1)
     raise AssertionError('Acceptance condition timed out')
+
+def verify_packaged_references(viewer, anonymous):
+    """Use the real packaged API, not local Vite/static files or mocked auth."""
+    catalog=json.loads((ROOT/'shared/authored-assets.catalog.json').read_text())
+    references=trpc(viewer,'equipment.references',query=True)
+    receipts=[]
+    for asset in catalog['assets']:
+        model=asset['models']['compact']
+        assert any(item['slug']==asset['slug'] and item['revision']==model['revision'] for item in references), 'Packaged authored reference missing from authenticated catalog.'
+        reference=trpc(viewer,'equipment.reference',{'slug':asset['slug']},query=True)
+        expected_path='/api/equipment/reference/'+asset['slug']+'/model?revision='+urllib.parse.quote(model['revision'])
+        assert reference['modelUrl']==expected_path and reference['revision']==model['revision']
+        assert sorted(part['templateComponentId'] for part in reference['components'])==sorted(part['templateComponentId'] for part in model['manifest']['components'])
+        assert http(anonymous,expected_path)[0]==401, 'Packaged native model escaped authentication.'
+        assert http(viewer,expected_path+'-incorrect')[0]==404, 'Packaged native model accepted a mismatched revision.'
+        try:
+            with viewer.open(BASE+expected_path,timeout=25) as response:
+                assert response.status==200
+                assert response.headers.get_content_type()=='model/gltf-binary'
+                assert response.headers.get('Cache-Control')=='private, no-store'
+                assert response.headers.get('X-Content-Type-Options')=='nosniff'
+                payload=response.read(model['bytes']+1)
+        except urllib.error.HTTPError as error:
+            raise AssertionError(f"Packaged authored model {asset['slug']} returned HTTP {error.code}; required native asset may be missing") from None
+        assert len(payload)==model['bytes'] and payload[:4]==b'glTF', 'Packaged native model size/format mismatch.'
+        assert hashlib.sha256(payload).hexdigest()==model['sha256'], 'Packaged native model integrity mismatch.'
+        receipts.append({'slug':asset['slug'],'revision':model['revision'],'bytes':len(payload),'sha256':model['sha256'],'anonymousRejected':True,'wrongRevisionRejected':True})
+    assert len(receipts)>=3, 'Expected all original Blender native reference families.'
+    print('PASS: all authored compact models traverse real authenticated native reference routes with exact catalog bytes and SHA256; anonymous and wrong-revision requests are rejected.')
+    return receipts
+
+def create_authored_workspaces(engineer, viewer):
+    """Native creation must remain readable by the established fallback image."""
+    fixtures=[]
+    for asset in json.loads((ROOT/'shared/authored-assets.catalog.json').read_text())['assets']:
+        model=asset['models']['compact']
+        created=trpc(engineer,'equipment.create',{'name':'Native durability '+asset['name'],'serialNumber':'bundle-'+asset['slug'],'kind':'real','templateRevision':model['revision']})
+        item=trpc(viewer,'equipment.get',{'id':created['id']},query=True)
+        assert re.fullmatch(r'local-import:[a-f0-9]{64}',item['templateRevision']), 'Installed authored model must use a durable fallback-readable package, not a new image-only alias.'
+        fixture={'slug':asset['slug'],'id':created['id'],'revision':item['templateRevision'],'bytes':model['bytes'],'sha256':model['sha256'],
+            'componentIds':[part['installedComponentId'] for part in item['components']],
+            'templateIds':[part['templateComponentId'] for part in item['components']]}
+        assert sorted(fixture['templateIds'])==sorted(part['templateComponentId'] for part in model['manifest']['components'])
+        package=json.loads(sql("SELECT manifest::text FROM equipment_model_packages WHERE id='"+fixture['revision']+"'"))
+        assert package['license']==model['manifest']['license'] and package['provenance']==model['manifest']['provenance']
+        assert package['components']==model['manifest']['components']
+        fixtures.append(fixture)
+    verify_authored_workspaces(fixtures,viewer)
+    print('PASS: native authored creation persists immutable packages, provenance and component IDs in existing database storage for fallback recovery.')
+    return fixtures
+
+def verify_authored_workspaces(fixtures, viewer):
+    for fixture in fixtures:
+        item=trpc(viewer,'equipment.get',{'id':fixture['id']},query=True)
+        assert item['templateRevision']==fixture['revision'] and item['renderer']['available'] is True
+        assert [part['installedComponentId'] for part in item['components']]==fixture['componentIds']
+        assert [part['templateComponentId'] for part in item['components']]==fixture['templateIds']
+        assert item['observations']==[], 'Reference installation invented observations.'
+        path='/api/equipment/'+fixture['id']+'/model?revision='+urllib.parse.quote(fixture['revision'])
+        assert item['modelUrl']==path
+        with viewer.open(BASE+path,timeout=25) as response:
+            assert response.status==200 and response.headers.get_content_type()=='model/gltf-binary'
+            payload=response.read(fixture['bytes']+1)
+        assert len(payload)==fixture['bytes'] and hashlib.sha256(payload).hexdigest()==fixture['sha256'], 'Installed authored model changed or disappeared across recovery.'
 
 INDUSTRIAL_MQTT_PUBLISHER = '''
 import json, socket, struct, sys
@@ -283,6 +347,8 @@ try:
         accounts[role]=(opener,user['id'])
         assert trpc(opener,'auth.me',query=True)['role'] == role
     admin,admin_id=accounts['admin']; engineer,engineer_id=accounts['engineer']; viewer,viewer_id=accounts['viewer']
+    reference_evidence=verify_packaged_references(viewer,plain)
+    authored_workspaces=create_authored_workspaces(engineer,viewer)
     # Approval audits retain their reviewer. Disable this fixture identity through
     # the replacement administrator so evidence survives and recipients stay scoped.
     bootstrap_user=next(user for user in trpc(admin,'users.list',query=True) if user['email']=='bootstrap@example.com')
@@ -456,6 +522,11 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             required_capabilities = set(candidate_runtime['capabilities']) - {'assistant-provider-selection-v1'}
             assert required_capabilities.issubset(transition_runtime['capabilities'])
             if position==0: fallback_runtime=transition_runtime
+            verify_authored_workspaces(authored_workspaces,viewer)
+            if position==0:
+                for reference in reference_evidence:
+                    path='/api/equipment/reference/'+reference['slug']+'/model?revision='+urllib.parse.quote(reference['revision'])
+                    assert http(viewer,path)[0]==404, 'Fallback should reject unknown stateless references while installed packages remain readable.'
             assert trpc(viewer,'auth.me',query=True)['id']==viewer_id
             assert http(engineer,'/api/trpc/assets.list')[0]==401
             assert sql('SELECT count(*) FROM sensor_readings WHERE "assetId" IS NULL')=='2'
@@ -465,9 +536,11 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             assert trpc(viewer,'factories.get',{'id':named_factory},query=True)['items']==[]
             assert any(row['action']=='inventory.deleted' for row in trpc(viewer,'factories.activity.list',{'factoryId':named_factory},query=True)['items'])
         runtime=http(plain,'/api/runtime/contract')[1]
+        assert verify_packaged_references(viewer,plain)==reference_evidence, 'Restored candidate lost native authored assets.'
         assert fallback_runtime is not None and len(industrial_fixture['reports'])==3
         rollback_evidence={'qualifiedPriorImage':rollback_image,'restoredCandidateImage':current_image,'revokedAccountStayedRejected':True,'activeViewerPreserved':True,'telemetryIdentitiesPreserved':True,'schemaCompatible':True,
-            'runtime':fallback_runtime,'industrialObservationsPreserved':True,'industrialObservationCount':3,'industrialFallbackIngestionVerified':True}
+            'runtime':fallback_runtime,'industrialObservationsPreserved':True,'industrialObservationCount':3,'industrialFallbackIngestionVerified':True,
+            'authoredInstalledModelsPreserved':True,'authoredInstalledModelCount':len(authored_workspaces),'unknownStatelessReferencesRejected':True}
         print('PASS: rollback and roll-forward preserve sessions, revocation, schema and all three industrial observations; the fallback also ingests new MQTT observations without dropping quality or exact 64-bit values.')
     # The explicit public-demo installer must not change private inventory or queue email.
     sql("INSERT INTO users(\"openId\",email,name,role) VALUES('demo-bundle-owner','admin@dev.local','Synthetic demo owner','admin')")
@@ -500,7 +573,7 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
     runtime = final_runtime
     image=json.loads(run(['docker','image','inspect',os.environ.get('BUNDLE_IMAGE','smart-factory-render-review:local')],True))[0]
     output=Path(os.environ.get('QUALIFICATION_EVIDENCE_DIR',str(Path(tempfile.gettempdir())/'factory-arm64-bundle-evidence')));output.mkdir(parents=True,exist_ok=True)
-    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'compatibleRollback':rollback_evidence,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'packagedPasswordRecovery':password_recovery_evidence,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
+    (output/'result.json').write_text(json.dumps({'completedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'runtime':runtime,'compatibleRollback':rollback_evidence,'image':{'id':image['Id'],'platform':image['Os']+'/'+image['Architecture'],'labels':image['Config']['Labels']},'sixServicesNonRoot':True,'migrationsIdempotent':True,'bootstrapBoundary':True,'individualAuthorization':True,'nativeSecurityOutbox':True,'notificationOwnershipAndRestart':True,'coverageUnitsAndScope':True,'mqttQos0AndQos1':True,'standaloneSensorTraversal':True,'dependencyFailureRecovery':True,'packagedReferenceModels':reference_evidence,'durableAuthoredWorkspaces':authored_workspaces,'packagedPasswordRecovery':password_recovery_evidence,'physicalEquipment':False,'productionPromotion':False},indent=2)+'\n')
     completed = True
 finally:
     try:

@@ -3,9 +3,11 @@ import { sql } from "drizzle-orm";
 import {
   layoutFactory,
   floorModel,
+  floorNvidiaAsset,
   gatewayLinksForFloor,
 } from "../shared/factory-floor";
 import type { InventoryItem } from "../shared/inventory";
+import { factoryCatalog } from "../shared/factory-catalog";
 import { factoryFloor } from "./factory";
 import { closeDatabase, getDb } from "./db";
 import { withVisibility } from "./demoData";
@@ -54,7 +56,8 @@ it("uses varied illustrative references and preserves unknown equipment as proxi
     "PLC cabinet": "control-cabinet",
     "Edge gateway": "raspberry-pi-4b",
     "Pump motor": "pump-motor",
-    "Unknown sensor": null,
+    "Unknown sensor": "process-sensor",
+    "Unclassified equipment": null,
   };
   for (const [name, slug] of Object.entries(expected))
     expect(floorModel({ name, itemType: "other" })).toBe(slug);
@@ -73,6 +76,36 @@ it("uses varied illustrative references and preserves unknown equipment as proxi
     }),
   ).toBe("esp32-wrover-dht11");
   expect(layoutFactory([]).placements).toEqual([]);
+});
+
+it("selects reviewed NVIDIA references only for matching illustrative floor items", () => {
+  for (const [name, itemType, model, asset] of [
+    [
+      "Assembly infeed conveyor",
+      "conveyor",
+      "conveyor",
+      "nvidia-transfer-conveyor",
+    ],
+    ["Rack 1", "warehouse_rack", "warehouse-rack", "nvidia-storage-rack"],
+    ["Storage rack", "other", "warehouse-rack", "nvidia-storage-rack"],
+    ["Mobile cart", "other", "mobile-cart", "nvidia-mobile-cart"],
+    ["Trolley A", "other", "mobile-cart", "nvidia-mobile-cart"],
+    ["Cart A", "mobile_cart", "mobile-cart", "nvidia-mobile-cart"],
+  ]) {
+    expect(floorModel({ name, itemType })).toBe(model);
+    expect(floorNvidiaAsset(model)).toBe(asset);
+  }
+  expect(
+    floorModel({ name: "Filter cartridge", itemType: "other" }),
+  ).toBeNull();
+  expect(floorModel({ name: "Carton machine", itemType: "other" })).toBeNull();
+  expect(floorNvidiaAsset("pump-motor")).toBeNull();
+  expect(floorNvidiaAsset("nvidia-mobile-cart")).toBeNull();
+  expect(factoryCatalog.find((item) => item.id === "mobile-cart")).toMatchObject({
+    label: "Mobile cart",
+    kind: "asset",
+    itemType: "mobile_cart",
+  });
 });
 it("draws only the recorded Pi gateway parent for the physical sensor", () => {
   const gateway = {

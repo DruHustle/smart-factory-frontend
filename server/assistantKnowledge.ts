@@ -942,6 +942,7 @@ function guardAssistantAnswer(answer: string) {
 export async function answerFactoryQuestion(
   question: string,
   options: {
+    signal?: AbortSignal;
     role?: AssistantRole;
     selectedAssetId?: string;
     history?: AssistantHistoryMessage[];
@@ -950,6 +951,7 @@ export async function answerFactoryQuestion(
     factoryId?: string;
   } = {},
 ) {
+  options.signal?.throwIfAborted();
   const plan = planAssistantConversation(
     question,
     options.history,
@@ -1076,7 +1078,13 @@ export async function answerFactoryQuestion(
   ];
   const result = demoOnlyRead()
     ? { configured: false, completion: null }
-    : await generateAssistantCompletion(messages, fetch, options.selection);
+    : await generateAssistantCompletion(
+        messages,
+        fetch,
+        options.selection,
+        options.signal,
+      );
+  options.signal?.throwIfAborted();
   if (result.completion) {
     return {
       answer: guardAssistantAnswer(result.completion.answer),

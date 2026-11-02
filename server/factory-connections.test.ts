@@ -164,3 +164,97 @@ describe("bounded routing preferences", () => {
     }
   });
 });
+
+describe("illustrative automatic cable trays", () => {
+  it("merges overlapping collinear cable runs while keeping both logical links", () => {
+    const hub = new THREE.Group(), a = new THREE.Group(), b = new THREE.Group();
+    hub.position.set(-4, 0, 0); a.position.set(4, 0, 0); b.position.set(4, 0, 2);
+    for (const object of [hub, a, b]) object.userData.connectionSize = [2, 3, 2];
+    const objects = new Map([["device:hub", hub], ["device:a", a], ["device:b", b]]);
+    const routes: FloorLink[] = [
+      { from: "device:hub", to: "device:a", kind: "gateway", label: "A" },
+      { from: "device:hub", to: "device:b", kind: "gateway", label: "B" },
+    ];
+    const layer = new FactoryConnectionLayer(true);
+    layer.update(routes, objects, {}, { width: 30, depth: 20 });
+    expect(layer.summary).toHaveLength(2);
+    expect(layer.trayMetrics).toEqual({ trunks: 1, branches: 2 });
+    const branches = layer.root.children.filter((child) => child.name === "illustrative-cable-tray-branch");
+    const targetAisle = branches.map((branch) => meshes(branch)[0].geometry as THREE.TubeGeometry)
+      .find((geometry) => Math.abs(geometry.parameters.path.getPoint(0).x - 2.985) < 0.0001);
+    expect(targetAisle).toBeDefined();
+    const endpoints = [targetAisle!.parameters.path.getPoint(0), targetAisle!.parameters.path.getPoint(1)];
+    expect(Math.min(...endpoints.map((point) => point.z))).toBe(-9.5);
+    expect(Math.max(...endpoints.map((point) => point.z))).toBe(2);
+    layer.dispose();
+  });
+
+  it("shares a low orthogonal tray without changing logical links or endpoints", () => {
+    const source = new THREE.Group(), a = new THREE.Group(), b = new THREE.Group();
+    source.position.set(-4, 0, 0); a.position.set(4, 0, 0); b.position.set(6, 0, 2);
+    for (const object of [source, a, b]) object.userData.connectionSize = [2, 3, 2];
+    const objects = new Map([["device:hub", source], ["device:a", a], ["device:b", b]]);
+    const routes: FloorLink[] = [
+      { from: "device:hub", to: "device:a", kind: "gateway", label: "A" },
+      { from: "device:hub", to: "device:b", kind: "gateway", label: "B" },
+    ];
+    const before = JSON.stringify(routes), layer = new FactoryConnectionLayer(true);
+    layer.update(routes, objects, {}, { width: 30, depth: 20 });
+    expect(JSON.stringify(routes)).toBe(before);
+    expect(layer.summary).toHaveLength(2);
+    for (const [index, target] of [a, b].entries()) {
+      const appearance = defaultConnectionAppearance(routes[index]);
+      expect(appearance.routing).toBe("tray");
+      expect(layer.summary[index].from).toEqual(connectionAnchor(source, target, appearance).toArray());
+      expect(layer.summary[index].to).toEqual(connectionAnchor(target, source, appearance).toArray());
+    }
+    const trunks = layer.root.children.filter((child) => child.name === "illustrative-cable-tray");
+    const branches = layer.root.children.filter((child) => child.name === "illustrative-cable-tray-branch");
+    layer.update(routes, objects, {}, { width: 30, depth: 20 });
+    expect(layer.root.children.filter((child) => child.name === "illustrative-cable-tray")[0]).toBe(trunks[0]);
+    expect(layer.root.children.filter((child) => child.name === "illustrative-cable-tray-branch")).toEqual(branches);
+    expect(trunks).toHaveLength(1);
+    expect(branches).toHaveLength(3); // The shared hub branch is not duplicated.
+    expect(layer.trayMetrics).toEqual({ trunks: 1, branches: 3 });
+    const trunk = meshes(trunks[0])[0];
+    expect(trunk.position.z).toBe(-9.5);
+    expect(trunk.position.y).toBeLessThan(0.2);
+    for (const branch of branches) {
+      const body = meshes(branch)[0];
+      const geometry = body.geometry as THREE.TubeGeometry;
+      const path = geometry.parameters.path;
+      const points = path.getPoints(30);
+      expect(new Set(points.map((point) => point.x.toFixed(5))).size).toBe(1);
+      expect(body.castShadow).toBe(false);
+    }
+    let removed = 0;
+    const oldTrunk = meshes(trunks[0])[0].geometry;
+    oldTrunk.addEventListener("dispose", () => removed++);
+    b.position.x += 2;
+    layer.update(routes, objects, {}, { width: 30, depth: 20 });
+    expect(removed).toBe(1);
+    expect(layer.summary).toHaveLength(2);
+    layer.update([], objects, {}, { width: 30, depth: 20 });
+    expect(layer.root.children).toHaveLength(0);
+    expect(layer.trayMetrics).toEqual({ trunks: 0, branches: 0 });
+    layer.dispose();
+    expect(removed).toBe(1);
+  });
+
+  it("retains custom routes and legacy saved wire preferences", () => {
+    const oldWire = { ...defaultConnectionAppearance({ ...link, kind: "gateway" }), routing: undefined, shape: "curve" as const };
+    const saved = JSON.stringify({ version: 1, routes: { [connectionKey(link)]: oldWire } });
+    expect(readConnectionAppearances(saved).values[connectionKey(link)]).toMatchObject({ shape: "curve" });
+    const custom = { ...oldWire, shape: "custom" as const, points: [{ x: 0, y: 2, z: 3 }] };
+    const { objects } = fixture(), layer = new FactoryConnectionLayer(true);
+    layer.update([link], objects, { [connectionKey(link)]: custom }, { width: 30, depth: 20 });
+    expect(layer.summary[0].shape).toBe("custom");
+    expect(layer.root.children.some((child) => child.name === "illustrative-cable-tray")).toBe(false);
+    expect(meshes(layer.root)).toHaveLength(3);
+    const normalized = validateConnectionAppearance({ ...custom, routing: "tray" });
+    expect(normalized.shape).toBe("custom");
+    expect(normalized.routing).toBeUndefined();
+    expect(normalized.points).toEqual(custom.points);
+    layer.dispose();
+  });
+});

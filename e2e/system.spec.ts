@@ -40,6 +40,7 @@ test("account routes and the signed-out flow render", async ({ page }) => {
   ).toHaveCount(0);
   await page.getByRole("link", { name: "Register", exact: true }).click();
   await expect(page).toHaveURL(/#\/register/);
+  await page.getByRole("button", { name: "Operator", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Request an account", exact: true }),
   ).toBeVisible();
@@ -690,7 +691,12 @@ test("admin can inspect demo AAS data and manage user access", async ({
       .filter({ visible: true }),
   ).toBeVisible();
   const amlDownloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: /export automationml/i }).click();
+  await page
+    .getByRole("button", { name: "Inventory tools", exact: true })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Export AutomationML", exact: true })
+    .click();
   const amlDownload = await amlDownloadPromise;
   expect(amlDownload.suggestedFilename()).toBe("smart-factory.aml");
   const amlXml = await readFile(await amlDownload.path(), "utf8");

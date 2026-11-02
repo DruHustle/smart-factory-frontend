@@ -367,7 +367,8 @@ const assistantAskProcedure = viewerProcedure
         .optional(),
     }),
   )
-  .mutation(async ({ input, ctx }) => {
+  .mutation(async ({ input, ctx, signal }) => {
+    signal?.throwIfAborted();
     if (input.demoContext && !demoOnlyRead())
       throw new TRPCError({
         code: "BAD_REQUEST",
@@ -436,6 +437,7 @@ const assistantAskProcedure = viewerProcedure
       model: _model,
       ...publicResult
     } = await answerFactoryQuestion(input.question, {
+      signal,
       role: ctx.user.role,
       selectedAssetId: input.selectedAssetId,
       history: input.history,

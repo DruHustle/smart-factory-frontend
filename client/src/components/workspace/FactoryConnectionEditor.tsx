@@ -93,6 +93,7 @@ export function FactoryConnectionEditor({ links, layout, controller }: {
   controller: ReturnType<typeof useConnectionAppearances>;
 }) {
   const [selected, setSelected] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
   const available = useMemo(() => {
     const refs = new Set(layout.placements.map((p) => p.item.ref));
     return [...new Map(links.filter((l) => l.from !== l.to && refs.has(l.from) && refs.has(l.to))
@@ -109,14 +110,23 @@ export function FactoryConnectionEditor({ links, layout, controller }: {
     set({ points: next });
   };
   return (
-    <details className="min-w-0 shrink-0 border-b px-4 py-2" data-testid="connection-routing">
-      <summary className="flex cursor-pointer items-center gap-2 text-xs font-medium">
+    <details
+      className="relative shrink-0"
+      data-testid="connection-routing"
+      onToggle={(event) => setIsOpen(event.currentTarget.open)}
+    >
+      <summary
+        role="button"
+        aria-label="Edit 3D connections"
+        aria-expanded={isOpen}
+        title="Edit 3D connections"
+        className="flex size-9 cursor-pointer list-none items-center justify-center rounded-md border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
+      >
         <Cable className="size-4 shrink-0" aria-hidden="true" />
-        3D wires & pipes · {available.length} connections
       </summary>
-      <div className="mt-3 max-h-72 min-w-0 space-y-3 overflow-y-auto pr-1">
+      <div className="absolute right-0 top-full z-50 mt-1 max-h-[min(28rem,65vh)] w-[min(24rem,calc(100vw-3rem))] space-y-3 overflow-y-auto rounded-md border bg-popover p-3 text-popover-foreground shadow-md">
         <p className="text-xs text-muted-foreground">
-          Illustrative routing, not surveyed pipework or verified wiring. Appearance is saved in this browser for this account and factory/layout; it does not change operational connections or floor-plan lines. Routes are not collision-checked.
+          Illustrative routing, not surveyed pipework or verified wiring. Automatic cable trays show shared visual routes; they do not establish physical wiring. Appearance is saved in this browser and does not change operational connections or floor-plan lines. Routes are not collision-checked.
         </p>
         {controller.error && <p role="alert" className="text-xs text-destructive">{controller.error}</p>}
         {controller.blocked && <Button size="sm" variant="outline" aria-label="Reset unreadable 3D routing" onClick={controller.resetUnreadable}>Reset unreadable 3D routing</Button>}
@@ -138,6 +148,7 @@ export function FactoryConnectionEditor({ links, layout, controller }: {
                 onChange={(event) => {
                   const pipe = event.target.value === "pipe";
                   set({ type: pipe ? "pipe" : "wire", diameter: pipe ? 0.16 : 0.07,
+                    routing: undefined,
                     color: pipe ? "#a5b1bf" : "#405d6b" });
                 }}>
                 <option value="wire">Wire / cable</option><option value="pipe">Pipe</option>
@@ -145,8 +156,14 @@ export function FactoryConnectionEditor({ links, layout, controller }: {
             </label>
             <label className="block min-w-0 text-xs text-muted-foreground">
               Shape
-              <select aria-label="3D route shape" className="workspace-control mt-1 w-full" value={appearance.shape}
-                onChange={(event) => set({ shape: event.target.value as ConnectionAppearance["shape"] })}>
+              <select aria-label="3D route shape" className="workspace-control mt-1 w-full" value={appearance.routing === "tray" ? "tray" : appearance.shape}
+                onChange={(event) => {
+                  const route = event.target.value;
+                  set(route === "tray" ? { shape: "elbow", routing: "tray" } : {
+                    shape: route as ConnectionAppearance["shape"], routing: undefined,
+                  });
+                }}>
+                {appearance.type === "wire" && <option value="tray">Automatic cable tray</option>}
                 <option value="straight">Straight</option><option value="elbow">Rounded elbows</option>
                 <option value="curve">Curved</option><option value="custom">Custom points</option>
               </select>

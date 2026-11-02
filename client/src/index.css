@@ -79,7 +79,7 @@
 }
 @media (min-width: 1280px) {
   .overview-floor-viewport {
-    height: clamp(19rem, 23vw, 23rem);
+    height: clamp(27rem, 35vw, 36rem);
   }
   .overview-trend {
     grid-template-columns: minmax(0, 1fr) 6.6rem;
@@ -725,4 +725,12 @@ html:has(.overview-floor) {
 .overview-floor[data-measured="true"]:not(.floor-expanded)
   .overview-floor-viewport {
   height: clamp(24rem, 60vh, 36rem);
+}
+
+/* Keep an inline mobile 3D bench compact; diagrams and fullscreen retain room. */
+@media (max-width: 639px) {
+  .overview-floor[data-measured="true"]:not(.floor-expanded)
+    .overview-floor-viewport[data-view="3d"] {
+    height: 24rem;
+  }
 }

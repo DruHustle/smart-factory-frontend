@@ -21,6 +21,7 @@ import {
   Trash2,
   Workflow,
   Cable,
+  Info,
 } from "lucide-react";
 import { layoutFactory, type FloorLink } from "@shared/factory-floor";
 import { currentSample } from "@shared/measurements";
@@ -65,6 +66,7 @@ import {
   DiagramConnectionDetails,
 } from "./FactoryDiagramEditor";
 import { useFactoryDiagram } from "./useFactoryDiagram";
+import { EngineeringDrawingExport } from "./EngineeringDrawingExport";
 const Scene = lazy(() => import("./FactoryFloorScene"));
 class FloorSceneBoundary extends Component<
   { children: ReactNode; fallback: ReactNode },
@@ -155,6 +157,7 @@ export function FactoryFloor({
     [zone, setZone] = useState("all"),
     [reset, setReset] = useState(0),
     [search, setSearch] = useState("");
+  const [floorHelpOpen, setFloorHelpOpen] = useState(false);
   const schematic = view === "process" || view === "electrical";
   const diagram = useFactoryDiagram({
     scope: drawingScope,
@@ -328,14 +331,39 @@ export function FactoryFloor({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            <Box className="size-4 text-info" />
-            Factory floor
-          </h2>
+          <div className="flex items-center gap-1">
+            <h2 className="flex items-center gap-2 text-base font-semibold">
+              <Box className="size-4 text-info" />
+              Factory floor
+            </h2>
+            <details
+              className="group relative"
+              onToggle={(event) => setFloorHelpOpen(event.currentTarget.open)}
+            >
+              <summary
+                role="button"
+                aria-label="Factory floor controls"
+                aria-expanded={floorHelpOpen}
+                title="Factory floor controls"
+                className="flex size-9 cursor-pointer list-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
+              >
+                <Info className="size-4" aria-hidden="true" />
+              </summary>
+              <div className="absolute left-1/2 top-full z-50 w-[min(18rem,calc(100vw-4rem))] -translate-x-1/2 rounded-md border bg-popover p-3 text-xs leading-relaxed text-popover-foreground shadow-md sm:left-0 sm:translate-x-0">
+                {schematic
+                  ? "Select equipment or a connection to inspect it. Hold and drag to pan; use the zoom controls or scroll to zoom."
+                  : movable
+                    ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
+                    : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
+                {view === "3d" &&
+                  "With Rotate off, hovering stays still. With Rotate on, click empty floor to start mouse rotation; click again to stop. Scroll or pinch to zoom. In Explore mode, drag to look and use W, A, S, D or the on-screen controls to move."}
+                {fullscreen.expanded && " · Esc to exit fullscreen."}
+              </div>
+            </details>
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {visible.length} of {items.length} items shown ·{" "}
-            {layoutDocument ? layoutDocument.zones.length : zones.length} zones{" "}
-            {demo && "· Simulated installation"}
+            {layoutDocument ? layoutDocument.zones.length : zones.length} zones
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1">
@@ -347,7 +375,7 @@ export function FactoryFloor({
               setZone(e.target.value);
               onSelect("");
             }}
-            className="workspace-control h-9 w-32 max-w-36"
+            className="workspace-control h-9 w-40 max-w-full shrink-0"
           >
             <option value="all">Whole factory</option>
             {zones.map((name) => (
@@ -356,63 +384,74 @@ export function FactoryFloor({
               </option>
             ))}
           </select>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-9"
-            aria-label="Fit whole factory floor"
-            title="Fit whole factory floor"
-            onClick={() => {
-              setZone("all");
-              setReset((n) => n + 1);
-            }}
-          >
-            <Focus className="size-4" />
-          </Button>
-          <Button
-            ref={fullscreen.button}
-            size="icon"
-            variant="outline"
-            className="size-9"
-            aria-label={
-              fullscreen.expanded ? "Exit fullscreen" : "Enter fullscreen"
-            }
-            title={
-              fullscreen.expanded ? "Exit fullscreen (Esc)" : "Enter fullscreen"
-            }
-            aria-pressed={fullscreen.expanded}
-            aria-busy={fullscreen.pending}
-            disabled={fullscreen.pending}
-            onClick={() => void fullscreen.toggle()}
-          >
-            {fullscreen.expanded ? (
-              <Minimize2 className="size-4" />
-            ) : (
-              <Maximize2 className="size-4" />
+          <div className="flex shrink-0 items-center gap-1">
+            {view === "3d" && (
+              <FactoryConnectionEditor
+                links={links}
+                layout={layout}
+                controller={connectionRoutes}
+              />
             )}
-          </Button>
-          {!layoutDocument && !schematic && (
             <Button
+              variant="outline"
               size="icon"
-              variant="ghost"
               className="size-9"
-              aria-label="Reset arrangement"
-              title="Reset arrangement"
-              disabled={!Object.keys(offsets).length}
+              aria-label="Fit whole factory floor"
+              title="Fit whole factory floor"
               onClick={() => {
-                safeLocalStorage.removeItem(preferenceKey);
-                setSaved({ key: preferenceKey, offsets: {} });
+                setZone("all");
                 setReset((n) => n + 1);
               }}
             >
-              <RotateCcw className="size-4" />
+              <Focus className="size-4" />
             </Button>
-          )}
+            <Button
+              ref={fullscreen.button}
+              size="icon"
+              variant="outline"
+              className="size-9"
+              aria-label={
+                fullscreen.expanded ? "Exit fullscreen" : "Enter fullscreen"
+              }
+              title={
+                fullscreen.expanded
+                  ? "Exit fullscreen (Esc)"
+                  : "Enter fullscreen"
+              }
+              aria-pressed={fullscreen.expanded}
+              aria-busy={fullscreen.pending}
+              disabled={fullscreen.pending}
+              onClick={() => void fullscreen.toggle()}
+            >
+              {fullscreen.expanded ? (
+                <Minimize2 className="size-4" />
+              ) : (
+                <Maximize2 className="size-4" />
+              )}
+            </Button>
+            {!layoutDocument && !schematic && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-9"
+                aria-label="Reset arrangement"
+                title="Reset arrangement"
+                disabled={!Object.keys(offsets).length}
+                onClick={() => {
+                  safeLocalStorage.removeItem(preferenceKey);
+                  setSaved({ key: preferenceKey, offsets: {} });
+                  setReset((n) => n + 1);
+                }}
+              >
+                <RotateCcw className="size-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       <div className="border-b px-4 py-2">
         <div
-          className="grid grid-cols-2 gap-1 rounded-md border p-1 sm:inline-flex"
+          className="grid grid-cols-4 gap-1 rounded-md border p-1 sm:inline-flex"
           role="group"
           aria-label="Floor representation"
         >
@@ -442,7 +481,7 @@ export function FactoryFloor({
             <Button
               key={mode}
               size="sm"
-              className="min-h-9 gap-1.5 px-3 text-xs"
+              className="min-h-12 flex-col gap-1 px-1 text-xs sm:min-h-9 sm:flex-row sm:gap-1.5 sm:px-3"
               aria-label={name}
               title={name}
               variant={view === mode ? "default" : "ghost"}
@@ -450,28 +489,14 @@ export function FactoryFloor({
               onClick={() => setView(mode)}
             >
               <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-              {label}
+              <span className="sm:hidden">
+                {mode === "process" ? "P&ID" : label}
+              </span>
+              <span className="hidden sm:inline">{label}</span>
             </Button>
           ))}
         </div>
       </div>
-      <p className="border-b px-4 py-2 text-xs text-muted-foreground">
-        {schematic
-          ? "Select equipment or a connection to inspect it. Hold and drag to pan; use the zoom controls or scroll to zoom."
-          : movable
-            ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
-            : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
-        {view === "3d" &&
-          "Rotate off: hovering stays still. Turn Rotate on to rotate with mouse movement · Scroll or pinch to zoom."}
-        {fullscreen.expanded && " · Esc to exit fullscreen."}
-      </p>
-      {view === "3d" && (
-        <FactoryConnectionEditor
-          links={links}
-          layout={layout}
-          controller={connectionRoutes}
-        />
-      )}
       {schematic && (
         <>
           <div
@@ -508,6 +533,11 @@ export function FactoryFloor({
             controller={diagram}
             items={items}
             onSelectConnection={setSelectedConnection}
+          />
+          <EngineeringDrawingExport
+            key={`cad-${diagram.key}`}
+            controller={diagram}
+            items={items}
           />
         </>
       )}
@@ -549,7 +579,7 @@ export function FactoryFloor({
         </div>
       )}
       <div
-        className={`overview-floor-viewport relative min-w-0 ${measured ? "h-[32rem]" : "h-[21rem]"}`}
+        className={`overview-floor-viewport relative min-w-0 ${measured ? "h-[24rem] sm:h-[32rem]" : "h-[25rem] sm:h-[30rem]"}`}
         data-testid="factory-floor"
         data-total-items={items.length}
         data-visible-items={visible.length}
@@ -650,6 +680,7 @@ export function FactoryFloor({
         {!schematic && fullscreen.expanded && active && (
           <p
             aria-live="polite"
+            data-floor-selection-overlay="true"
             className="pointer-events-none absolute bottom-12 left-3 max-w-[calc(100%-1.5rem)] rounded-md border bg-background/95 px-2 py-1 text-xs font-medium"
           >
             {active.name}
@@ -844,11 +875,10 @@ export function FactoryFloor({
       )}
       <div className="floor-secondary flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2 text-[11px] text-muted-foreground">
         <span>
-          {visible.length} of {items.length} items shown ·{" "}
           {schematic
-            ? "Engineering schematic · equipment identities shared across views"
+            ? "Engineering schematic"
             : measured
-              ? "Measured floor · reference models"
+              ? "Measured floor"
               : "Illustrative layout"}
         </span>
         <Link
@@ -860,7 +890,7 @@ export function FactoryFloor({
       </div>
       <details className="floor-secondary border-t px-4 py-2">
         <summary className="cursor-pointer text-xs font-medium">
-          Find an item · {items.length} available
+          Find an item · {items.length}
         </summary>
         <div className="mt-3 space-y-2">
           <input

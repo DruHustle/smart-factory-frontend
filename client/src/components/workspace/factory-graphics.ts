@@ -102,17 +102,39 @@ export function optimizeFactoryReference(root: THREE.Group) {
   return result;
 }
 
-/** Viewers own materials/textures; cached public reference geometry remains shared. */
+// The existing material map identifies one viewer's resource lifetime. Keep the
+// pool weak so closing that viewer cannot leave another global geometry owner.
+const viewerGeometryPools = new WeakMap<
+  Map<THREE.Material, THREE.Material>,
+  Map<THREE.BufferGeometry, THREE.BufferGeometry>
+>();
+
+/** Reuse owned resources within a viewer; keep cached public sources CPU-only. */
 export function instantiateFactoryReference(
   source: THREE.Group,
   materials: Map<THREE.Material, THREE.Material>,
   textures: Map<THREE.Texture, THREE.Texture>,
   finish?: (material: THREE.Material) => void,
 ) {
+  let geometries = viewerGeometryPools.get(materials);
+  if (!geometries) {
+    geometries = new Map();
+    viewerGeometryPools.set(materials, geometries);
+  }
   const copy = source.clone(true);
   copy.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
+    const originalGeometry = object.geometry as THREE.BufferGeometry;
+    let geometry = geometries.get(originalGeometry);
+    if (!geometry) {
+      geometry = originalGeometry.clone();
+      geometries.set(originalGeometry, geometry);
+    }
+    object.geometry = geometry;
+    // Instances in this viewer share the clone. Disposing it releases only this
+    // renderer's geometry listeners/buffers, never another active viewer's.
     object.userData.sharedReferenceGeometry = true;
+    object.userData.viewerOwnedReferenceGeometry = true;
     const own = (original: THREE.Material) => {
       let material = materials.get(original);
       if (!material) {
@@ -191,6 +213,10 @@ export function createContactShadow() {
 }
 
 export const factoryModelSize: Record<string, number> = {
+  "loading-door": 3.48,
+  "exit-door": 2.12,
+  "process-sensor": 0.18,
+  "mobile-cart": 1.58,
   conveyor: 4,
   "robot-arm": 3.2,
   "storage-tank": 3.1,

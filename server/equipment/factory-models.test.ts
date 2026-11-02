@@ -74,7 +74,7 @@ for (const descriptor of factoryModels)
     }
   });
 
-test("all seven native references are available through the creation catalogue", async () => {
+test("all native and authored references are available through the creation catalogue", async () => {
   const catalogue = await bundledModelCatalog();
   expect(catalogue.map((model) => model.revision).sort()).toEqual(
     referenceModels.map((model) => model.revision).sort(),

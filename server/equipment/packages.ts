@@ -172,6 +172,11 @@ export async function importModel(
     db = await database();
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(202610254)`);
+    const [existing] = await tx.execute(
+      sql`select id from equipment_model_packages where id=${v.id}`,
+    );
+    // Reusing immutable content does not consume additional storage or quota.
+    if (existing) return { revision: v.id, sha256: v.sha256, budget: v.budget };
     const [r] = await tx.execute(
       sql`select coalesce(sum(bytes),0) as n,count(*) as count from equipment_model_packages`,
     );

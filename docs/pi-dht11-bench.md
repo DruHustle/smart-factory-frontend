@@ -12,7 +12,7 @@ This is the tested hardware topology on 31 October 2026. The DHT11 is attached t
 - The production worker was explicitly set to `MqttProtocolVersion=3.1.1-historical`. A separate short-lived TLS MQTT 5 probe with a unique client ID received a CONNACK code 1 on the configured CloudAMQP TLS MQTT port 8883; it did not publish. The authenticated CloudAMQP console identifies **smart-factory-mqttbroker as LavinMQ**. [LavinMQ supports MQTT 3.1.0/3.1.1 and does not yet offer MQTT 5 features](https://lavinmq.com/documentation/mqtt-in-lavinmq). [CloudAMQP offers MQTT 5 on RabbitMQ 3.13+ instances](https://www.cloudamqp.com/docs/cloudmqtt-migration/); that platform capability does not apply to the current LavinMQ instance. The received readings remain historical evidence, and no current device status or threshold incident is asserted from them.
 - At the recorded test time, the production API's deployment-wide demo policy prevented switching to private Live inventory. Physical readings were checked through read-only operations access. The newer account policy permits approved individual accounts to select Live on the same site after the qualified API release is deployed; reserved demo accounts remain isolated from physical readings.
 
-The read-only local evidence is in `locals-tools/deployment-evidence/2026-10-31-pi-dht11-live/` in the workspace parent. The MQTT 5 probe used a clean, non-persistent session and disconnected after the broker rejected CONNECT.
+The read-only local evidence is in `local-tools/deployment-evidence/2026-10-31-pi-dht11-live/` in the workspace parent. The MQTT 5 probe used a clean, non-persistent session and disconnected after the broker rejected CONNECT.
 
 ## What to demonstrate now
 

@@ -22,39 +22,41 @@ export function FactorySelector() {
     [addingBench, setAddingBench] = useState(false),
     [error, setError] = useState("");
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <Factory className="size-4 shrink-0 text-info" aria-hidden />
-      <select
-        aria-label="Active factory"
-        value={directory.id ?? ""}
-        className="workspace-control h-9 min-w-0 max-w-60"
-        onChange={(e) => directory.select(e.target.value || null)}
-      >
-        <option value="">
-          {directory.demo ? "Reference installation" : "All inventory"}
-        </option>
-        {directory.id &&
-          !directory.factories.some((f) => f.id === directory.id) && (
-            <option value={directory.id}>Selected factory</option>
-          )}
-        {directory.factories.map((f) => (
-          <option key={f.id} value={f.id}>
-            {f.name} · {f.items} items
-          </option>
-        ))}
-      </select>
-      {directory.canEdit && (
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-9 shrink-0"
-          aria-label="Create factory"
-          title="Create factory"
-          onClick={() => setOpen(true)}
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+      <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+        <Factory className="size-4 shrink-0 text-info" aria-hidden />
+        <select
+          aria-label="Active factory"
+          value={directory.id ?? ""}
+          className="workspace-control h-9 w-48 min-w-0 flex-1 sm:w-60 sm:flex-initial"
+          onChange={(e) => directory.select(e.target.value || null)}
         >
-          <Plus className="size-4" />
-        </Button>
-      )}
+          <option value="">
+            {directory.demo ? "Reference installation" : "All inventory"}
+          </option>
+          {directory.id &&
+            !directory.factories.some((f) => f.id === directory.id) && (
+              <option value={directory.id}>Selected factory</option>
+            )}
+          {directory.factories.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name} · {f.items} items
+            </option>
+          ))}
+        </select>
+        {directory.canEdit && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-9 shrink-0"
+            aria-label="Create factory"
+            title="Create factory"
+            onClick={() => setOpen(true)}
+          >
+            <Plus className="size-4" />
+          </Button>
+        )}
+      </div>
       {directory.demo &&
         directory.canEdit &&
         directory.state &&

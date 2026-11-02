@@ -1,4 +1,5 @@
 name: Deploy Vercel UI with Oracle API
+run-name: UI ${{ github.event.workflow_run.head_sha || github.sha }} ${{ inputs.request_id || 'automatic' }}
 
 on:
   workflow_run:
@@ -6,6 +7,16 @@ on:
     branches: [main]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact qualified main revision approved for this deployment
+        required: true
+        type: string
+      request_id:
+        description: Optional manual deployment receipt ID (32 lowercase hexadecimal characters)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -32,7 +43,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          REQUEST_ID: ${{ inputs.request_id }}
         run: |
+          if [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' ]]; then
+            [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ && "$EXPECTED_SHA" == "$GITHUB_SHA" && "$EXPECTED_SHA" == "$RELEASE_SHA" ]] || { echo 'Manual deployment does not match its requested qualified revision.'; exit 1; }
+            [[ -z "$REQUEST_ID" || "$REQUEST_ID" =~ ^[a-f0-9]{32}$ ]] || { echo 'Manual deployment request ID is invalid.'; exit 1; }
+          fi
           [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]]
           current=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
           if [[ "$RELEASE_SHA" != "$current" ]]; then

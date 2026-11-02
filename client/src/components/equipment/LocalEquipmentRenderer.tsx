@@ -14,6 +14,8 @@ import { scheduleDrawingFrame } from "./drawingFrame";
 import { frameBounds, visibleBounds } from "./framing";
 import { moveCamera } from "./cameraMotion";
 import { hitVisible } from "./visibility";
+import { contactShadow, contactShadowVisible } from "./contactShadow";
+import { studioBackdrop } from "./studioBackdrop";
 import { Button } from "@/components/ui/button";
 import { referencePreview } from "./ModelLoadingPreview";
 import { modelDelivery, verifyBundledModel } from "./modelDelivery";
@@ -224,6 +226,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       setState("loading");
       delete container.dataset.modelBytes;
       delete container.dataset.loadInteractiveMs;
+      delete container.dataset.modelDimensions;
+      delete container.dataset.contactShadow;
       setProgress(0);
       setLoadPhase("Starting 3D view");
       setHidden([]);
@@ -302,6 +306,8 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       const currentRenderer = renderer,
         currentScene = scene,
         currentControls = controls;
+      const contactLayer = new THREE.Group();
+      scene.add(contactLayer);
       let gpuFence: WebGLSync | null = null;
       let submittedFrames = 0,
         submittedAt = 0,
@@ -319,10 +325,19 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         });
       };
       const render = () => {
-        if (runtime.current)
-          container.dataset.inspectionApplied = JSON.stringify(
-            runtime.current.inspector.diagnostics(),
+        if (runtime.current) {
+          const diagnostics = runtime.current.inspector.diagnostics();
+          container.dataset.inspectionApplied = JSON.stringify(diagnostics);
+          contactLayer.visible = contactShadowVisible(
+            {
+              ...inspectionRef.current,
+              hidden: hiddenRef.current,
+              isolated: isolatedRef.current,
+            },
+            diagnostics.explode,
           );
+          container.dataset.contactVisible = String(contactLayer.visible);
+        }
         if (disposed || cancelFrame || !scenePrepared) return;
         renderStatus("queued");
         const queueDraw = () => {
@@ -431,11 +446,13 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
       cleanupCallbacks.push(() => {
         if (gpuFence && !gl.isContextLost()) gl.deleteSync(gpuFence);
       });
+      let backdrop: THREE.DataTexture | undefined;
+      cleanupCallbacks.push(() => backdrop?.dispose());
       const theme = () => {
         const light = !document.documentElement.classList.contains("dark");
-        currentScene.background = new THREE.Color(
-          light ? "#edf2f7" : "#101a2a",
-        );
+        backdrop?.dispose();
+        backdrop = studioBackdrop(!light);
+        currentScene.background = backdrop;
         render();
       };
       theme();
@@ -508,12 +525,13 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
         new THREE.MeshBasicMaterial({
           map: new THREE.CanvasTexture(shadowCanvas),
           transparent: true,
+          opacity: 0.5,
           depthWrite: false,
           toneMapped: false,
         }),
       );
       contact.rotation.x = -Math.PI / 2;
-      scene.add(contact);
+      contactLayer.add(contact);
 
       const markers = new THREE.Group();
       scene.add(markers);
@@ -712,12 +730,43 @@ const LocalEquipmentRenderer = forwardRef<LocalRendererHandle, Props>(
           ground.position.y = modelBounds.min.y - modelExtent * 0.002;
           const centre = modelBounds.getCenter(new THREE.Vector3());
           const dimensions = modelBounds.getSize(new THREE.Vector3());
+          container.dataset.modelDimensions = JSON.stringify(
+            dimensions.toArray(),
+          );
           contact.position.set(
             centre.x,
             ground.position.y + modelExtent * 0.0001,
             centre.z,
           );
           contact.scale.set(dimensions.x * 1.2, dimensions.z * 1.5, 1);
+          // Keep the actual support feet/wheels grounded even when mobile or
+          // software rendering omits dynamic shadow maps. No model edits or
+          // additional GPU render pass; the optional bake has a strict budget.
+          const footprint = contactShadow(loaded, modelBounds);
+          container.dataset.contactShadow = footprint
+            ? "model-derived"
+            : "ambient";
+          if (footprint) {
+            const support = new THREE.Mesh(
+              new THREE.PlaneGeometry(footprint.width, footprint.depth),
+              new THREE.MeshBasicMaterial({
+                map: footprint.texture,
+                transparent: true,
+                depthWrite: false,
+                toneMapped: false,
+              }),
+            );
+            support.rotation.x = -Math.PI / 2;
+            support.position.set(
+              centre.x,
+              ground.position.y + modelExtent * 0.0002,
+              centre.z,
+            );
+            contactLayer.add(support);
+          } else {
+            // Retain the original broad patch for unsupported/pathological meshes.
+            contact.material.opacity = 1;
+          }
           key.position
             .copy(centre)
             .addScaledVector(

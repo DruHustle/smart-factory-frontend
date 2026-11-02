@@ -8,6 +8,9 @@ test("an individual administrator reviews signup roles, rejects requests and han
   const temporary = "Synthetic-temporary-2026!";
   const applicant = await browser.newPage();
   await applicant.goto("/#/register");
+  await applicant
+    .getByRole("button", { name: "Operator", exact: true })
+    .click();
   await applicant.getByLabel("Full Name").fill("Requested Operator");
   await applicant.getByLabel("Email", { exact: true }).fill(email);
   await applicant.getByLabel("Factory or organization").fill("Example Factory");
@@ -57,6 +60,9 @@ test("an individual administrator reviews signup roles, rejects requests and han
   await admin.goto("/#/administration/users");
   await expect(
     admin.getByText("Account approval: Requested Operator"),
+  ).toBeVisible();
+  await expect(
+    admin.getByText("Requested role: Operator", { exact: false }),
   ).toBeVisible();
   await admin
     .getByRole("listitem")

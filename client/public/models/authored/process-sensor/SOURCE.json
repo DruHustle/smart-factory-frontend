@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "author": "Smart Factory (Onesa UG)",
+  "license": "MIT",
+  "blenderVersion": "4.5.10 LTS",
+  "generator": "scripts/equipment/blender_gap_assets.py",
+  "generatorSha256": "108eb08b3013180fb27b9362199d1afa766587bd4db42e35d8e2011ce5df816b",
+  "provenance": "Original parametric geometry, independently authored. No NVIDIA geometry reused.",
+  "units": "m",
+  "bounds": {
+    "min": [
+      -0.05500002205371857,
+      -0.0650000050663948,
+      0.0
+    ],
+    "max": [
+      0.11350000649690628,
+      0.06499999761581421,
+      0.18000002205371857
+    ],
+    "authoringUp": "+Z",
+    "exportUp": "+Y"
+  },
+  "models": {
+    "compact": {
+      "sha256": "2904aa3c597af28e6b16a1bd7cc1d23e5ec7875553e1558b2905b28d1a0ad16d",
+      "bytes": 101156,
+      "triangles": 5060
+    },
+    "detail": {
+      "sha256": "327b723d5e62aeea13245e7051798e5f4054af0b083114e6478019a861755ca8",
+      "bytes": 310476,
+      "triangles": 20656
+    }
+  },
+  "previewSha256": "97bcb7e988885690fd29b46e723da27de0abf04ba451501763efa2b58ce79817"
+}

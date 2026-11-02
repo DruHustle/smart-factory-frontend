@@ -8,7 +8,7 @@ Open **3D wires & pipes** above the 3D canvas and select a connection. Choose **
 
 For a custom shape, add up to twelve ordered bend points. X is left/right, Y is height and Z is front/back in the factory coordinate system. Each point can be edited, moved earlier/later, or removed. The endpoints follow the equipment when it moves or rotates; custom intermediate points stay at their configured world coordinates. The Fit control includes route bounds. Routes are illustrative and are **not collision-checked** against machinery or buildings.
 
-**Reset this route** restores the visual defaults for that connection only. None of these controls changes an operational connection, equipment position, device configuration or floor-plan line. Existing click-and-hold pan, opt-in hover rotation, equipment selection/dragging, zoom and fullscreen remain available.
+**Reset this route** restores the visual defaults for that connection only. None of these controls changes an operational connection, equipment position, device configuration or floor-plan line. Existing click-and-hold pan, click-to-start/stop mouse rotation, equipment selection/dragging, zoom and fullscreen remain available.
 
 ## Persistence and recovery
 

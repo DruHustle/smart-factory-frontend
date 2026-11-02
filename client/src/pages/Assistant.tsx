@@ -1,4 +1,5 @@
 import { useFactorySelection } from "@/lib/factory-selection";
+import { useWorkspaceLocation } from "@/lib/hashLocation";
 import {
   useEffect,
   useLayoutEffect,
@@ -14,6 +15,7 @@ import {
   ArrowDown,
   BookOpen,
   LoaderCircle,
+  Square,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -32,6 +34,7 @@ import {
   readAssistantSession,
   updateAssistantSession,
   resetAssistantSession,
+  registerAssistantCancellation,
   type AssistantTurn,
   type TurnContext,
 } from "@/lib/assistant-session";
@@ -53,6 +56,11 @@ import { EquipmentContextSelect } from "@/components/assistant/EquipmentContextS
 import { AssistantModelSelect } from "@/components/assistant/AssistantModelSelect";
 import { assistantProviderLabels } from "@shared/assistant-providers";
 import { useRuntimeCapability } from "@/components/RuntimeBoundary";
+import { userFacingApiError } from "@/lib/errors";
+import {
+  announceSessionExpired,
+  isUnauthorizedError,
+} from "@/lib/session-expiry";
 
 function time(value: string) {
   const at = Date.parse(value);
@@ -72,6 +80,7 @@ export default function Assistant() {
     active = useDocumentActive(),
     reduce = useMediaQuery("(prefers-reduced-motion: reduce)");
   const { id: factoryId, demo: factoryDemo } = useFactorySelection();
+  const [location] = useWorkspaceLocation();
   const sandbox = useDemoSandbox();
   const owner = `${factoryId ?? "all"}:${user?.id ?? "signed-out"}:${user?.role ?? ""}:${user?.access?.demoOnly ? "demo" : (user?.access?.workspaceView ?? "configured")}`;
   const [session, setSession] = useAssistantSession(owner),
@@ -87,6 +96,10 @@ export default function Assistant() {
   const pane = useRef<HTMLDivElement>(null),
     input = useRef<HTMLTextAreaElement>(null),
     requestPending = useRef(false),
+    runningRequest = useRef<{
+      controller: AbortController;
+      cancel: () => void;
+    } | null>(null),
     composing = useRef(false),
     follow = useRef(session.followLatest),
     position = useRef(session.scrollTop),
@@ -122,8 +135,6 @@ export default function Assistant() {
   const selectedTurn =
     session.turns.find((t) => t.id === session.selectedTurnId) ??
     session.turns.at(-1);
-  const ask = trpc.assistant.ask.useMutation();
-  const selectedAsk = trpc.assistant.askSelected.useMutation();
   const utils = trpc.useUtils();
   const selectionSupported = useRuntimeCapability(
     "assistant-provider-selection-v1",
@@ -149,6 +160,9 @@ export default function Assistant() {
       window.removeEventListener("resize", resize);
     };
   }, []);
+  // Navigation, account changes and workspace changes must stop remote work as
+  // well as discard its result. Cancelled turns remain retryable in memory.
+  useEffect(() => () => runningRequest.current?.cancel(), [owner]);
   useLayoutEffect(() => {
     if (input.current) {
       input.current.style.height = "0px";
@@ -197,13 +211,20 @@ export default function Assistant() {
     [owner],
   );
   useEffect(() => {
-    if (session.turns.length || session.selectedAssetId !== "automatic") return;
-    const requested = new URLSearchParams(
-      window.location.hash.split("?")[1] ?? "",
-    ).get("asset");
-    if (requested && requested.length >= 3 && requested.length <= 128)
-      setSession((s) => ({ ...s, selectedAssetId: requested }));
-  }, [owner]);
+    const requested = new URLSearchParams(location.split("?")[1] ?? "").get(
+      "asset",
+    );
+    if (!requested || requested.length < 3 || requested.length > 128) return;
+    if (readAssistantSession(owner)?.selectedAssetId === requested) return;
+    // An explicit item link changes the next question's context. Earlier turns
+    // keep their captured evidence, and navigation never submits the draft.
+    runningRequest.current?.cancel();
+    setSession((s) => ({
+      ...s,
+      selectedAssetId: requested,
+      selectedAssetName: null,
+    }));
+  }, [owner, location]);
   const inspect = (id: string, n?: number) => {
     inspectorOpener.current =
       document.activeElement instanceof HTMLElement
@@ -229,12 +250,34 @@ export default function Assistant() {
       requestPending.current = false;
       return;
     }
+    const controller = new AbortController();
+    const cancel = () => {
+      controller.abort();
+      updateAssistantSession(
+        owner,
+        (s) => ({
+          ...s,
+          turns: s.turns.map((t) =>
+            t.id === turn.id && t.status === "pending"
+              ? { ...t, status: "cancelled", error: undefined }
+              : t,
+          ),
+        }),
+        generation,
+      );
+    };
+    runningRequest.current = { controller, cancel };
+    const unregisterCancellation = registerAssistantCancellation(cancel);
     try {
       // The separate additive endpoint fails visibly if the API rolls back while
       // this page is open. An older ask schema must never drop an explicit choice.
       const raw = await (turn.request.selection
-          ? selectedAsk.mutateAsync(turn.request)
-          : ask.mutateAsync(turn.request)),
+          ? utils.client.assistant.askSelected.mutate(turn.request, {
+              signal: controller.signal,
+            })
+          : utils.client.assistant.ask.mutate(turn.request, {
+              signal: controller.signal,
+            })),
         presentation = validatedAssistantPresentation(
           (raw as AssistantAnswer).presentation,
           raw.sources.length,
@@ -243,6 +286,7 @@ export default function Assistant() {
           ...raw,
           presentation,
         };
+      controller.signal.throwIfAborted();
       updateAssistantSession(
         owner,
         (s) => ({
@@ -265,6 +309,13 @@ export default function Assistant() {
         generation,
       );
     } catch (error) {
+      if (controller.signal.aborted) {
+        cancel();
+        return;
+      }
+      // Direct client calls allow cancellation; preserve the shared mutation
+      // policy for expired sessions and avoid exposing proxy/parser failures.
+      if (isUnauthorizedError(error)) announceSessionExpired();
       if (
         error instanceof Error &&
         error.message.includes("selected AI provider or model")
@@ -279,10 +330,10 @@ export default function Assistant() {
               ? {
                   ...t,
                   status: "failed",
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : "The answer could not be loaded. Retry when the service is available.",
+                  error: userFacingApiError(
+                    error,
+                    "The answer could not be loaded. Retry when the service is available.",
+                  ),
                 }
               : t,
           ),
@@ -290,7 +341,11 @@ export default function Assistant() {
         generation,
       );
     } finally {
-      requestPending.current = false;
+      unregisterCancellation();
+      if (runningRequest.current?.controller === controller) {
+        runningRequest.current = null;
+        requestPending.current = false;
+      }
     }
   };
   const submit = (event?: FormEvent, suggestion?: string) => {
@@ -311,12 +366,18 @@ export default function Assistant() {
           content: t.result!.answer.slice(0, 1200),
         },
       ]);
+    const selectedDemoItem = factoryDemo
+      ? sandbox?.items.find(
+          (item) => item.identifier === current.selectedAssetId,
+        )
+      : undefined;
     const context =
       current.selectedAssetId === "automatic"
         ? null
         : {
             assetId: current.selectedAssetId,
             name:
+              selectedDemoItem?.name ??
               contextQuery.data?.name ??
               current.selectedAssetName ??
               "Selected equipment",
@@ -405,6 +466,13 @@ export default function Assistant() {
           ? "How do I create an asset and provision its AAS?"
           : "How do I review source freshness?",
       ];
+  const suggestionLabels = selectedContext
+    ? ["Investigate", "Latest observations", "Inspect equipment"]
+    : [
+        "Open incidents",
+        "Import AASX",
+        user?.access?.canEngineer ? "Create an asset" : "Source freshness",
+      ];
   const inspectorContext = selectedTurn
     ? selectedTurn.context
     : selectedContext;
@@ -422,12 +490,9 @@ export default function Assistant() {
     >
       <PageHeader
         title="Assistant"
-        description="Understand equipment through evidence."
         action={
           <div className="flex items-center gap-2">
-            <Badge className="hidden sm:inline-flex" variant="outline">
-              Read-only
-            </Badge>
+            <Badge variant="outline">Read-only</Badge>
             <Button
               variant="outline"
               size="sm"
@@ -459,10 +524,10 @@ export default function Assistant() {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2 text-xs text-muted-foreground">
             <span>
               {selectedTurn?.result
-                ? `${wide ? "Inspecting answer snapshot" : "Snapshot"} · ${time(selectedTurn.result.contextAt)}`
+                ? `Snapshot · ${time(selectedTurn.result.contextAt)}`
                 : user?.access?.demoOnly
-                  ? "Isolated simulation workspace"
-                  : "Authorized workspace · advisory"}
+                  ? "Demo · simulated"
+                  : "Workspace · advisory"}
             </span>
             <Button
               variant="ghost"
@@ -482,7 +547,7 @@ export default function Assistant() {
               }}
             >
               <BookOpen className="size-4" />
-              {wide ? "Evidence & context" : "Evidence & context"}
+              Evidence & context
               {selectedTurn?.result?.sources.length
                 ? ` (${selectedTurn.result.sources.length})`
                 : ""}
@@ -511,11 +576,6 @@ export default function Assistant() {
                     <h2 className="text-lg font-semibold">
                       What would you like to understand?
                     </h2>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Ask about equipment observations, source evidence or an
-                      application workflow. Answers are advisory and link to
-                      their supporting records.
-                    </p>
                     {selectedContext && (
                       <p className="mt-2 text-sm">
                         Selected equipment ·{" "}
@@ -524,16 +584,18 @@ export default function Assistant() {
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col gap-2 sm:items-start">
-                  {suggestions.map((s) => (
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map((s, index) => (
                     <Button
                       key={s}
                       type="button"
                       variant="outline"
-                      className="h-auto justify-start whitespace-normal py-2 text-left text-sm"
+                      className="h-auto min-h-10 whitespace-normal py-2 text-sm"
+                      aria-label={`${suggestionLabels[index]}: ${s}`}
+                      title={s}
                       onClick={() => submit(undefined, s)}
                     >
-                      {s}
+                      {suggestionLabels[index]}
                     </Button>
                   ))}
                 </div>
@@ -627,12 +689,19 @@ export default function Assistant() {
                             />
                             Checking authorized evidence…
                           </div>
-                        ) : turn.status === "failed" ? (
+                        ) : turn.status === "failed" ||
+                          turn.status === "cancelled" ? (
                           <div
-                            role="alert"
-                            className="space-y-3 rounded-md border border-destructive/40 p-3"
+                            role={
+                              turn.status === "cancelled" ? "status" : "alert"
+                            }
+                            className={`space-y-3 rounded-md border p-3 ${turn.status === "failed" ? "border-destructive/40" : "border-border"}`}
                           >
-                            <p className="text-sm">{turn.error}</p>
+                            <p className="text-sm">
+                              {turn.status === "cancelled"
+                                ? "Answer stopped. Your draft is retained."
+                                : turn.error}
+                            </p>
                             <Button
                               type="button"
                               variant="outline"
@@ -769,6 +838,18 @@ export default function Assistant() {
                 >
                   <Send aria-hidden className="size-4" />
                 </Button>
+                {busy && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mb-1 h-10 shrink-0"
+                    onClick={() => runningRequest.current?.cancel()}
+                    aria-label="Stop answer"
+                  >
+                    <Square aria-hidden className="size-3" /> Stop
+                  </Button>
+                )}
               </div>
               <div className="mt-2 flex min-w-0 items-center justify-between gap-2 border-t pt-1">
                 <EquipmentContextSelect
@@ -791,13 +872,13 @@ export default function Assistant() {
             </div>
             <p
               id="assistant-question-help"
-              className={`mt-2 text-xs ${session.draft.length > 500 || (attempted && invalid) ? "text-destructive" : "text-muted-foreground"}`}
+              className={`text-xs ${session.draft.length > 500 || (attempted && invalid) ? "mt-2 text-destructive" : "sr-only text-muted-foreground sm:not-sr-only sm:mt-2"}`}
             >
               {session.draft.length > 500
                 ? "Use no more than 500 characters. Your draft is retained."
                 : attempted && session.draft.trim().length < 1
                   ? "Enter a question."
-                  : "Enter to send · Shift+Enter for a new line · Advisory and read-only"}
+                  : "Enter to send · Shift+Enter for a new line"}
             </p>
           </form>
         </div>

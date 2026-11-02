@@ -10,13 +10,23 @@ import {
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   createWorkshop,
   createEquipmentProxy,
   isBenchHardwareLayout,
 } from "./FactoryEnvironment";
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
+import {
+  FactoryScenePreparation,
+  disposeFactoryScene,
+} from "./factory-scene-preparation";
 import { floorItemAtRay } from "./floor-picking";
+import {
+  findExplorePosition,
+  moveExplorePosition,
+} from "./floor-explore-navigation";
+import { floorReferenceBytes } from "./factory-reference-delivery";
 import { factoryAreas, factoryAreaColors } from "./factory-spaces";
 import {
   FactoryConnectionLayer,
@@ -32,7 +42,7 @@ import {
   fitFactoryDimensions,
 } from "./factory-graphics";
 import {
-  floorModelUrl,
+  floorNvidiaAsset,
   type FloorLink,
   type layoutFactory,
 } from "@shared/factory-floor";
@@ -50,45 +60,11 @@ const indicatorColor = (item: Layout["placements"][number]["item"]) =>
           : item.status === "offline"
             ? 0xef6461
             : 0x8191a3;
-function disposeObject(root: THREE.Object3D) {
-  const geometries = new Set<THREE.BufferGeometry>(),
-    materials = new Set<THREE.Material>(),
-    textures = new Set<THREE.Texture>();
-  root.traverse((object) => {
-    if (
-      object instanceof THREE.Mesh ||
-      object instanceof THREE.Line ||
-      object instanceof THREE.Sprite
-    ) {
-      if ("geometry" in object && !object.userData.sharedReferenceGeometry)
-        geometries.add(object.geometry as THREE.BufferGeometry);
-      for (const material of Array.isArray(object.material)
-        ? object.material
-        : [object.material]) {
-        materials.add(material);
-        for (const value of Object.values(material))
-          if (value instanceof THREE.Texture) textures.add(value);
-      }
-    }
-    if (object instanceof THREE.DirectionalLight) object.shadow.dispose();
-  });
-  textures.forEach((t) => t.dispose());
-  materials.forEach((m) => m.dispose());
-  geometries.forEach((g) => g.dispose());
-}
 const models = new Map<string, Promise<THREE.Group>>();
+
 function referenceModel(slug: string) {
   if (!models.has(slug)) {
-    const url = floorModelUrl(slug);
-    if (!url) return Promise.reject(Error("Unknown reference"));
-    const pending = fetch(url, {
-      credentials: "same-origin",
-      cache: "no-store",
-    })
-      .then((r) => {
-        if (!r.ok) throw Error("Reference model unavailable");
-        return r.arrayBuffer();
-      })
+    const pending = floorReferenceBytes(slug)
       .then((bytes) => new GLTFLoader().parseAsync(bytes, ""))
       .then((gltf) => optimizeFactoryReference(gltf.scene))
       .catch((error) => {
@@ -175,11 +151,18 @@ export default function FactoryFloorScene({
   zone: string;
   onMove?: FloorMove;
 } & FloorDragHandlers) {
-  const [rotateOnHover, setRotateOnHover] = useState(false);
-  const rotateOnHoverRef = useRef(false);
-  rotateOnHoverRef.current = rotateOnHover;
+  const [rotateEnabled, setRotateEnabled] = useState(false);
+  const [exploring, setExploring] = useState(false);
+  const exploringRef = useRef(false);
+  const [exploreNotice, setExploreNotice] = useState("");
+  const rotateEnabledRef = useRef(false);
+  rotateEnabledRef.current = rotateEnabled;
+  const [rotationActive, setRotationActive] = useState(false);
+  const rotationActiveRef = useRef(false);
   const appearances = useRef(connectionAppearances);
   appearances.current = connectionAppearances;
+  const latestLayout = useRef(layout);
+  latestLayout.current = layout;
   const host = useRef<HTMLDivElement>(null),
     choose = useRef(onSelect),
     selection = useRef(selected),
@@ -189,7 +172,10 @@ export default function FactoryFloorScene({
   const runtime = useRef<{
     focus: (ref: string | null) => void;
     reset: () => void;
-    resetHover: () => void;
+    setExplore: (enabled: boolean, ref?: string | null) => void;
+    stepExplore: (forward: number, sideways: number) => void;
+    lookExplore: (yaw: number, pitch: number) => void;
+    pauseRotation: () => void;
     connections: () => void;
     statuses: (items: Layout["placements"]) => void;
     positions: (items: Layout["placements"]) => void;
@@ -206,7 +192,8 @@ export default function FactoryFloorScene({
   } | null>(null);
   const [failed, setFailed] = useState(false),
     [ready, setReady] = useState(false),
-    [loaded, setLoaded] = useState(0);
+    [loaded, setLoaded] = useState(0),
+    [unavailable, setUnavailable] = useState(0);
   choose.current = onSelect;
   selection.current = selected;
   move.current = onMove;
@@ -229,6 +216,10 @@ export default function FactoryFloorScene({
     JSON.stringify(layout.zones.map(({ count, ...zone }) => zone));
   useEffect(() => {
     if (failed) return;
+    if (exploringRef.current) {
+      exploringRef.current = false;
+      setExploring(false);
+    }
     let cleanup: (() => void) | undefined;
     let secondFrame = 0;
     // Present the summary and accessible floor before initializing WebGL.
@@ -243,6 +234,7 @@ export default function FactoryFloorScene({
       setFailed(false);
       setReady(false);
       setLoaded(0);
+      setUnavailable(0);
       let renderer: THREE.WebGLRenderer;
       try {
         renderer = new THREE.WebGLRenderer({
@@ -256,6 +248,7 @@ export default function FactoryFloorScene({
       }
       let cancelForResize = () => {};
       let disposed = false,
+        scenePrepared = false,
         dirty = true,
         frame = 0;
       const scene = new THREE.Scene();
@@ -276,8 +269,12 @@ export default function FactoryFloorScene({
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = dark ? 0.95 : 1.05;
+      const renderedNvidia = new Set<string>();
+      renderer.domElement.dataset.floorNvidiaModels = "[]";
+      renderer.domElement.dataset.floorReferenceFailures = "0";
+      let referenceFailures = 0;
       let studio: THREE.Texture | undefined;
-      void createStudioEnvironment()
+      const environment = createStudioEnvironment()
         .then((texture) => {
           if (disposed) {
             texture.dispose();
@@ -304,10 +301,10 @@ export default function FactoryFloorScene({
       );
       renderer.domElement.setAttribute("role", "img");
       renderer.domElement.tabIndex = 0;
-      renderer.domElement.setAttribute(
-        "aria-description",
-        "With Rotate off, press and hold the left mouse button on empty floor, then drag to pan left/right or up/down. Release to stop; hovering does not move the view. Enable Rotate to orbit with mouse movement. Press and hold equipment to grab it. Rotation pauses while grabbing. Release to drop. Right-drag or Shift-drag also rotates; scroll or pinch zooms. Hold Space while dragging to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.",
-      );
+      const overviewDescription =
+        "With Rotate off, press and hold the left mouse button on empty floor, then drag to pan left/right or up/down. Release to stop; hovering does not move the view. Enable Rotate, then click empty floor to start mouse-controlled rotation. Click again to stop. Press and hold equipment to grab it. Grabbing or leaving the floor stops rotation. Release to drop. Right-drag or Shift-drag also rotates; scroll or pinch zooms. Hold Space while dragging to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.";
+      renderer.domElement.setAttribute("aria-description", overviewDescription);
+      renderer.domElement.dataset.viewMode = "overview";
       renderer.domElement.dataset.floorNodeCount = String(
         layout.placements.length,
       );
@@ -326,7 +323,34 @@ export default function FactoryFloorScene({
           ...layout.placements.map((p) => (p.dimensions?.height ?? 0) * 4),
         ),
       );
+      const exploreCamera = new THREE.PerspectiveCamera(
+        62,
+        1,
+        0.08,
+        camera.far,
+      );
       const controls = new OrbitControls(camera, renderer.domElement);
+      const preparation = new FactoryScenePreparation(
+        renderer,
+        camera,
+        scene,
+        environment,
+      );
+      const pendingReferences = new Set<THREE.Object3D>();
+      void preparation
+        .enqueue(() => ({
+          object: scene,
+          activate: () => {
+            scenePrepared = true;
+            renderer.shadowMap.needsUpdate = true;
+            dirty = true;
+          },
+        }))
+        .catch(() => {
+          if (disposed) return;
+          setFailed(true);
+          cleanup?.();
+        });
       controls.enableDamping = false;
       controls.cursorStyle = "grab";
       controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
@@ -340,6 +364,12 @@ export default function FactoryFloorScene({
       const resetHover = () => {
         hoverPoint = undefined;
       };
+      const setRotation = (active: boolean) => {
+        rotationActiveRef.current = active;
+        setRotationActive(active);
+        resetHover();
+      };
+      const pauseRotation = () => setRotation(false);
       const hoverOffset = new THREE.Vector3(),
         hoverRotation = new THREE.Spherical();
       scene.add(new THREE.HemisphereLight(0xdceaff, 0x4b535b, 0.75));
@@ -355,6 +385,113 @@ export default function FactoryFloorScene({
         layout.depth,
         maxItemHeight * 1.5,
         20,
+      );
+      // An illustrative enclosure is shown only from inside; the overview
+      // keeps its open cutaway and continues to represent the same equipment.
+      const interior = new THREE.Group();
+      interior.visible = false;
+      const interiorMaterial = new THREE.MeshStandardMaterial({
+        color: dark ? 0x344451 : 0xdce1e2,
+        roughness: 0.86,
+        metalness: 0.05,
+        side: THREE.DoubleSide,
+      });
+      const padding = layout.measured ? 0 : 3;
+      const interiorWidth = layout.width + padding;
+      const interiorDepth = layout.depth + padding;
+      const interiorHeight = Math.max(4.5, Math.min(24, maxItemHeight));
+      const interiorWall = (
+        width: number,
+        height: number,
+        x: number,
+        y: number,
+        z: number,
+        rotation = 0,
+      ) => {
+        const wall = new THREE.Mesh(
+          new THREE.PlaneGeometry(width, height),
+          interiorMaterial,
+        );
+        wall.position.set(x, y, z);
+        wall.rotation.y = rotation;
+        interior.add(wall);
+      };
+      interiorWall(
+        interiorWidth,
+        interiorHeight,
+        0,
+        interiorHeight / 2,
+        interiorDepth / 2,
+      );
+      interiorWall(
+        interiorDepth,
+        interiorHeight,
+        interiorWidth / 2,
+        interiorHeight / 2,
+        0,
+        Math.PI / 2,
+      );
+      const ceiling = new THREE.Mesh(
+        new THREE.PlaneGeometry(interiorWidth, interiorDepth),
+        interiorMaterial,
+      );
+      ceiling.rotation.x = Math.PI / 2;
+      ceiling.position.y = interiorHeight;
+      interior.add(ceiling);
+      // Two merged meshes provide readable overhead structure without adding
+      // point lights or extra shadow passes. This enclosure is illustrative.
+      const beamParts: THREE.BufferGeometry[] = [];
+      const stripParts: THREE.BufferGeometry[] = [];
+      const rows = Math.max(2, Math.min(8, Math.ceil(interiorDepth / 6)));
+      for (let row = 0; row < rows; row++) {
+        const z = (row / (rows - 1) - 0.5) * Math.max(0, interiorDepth - 1);
+        const beam = new THREE.BoxGeometry(
+          Math.max(0.5, interiorWidth - 0.5),
+          0.16,
+          0.18,
+        );
+        beam.translate(0, interiorHeight - 0.12, z);
+        beamParts.push(beam);
+        for (const fraction of [-0.3, 0, 0.3]) {
+          const strip = new THREE.BoxGeometry(
+            Math.min(2.4, interiorWidth / 4),
+            0.035,
+            0.2,
+          );
+          strip.translate(interiorWidth * fraction, interiorHeight - 0.22, z);
+          stripParts.push(strip);
+        }
+      }
+      const beamGeometry = mergeGeometries(beamParts);
+      const stripGeometry = mergeGeometries(stripParts);
+      beamParts.forEach((geometry) => geometry.dispose());
+      stripParts.forEach((geometry) => geometry.dispose());
+      if (!beamGeometry || !stripGeometry)
+        throw new Error("Unable to prepare factory interior");
+      interior.add(
+        new THREE.Mesh(
+          beamGeometry,
+          new THREE.MeshStandardMaterial({
+            color: dark ? 0x71808a : 0x9aa8ac,
+            roughness: 0.48,
+            metalness: 0.45,
+          }),
+        ),
+      );
+      interior.add(
+        new THREE.Mesh(
+          stripGeometry,
+          new THREE.MeshStandardMaterial({
+            color: 0xfff5df,
+            emissive: 0xffe7bd,
+            emissiveIntensity: 1.1,
+            roughness: 0.5,
+          }),
+        ),
+      );
+      scene.add(interior);
+      renderer.domElement.dataset.exploreInteriorMeshes = String(
+        interior.children.length,
       );
       const sun = new THREE.DirectionalLight(0xfff1de, 3.1);
       sun.position.set(span * 0.45, span * 0.9, span * 0.55);
@@ -476,6 +613,17 @@ export default function FactoryFloorScene({
         scene.add(name);
         zoneLabels.set(index, { sprite: name, count: area.count });
       });
+      const setZoneLabelsVisible = (visible: boolean) => {
+        for (const { sprite } of zoneLabels.values()) sprite.visible = visible;
+        renderer.domElement.dataset.floorZoneLabelsTotal = String(
+          zoneLabels.size,
+        );
+        renderer.domElement.dataset.floorZoneLabelsVisible = String(
+          visible ? zoneLabels.size : 0,
+        );
+        dirty = true;
+      };
+      setZoneLabelsVisible(true);
       for (const p of layout.placements) {
         const group = new THREE.Group();
         group.position.set(p.x, 0, p.z);
@@ -503,7 +651,9 @@ export default function FactoryFloorScene({
           p.dimensions && !benchBoard
             ? fitFactoryDimensions(proxy, p.dimensions)
             : proxy;
-        const proxySize = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3());
+        const proxySize = new THREE.Box3()
+          .setFromObject(body)
+          .getSize(new THREE.Vector3());
         group.userData.connectionSize = proxySize.toArray();
         body.userData.floorItemRef = p.item.ref;
         group.add(body);
@@ -561,83 +711,114 @@ export default function FactoryFloorScene({
         objects.set(p.item.ref, group);
         if (
           p.model &&
-          ![
-            "warehouse-rack",
-            "loading-door",
-            "exit-door",
-            "raspberry-pi-5",
-            "esp32-wrover-dht11",
-          ].includes(p.model) &&
+          !["raspberry-pi-5", "esp32-wrover-dht11"].includes(p.model) &&
           (p.model !== "raspberry-pi-4b" || p.item.equipmentId)
         )
           void referenceModel(p.model)
             .then((model) => {
               if (disposed) return;
-              const copy = instantiateFactoryReference(
-                  model,
-                  viewerMaterials,
-                  viewerTextures,
-                  finishMaterial,
-                ),
-                box = new THREE.Box3().setFromObject(copy),
-                size = box.getSize(new THREE.Vector3()),
-                center = box.getCenter(new THREE.Vector3());
-              const scale =
-                (factoryModelSize[p.model!] ?? 2.7) /
-                Math.max(size.x, size.y, size.z, 0.001);
-              copy.position.sub(center);
-              const normalized = new THREE.Group();
-              normalized.userData.floorItemRef = p.item.ref;
-              normalized.add(copy);
-              if (p.dimensions)
-                normalized.scale.set(
-                  p.dimensions.width / Math.max(size.x, 0.00001),
-                  p.dimensions.height / Math.max(size.y, 0.00001),
-                  p.dimensions.depth / Math.max(size.z, 0.00001),
-                );
-              else normalized.scale.setScalar(scale);
-              const height = p.dimensions?.height ?? size.y * scale;
-              normalized.position.y = height / 2 + 0.025;
-              group.userData.modelHeight = height;
-              group.userData.connectionSize = [
-                p.dimensions?.width ?? size.x * scale,
-                height,
-                p.dimensions?.depth ?? size.z * scale,
-              ];
-              name.position.y = height + 0.8;
-              marker.position.set(
-                -Math.min((p.dimensions?.width ?? size.x * scale) / 2, 0.64),
-                height + 0.32,
-                0,
-              );
-              normalized.traverse((o) => {
-                if (o instanceof THREE.Mesh) {
-                  o.castShadow = true;
-                  o.receiveShadow = true;
-                }
+              return preparation.enqueue(() => {
+                const copy = instantiateFactoryReference(
+                    model,
+                    viewerMaterials,
+                    viewerTextures,
+                    finishMaterial,
+                  ),
+                  box = new THREE.Box3().setFromObject(copy),
+                  size = box.getSize(new THREE.Vector3()),
+                  center = box.getCenter(new THREE.Vector3());
+                const scale =
+                  (factoryModelSize[p.model!] ?? 2.7) /
+                  Math.max(size.x, size.y, size.z, 0.001);
+                copy.position.sub(center);
+                const normalized = new THREE.Group();
+                normalized.userData.floorItemRef = p.item.ref;
+                normalized.add(copy);
+                if (p.dimensions)
+                  normalized.scale.set(
+                    p.dimensions.width / Math.max(size.x, 0.00001),
+                    p.dimensions.height / Math.max(size.y, 0.00001),
+                    p.dimensions.depth / Math.max(size.z, 0.00001),
+                  );
+                else normalized.scale.setScalar(scale);
+                const height = p.dimensions?.height ?? size.y * scale;
+                normalized.position.y = height / 2 + 0.025;
+                normalized.traverse((o) => {
+                  if (o instanceof THREE.Mesh) {
+                    o.castShadow = true;
+                    o.receiveShadow = true;
+                  }
+                });
+                pendingReferences.add(normalized);
+                return {
+                  object: normalized,
+                  activate: () => {
+                    group.userData.modelHeight = height;
+                    group.userData.connectionSize = [
+                      p.dimensions?.width ?? size.x * scale,
+                      height,
+                      p.dimensions?.depth ?? size.z * scale,
+                    ];
+                    name.position.y = height + 0.8;
+                    marker.position.set(
+                      -Math.min(
+                        (p.dimensions?.width ?? size.x * scale) / 2,
+                        0.64,
+                      ),
+                      height + 0.32,
+                      0,
+                    );
+                    group.remove(body);
+                    retired.push(body);
+                    group.add(normalized);
+                    pendingReferences.delete(normalized);
+                    setLoaded((n) => n + 1);
+                    const nvidia = floorNvidiaAsset(p.model!);
+                    if (nvidia) {
+                      renderedNvidia.add(nvidia);
+                      renderer.domElement.dataset.floorNvidiaModels =
+                        JSON.stringify([...renderedNvidia].sort());
+                    }
+                    renderer.shadowMap.needsUpdate = true;
+                    renderer.domElement.dataset.referenceMaterialCount = String(
+                      viewerMaterials.size,
+                    );
+                    updateConnections();
+                    dirty = true;
+                  },
+                };
               });
-              group.remove(body);
-              retired.push(body);
-              group.add(normalized);
-              setLoaded((n) => n + 1);
-              renderer.shadowMap.needsUpdate = true;
-              renderer.domElement.dataset.referenceMaterialCount = String(
-                viewerMaterials.size,
-              );
-              updateConnections();
-              dirty = true;
             })
             .catch(() => {
-              /* The labelled proxy remains available when a reference cannot load. */
+              // Keep the selectable proxy and tell the user the detail is unavailable.
+              if (!disposed) {
+                renderer.domElement.dataset.floorReferenceFailures = String(
+                  ++referenceFailures,
+                );
+                setUnavailable((count) => count + 1);
+              }
             });
       }
       const connectionLayer = new FactoryConnectionLayer(software);
       scene.add(connectionLayer.root);
       updateConnections = () => {
-        connectionLayer.update(links, objects, appearances.current);
+        connectionLayer.update(links, objects, appearances.current, {
+          width: layout.width,
+          depth: layout.depth,
+        });
+        renderer.domElement.dataset.connectionTrayTrunks = String(
+          connectionLayer.trayMetrics.trunks,
+        );
+        renderer.domElement.dataset.connectionTrayBranches = String(
+          connectionLayer.trayMetrics.branches,
+        );
         renderer.domElement.dataset.connectionRendering = "physical-meshes";
-        renderer.domElement.dataset.connectionRoutes = JSON.stringify(connectionLayer.summary);
-        renderer.domElement.dataset.connectionCount = String(connectionLayer.summary.length);
+        renderer.domElement.dataset.connectionRoutes = JSON.stringify(
+          connectionLayer.summary,
+        );
+        renderer.domElement.dataset.connectionCount = String(
+          connectionLayer.summary.length,
+        );
         renderer.shadowMap.needsUpdate = true;
         dirty = true;
       };
@@ -653,9 +834,20 @@ export default function FactoryFloorScene({
           halfHeight = 0;
         // Fit the projected bounds, including the outermost equipment labels.
         // A width/depth heuristic clips corners after an isometric rotation.
+        // A small hardware bench has no warehouse walls or zone labels. The
+        // factory's two-metre margin doubled its footprint and hid board detail.
+        const margin = benchHardware ? 0.15 : 2;
         const bounds = new THREE.Box3(
-          new THREE.Vector3(-layout.width / 2 - 2, -0.5, -layout.depth / 2 - 2),
-          new THREE.Vector3(layout.width / 2 + 2, maxItemHeight, layout.depth / 2 + 2),
+          new THREE.Vector3(
+            -layout.width / 2 - margin,
+            benchHardware ? -0.85 : -0.5,
+            -layout.depth / 2 - margin,
+          ),
+          new THREE.Vector3(
+            layout.width / 2 + margin,
+            maxItemHeight,
+            layout.depth / 2 + margin,
+          ),
         );
         if (connectionLayer.root.children.length)
           bounds.union(new THREE.Box3().setFromObject(connectionLayer.root));
@@ -679,10 +871,115 @@ export default function FactoryFloorScene({
         camera.top = extent;
         camera.bottom = -extent;
         camera.updateProjectionMatrix();
+        exploreCamera.aspect = aspect;
+        exploreCamera.updateProjectionMatrix();
         renderer.setSize(width, height);
         dirty = true;
       };
+      const publishExploreView = () => {
+        const direction = new THREE.Vector3();
+        exploreCamera.getWorldDirection(direction);
+        renderer.domElement.dataset.cameraView = JSON.stringify({
+          mode: "explore",
+          position: exploreCamera.position.toArray(),
+          target: exploreCamera.position.clone().add(direction).toArray(),
+          zoom: exploreCamera.zoom,
+        });
+        dirty = true;
+      };
+      const setExploreMode = (enabled: boolean, ref?: string | null) => {
+        if (
+          explorePointer &&
+          renderer.domElement.hasPointerCapture(explorePointer.id)
+        )
+          renderer.domElement.releasePointerCapture(explorePointer.id);
+        explorePointer = undefined;
+        cancel();
+        if (!enabled) {
+          exploringRef.current = false;
+          setExploring(false);
+          setExploreNotice("");
+          controls.enabled = true;
+          interior.visible = false;
+          setZoneLabelsVisible(true);
+          preparation.setCamera(camera);
+          renderer.domElement.dataset.viewMode = "overview";
+          renderer.domElement.setAttribute(
+            "aria-description",
+            overviewDescription,
+          );
+          hand();
+          controls.update();
+          change();
+          return;
+        }
+        const point = findExplorePosition(latestLayout.current, ref);
+        if (!point) {
+          setExploreNotice("No clear position is available on this floor.");
+          return;
+        }
+        pauseRotation();
+        exploringRef.current = true;
+        setExploring(true);
+        setExploreNotice("");
+        controls.enabled = false;
+        interior.visible = true;
+        setZoneLabelsVisible(false);
+        preparation.setCamera(exploreCamera);
+        renderer.domElement.dataset.viewMode = "explore";
+        renderer.domElement.dataset.interaction = "explore";
+        renderer.domElement.style.cursor = "grab";
+        renderer.domElement.title = "Drag to look; click equipment to select";
+        renderer.domElement.setAttribute(
+          "aria-description",
+          "Explore the floor. The surrounding structure is illustrative. Drag to look, click equipment to select it, or use W, A, S and D to move. Arrow keys turn or look. Escape returns to overview. On-screen controls also move and turn the view.",
+        );
+        exploreCamera.position.set(point.x, 1.65, point.z);
+        const selectedPlacement = latestLayout.current.placements.find(
+          (placement) => placement.item.ref === ref,
+        );
+        const targetX = selectedPlacement?.x ?? 0;
+        const targetZ = selectedPlacement?.z ?? 0;
+        exploreCamera.lookAt(targetX, 1.4, targetZ);
+        exploreCamera.updateMatrixWorld(true);
+        publishExploreView();
+      };
+      const stepExplore = (forward: number, sideways: number) => {
+        if (!exploringRef.current) return;
+        const direction = new THREE.Vector3();
+        exploreCamera.getWorldDirection(direction);
+        direction.y = 0;
+        direction.normalize();
+        const right = new THREE.Vector3().crossVectors(
+          direction,
+          new THREE.Vector3(0, 1, 0),
+        );
+        const delta = direction
+          .multiplyScalar(forward)
+          .add(right.multiplyScalar(sideways));
+        const next = moveExplorePosition(
+          latestLayout.current,
+          { x: exploreCamera.position.x, z: exploreCamera.position.z },
+          delta.x,
+          delta.z,
+        );
+        exploreCamera.position.set(next.x, 1.65, next.z);
+        publishExploreView();
+      };
+      const lookExplore = (yaw: number, pitch: number) => {
+        if (!exploringRef.current) return;
+        const angles = new THREE.Euler().setFromQuaternion(
+          exploreCamera.quaternion,
+          "YXZ",
+        );
+        angles.y += yaw;
+        angles.x = THREE.MathUtils.clamp(angles.x + pitch, -1.15, 1.15);
+        exploreCamera.quaternion.setFromEuler(angles);
+        publishExploreView();
+      };
       const fit = () => {
+        if (exploringRef.current) setExploreMode(false);
+        pauseRotation();
         // Clear remaining orbit/pan inertia before establishing the fitted view.
         const damping = controls.enableDamping;
         controls.enableDamping = false;
@@ -702,7 +999,10 @@ export default function FactoryFloorScene({
       };
       runtime.current = {
         reset: fit,
-        resetHover,
+        setExplore: setExploreMode,
+        stepExplore,
+        lookExplore,
+        pauseRotation,
         connections: updateConnections,
         zones: (zones) => {
           for (const [index, area] of zones.entries()) {
@@ -714,10 +1014,12 @@ export default function FactoryFloorScene({
               Math.min(area.width - 1, 6),
             );
             next.position.copy(prior.sprite.position);
+            next.visible = !exploringRef.current;
             scene.remove(prior.sprite);
-            disposeObject(prior.sprite);
+            disposeFactoryScene([prior.sprite]);
             scene.add(next);
             zoneLabels.set(index, { sprite: next, count: area.count });
+            setZoneLabelsVisible(!exploringRef.current);
             dirty = true;
           }
         },
@@ -777,9 +1079,19 @@ export default function FactoryFloorScene({
       const ray = new THREE.Raycaster(),
         point = new THREE.Vector2();
       const pointers = new Set<number>();
+      let explorePointer:
+        | { id: number; x: number; y: number; startX: number; startY: number }
+        | undefined;
       let panModifier = false;
       let start:
-        | { x: number; y: number; pointerId: number; select: boolean }
+        | {
+            x: number;
+            y: number;
+            pointerId: number;
+            select: boolean;
+            mouse: boolean;
+            wasRotating: boolean;
+          }
         | undefined;
       let dragging:
         | {
@@ -802,13 +1114,14 @@ export default function FactoryFloorScene({
       renderer.domElement.dataset.interaction = "grab";
       hand();
       const setRay = (e: PointerEvent) => {
-        camera.updateMatrixWorld();
+        const activeCamera = exploringRef.current ? exploreCamera : camera;
+        activeCamera.updateMatrixWorld();
         const rect = renderer.domElement.getBoundingClientRect();
         point.set(
           ((e.clientX - rect.left) / rect.width) * 2 - 1,
           -((e.clientY - rect.top) / rect.height) * 2 + 1,
         );
-        ray.setFromCamera(point, camera);
+        ray.setFromCamera(point, activeCamera);
       };
       const picked = () => floorItemAtRay(scene, ray);
       const unlockView = () => {
@@ -816,7 +1129,7 @@ export default function FactoryFloorScene({
       };
       const cancel = (releaseCapture = true) => {
         dragEvents.current.onItemDrag?.(null);
-        resetHover();
+        pauseRotation();
         start = undefined;
         if (dragging) {
           const ended = dragging;
@@ -834,7 +1147,22 @@ export default function FactoryFloorScene({
         hand();
       };
       const down = (e: PointerEvent) => {
-        resetHover();
+        if (exploringRef.current) {
+          if (!e.isPrimary || e.button !== 0) return;
+          renderer.domElement.focus({ preventScroll: true });
+          explorePointer = {
+            id: e.pointerId,
+            x: e.clientX,
+            y: e.clientY,
+            startX: e.clientX,
+            startY: e.clientY,
+          };
+          renderer.domElement.setPointerCapture(e.pointerId);
+          e.preventDefault();
+          return;
+        }
+        const wasRotating = rotationActiveRef.current;
+        pauseRotation();
         if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
         pointers.add(e.pointerId);
         if (!e.isPrimary || pointers.size > 1) {
@@ -850,7 +1178,14 @@ export default function FactoryFloorScene({
           !e.ctrlKey &&
           !e.metaKey &&
           !panModifier;
-        start = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, select };
+        start = {
+          x: e.clientX,
+          y: e.clientY,
+          pointerId: e.pointerId,
+          select,
+          mouse: e.pointerType === "mouse",
+          wasRotating,
+        };
         if (select) {
           setRay(e);
           const ref = picked(),
@@ -883,7 +1218,8 @@ export default function FactoryFloorScene({
         // Pan is handled only by OrbitControls during a held pointer grab.
         // With Rotate off, ordinary mouse movement must never move the camera.
         if (
-          !rotateOnHoverRef.current ||
+          !rotateEnabledRef.current ||
+          !rotationActiveRef.current ||
           e.pointerType !== "mouse" ||
           e.buttons !== 0 ||
           pointers.size ||
@@ -921,6 +1257,32 @@ export default function FactoryFloorScene({
         controls.update();
       };
       const pointerMove = (e: PointerEvent) => {
+        if (exploringRef.current) {
+          if (explorePointer?.id === e.pointerId) {
+            const dx = THREE.MathUtils.clamp(
+              e.clientX - explorePointer.x,
+              -80,
+              80,
+            );
+            const dy = THREE.MathUtils.clamp(
+              e.clientY - explorePointer.y,
+              -80,
+              80,
+            );
+            explorePointer.x = e.clientX;
+            explorePointer.y = e.clientY;
+            lookExplore(-dx * 0.005, -dy * 0.005);
+            e.preventDefault();
+          } else if (!explorePointer && e.pointerType === "mouse") {
+            setRay(e);
+            const ref = picked();
+            renderer.domElement.dataset.grabTarget = ref ?? "floor";
+            renderer.domElement.title = ref
+              ? `Select ${latestLayout.current.placements.find((placement) => placement.item.ref === ref)?.item.name ?? "equipment"}`
+              : "Drag to look; click equipment to select";
+          }
+          return;
+        }
         if (dragging && dragging.pointerId === e.pointerId) {
           dragEvents.current.onItemDrag?.({
             ref: dragging.ref,
@@ -956,12 +1318,29 @@ export default function FactoryFloorScene({
           renderer.domElement.dataset.grabTarget = ref ?? "floor";
           renderer.domElement.title = ref
             ? `Grab ${layout.placements.find((p) => p.item.ref === ref)?.item.name ?? "equipment"}`
-            : rotateOnHoverRef.current
-              ? "Move the mouse to rotate; hold and drag to pan"
+            : rotateEnabledRef.current
+              ? rotationActiveRef.current
+                ? "Click to stop rotation"
+                : "Click to rotate; drag to pan"
               : "Hold the left mouse button and drag to pan; release to stop";
         }
       };
       const up = (e: PointerEvent) => {
+        if (exploringRef.current) {
+          const began = explorePointer;
+          explorePointer = undefined;
+          if (renderer.domElement.hasPointerCapture(e.pointerId))
+            renderer.domElement.releasePointerCapture(e.pointerId);
+          if (
+            began?.id === e.pointerId &&
+            Math.hypot(e.clientX - began.startX, e.clientY - began.startY) <= 6
+          ) {
+            setRay(e);
+            const ref = picked();
+            choose.current(ref ?? "");
+          }
+          return;
+        }
         resetHover();
         pointers.delete(e.pointerId);
         const began = start;
@@ -993,16 +1372,26 @@ export default function FactoryFloorScene({
           setRay(e);
           const ref = picked();
           if (ref) choose.current(ref);
+          else if (began.mouse && rotateEnabledRef.current) {
+            const active = !began.wasRotating;
+            setRotation(active);
+            if (active) hoverPoint = { x: e.clientX, y: e.clientY };
+          }
         }
         hand();
       };
       const focusEquipment = (e: MouseEvent) => {
-        resetHover();
+        pauseRotation();
         setRay(e as PointerEvent);
         const ref = picked(),
           object = ref && objects.get(ref);
         if (!object) return;
         e.preventDefault();
+        if (exploringRef.current && ref) {
+          choose.current(ref);
+          setExploreMode(true, ref);
+          return;
+        }
         const target = object.position.clone();
         target.y += (object.userData.modelHeight ?? 2.7) * 0.45;
         camera.position.add(target.clone().sub(controls.target));
@@ -1020,10 +1409,17 @@ export default function FactoryFloorScene({
         dirty = true;
       };
       const pointerCancel = (e: PointerEvent) => {
-        pointers.delete(e.pointerId);
-        cancel();
+        if (exploringRef.current) {
+          if (explorePointer?.id === e.pointerId) explorePointer = undefined;
+          return;
+        }
+        const tracked = pointers.delete(e.pointerId);
+        // OrbitControls releases capture after our pointer-up handler. That
+        // normal release must not undo a click which just activated rotation.
+        if (tracked || e.type === "pointercancel") cancel();
       };
       const blur = () => {
+        explorePointer = undefined;
         pointers.clear();
         panModifier = false;
         cancel();
@@ -1036,9 +1432,16 @@ export default function FactoryFloorScene({
         else resetHover();
       };
       cancelForResize = () => {
-        if (pointers.size || dragging) blur();
+        if (
+          pointers.size ||
+          dragging ||
+          explorePointer ||
+          rotationActiveRef.current
+        )
+          blur();
       };
       const spaceDown = (e: KeyboardEvent) => {
+        if (exploringRef.current) return;
         const target = e.target;
         if (
           e.code === "Space" &&
@@ -1046,7 +1449,9 @@ export default function FactoryFloorScene({
           !(
             target instanceof HTMLElement &&
             (target.isContentEditable ||
-              ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName))
+              ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(
+                target.tagName,
+              ))
           )
         ) {
           e.preventDefault();
@@ -1057,6 +1462,25 @@ export default function FactoryFloorScene({
         if (e.code === "Space") panModifier = false;
       };
       const keyDown = (e: KeyboardEvent) => {
+        if (exploringRef.current) {
+          const actions: Record<string, () => void> = {
+            KeyW: () => stepExplore(0.55, 0),
+            KeyS: () => stepExplore(-0.55, 0),
+            KeyA: () => stepExplore(0, -0.55),
+            KeyD: () => stepExplore(0, 0.55),
+            ArrowLeft: () => lookExplore(0.16, 0),
+            ArrowRight: () => lookExplore(-0.16, 0),
+            ArrowUp: () => lookExplore(0, 0.12),
+            ArrowDown: () => lookExplore(0, -0.12),
+            Escape: () => setExploreMode(false),
+          };
+          const action = actions[e.code];
+          if (action) {
+            e.preventDefault();
+            action();
+          }
+          return;
+        }
         if (
           ["Delete", "Backspace"].includes(e.key) &&
           dragEvents.current.onDelete
@@ -1076,7 +1500,8 @@ export default function FactoryFloorScene({
         }
         if (e.key === "Escape") {
           e.preventDefault();
-          if (dragging) cancel();
+          if (rotationActiveRef.current) pauseRotation();
+          else if (dragging) cancel();
           else choose.current("");
           return;
         }
@@ -1127,7 +1552,7 @@ export default function FactoryFloorScene({
       renderer.domElement.addEventListener("lostpointercapture", pointerCancel);
       renderer.domElement.addEventListener("pointermove", pointerMove);
       renderer.domElement.addEventListener("pointerenter", resetHover);
-      renderer.domElement.addEventListener("pointerleave", resetHover);
+      renderer.domElement.addEventListener("pointerleave", pauseRotation);
       renderer.domElement.addEventListener("keydown", keyDown);
       renderer.domElement.addEventListener("pointerdown", down, true);
       renderer.domElement.addEventListener("pointerup", up, true);
@@ -1145,15 +1570,15 @@ export default function FactoryFloorScene({
       const tick = () => {
         if (disposed) return;
         frame = requestAnimationFrame(tick);
-        if (document.hidden) return;
-        controls.update();
+        if (document.hidden || !scenePrepared) return;
+        if (!exploringRef.current) controls.update();
         if (dirty) {
-          renderer.render(scene, camera);
+          renderer.render(scene, exploringRef.current ? exploreCamera : camera);
           dirty = false;
           setReady(true);
         }
       };
-      tick();
+      frame = requestAnimationFrame(tick);
       return () => {
         if (disposed) return;
         cameraMemory.current = {
@@ -1166,6 +1591,7 @@ export default function FactoryFloorScene({
           zoom: camera.zoom,
         };
         disposed = true;
+        preparation.dispose();
         cancel();
         cancelAnimationFrame(frame);
         observer.disconnect();
@@ -1183,21 +1609,25 @@ export default function FactoryFloorScene({
         document.removeEventListener("visibilitychange", visibility);
         renderer.domElement.removeEventListener("pointermove", pointerMove);
         renderer.domElement.removeEventListener("pointerenter", resetHover);
-        renderer.domElement.removeEventListener("pointerleave", resetHover);
+        renderer.domElement.removeEventListener("pointerleave", pauseRotation);
         renderer.domElement.removeEventListener("keydown", keyDown);
         renderer.domElement.removeEventListener("pointerdown", down, true);
         renderer.domElement.removeEventListener("pointerup", up, true);
         renderer.domElement.removeEventListener("webglcontextlost", lost);
         // Disposing GPU resources preserves the cached CPU references for reuse.
-        retired.forEach(disposeObject);
         connectionLayer.dispose();
-        disposeObject(scene);
-        studio?.dispose();
-        metalGrain.dispose();
-        contactMaterial.map?.dispose();
-        contactMaterial.dispose();
-        contactGeometry.dispose();
+        disposeFactoryScene([scene, ...retired, ...pendingReferences], {
+          materials: [contactMaterial, ...viewerMaterials.values()],
+          textures: [
+            metalGrain,
+            ...viewerTextures.values(),
+            ...(studio ? [studio] : []),
+          ],
+          geometries: [contactGeometry],
+        });
+        pendingReferences.clear();
         renderer.dispose();
+        renderer.forceContextLoss();
         renderer.domElement.remove();
       };
     }
@@ -1225,25 +1655,154 @@ export default function FactoryFloorScene({
     <div className="relative h-full w-full">
       <div ref={host} className={`h-full w-full ${failed ? "hidden" : ""}`} />
       {!failed && (
-        <button
-          type="button"
-          aria-pressed={rotateOnHover}
-          aria-label="Rotate with mouse movement"
-          title={
-            rotateOnHover
-              ? "Rotate on: move the mouse to orbit"
-              : "Rotate off: hold the left mouse button and drag to pan"
-          }
-          onClick={() => {
-            runtime.current?.resetHover();
-            setRotateOnHover((value) => !value);
-          }}
-          className="absolute right-3 top-3 z-10 rounded-md border bg-background/95 px-3 py-2 text-xs font-medium shadow-sm"
-        >
-          {rotateOnHover ? "Rotate: On" : "Rotate: Off · Pan"}
-        </button>
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start justify-between gap-2">
+          <span
+            className={
+              ready && unavailable > 0
+                ? "rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground"
+                : "sr-only"
+            }
+            role="status"
+            title={
+              ready
+                ? `${loaded} detailed models ready${unavailable ? ` · ${unavailable} simplified` : ""}`
+                : undefined
+            }
+          >
+            {ready ? (
+              <>
+                <span className={unavailable > 0 ? "sr-only" : undefined}>
+                  {`${layout.placements.length} items on floor · ${loaded} detailed models ready`}
+                </span>
+                {unavailable > 0 && <span>{`${unavailable} simplified`}</span>}
+              </>
+            ) : (
+              "Preparing factory floor…"
+            )}
+          </span>
+          <div className="pointer-events-auto ml-auto flex flex-wrap justify-end gap-2">
+            {!isBenchHardwareLayout(layout) &&
+              layout.width > 2 &&
+              layout.depth > 2 && (
+                <button
+                  type="button"
+                  aria-pressed={exploring}
+                  aria-label={
+                    exploring
+                      ? "Exit factory exploration"
+                      : "Explore factory at eye level"
+                  }
+                  onClick={() =>
+                    runtime.current?.setExplore(
+                      !exploringRef.current,
+                      selection.current,
+                    )
+                  }
+                  className="shrink-0 rounded-md border bg-background/95 px-3 py-2 text-xs font-medium shadow-sm"
+                >
+                  {exploring ? "Exit Explore" : "Explore"}
+                </button>
+              )}
+            {!exploring && (
+              <button
+                type="button"
+                aria-pressed={rotateEnabled}
+                aria-label="Rotate with mouse movement"
+                data-rotation-state={
+                  !rotateEnabled ? "off" : rotationActive ? "active" : "paused"
+                }
+                title={
+                  rotateEnabled
+                    ? rotationActive
+                      ? "Click the floor to stop rotation"
+                      : "Click empty floor, then move the mouse to rotate"
+                    : "Rotate off: hold the left mouse button and drag to pan"
+                }
+                onClick={() => {
+                  runtime.current?.pauseRotation();
+                  setRotateEnabled((value) => !value);
+                }}
+                className="shrink-0 rounded-md border bg-background/95 px-3 py-2 text-xs font-medium shadow-sm"
+              >
+                {rotateEnabled
+                  ? rotationActive
+                    ? "Rotate: Active"
+                    : "Rotate: Paused"
+                  : "Rotate: Off · Pan"}
+              </button>
+            )}
+          </div>
+        </div>
       )}
-      {failed ? (
+      {!failed && exploreNotice && (
+        <p
+          role="status"
+          className="pointer-events-none absolute left-3 top-14 rounded-md border bg-background/95 px-2 py-1 text-xs"
+        >
+          {exploreNotice}
+        </p>
+      )}
+      {!failed && exploring && (
+        <div
+          role="group"
+          aria-label="Explore controls"
+          className="absolute left-3 right-3 top-14 z-10 flex flex-wrap gap-1"
+        >
+          {[
+            {
+              label: "Move forward",
+              text: "↑",
+              action: () => runtime.current?.stepExplore(0.55, 0),
+            },
+            {
+              label: "Move backward",
+              text: "↓",
+              action: () => runtime.current?.stepExplore(-0.55, 0),
+            },
+            {
+              label: "Move left",
+              text: "←",
+              action: () => runtime.current?.stepExplore(0, -0.55),
+            },
+            {
+              label: "Move right",
+              text: "→",
+              action: () => runtime.current?.stepExplore(0, 0.55),
+            },
+            {
+              label: "Turn left",
+              text: "↶",
+              action: () => runtime.current?.lookExplore(0.2, 0),
+            },
+            {
+              label: "Turn right",
+              text: "↷",
+              action: () => runtime.current?.lookExplore(-0.2, 0),
+            },
+          ].map(({ label, text, action }) => (
+            <button
+              key={label}
+              type="button"
+              aria-label={label}
+              title={label}
+              onClick={action}
+              className="min-h-10 min-w-10 rounded-md border bg-background/95 px-2 text-sm font-medium shadow-sm"
+            >
+              {text}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-label="Focus selected equipment"
+            disabled={!selected}
+            onClick={() => runtime.current?.setExplore(true, selected)}
+            className="min-h-10 rounded-md border bg-background/95 px-2 text-xs font-medium shadow-sm disabled:opacity-50"
+          >
+            Focus
+          </button>
+        </div>
+      )}
+      {failed && (
         <>
           <FloorPlan
             layout={layout}
@@ -1262,17 +1821,6 @@ export default function FactoryFloorScene({
           >
             3D unavailable on this device · Showing floor plan
           </p>
-        </>
-      ) : (
-        <>
-          <span
-            className="pointer-events-none absolute top-3 left-3 rounded-md border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground"
-            role="status"
-          >
-            {ready
-              ? `${layout.placements.length} items on floor · ${loaded} detailed models ready`
-              : "Preparing factory floor…"}
-          </span>
         </>
       )}
     </div>

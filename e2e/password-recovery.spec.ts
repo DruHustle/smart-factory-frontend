@@ -183,6 +183,7 @@ test("registration validates password bytes before submission and explains appro
 }) => {
   const mutations = await recoveryFixture(page);
   await page.goto("/#/register");
+  await page.getByRole("button", { name: "Operator", exact: true }).click();
   await page.getByLabel("Full Name").fill(" Synthetic Applicant ");
   await page
     .getByLabel("Email", { exact: true })
@@ -214,7 +215,7 @@ test("registration validates password bytes before submission and explains appro
         password: "Synthetic-request-2026!",
         name: "Synthetic Applicant",
         organization: "Example Factory",
-        jobTitle: "Operator",
+        jobTitle: "Requested role: Operator · Job title: Operator",
       },
     },
   ]);
@@ -225,6 +226,7 @@ test("a rejected registration submission preserves the entered details for retry
 }) => {
   await recoveryFixture(page, false, false, { rejectRegistration: true });
   await page.goto("/#/register");
+  await page.getByRole("button", { name: "Viewer", exact: true }).click();
   await page.getByLabel("Full Name").fill("Synthetic Applicant");
   await page.getByLabel("Email", { exact: true }).fill("person@example.test");
   await page.getByLabel("Factory or organization").fill("Example Factory");

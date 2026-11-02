@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import superjson from "superjson";
 import {
   requiredCapabilities,
@@ -76,15 +78,13 @@ async function accessFixture(
       const data: Record<string, unknown> = {
         "auth.me": options.admin ? account : null,
         "auth.demoAccounts": options.showDemo
-          ? [
-              {
-                label: "Demo Viewer",
-                role: "viewer",
-                email: "viewer@example.test",
-                password: "Synthetic-demo-only-2026!",
-                description: "Synthetic demo fixture",
-              },
-            ]
+          ? ["Admin", "Engineer", "Operator", "Viewer"].map((role) => ({
+              label: `Demo ${role}`,
+              role: role.toLowerCase(),
+              email: `${role.toLowerCase()}@example.test`,
+              password: "Synthetic-demo-only-2026!",
+              description: "Synthetic demo fixture",
+            }))
           : [],
         "auth.registrationPolicy": {
           enabled: options.registrationEnabled !== false,
@@ -109,59 +109,128 @@ async function accessFixture(
   return calls;
 }
 
-test("sign-in explains first-admin setup without offering public privileges", async ({
-  page,
-}) => {
-  const calls = await accessFixture(page, { showDemo: true });
-  await page.goto("/#/login");
-  await expect(
-    page.getByText(
-      "Need personal access? Register for administrator approval.",
-    ),
-  ).toBeVisible();
-  const help = page.getByText("Setting up the first administrator?", {
-    exact: true,
+for (const width of [320, 1440])
+  test(`sign-in keeps registration and demo choices concise at ${width}px`, async ({
+    page,
+  }) => {
+    const calls = await accessFixture(page, { showDemo: true });
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/#/login");
+    await expect(
+      page.getByText(
+        "Need personal access? Register for administrator approval.",
+      ),
+    ).toHaveCount(0);
+    await expect(page.getByText(/Shared demo accounts explore/)).toHaveCount(0);
+    const demoButtons = page
+      .getByRole("group", { name: "Demo accounts" })
+      .getByRole("button");
+    await expect(demoButtons).toHaveText([
+      "Admin",
+      "Engineer",
+      "Operator",
+      "Viewer",
+    ]);
+    // Wait for the login card's entrance transform before measuring touch targets.
+    await demoButtons.first().scrollIntoViewIfNeeded();
+    const boxes = await demoButtons.evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          left: rect.left,
+          right: rect.right,
+          clipped: button.scrollWidth > button.clientWidth,
+        };
+      }),
+    );
+    expect(new Set(boxes.map((box) => box.top)).size).toBe(1);
+    expect(
+      boxes.every(
+        (box) =>
+          box.width > 0 &&
+          box.height >= 44 &&
+          box.left >= 0 &&
+          box.right <= width &&
+          !box.clipped,
+      ),
+    ).toBe(true);
+    const evidence = process.env.LOGIN_EVIDENCE_DIR;
+    if (evidence) {
+      mkdirSync(evidence, { recursive: true });
+      await page.screenshot({
+        path: join(evidence, `login-${width}.png`),
+        fullPage: true,
+        animations: "disabled",
+      });
+    }
+    await page.getByRole("link", { name: "Register", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Choose a role" }),
+    ).toBeVisible();
+    if (evidence)
+      await page.screenshot({
+        path: join(evidence, `role-selection-${width}.png`),
+        fullPage: true,
+        animations: "disabled",
+      });
+    await page
+      .getByRole("button", { name: "Administrator", exact: true })
+      .click();
+    await expect(
+      page.getByText(
+        "Need personal access? Register for administrator approval.",
+      ),
+    ).toBeVisible();
+    const help = page.getByText("Setting up the first administrator?", {
+      exact: true,
+    });
+    await help.focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByText(
+        /The installation operator sets up the first individual Administrator/,
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/Administrator is the highest application role/),
+    ).toBeVisible();
+    await expect(page.getByRole("combobox")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", {
+        name: /claim|bootstrap|create administrator/i,
+      }),
+    ).toHaveCount(0);
+    expect(calls.filter((call) => call.mutation)).toEqual([]);
+    expect(calls.some((call) => /bootstrap|users\./.test(call.procedure))).toBe(
+      false,
+    );
   });
-  await help.focus();
-  await page.keyboard.press("Enter");
-  await expect(
-    page.getByText(
-      /The installation operator sets up the first individual Administrator/,
-    ),
-  ).toBeVisible();
-  await expect(
-    page.getByText(/Administrator is the highest application role/),
-  ).toBeVisible();
-  await expect(
-    page.getByText(
-      /They cannot approve personal accounts or grant Live access/,
-    ),
-  ).toBeVisible();
-  await expect(page.getByRole("combobox")).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: /claim|bootstrap|create administrator/i }),
-  ).toHaveCount(0);
-  expect(calls.filter((call) => call.mutation)).toEqual([]);
-  expect(calls.some((call) => /bootstrap|users\./.test(call.procedure))).toBe(
-    false,
-  );
-});
 
-test("mobile registration explains review and sends no requested role or session action", async ({
+test("mobile registration conveys the requested role without granting access", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const calls = await accessFixture(page);
   await page.goto("/#/register");
+  await page.getByRole("button", { name: "Engineer", exact: true }).click();
   await expect(
-    page.getByRole("list", { name: "Account approval steps" }),
-  ).toContainText("assigns your role");
+    page.getByText("Requested role:", { exact: false }),
+  ).toContainText("Engineer");
+  await expect(
+    page.getByText(
+      "Need personal access? Register for administrator approval.",
+    ),
+  ).toBeVisible();
   await expect(page.getByRole("combobox")).toHaveCount(0);
   await page.getByLabel("Full Name").fill("Synthetic Applicant");
   await page
     .getByLabel("Email", { exact: true })
     .fill(" Applicant@Example.Test ");
   await page.getByLabel("Factory or organization").fill("Example Factory");
+  await page.getByLabel("Job title (optional)").fill("Maintenance lead");
   await page
     .getByLabel("Password", { exact: true })
     .fill("Synthetic-personal-2026!");
@@ -193,7 +262,7 @@ test("mobile registration explains review and sends no requested role or session
         email: "applicant@example.test",
         name: "Synthetic Applicant",
         organization: "Example Factory",
-        jobTitle: "",
+        jobTitle: "Requested role: Engineer · Job title: Maintenance lead",
         password: "Synthetic-personal-2026!",
       },
     },
@@ -210,6 +279,9 @@ test("registration-disabled state still explains the private first-admin path", 
 }) => {
   const calls = await accessFixture(page, { registrationEnabled: false });
   await page.goto("/#/register");
+  await page
+    .getByRole("button", { name: "Administrator", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Account access" }),
   ).toBeVisible();

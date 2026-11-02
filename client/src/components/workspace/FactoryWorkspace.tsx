@@ -251,9 +251,7 @@ export function FactoryWorkspace({
       <PageHeader
         title={factory?.name ?? "Factory"}
         description={
-          c.demo
-            ? "Editable browser demo · simulated equipment"
-            : "Shared factory · team permissions apply"
+          c.demo ? "Demo · simulated · saved in this browser" : "Shared factory"
         }
         action={
           <>
@@ -268,17 +266,20 @@ export function FactoryWorkspace({
         }
       />
       {c.demo && factory?.name === "Current Pi + DHT11 setup" && (
-        <p className="rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
-          Hardware topology: DHT11 → ESP32 WROVER → Raspberry Pi 5 gateway.
-          Board models are enlarged in 3D for inspection; floor positions can be
-          moved to match your bench. This browser demo uses simulated records,
-          not the private physical readings.
-        </p>
+        <div className="rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
+          Hardware topology: DHT11 → ESP32 WROVER → Raspberry Pi 5.
+          <details className="mt-1">
+            <summary className="cursor-pointer">About this bench</summary>
+            <span className="mt-1 block">
+              Boards are enlarged for inspection. Move them to match your bench.
+              Readings are simulated; private hardware data is not shown.
+            </span>
+          </details>
+        </div>
       )}
       {c.demo && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-xs">
           <span>
-            Changes are saved in this browser.{" "}
             <Link href="/sandbox" className="underline">
               Demo backup & reset
             </Link>

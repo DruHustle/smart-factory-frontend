@@ -4,6 +4,8 @@
 
 The Factory models page (`/#/models`, linked from Assets & devices) includes three reviewed NVIDIA SimReady references: a transfer conveyor, warehouse storage rack and industrial mobile cart. Existing Smart Factory equipment models remain available.
 
+Three [original Blender references](blender-authored-assets.md) fill reviewed gaps in the pinned catalog: sectional loading door, personnel door and process transmitter. They are independently authored under MIT, with separate provenance and no NVIDIA certification claim.
+
 Selecting a model loads it automatically. Only the selected GLB is fetched. Compact geometry is the default, with detailed geometry available explicitly. Real previews remain visible during loading and when WebGL2 is unavailable. Component selection, focus, hide/isolate, sectioning and illustrative explosion use the existing viewer. Bundled model files must pass SHA-256 verification before parsing. No external model-resource URLs are admitted. No NVIDIA account, runtime API, CUDA installation or GPU server is needed for ordinary browsing.
 
 ## Licensing and provenance
@@ -57,13 +59,15 @@ For a new asset, review its own license/dependencies, pin its immutable revision
 ```sh
 python3 -m unittest discover -s scripts/equipment/openusd -p 'test_*.py' -v
 pnpm check
-pnpm exec vitest run server/equipment/openusd.test.ts
+pnpm exec vitest run server/equipment/openusd.test.ts server/equipment/contact-shadow.test.ts
 pnpm exec playwright install --with-deps chromium firefox webkit
 node scripts/equipment/qualify-openusd.mjs
 pnpm e2e:equipment --grep NVIDIA
 ```
 
 The NVIDIA library qualification job validates all six packages through the unchanged API admission contract, licenses/hashes/components/budgets, desktop/mobile rendering, both quality levels, selection, inspection controls, read-only browsing, corrupted/missing files, WebGL-disabled fallback and Firefox/WebKit compatibility. The standalone equipment suite imports a real package through the authenticated API, creates a disposable workspace, reads its local files and persists/reloads a viewpoint. Existing renderer/application regression suites continue to run. CI retains evidence artifacts.
+
+Native compatibility engines run in separate owned processes with a 90-second lifecycle deadline; timeouts fail qualification, and completed model evidence is retained. On macOS, the Firefox child receives a fresh temporary `CFFIXED_USER_HOME` because its app-data lookup is separate from Playwright's temporary profile ([upstream issue](https://github.com/microsoft/playwright/issues/42768)). This leaves the user's real Firefox data and privacy settings untouched. The harness removes only its own temporary directory, including the delete-protection ACL macOS adds to that temporary Downloads folder. For an isolated startup diagnostic, run `node scripts/equipment/browser-compatibility.mjs --probe-firefox test-results/openusd` after creating that evidence directory.
 
 Production uses the existing exact-main-SHA deployment process and API compatibility gate. A successful source test does not establish successful production deployment.
 
@@ -72,3 +76,5 @@ After deployment, the existing release verifier checks all six GLBs and every pr
 ### Browser material adaptation
 
 The reviewed PBR policy (`scripts/equipment/openusd/material_policy.py`) replaces unsupported default-gray USD shading with explicitly authored metal, rubber, paint and plastic approximations. Non-default imported colors are preserved. This is not a reconstruction of NVIDIA MDL shaders or textures. `SOURCE.json` records the material policy and replacements. `finalize_materials.py` can apply this policy offline to hash-verified GLBs without changing binary geometry, node indices or component identifiers; it updates filenames, hashes, catalogue and rendered previews. The normal USD converter applies the same policy directly.
+
+The viewer preserves those packaged materials and metre dimensions. It adds a model-derived contact footprint beneath the actual lower triangles, so rack feet and cart wheels remain grounded on mobile and software WebGL where dynamic shadows are disabled. This presentation shading is baked once into a 128×128 RGBA texture (64 KiB), with bounded triangle and raster work and an ambient fallback. It adds no render pass, external asset or model mutation. A small theme-aware studio backdrop keeps the darker support details legible. The footprint hides during explosion, clipping, isolation, hidden parts, transparency and ghost inspection, and returns only when the intact assembly has finished restoring. Tests load both real GLB variants for each NVIDIA asset, check dimensions and PBR preservation, and exercise footprint alignment and work limits. Browser qualification verifies the same metre bounds and inspection transitions. Software screenshots do not certify physical device GPU performance or restore native SimReady simulation semantics.

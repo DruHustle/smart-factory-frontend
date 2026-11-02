@@ -8,6 +8,7 @@ import {
   type DiagramConnection,
 } from "./factory-diagrams";
 import { MAX_DIAGRAM_BYTES, type useFactoryDiagram } from "./useFactoryDiagram";
+import { engineeringFields } from "./engineering-drawing";
 
 type Controller = ReturnType<typeof useFactoryDiagram>;
 const errorMessage = (error: unknown) =>
@@ -87,9 +88,7 @@ export function FactoryDiagramEditor({
       </summary>
       <div className="mt-3 max-h-80 space-y-3 overflow-y-auto pr-1">
         <p className="text-xs text-muted-foreground">
-          Add documented connections or import a diagram JSON file. Drawings are
-          saved in this browser for this account and factory. Export to transfer
-          them to another browser.
+          Saved in this browser for this account and factory.
         </p>
         {blocked && (
           <Button
@@ -160,8 +159,7 @@ export function FactoryDiagramEditor({
           />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Import replaces this view’s drawing. Export first to retain an
-          existing drawing. Equipment references must belong to this factory.
+          Import replaces this drawing. Export first to keep a copy.
         </p>
         {message && (
           <p role="status" className="text-xs text-muted-foreground">
@@ -317,6 +315,55 @@ export function FactoryDiagramEditor({
                 </label>
               ))}
             </div>
+            <details className="rounded border p-2">
+              <summary className="cursor-pointer text-xs font-medium">
+                Engineering specifications
+              </summary>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Enter values from the source drawing, including units. Missing
+                values stay explicit in CAD and PDF exports.
+              </p>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {engineeringFields
+                  .filter(([key]) =>
+                    draft.kind === "process"
+                      ? [
+                          "service",
+                          "nominalSize",
+                          "material",
+                          "designPressure",
+                          "designTemperature",
+                        ].includes(key)
+                      : draft.kind === "instrument"
+                        ? ["signal", "service"].includes(key)
+                        : [
+                            "voltage",
+                            "conductor",
+                            "protection",
+                            "signal",
+                          ].includes(key),
+                  )
+                  .map(([key, label]) => (
+                    <label key={key} className="text-xs text-muted-foreground">
+                      {label}
+                      <input
+                        aria-label={label}
+                        className="workspace-control mt-1 w-full"
+                        maxLength={80}
+                        value={draft.engineering?.[key] ?? ""}
+                        onChange={(e) =>
+                          update({
+                            engineering: {
+                              ...draft.engineering,
+                              [key]: e.target.value,
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                  ))}
+              </div>
+            </details>
             <div className="flex flex-wrap items-center gap-2">
               <Button type="submit" size="sm" disabled={items.length < 2}>
                 <Plus className="size-3.5" />

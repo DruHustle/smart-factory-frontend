@@ -455,13 +455,15 @@ async function refitGrabTarget(
     .getByRole("button", { name: "Fit whole factory floor", exact: true })
     .click();
   await expect
-    .poll(async () =>
-      JSON.parse((await canvas.getAttribute("data-camera-view"))!).zoom,
+    .poll(
+      async () =>
+        JSON.parse((await canvas.getAttribute("data-camera-view"))!).zoom,
     )
     .toBe(1);
   await expect
-    .poll(async () =>
-      JSON.parse((await canvas.getAttribute("data-camera-view"))!).target,
+    .poll(
+      async () =>
+        JSON.parse((await canvas.getAttribute("data-camera-view"))!).target,
     )
     .toEqual([0, 0, 0]);
   // Clicking the toolbar can scroll the page. Keep the same visible surface
@@ -481,6 +483,225 @@ async function refitGrabTarget(
     item: { x: bounds.x + position.x, y: bounds.y + position.y },
   };
 }
+
+test("Explore uses perspective movement and preserves overview and item placement", async ({
+  page,
+}) => {
+  const { canvas, item, placement } = await grabFixture(page);
+  const originalPlacement = await placement();
+  await page.mouse.click(item.x, item.y);
+  await expect(
+    page.getByLabel("Selected floor item", { exact: true }),
+  ).toBeVisible();
+  await canvas.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(placement).not.toEqual(originalPlacement);
+  const initialPlacement = await placement();
+  const view = async () =>
+    JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+  const overview = await view();
+  const zoneCount = await canvas.getAttribute("data-floor-zone-labels-total");
+  await expect(canvas).toHaveAttribute(
+    "data-floor-zone-labels-visible",
+    zoneCount!,
+  );
+  await page
+    .getByRole("button", { name: "Explore factory at eye level", exact: true })
+    .click();
+  await expect(canvas).toHaveAttribute("data-view-mode", "explore");
+  await expect(canvas).toHaveAttribute("data-floor-zone-labels-visible", "0");
+  expect(
+    Number(await canvas.getAttribute("data-explore-interior-meshes")),
+  ).toBeLessThanOrEqual(5);
+  expect(
+    Number(await canvas.getAttribute("data-explore-interior-meshes")),
+  ).toBeGreaterThanOrEqual(5);
+  await expect(
+    page.getByRole("button", { name: "Rotate with mouse movement" }),
+  ).toHaveCount(0);
+  const start = await view();
+  expect(start.mode).toBe("explore");
+  expect(start.position[1]).toBeCloseTo(1.65);
+  await canvas.focus();
+  await page.keyboard.press("w");
+  await expect
+    .poll(async () => (await view()).position)
+    .not.toEqual(start.position);
+  const moved = await view();
+  await page.keyboard.press("ArrowLeft");
+  await expect
+    .poll(async () => (await view()).target)
+    .not.toEqual(moved.target);
+  const turned = await view();
+  const name = page.getByLabel("Layout name", { exact: true });
+  await name.focus();
+  await page.keyboard.type("w");
+  expect(await view()).toEqual(turned);
+  await page
+    .getByRole("button", { name: "Focus selected equipment", exact: true })
+    .click();
+  await canvas.scrollIntoViewIfNeeded();
+  await canvas.click({ position: { x: 8, y: 8 } });
+  const details = page.getByLabel("Selected floor item", { exact: true });
+  await expect(details).toHaveCount(0);
+  const bounds = (await canvas.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  const visible = {
+    left: Math.max(0, bounds.x + 2),
+    right: Math.min(viewport.width - 1, bounds.x + bounds.width - 2),
+    top: Math.max(0, bounds.y + 2),
+    bottom: Math.min(viewport.height - 1, bounds.y + bounds.height - 2),
+  };
+  const focusedView = await view();
+  let hit: { x: number; y: number } | undefined;
+  // Scan the actually visible canvas with its real triangle raycast; do not
+  // enlarge hit areas or assume an object occupies the projection centre.
+  for (let row = 0; row <= 12 && !hit; row++) {
+    for (let column = 0; column <= 12; column++) {
+      const x = visible.left + ((visible.right - visible.left) * column) / 12;
+      const y = visible.top + ((visible.bottom - visible.top) * row) / 12;
+      await page.mouse.move(x, y);
+      if ((await canvas.getAttribute("data-grab-target")) === "asset:1") {
+        hit = { x, y };
+        break;
+      }
+    }
+  }
+  expect(
+    hit,
+    "A visible pump surface must be hit by the real perspective raycast",
+  ).toBeDefined();
+  expect(await view()).toEqual(focusedView);
+  await page.mouse.click(hit!.x, hit!.y);
+  await expect(details).toContainText("Review pump");
+  expect(await placement()).toEqual(initialPlacement);
+  await page
+    .getByRole("button", { name: "Exit factory exploration", exact: true })
+    .click();
+  await expect(canvas).toHaveAttribute("data-view-mode", "overview");
+  await expect(canvas).toHaveAttribute(
+    "data-floor-zone-labels-visible",
+    zoneCount!,
+  );
+  expect(await view()).toEqual(overview);
+  await expect(
+    page.getByRole("button", { name: "Rotate with mouse movement" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  expect(await placement()).toEqual(initialPlacement);
+  await page
+    .getByRole("button", { name: "Explore factory at eye level", exact: true })
+    .click();
+  await canvas.focus();
+  await page.keyboard.press("Escape");
+  await expect(canvas).toHaveAttribute("data-view-mode", "overview");
+  expect(await view()).toEqual(overview);
+  await page
+    .getByRole("button", { name: "Explore factory at eye level", exact: true })
+    .click();
+  const contextLost = await canvas.evaluate((element: HTMLCanvasElement) => {
+    const gl = element.getContext("webgl2");
+    const extension = gl?.getExtension("WEBGL_lose_context");
+    if (!extension) return false;
+    extension.loseContext();
+    return true;
+  });
+  expect(contextLost).toBe(true);
+  await expect(
+    page.getByRole("img", {
+      name: "Accessible factory floor plan",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("3D unavailable on this device · Showing floor plan"),
+  ).toBeVisible();
+});
+
+test.describe("Explore touch controls", () => {
+  test.use({ hasTouch: true });
+  for (const width of [320, 390])
+    test(`move and turn controls fit at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      const { canvas, item, placement } = await grabFixture(page);
+      const original = await placement();
+      await page.mouse.click(item.x, item.y);
+      await expect(
+        page.getByLabel("Selected floor item", { exact: true }),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Enter fullscreen", exact: true })
+        .tap();
+      await page
+        .getByRole("button", {
+          name: "Explore factory at eye level",
+          exact: true,
+        })
+        .tap();
+      await expect(canvas).toHaveAttribute("data-view-mode", "explore");
+      const floorBox = (await canvas.boundingBox())!;
+      const controls = (await page
+        .getByRole("group", { name: "Explore controls" })
+        .boundingBox())!;
+      const exit = (await page
+        .getByRole("button", { name: "Exit factory exploration" })
+        .boundingBox())!;
+      const legend = (await page
+        .getByLabel("Floor indicator legend")
+        .boundingBox())!;
+      const selection = (await page
+        .locator('[data-floor-selection-overlay="true"]')
+        .boundingBox())!;
+      const overlaps = (a: typeof controls, b: typeof controls) =>
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      expect(controls.x).toBeGreaterThanOrEqual(floorBox.x);
+      expect(controls.y).toBeGreaterThanOrEqual(floorBox.y);
+      expect(controls.x + controls.width).toBeLessThanOrEqual(
+        floorBox.x + floorBox.width,
+      );
+      expect(controls.y + controls.height).toBeLessThanOrEqual(
+        floorBox.y + floorBox.height,
+      );
+      for (const overlay of [exit, legend, selection])
+        expect(overlaps(controls, overlay)).toBe(false);
+      const deleteButton = page.getByRole("button", {
+        name: "Delete selected item from factory inventory",
+        exact: true,
+      });
+      if (await deleteButton.isVisible())
+        expect(overlaps(controls, (await deleteButton.boundingBox())!)).toBe(
+          false,
+        );
+      const view = async () =>
+        JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+      const before = await view();
+      const forward = page.getByRole("button", {
+        name: "Move forward",
+        exact: true,
+      });
+      await forward.tap();
+      await expect
+        .poll(async () => (await view()).position)
+        .not.toEqual(before.position);
+      const moved = await view();
+      await page.getByRole("button", { name: "Turn right", exact: true }).tap();
+      await expect
+        .poll(async () => (await view()).target)
+        .not.toEqual(moved.target);
+      expect(await placement()).toEqual(original);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page
+        .getByRole("button", { name: "Exit factory exploration", exact: true })
+        .tap();
+      await expect(canvas).toHaveAttribute("data-view-mode", "overview");
+    });
+});
 
 test("loading, warehouse, production and exit areas follow saved named zones in 3D and plan", async ({
   page,
@@ -658,8 +879,13 @@ test("Rotate off keeps hover still, pans only while grabbing and stops on releas
   await rotate.focus();
   await page.keyboard.press("Space");
   await expect(rotate).toHaveAttribute("aria-pressed", "true");
+  await expect(rotate).toHaveAttribute("data-rotation-state", "paused");
   const beforeOrbit = await view();
   await page.mouse.move(start.x + 110, start.y + 60, { steps: 8 });
+  expect(await view()).toEqual(beforeOrbit);
+  await page.mouse.click(start.x + 110, start.y + 60);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "active");
+  await page.mouse.move(start.x + 140, start.y + 80, { steps: 8 });
   const orbited = await view();
   expect(orbited.position).not.toEqual(beforeOrbit.position);
   expect(orbited.target).toEqual(beforeOrbit.target);
@@ -685,7 +911,7 @@ test("Rotate off keeps hover still, pans only while grabbing and stops on releas
   expect(await placement()).toEqual(original);
 });
 
-test("enabled Rotate follows mouse movement without grabbing, stops at rest and resets across leaving/fullscreen", async ({
+test("enabled Rotate starts and stops on empty-floor clicks and stays paused after leaving/fullscreen", async ({
   page,
 }) => {
   const { canvas, bounds, placement } = await grabFixture(page);
@@ -696,13 +922,17 @@ test("enabled Rotate follows mouse movement without grabbing, stops at rest and 
     name: "Rotate with mouse movement",
     exact: true,
   });
-  await expect(rotate).toHaveAttribute("aria-pressed", "false");
   await rotate.click();
   await expect(rotate).toHaveAttribute("aria-pressed", "true");
-  await page.mouse.move(bounds.x - 10, bounds.y - 10);
-  await page.mouse.move(bounds.x + 15, bounds.y + 15);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "paused");
+  await page.mouse.move(bounds.x + 60, bounds.y + 100);
   const before = await view();
-  await page.mouse.move(bounds.x + 100, bounds.y + 65, { steps: 8 });
+  await page.mouse.move(bounds.x + 100, bounds.y + 125, { steps: 8 });
+  expect(await view()).toEqual(before); // Enabling the mode alone never rotates.
+  await expect(canvas).toHaveAttribute("data-grab-target", "floor");
+  await page.mouse.click(bounds.x + 100, bounds.y + 125);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "active");
+  await page.mouse.move(bounds.x + 160, bounds.y + 150, { steps: 8 });
   const rotated = await view();
   expect(rotated.position).not.toEqual(before.position);
   expect(rotated.target).toEqual(before.target);
@@ -712,10 +942,8 @@ test("enabled Rotate follows mouse movement without grabbing, stops at rest and 
       ...v.position.map((value: number, i: number) => value - v.target[i]),
     );
   expect(distance(rotated)).toBeCloseTo(distance(before), 8);
-  await expect(canvas).toHaveCSS("cursor", "grab");
   await expect(canvas).toHaveAttribute("data-grab-state", "idle");
   expect(await placement()).toEqual(original);
-  // A motionless hand must not leave the factory spinning between frames.
   await page.evaluate(
     () =>
       new Promise<void>((resolve) => {
@@ -725,25 +953,40 @@ test("enabled Rotate follows mouse movement without grabbing, stops at rest and 
         requestAnimationFrame(next);
       }),
   );
+  expect(await view()).toEqual(rotated); // A stationary mouse never auto-spins.
+  await page.mouse.click(bounds.x + 160, bounds.y + 150);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "paused");
+  await page.mouse.move(bounds.x + 130, bounds.y + 135, { steps: 8 });
+  expect(await view()).toEqual(rotated); // The second click really freezes it.
+  await page.mouse.click(bounds.x + 130, bounds.y + 135);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "active");
+  await page.keyboard.press("Escape");
+  await expect(rotate).toHaveAttribute("data-rotation-state", "paused");
+  await page.mouse.move(bounds.x + 100, bounds.y + 120, { steps: 8 });
   expect(await view()).toEqual(rotated);
-  // Stay below the overlay toolbar: these assertions exercise the canvas itself.
-  await page.mouse.move(bounds.x - 10, bounds.y + 80);
-  await page.mouse.move(bounds.x + bounds.width - 20, bounds.y + 80);
-  expect(await view()).toEqual(rotated); // Re-entering at a distant point cannot jump.
-  await canvas.focus();
-  await page.keyboard.down("Space");
-  await page.mouse.move(bounds.x + bounds.width - 100, bounds.y + 120, {
+  await page.mouse.click(bounds.x + 100, bounds.y + 120);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "active");
+  await page.mouse.move(bounds.x - 10, bounds.y + 100);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "paused");
+  const left = await view();
+  await page.mouse.move(bounds.x + bounds.width - 20, bounds.y + 100);
+  await page.mouse.move(bounds.x + bounds.width - 80, bounds.y + 130, {
     steps: 8,
   });
-  expect(await view()).toEqual(rotated);
+  expect(await view()).toEqual(left); // Re-entry needs a new click, without a jump.
+  await canvas.focus();
+  await page.keyboard.down("Space");
+  await page.mouse.move(bounds.x + bounds.width - 100, bounds.y + 150, {
+    steps: 8,
+  });
   await page.keyboard.up("Space");
   await canvas.dispatchEvent("pointermove", {
     pointerType: "touch",
     buttons: 0,
     clientX: bounds.x + 50,
-    clientY: bounds.y + 50,
+    clientY: bounds.y + 100,
   });
-  expect(await view()).toEqual(rotated);
+  expect(await view()).toEqual(left);
   await page
     .getByRole("button", { name: "Enter fullscreen", exact: true })
     .click();
@@ -751,15 +994,68 @@ test("enabled Rotate follows mouse movement without grabbing, stops at rest and 
     page.getByRole("dialog", { name: "Factory floor overview", exact: true }),
   ).toBeVisible();
   const full = (await canvas.boundingBox())!;
-  await page.mouse.move(full.x + 30, full.y + 30);
+  await page.mouse.move(full.x + 60, full.y + 100);
   const fullBefore = await view();
-  await page.mouse.move(full.x + 150, full.y + 90, { steps: 8 });
+  await page.mouse.move(full.x + 150, full.y + 140, { steps: 8 });
+  expect(await view()).toEqual(fullBefore);
+  await page.mouse.click(full.x + 150, full.y + 140);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "active");
+  await page.mouse.move(full.x + 190, full.y + 160, { steps: 8 });
   expect((await view()).position).not.toEqual(fullBefore.position);
   expect((await view()).target).toEqual(fullBefore.target);
   expect(await placement()).toEqual(original);
   await page
     .getByRole("button", { name: "Exit fullscreen", exact: true })
     .click();
+  await expect(rotate).toHaveAttribute("data-rotation-state", "paused");
+});
+
+test("Rotate mode leaves held floor pans and equipment selection unlatched", async ({
+  page,
+}) => {
+  const grab = await grabFixture(page);
+  const { canvas, bounds, placement } = grab;
+  const original = await placement();
+  const view = async () =>
+    JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+  const rotate = page.getByRole("button", {
+    name: "Rotate with mouse movement",
+    exact: true,
+  });
+  await rotate.click();
+  const point = { x: bounds.x + 80, y: bounds.y + 110 };
+  await page.mouse.move(point.x, point.y);
+  await expect(canvas).toHaveAttribute("data-grab-target", "floor");
+  await page.mouse.click(point.x, point.y);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "active");
+  const before = await view();
+  await page.mouse.down();
+  await page.mouse.move(point.x + 30, point.y + 20, { steps: 8 });
+  await page.mouse.up();
+  await expect(rotate).toHaveAttribute("data-rotation-state", "paused");
+  const panned = await view();
+  expect(panned.target).not.toEqual(before.target);
+  for (let axis = 0; axis < 3; axis++)
+    expect(panned.position[axis] - panned.target[axis]).toBeCloseTo(
+      before.position[axis] - before.target[axis],
+      8,
+    );
+  await page.mouse.move(point.x + 45, point.y + 30, { steps: 8 });
+  expect(await view()).toEqual(panned);
+  // Toolbar clicks can scroll the page. Reuse the existing helper to refit
+  // and resolve the same visible equipment surface against current bounds.
+  const { item, bounds: refittedBounds } = await refitGrabTarget(page, grab);
+  const selectedView = await view();
+  await page.mouse.click(item.x, item.y);
+  await expect(rotate).toHaveAttribute("data-rotation-state", "paused");
+  await expect(
+    page.getByLabel("Selected floor item", { exact: true }),
+  ).toBeVisible();
+  await page.mouse.move(refittedBounds.x + 80, refittedBounds.y + 110, {
+    steps: 8,
+  });
+  expect(await view()).toEqual(selectedView);
+  expect(await placement()).toEqual(original);
 });
 
 test("space beside equipment cannot start an item grab", async ({ page }) => {
@@ -941,7 +1237,9 @@ test("3D grabs cancel safely and release outside the canvas; a pinch never moves
     .not.toBe(camera);
   expect(await placement()).toEqual(original);
   await expect(canvas).toHaveAttribute("data-grab-state", "idle");
-  const zoom = JSON.parse((await canvas.getAttribute("data-camera-view"))!).zoom;
+  const zoom = JSON.parse(
+    (await canvas.getAttribute("data-camera-view"))!,
+  ).zoom;
   expect(zoom).toBeGreaterThan(0);
   const { bounds } = await refitGrabTarget(page, grab);
   const fixedCamera = await canvas.getAttribute("data-camera-view");

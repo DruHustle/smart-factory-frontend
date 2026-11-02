@@ -8,8 +8,8 @@ const origin = new URL("https://smart-factory.example/");
 const content = (url: string | URL | Request) =>
   readFileSync(root + new URL(String(url)).pathname);
 
-describe("production NVIDIA asset qualification", () => {
-  it("verifies all six models, three previews, licenses and source receipts without credentials or writes", async () => {
+describe("production bundled asset qualification", () => {
+  it("verifies NVIDIA and authored models, previews, licenses and source receipts without credentials or writes", async () => {
     const fetcher = vi.fn<typeof fetch>(async (url, options) => {
       expect(new URL(String(url)).origin).toBe(origin.origin);
       expect(options).toMatchObject({
@@ -22,12 +22,12 @@ describe("production NVIDIA asset qualification", () => {
       return new Response(content(url));
     });
     const receipts = await verifyIndustrialRelease(origin, fetcher);
-    expect(receipts).toHaveLength(15);
-    expect(receipts.filter((r) => r.path.endsWith(".glb"))).toHaveLength(6);
+    expect(receipts).toHaveLength(30);
+    expect(receipts.filter((r) => r.path.endsWith(".glb"))).toHaveLength(12);
     expect(
       receipts.every((r) => r.bytes > 0 && /^[a-f0-9]{64}$/.test(r.sha256)),
     ).toBe(true);
-    expect(fetcher).toHaveBeenCalledTimes(15);
+    expect(fetcher).toHaveBeenCalledTimes(30);
   });
   for (const mode of [
     "missing",

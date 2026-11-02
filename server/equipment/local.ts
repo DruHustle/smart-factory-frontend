@@ -6,6 +6,7 @@ import {
   component,
   importedTemplate,
   importedBytes,
+  importModel,
   localBindingSchema,
 } from "./packages";
 import { inspectGlb } from "./model-budget";
@@ -16,6 +17,7 @@ import { getDb, ingestTelemetryByDeviceId } from "../db";
 import { assets, devices, assetDevices } from "../../drizzle/schema";
 import { visibleRecordSql } from "../demoData";
 import { factoryModels, referenceModels } from "../../shared/factory-models";
+import { authoredAssets } from "../../shared/authored-assets";
 import { buildDemoAasDocuments, demoAasIdentity } from "../../shared/demo-aas";
 const root = new URL("../../fixtures/equipment/", import.meta.url);
 const componentSchema = component.extend({ installedComponentId: z.uuid() });
@@ -101,6 +103,21 @@ export async function bundledModelCatalog() {
   }));
 }
 export async function template(revision?: string) {
+  const authored = authoredAssets.find(
+    (asset) => asset.models.compact.revision === revision,
+  );
+  if (authored) {
+    const model = authored.models.compact;
+    return {
+      ...model.manifest,
+      revision: model.revision,
+      sha256: model.sha256,
+      assetType: authored.assetType,
+      assetTypeId: `urn:smart-factory:type:${authored.slug}-illustrative`,
+      status:
+        "Original Blender illustrative reference; not manufacturer CAD or an installed-asset attestation",
+    } as LocalTemplate;
+  }
   const factory = factoryModels.find(
     (model) => revision === `smart-factory-illustrative-${model.slug}-1`,
   );
@@ -155,10 +172,17 @@ export async function createEquipment(
     isDemo: boolean;
   },
 ) {
-  const t = await template(input.templateRevision);
-  if (input.templateRevision !== t.revision)
+  const source = await template(input.templateRevision);
+  if (input.templateRevision !== source.revision)
     throw new Error("Unsupported template revision");
-  await modelBytes(t.revision);
+  const bytes = await modelBytes(source.revision);
+  // Native authored aliases are convenience selectors. Installed workspaces use
+  // the established DB-backed package format so an older compatible image can
+  // still read their bytes, metadata and stable component mappings after rollback.
+  const t = {
+    ...source,
+    revision: await durableModelRevision(source.revision, actor, bytes),
+  };
   const db = await database();
   const id = fixed?.id ?? randomUUID(),
     externalAssetId = fixed?.assetId ?? "urn:smart-factory:equipment:" + id;
@@ -653,27 +677,34 @@ export async function initializeLocalEquipmentDemos() {
 
 export async function modelBytes(revision: string) {
   const t = await template(revision);
+  const authored = authoredAssets.find(
+    (asset) => asset.models.compact.revision === revision,
+  )?.models.compact;
   const factory = factoryModels.find(
     (model) => revision === `smart-factory-illustrative-${model.slug}-1`,
   );
   const bytes = revision.startsWith("local-import:")
     ? await importedBytes(revision)
-    : await readFile(
-        new URL(
-          factory
-            ? `factory/${factory.slug}/model.glb`
-            : revision === raspberryPiRevision
-              ? "raspberry-pi-4b/model.glb"
-              : [
-                    "smart-factory-illustrative-pump-motor-1",
-                    "smart-factory-illustrative-pump-motor-2",
-                    "smart-factory-illustrative-pump-motor-3",
-                  ].includes(revision)
-                ? `revisions/${revision.split("-").at(-1)}/model.glb`
-                : "pump-motor.glb",
-          root,
-        ),
-      );
+    : authored
+      ? await readFile(
+          new URL(`../../client/public${authored.url}`, import.meta.url),
+        )
+      : await readFile(
+          new URL(
+            factory
+              ? `factory/${factory.slug}/model.glb`
+              : revision === raspberryPiRevision
+                ? "raspberry-pi-4b/model.glb"
+                : [
+                      "smart-factory-illustrative-pump-motor-1",
+                      "smart-factory-illustrative-pump-motor-2",
+                      "smart-factory-illustrative-pump-motor-3",
+                    ].includes(revision)
+                  ? `revisions/${revision.split("-").at(-1)}/model.glb`
+                  : "pump-motor.glb",
+            root,
+          ),
+        );
   if (createHash("sha256").update(bytes).digest("hex") !== t.sha256)
     throw new Error("Model revision hash mismatch");
   inspectGlb(bytes);
@@ -684,6 +715,23 @@ function stablePartId(equipment: string, part: string) {
     .update(equipment + ":" + part)
     .digest("hex");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+async function durableModelRevision(
+  revision: string,
+  actor: number,
+  bytes?: Buffer,
+) {
+  const authored = authoredAssets.find(
+    (asset) => asset.models.compact.revision === revision,
+  );
+  if (!authored) return revision;
+  return (
+    await importModel(
+      bytes ?? (await modelBytes(revision)),
+      authored.models.compact.manifest,
+      actor,
+    )
+  ).revision;
 }
 export async function modelChange(
   id: string,
@@ -733,8 +781,9 @@ export async function replaceModel(
   const p = await modelChange(id, revision, expectedVersion);
   if (p.reviewToken !== reviewToken)
     throw new Error("Model change must match the reviewed mapping");
+  const storedRevision = await durableModelRevision(revision, actor);
   const r = await query(
-    sql`update equipment_workspaces set template_revision=${revision},components=${JSON.stringify(p.components)}::jsonb,version=version+1,updated_by=${actor} where id=${id} and version=${expectedVersion} returning version`,
+    sql`update equipment_workspaces set template_revision=${storedRevision},components=${JSON.stringify(p.components)}::jsonb,version=version+1,updated_by=${actor} where id=${id} and version=${expectedVersion} returning version`,
   );
   if (!r.length) throw new Error("Model revision conflict");
   return { version: Number(r[0].version) };

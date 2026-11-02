@@ -3,7 +3,8 @@ import { Link } from "wouter";
 import { Box, ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { referenceModels } from "@shared/factory-models";
-import { industrialAssets } from "@shared/industrial-assets";
+import { bundledAssets } from "@shared/bundled-assets";
+import { authoredAssets } from "@shared/authored-assets";
 import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
 import ModelLoadingPreview, {
   referencePreview,
@@ -14,27 +15,34 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 const Renderer = lazy(loadEquipmentRenderer);
 const entries = [
-  ...industrialAssets.map((asset) => ({
+  ...bundledAssets.map((asset) => ({
     ...asset,
     revision: asset.models.compact.revision,
-    provider: "NVIDIA",
+    provider: authoredAssets.some((item) => item.slug === asset.slug)
+      ? "Smart Factory"
+      : "NVIDIA",
   })),
-  ...referenceModels.map((model) => ({
-    ...model,
-    category: "Equipment",
-    provider: "Smart Factory",
-  })),
+  ...referenceModels
+    .filter(
+      (model) => !bundledAssets.some((asset) => asset.slug === model.slug),
+    )
+    .map((model) => ({
+      ...model,
+      category: "Equipment",
+      provider: "Smart Factory",
+    })),
 ];
 
 export default function FactoryModels() {
-  const [slug, setSlug] = useState(industrialAssets[0]?.slug ?? "conveyor");
+  const [slug, setSlug] = useState(bundledAssets[0]?.slug ?? "conveyor");
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [librarySearch, setLibrarySearch] = useState("");
   const [provider, setProvider] = useState("all");
   const [quality, setQuality] = useState<"compact" | "detail">("compact");
   const utils = trpc.useUtils();
-  const industrial = industrialAssets.find((asset) => asset.slug === slug);
+  const industrial = bundledAssets.find((asset) => asset.slug === slug);
+  const authored = authoredAssets.some((asset) => asset.slug === slug);
   const model = trpc.equipment.reference.useQuery(
     { slug: industrial ? "conveyor" : slug },
     { staleTime: 60000, enabled: !industrial },
@@ -107,7 +115,7 @@ export default function FactoryModels() {
             aria-pressed={slug === item.slug}
             onPointerEnter={() => {
               void loadEquipmentRenderer().catch(() => {});
-              if (item.provider === "Smart Factory")
+              if (!bundledAssets.some((asset) => asset.slug === item.slug))
                 void utils.equipment.reference.prefetch(
                   { slug: item.slug },
                   { staleTime: 60000 },
@@ -170,7 +178,11 @@ export default function FactoryModels() {
             </p>
           </div>
           <Badge variant="outline">
-            {industrial ? "NVIDIA · CC BY 4.0" : "Illustrative reference"}
+            {industrial
+              ? authored
+                ? "Smart Factory · MIT"
+                : "NVIDIA · CC BY 4.0"
+              : "Illustrative reference"}
           </Badge>
         </div>
         {converted && (
@@ -268,10 +280,9 @@ export default function FactoryModels() {
           >
             <p className="text-sm">{industrial.attribution}</p>
             <p className="text-xs text-muted-foreground">
-              Adapted from OpenUSD to static GLB: geometry simplified and
-              unsupported shading replaced with documented browser PBR
-              approximations. Native textures, animation, articulation and
-              physics are not transferred.
+              {authored
+                ? "Original equipment reference authored in Blender. Compact and detailed versions share the same component identities. No manufacturer affiliation or safety certification is implied."
+                : "Adapted from OpenUSD to static GLB: geometry simplified and unsupported shading replaced with documented browser PBR approximations. Native textures, animation, articulation and physics are not transferred."}
             </p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
               <a
@@ -280,7 +291,7 @@ export default function FactoryModels() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Pinned NVIDIA source
+                {authored ? "Authoring source receipt" : "Pinned NVIDIA source"}
               </a>
               <a
                 className="underline"
@@ -288,7 +299,7 @@ export default function FactoryModels() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                CC BY 4.0 license
+                {authored ? "MIT license" : "CC BY 4.0 license"}
               </a>
               <a
                 className="underline"
@@ -296,12 +307,12 @@ export default function FactoryModels() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Conversion provenance
+                {authored ? "Asset provenance" : "Conversion provenance"}
               </a>
             </div>
             <details className="text-xs text-muted-foreground">
               <summary className="cursor-pointer">
-                Conversion and simulation limitations
+                Reference and simulation limitations
               </summary>
               <div className="mt-2 space-y-1">
                 {industrial.limitations.map((text) => (

@@ -268,6 +268,16 @@ export function createEquipmentProxy(model: string | null, itemType = "") {
         b.box(casing, [0.25, 0.16, 0.008], [x, y, 0.355]);
         b.box(black, [0.02, 0.16, 0.01], [x - 0.07, y, 0.36]);
       }
+  } else if (model === "mobile-cart") {
+    // A selectable trolley silhouette remains available while detail loads.
+    for (const x of [-0.17, 0.17])
+      for (const z of [-0.35, 0.35])
+        b.cylinder(black, 0.075, 0.045, [x, 0.075, z], [0, 0, Math.PI / 2]);
+    for (const y of [0.22, 0.79, 1.36])
+      b.box(steel, [0.4, 0.045, 0.84], [0, y, 0]);
+    for (const x of [-0.18, 0.18])
+      for (const z of [-0.38, 0.38])
+        b.box(steel, [0.035, 1.3, 0.035], [x, 0.79, z]);
   } else if (model === "loading-door" || model === "exit-door") {
     const loading = model === "loading-door",
       w = loading ? 3.5 : 1,

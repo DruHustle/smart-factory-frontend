@@ -1,3 +1,4 @@
+import { authoredReferenceModels } from "./authored-assets";
 /** Bundled, illustrative references. These descriptors never identify installed equipment. */
 export const factoryModels = [
   {
@@ -38,6 +39,7 @@ export const factoryModels = [
 ] as const;
 
 export const referenceModels = [
+  ...authoredReferenceModels,
   ...factoryModels.map((model) => ({
     ...model,
     revision: `smart-factory-illustrative-${model.slug}-1`,

@@ -2,6 +2,7 @@ import { FactorySelector } from "@/components/workspace/FactorySelector";
 import { FactoryWorkspace } from "@/components/workspace/FactoryWorkspace";
 import { useFactorySelection } from "@/lib/factory-selection";
 import { inventoryFilters } from "@/lib/list-filters";
+import { inventoryLocation } from "@/lib/inventory-location";
 import { currentSample } from "@shared/measurements";
 import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
@@ -190,46 +191,59 @@ function LegacyInventory() {
     <div className="min-w-0 space-y-[var(--workspace-gap)]">
       <PageHeader
         title="Assets & devices"
-        description="Find equipment, inspect observations and open the right workspace."
         action={
-          <>
-            <FactorySelector />
-            <Button asChild variant="outline">
-              <Link href="/connectivity">
-                <Cable className="mr-2 size-4" />
-                Connectivity
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link
-                href="/models"
-                onPointerEnter={() =>
-                  void loadEquipmentRenderer().catch(() => {})
-                }
-                onFocus={() => void loadEquipmentRenderer().catch(() => {})}
-              >
-                <Box className="mr-2 size-4" />
-                Factory models
-              </Link>
-            </Button>
-            {user?.access?.canEngineer && (
-              <>
-                <Button
-                  variant="outline"
-                  aria-label="Export AutomationML"
-                  onClick={() =>
-                    window.location.assign("/api/assets/export/automationml")
-                  }
-                >
-                  Export AutomationML
-                </Button>
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+            <div className="w-full min-w-0 sm:w-auto">
+              <FactorySelector />
+            </div>
+            <div className="flex items-center gap-2">
+              {user?.access?.canEngineer && (
                 <Button onClick={() => setAdd(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="size-4" />
                   Add item
                 </Button>
-              </>
-            )}
-          </>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <MoreHorizontal className="size-4" />
+                    Inventory tools
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="/connectivity">
+                      <Cable className="size-4" /> Connectivity
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/models"
+                      onPointerEnter={() =>
+                        void loadEquipmentRenderer().catch(() => {})
+                      }
+                      onFocus={() =>
+                        void loadEquipmentRenderer().catch(() => {})
+                      }
+                    >
+                      <Box className="size-4" /> Factory models
+                    </Link>
+                  </DropdownMenuItem>
+                  {user?.access?.canEngineer && (
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        window.location.assign(
+                          "/api/assets/export/automationml",
+                        )
+                      }
+                    >
+                      Export AutomationML
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
         }
       />
       <SectionNav
@@ -244,16 +258,21 @@ function LegacyInventory() {
         <FilterToolbar>
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">Search inventory</span>
+            <span id="inventory-search-help" className="sr-only">
+              Search by name or identifier.
+            </span>
             <Search
               aria-hidden="true"
               className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground"
             />
             <Input
               aria-label="Search inventory"
+              aria-describedby="inventory-search-help"
+              title="Search by name or identifier"
               className="pl-9 pr-10"
               value={filter.search}
               maxLength={100}
-              placeholder="Search name or identifier"
+              placeholder="Search inventory"
               onChange={(event) => update({ search: event.target.value })}
             />
             {!!filter.search && (
@@ -397,9 +416,11 @@ function LegacyInventory() {
                           </td>
                           <td className="p-3">
                             <p>
-                              {[item.zone, item.location]
-                                .filter(Boolean)
-                                .join(" · ") || "Unspecified location"}
+                              {inventoryLocation(item.zone, item.location) || (
+                                <span className="sr-only">
+                                  Location unspecified
+                                </span>
+                              )}
                             </p>
                             <p className="mt-1 break-words text-xs text-muted-foreground">
                               {item.route}
@@ -407,11 +428,11 @@ function LegacyInventory() {
                           </td>
                           <td className="p-3">
                             <StatusBadge status={item.status} />
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {item.configured
-                                ? "Connection configured"
-                                : "No configured connection"}
-                            </p>
+                            {!item.configured && (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                No configured connection
+                              </p>
+                            )}
                           </td>
                           <td className="p-3 text-xs">
                             <ItemMeasurements item={item} />
@@ -419,12 +440,10 @@ function LegacyInventory() {
                               value={item.sampleAt}
                               historical={!currentSample(item)}
                             />
-                            <p className="mt-1 capitalize">
-                              {item.mode} evidence
-                            </p>
+                            <p className="mt-1 capitalize">{item.mode}</p>
                           </td>
                           <td className="p-3">
-                            <Capabilities item={item} />
+                            <Capabilities item={item} emptyPlaceholder />
                           </td>
                           <td className="p-2">
                             <DropdownMenu>
@@ -738,7 +757,20 @@ function ItemMeasurements({ item }: { item: InventoryItem }) {
     </div>
   );
 }
-function Capabilities({ item }: { item: InventoryItem }) {
+function Capabilities({
+  item,
+  emptyPlaceholder = false,
+}: {
+  item: InventoryItem;
+  emptyPlaceholder?: boolean;
+}) {
+  if (!item.aas && !item.equipmentId && !item.lifecycle)
+    return emptyPlaceholder ? (
+      <span className="text-xs text-muted-foreground">
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">No AAS or 3D model</span>
+      </span>
+    ) : null;
   return (
     <div className="flex flex-wrap gap-1">
       {item.aas && <Badge variant="secondary">AAS</Badge>}
@@ -747,9 +779,6 @@ function Capabilities({ item }: { item: InventoryItem }) {
         <span className="text-xs capitalize text-muted-foreground">
           {item.lifecycle}
         </span>
-      )}
-      {!item.aas && !item.equipmentId && (
-        <span className="text-xs text-muted-foreground">No AAS / 3D</span>
       )}
     </div>
   );

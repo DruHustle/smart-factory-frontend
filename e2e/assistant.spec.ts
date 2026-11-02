@@ -1,18 +1,18 @@
 import { test, expect, type Route } from "@playwright/test";
 import { mkdirSync } from "node:fs";
-import { enterSimulation, noOverflow } from "./visual-workspace-helpers";
+import { enterSimulation, noOverflow, rpc } from "./visual-workspace-helpers";
 const out =
-  process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ??
-  "test-results/visual-workspaces";
+  process.env.VISUAL_WORKSPACE_EVIDENCE_DIR ?? "test-results/visual-workspaces";
 const question = "Why does Showcase pump 01 need attention?";
 const input = (page: import("@playwright/test").Page) =>
   page.getByRole("textbox", { name: "Ask the Smart Factory Assistant" });
 async function ask(page: import("@playwright/test").Page, text = question) {
+  const answers = page.getByTestId("assistant-answer-content");
+  const previous = await answers.count();
   await input(page).fill(text);
   await page.getByRole("button", { name: "Ask", exact: true }).click();
-  await expect(
-    page.getByTestId("assistant-answer-content").last(),
-  ).toBeVisible();
+  await expect(answers).toHaveCount(previous + 1);
+  await expect(answers.last()).toBeVisible();
 }
 function response(route: Route, data: unknown) {
   return route.fulfill({
@@ -246,6 +246,72 @@ test("Assistant keeps Markdown safe, citations stable, IME and mobile compositio
     .toBeLessThanOrEqual(430);
   await noOverflow(page);
 });
+test("Assistant stops a pending answer, preserves the draft and retries the same context", async ({
+  page,
+}) => {
+  mkdirSync(out, { recursive: true });
+  await enterSimulation(page, 390);
+  await page.goto("/#/assistant");
+  const bodies: string[] = [];
+  let pending: Route | undefined;
+  await page.route("**/api/trpc/assistant.ask*", async (route) => {
+    bodies.push(route.request().postData() ?? "");
+    if (bodies.length === 1) {
+      pending = route;
+      return;
+    }
+    await route.continue();
+  });
+  await input(page).fill(question);
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect.poll(() => !!pending).toBe(true);
+  await page.screenshot({ path: `${out}/assistant-pending-390.png` });
+  const failed = page.waitForEvent("requestfailed", {
+    predicate: (r) => r.url().includes("/assistant.ask"),
+  });
+  await page.getByRole("button", { name: "Stop answer", exact: true }).click();
+  await failed;
+  await expect(
+    page.getByText("Answer stopped. Your draft is retained."),
+  ).toBeVisible();
+  await expect(input(page)).toHaveValue(question);
+  await page.screenshot({ path: `${out}/assistant-stopped-390.png` });
+  await expect(page.getByTestId("assistant-answer-content")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Retry this question", exact: true })
+    .click();
+  await expect(page.getByTestId("assistant-answer-content")).toBeVisible();
+  expect(bodies).toHaveLength(2);
+  expect(bodies[1]).toBe(bodies[0]);
+  await noOverflow(page);
+});
+
+test("Assistant cancels when leaving the page and does not strand a pending turn", async ({
+  page,
+}) => {
+  await enterSimulation(page);
+  await page.goto("/#/assistant");
+  let started = false;
+  await page.route("**/api/trpc/assistant.ask*", async () => {
+    started = true;
+  });
+  await input(page).fill(question);
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect.poll(() => started).toBe(true);
+  const failed = page.waitForEvent("requestfailed", {
+    predicate: (r) => r.url().includes("/assistant.ask"),
+  });
+  await page.goto("/#/inventory");
+  await failed;
+  await page.goto("/#/assistant");
+  await expect(
+    page.getByText("Answer stopped. Your draft is retained."),
+  ).toBeVisible();
+  await expect(input(page)).toHaveValue(question);
+  await expect(
+    page.getByRole("button", { name: "New conversation", exact: true }),
+  ).toBeEnabled();
+});
 test("Assistant handles unavailable WebGL and clears sensitive state on logout", async ({
   page,
 }) => {
@@ -269,7 +335,7 @@ test("Assistant handles unavailable WebGL and clears sensitive state on logout",
   await page.getByRole("button", { name: "Open account menu" }).click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Demo Viewer", exact: true }).click();
+  await page.getByRole("button", { name: "Viewer", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
@@ -294,11 +360,20 @@ for (const [width, theme] of [
     try {
       await enterSimulation(page, width, theme);
       await page.goto("/#/assistant");
+      await expect(
+        page.getByRole("heading", {
+          name: "What would you like to understand?",
+        }),
+      ).toBeVisible();
       await page.screenshot({
         path: `${out}/assistant-empty-${width}-${theme}.png`,
         fullPage: true,
       });
       await ask(page);
+      await page.screenshot({
+        path: `${out}/assistant-answer-${width}-${theme}.png`,
+        fullPage: true,
+      });
       if (width < 1280)
         await page.getByRole("button", { name: /Sources & context/ }).click();
       await expect(page.locator("[data-state=ready]")).toBeVisible({
@@ -321,3 +396,96 @@ for (const [width, theme] of [
       await context.close();
     }
   });
+
+test("asset links update the next question while retaining drafts and previous answer context", async ({
+  page,
+}) => {
+  const showcase = await enterSimulation(page);
+  const inventory = await (
+    await page.request.get(
+      rpc("inventory.list", {
+        view: "assets",
+        search: "",
+        page: 0,
+        pageSize: 25,
+      }),
+    )
+  ).json();
+  const other = inventory.result.data.json.items.find(
+    (item: { identifier: string }) => item.identifier !== showcase.assetId,
+  );
+  expect(
+    other,
+    "fixture needs two independently addressable assets",
+  ).toBeTruthy();
+  await page.goto("/#/assistant?asset=" + encodeURIComponent(showcase.assetId));
+  const context = page.getByRole("combobox", {
+    name: "Assistant asset context",
+  });
+  await expect(context).toContainText("Showcase pump 01");
+  await ask(page);
+  const prior = await page.getByRole("article").first().innerText();
+  await input(page).fill("Keep this unsent inspection question");
+  const requests: string[] = [];
+  await page.route("**/api/trpc/assistant.ask*", async (route) => {
+    const body = route.request().postDataJSON();
+    requests.push((body.json ?? body["0"].json).selectedAssetId);
+    await route.continue();
+  });
+  await page.goto("/#/inventory/" + encodeURIComponent(other.ref));
+  await page.getByRole("link", { name: "Ask Assistant", exact: true }).click();
+  await expect(context).toContainText(other.name);
+  await expect(input(page)).toHaveValue("Keep this unsent inspection question");
+  expect(await page.getByRole("article").first().innerText()).toBe(prior);
+  expect(requests).toEqual([]);
+  await ask(page, "What stored evidence is available for this asset?");
+  expect(requests).toEqual([other.identifier]);
+  const second = page.getByRole("article").nth(1);
+  await expect(second).toContainText(`Context: ${other.name}`);
+  const secondSnapshot = await second.innerText();
+  await input(page).fill("Another unsent question");
+  // Change only the hash query while Assistant remains mounted.
+  await page.goto("/#/assistant?asset=" + encodeURIComponent(showcase.assetId));
+  await expect(context).toContainText("Showcase pump 01");
+  await expect(input(page)).toHaveValue("Another unsent question");
+  expect(await second.innerText()).toBe(secondSnapshot);
+  await page.goto("/#/assistant?asset=x");
+  await expect(context).toContainText("Showcase pump 01");
+  await page.goto("/#/assistant");
+  await expect(context).toContainText("Showcase pump 01");
+  expect(requests).toEqual([other.identifier]);
+});
+
+test("compact Assistant suggestions submit the full question and retain source access at 390px", async ({
+  page,
+}) => {
+  await enterSimulation(page, 390);
+  await page.goto("/#/assistant");
+  await expect(page.getByText("Read-only", { exact: true })).toBeVisible();
+  const suggestion = page.getByRole("button", {
+    name: "Import AASX: How do I import an AASX package?",
+    exact: true,
+  });
+  await expect(suggestion).toHaveText("Import AASX");
+  const sent = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" && request.url().includes("/assistant.ask"),
+  );
+  await suggestion.focus();
+  await page.keyboard.press("Enter");
+  const raw = (await sent).postDataJSON();
+  const payload = raw["0"]?.json ?? raw.json;
+  expect(payload.question).toBe("How do I import an AASX package?");
+  await expect(page.getByTestId("assistant-answer-content")).toBeVisible();
+  await expect(page.getByRole("article")).toContainText(payload.question);
+  await page.getByRole("button", { name: /Sources & context/ }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Answer evidence" }),
+  ).toContainText("Answer snapshot");
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: /Sources & context/ }),
+  ).toBeFocused();
+  await noOverflow(page);
+});

@@ -31,4 +31,13 @@ jobs:
         if: always()
         with:
           name: native-3d-rendering
-          path: test-results/rendering
+          path: |
+            test-results/rendering/**/*.json
+            test-results/rendering/**/*.log
+            test-results/rendering/**/*.txt
+            test-results/rendering/**/*.md
+            test-results/rendering/**/*.xml
+            test-results/rendering/**/*.csv
+            test-results/rendering/**/*.tsv
+            test-results/rendering/**/*.dxf
+            test-results/rendering/**/*.sha256

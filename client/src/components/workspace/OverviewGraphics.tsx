@@ -353,16 +353,17 @@ export function LinkedModelPreview({
           }
         </p>
       )}
-      <p className="text-xs text-muted-foreground">
-        Illustrative geometry. No physical movement or component measurement is
-        inferred.{" "}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span title="No physical movement or component measurement is inferred.">
+          Illustrative model
+        </span>
         <Link
           href={itemHref(item.ref, "components", returnTo)}
           className="underline"
         >
           Components / accessible detail
         </Link>
-      </p>
+      </div>
     </div>
   );
 }

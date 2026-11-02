@@ -54,6 +54,71 @@ test.describe("unified item workspace", () => {
     process.env.WORKSPACE_E2E !== "true",
     "Requires isolated workspace fixtures",
   );
+  test("mobile inventory search text fits and finds names and identifiers", async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 960 });
+    await login(page, "engineer");
+    await inventory(page, "");
+    const search = page.getByRole("textbox", {
+      name: "Search inventory",
+      exact: true,
+    });
+    await expect(search).toHaveAttribute("placeholder", "Search inventory");
+    await expect(search).toHaveAccessibleDescription(
+      "Search by name or identifier.",
+    );
+    await page.evaluate(() => document.fonts.ready);
+    const textFits = await search.evaluate((input: HTMLInputElement) => {
+      const style = getComputedStyle(input);
+      const placeholderStyle = getComputedStyle(input, "::placeholder");
+      const context = document.createElement("canvas").getContext("2d");
+      if (!context) throw new Error("Canvas text measurement is unavailable");
+      context.font = `${placeholderStyle.fontStyle} ${placeholderStyle.fontWeight} ${placeholderStyle.fontSize} ${placeholderStyle.fontFamily}`;
+      const spacing = Number.parseFloat(placeholderStyle.letterSpacing) || 0;
+      const needed =
+        context.measureText(input.placeholder).width +
+        Math.max(0, input.placeholder.length - 1) * spacing;
+      const available =
+        input.clientWidth -
+        Number.parseFloat(style.paddingLeft) -
+        Number.parseFloat(style.paddingRight);
+      return { needed, available };
+    });
+    expect(textFits.available).toBeGreaterThanOrEqual(textFits.needed);
+    await testInfo.attach("placeholder-measurement", {
+      body: JSON.stringify(textFits),
+      contentType: "application/json",
+    });
+    await search.fill("Workspace child A");
+    await expect(
+      page
+        .getByRole("link", { name: "Workspace child A", exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible();
+    await search.fill("workspace-child-a");
+    await expect(
+      page
+        .getByRole("link", { name: "Workspace child A", exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible();
+    await search.clear();
+    await expect(
+      page
+        .getByRole("link", { name: "Workspace child B", exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible();
+    await search.blur();
+    await expect(
+      page.getByText("Login successful!", { exact: true }),
+    ).toHaveCount(0);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: testInfo.outputPath("mobile-inventory-search.png"),
+      fullPage: true,
+      animations: "disabled",
+    });
+  });
   test("direct IoT registration completes and accepts telemetry without a gateway or AAS", async ({
     page,
   }) => {
@@ -219,6 +284,17 @@ test.describe("unified item workspace", () => {
         .filter({ visible: true }),
     ).toBeVisible();
     await open(page, "Workspace child A");
+    const provenance = page.locator("details").filter({
+      has: page.locator("summary", { hasText: "Source & freshness" }),
+    });
+    await expect(provenance).not.toHaveAttribute("open", "");
+    await provenance.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(provenance).toHaveAttribute("open", "");
+    await expect(provenance).toContainText("Freshness policy:");
+    await expect(provenance).toContainText(
+      "Configuration does not establish availability or security.",
+    );
     const item = page.url();
     await page.reload();
     await expect(
@@ -563,4 +639,108 @@ test.describe("unified item workspace", () => {
           animations: "disabled",
         });
       });
+  for (const width of [1440, 390, 360, 320]) {
+    test(`inventory keeps factory context and primary actions together at ${width}px`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 960 });
+      await login(page, "engineer");
+      await inventory(page);
+      const factory = await page
+        .getByLabel("Active factory", { exact: true })
+        .boundingBox();
+      const create = await page
+        .getByRole("button", { name: "Create factory", exact: true })
+        .boundingBox();
+      expect(factory).not.toBeNull();
+      expect(create).not.toBeNull();
+      expect(
+        Math.abs(factory!.y - create!.y),
+        "Factory selection and creation must share a row",
+      ).toBeLessThanOrEqual(2);
+      await expect(
+        page.getByRole("button", { name: "Add item", exact: true }),
+      ).toBeVisible();
+      if (width === 390) {
+        const results = await page
+          .getByRole("status", { name: "Inventory results" })
+          .boundingBox();
+        expect(
+          results!.y,
+          "Inventory results should not be pushed below a tall action toolbar",
+        ).toBeLessThan(450);
+      }
+      const clippedControls = await page
+        .locator("header.sticky")
+        .locator("button, select, a[href]")
+        .evaluateAll((controls) =>
+          controls
+            .filter((control) => {
+              const box = control.getBoundingClientRect();
+              return box.width > 0 && (box.left < 0 || box.right > innerWidth);
+            })
+            .map(
+              (control) =>
+                control.getAttribute("aria-label") || control.textContent,
+            ),
+        );
+      expect(
+        clippedControls,
+        "Every global header control must remain within the viewport",
+      ).toEqual([]);
+      const data = page.getByRole("combobox", {
+        name: "Data workspace",
+        exact: true,
+      });
+      expect(
+        await data.evaluate((select) => {
+          const element = select as HTMLSelectElement,
+            style = getComputedStyle(element);
+          const canvas = document.createElement("canvas"),
+            context = canvas.getContext("2d")!;
+          context.font = style.font;
+          return (
+            element.clientWidth -
+              parseFloat(style.paddingLeft) -
+              parseFloat(style.paddingRight) -
+              24 >=
+            context.measureText(element.selectedOptions[0].textContent ?? "")
+              .width
+          );
+        }),
+        "The selected data mode must fit without clipping",
+      ).toBe(true);
+      await page
+        .getByRole("button", { name: "Inventory tools", exact: true })
+        .click();
+      await expect(
+        page.getByRole("menuitem", { name: "Connectivity", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("menuitem", { name: "Factory models", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("menuitem", {
+          name: "Export AutomationML",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByRole("button", { name: "Inventory tools", exact: true }),
+      ).toBeFocused();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        )
+        .toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`inventory-toolbar-${width}.png`),
+        fullPage: true,
+        animations: "disabled",
+      });
+    });
+  }
 });

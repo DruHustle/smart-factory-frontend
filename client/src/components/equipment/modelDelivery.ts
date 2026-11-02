@@ -1,7 +1,5 @@
-import {
-  industrialModels,
-  type IndustrialModel,
-} from "@shared/industrial-assets";
+import { type IndustrialModel } from "@shared/industrial-assets";
+import { bundledModels } from "@shared/bundled-assets";
 
 const MAX_MODEL_BYTES = 20 * 1024 * 1024;
 
@@ -10,7 +8,7 @@ export function modelDelivery(input: string, origin: string) {
   const url = new URL(input, origin);
   if (url.origin !== origin || url.username || url.password || url.hash)
     throw new Error("Model must use authorized Smart Factory file delivery");
-  const bundled = industrialModels.find((model) => url.pathname === model.url);
+  const bundled = bundledModels.find((model) => url.pathname === model.url);
   if (bundled && !url.search) return { url, bundled };
   if (url.pathname.startsWith("/api/equipment/"))
     return { url, bundled: undefined };

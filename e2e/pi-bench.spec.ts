@@ -2,10 +2,11 @@ import { expect, test } from "@playwright/test";
 
 test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway path", async ({
   page,
-}) => {
+}, testInfo) => {
+  const layoutMetrics: Record<string, number>[] = [];
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/login");
-  await page.getByRole("button", { name: "Demo Admin", exact: true }).click();
+  await page.getByRole("button", { name: "Admin", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
@@ -23,13 +24,118 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
     page.getByRole("heading", { name: "Current Pi + DHT11 setup" }),
   ).toBeVisible();
   await expect(page.getByText("Hardware topology: DHT11")).toBeVisible();
-  await expect(
-    page.getByRole("img", { name: "Interactive 3D factory floor" }),
-  ).toBeVisible();
-  await page.screenshot({
-    path: "test-results/public-demo/pi-bench-3d.png",
-    fullPage: true,
+  const scene = page.getByRole("img", {
+    name: "Interactive 3D factory floor",
+    exact: true,
   });
+  await expect(scene).toBeVisible();
+  await expect(
+    page.getByTestId("factory-floor").getByRole("status"),
+  ).toHaveText("2 items on floor · 0 detailed models ready");
+  // These bench boards use detailed procedural geometry, not downloaded GLBs.
+  await expect(scene).toHaveAttribute(
+    "data-graphics-environment",
+    "baked-hdr-studio",
+  );
+  await expect(
+    page.getByText("Login successful!", { exact: true }),
+  ).toHaveCount(0);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await scene.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
+    const floor = page.getByTestId("factory-floor");
+    const status = floor.getByRole("status");
+    await expect(status).toHaveClass(/sr-only/);
+    const rotate = await floor
+      .getByRole("button", { name: "Rotate with mouse movement", exact: true })
+      .boundingBox();
+    const floorBounds = await floor.boundingBox();
+    expect(rotate).not.toBeNull();
+    expect(floorBounds).not.toBeNull();
+    expect(
+      rotate!.x >= floorBounds!.x &&
+        rotate!.x + rotate!.width <= floorBounds!.x + floorBounds!.width &&
+        rotate!.y >= floorBounds!.y &&
+        rotate!.y + rotate!.height <= floorBounds!.y + floorBounds!.height,
+      `The rotation control must remain inside the factory floor at ${width}px`,
+    ).toBe(true);
+    if (width === 390) {
+      await expect
+        .poll(async () => (await scene.boundingBox())?.height ?? Infinity)
+        .toBeLessThanOrEqual(400);
+      const representations = page.getByRole("group", {
+        name: "Floor representation",
+      });
+      const rows = await representations
+        .getByRole("button")
+        .evaluateAll((buttons) =>
+          buttons.map((button) => button.getBoundingClientRect().y),
+        );
+      expect(
+        new Set(rows).size,
+        "All four representations should fit a single mobile toolbar row",
+      ).toBe(1);
+      const help = page.getByRole("button", {
+        name: "Factory floor controls",
+        exact: true,
+      });
+      const beforeHelp = await floor.boundingBox();
+      await expect(help).toHaveAttribute("aria-expanded", "false");
+      await help.focus();
+      await help.press("Enter");
+      await expect(help).toHaveAttribute("aria-expanded", "true");
+      await expect(
+        page.getByText(
+          /With Rotate off, hovering stays still\. With Rotate on, click empty floor to start mouse rotation; click again to stop/,
+        ),
+      ).toBeVisible();
+      expect((await floor.boundingBox())?.y).toBe(beforeHelp?.y);
+      await help.focus();
+      await help.press("Enter");
+      await expect(help).toHaveAttribute("aria-expanded", "false");
+      await expect(
+        page.getByText(/With Rotate off, hovering stays still/),
+      ).toBeHidden();
+    }
+    const viewerBox = await page
+      .getByRole("region", { name: "Factory floor overview", exact: true })
+      .boundingBox();
+    const viewportBox = await floor.boundingBox();
+    const controlsHeight = viewportBox!.y - viewerBox!.y;
+    layoutMetrics.push({
+      width,
+      canvasHeight: viewportBox!.height,
+      viewerControlsHeight: controlsHeight,
+    });
+    if (width === 390)
+      expect(
+        controlsHeight,
+        "Mobile viewer controls should leave room for the factory",
+      ).toBeLessThan(350);
+    // Full-page captures should place the sticky header at the page top and
+    // avoid retaining keyboard focus from the preceding login/viewport change.
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement)
+        document.activeElement.blur();
+      window.scrollTo(0, 0);
+    });
+    await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+    await page.screenshot({
+      path: `test-results/public-demo/pi-bench-3d-${width}.png`,
+      fullPage: true,
+      animations: "disabled",
+    });
+  }
+  await testInfo.attach("pi-bench-layout-metrics", {
+    body: Buffer.from(JSON.stringify(layoutMetrics, null, 2)),
+    contentType: "application/json",
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.getByRole("button", { name: "Floor plan", exact: true }).click();
   const plan = page.getByRole("img", {
@@ -64,7 +170,7 @@ test("a returning demo user adds the Pi bench while retaining saved work and an 
   page,
 }) => {
   await page.goto("/#/login");
-  await page.getByRole("button", { name: "Demo Admin", exact: true }).click();
+  await page.getByRole("button", { name: "Admin", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
