@@ -10,6 +10,7 @@ export default defineConfig({
     "account-access-guidance.spec.ts",
     "factory-connections-theme.spec.ts",
     "factory-diagrams.spec.ts",
+    "floor-stage.spec.ts",
   ],
   outputDir: "test-results/overview-contract",
   workers: 1,

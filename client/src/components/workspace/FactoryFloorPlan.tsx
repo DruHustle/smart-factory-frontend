@@ -313,7 +313,7 @@ export function FloorPlan({
       data-interaction="grab"
       data-grab-state={grabbed ?? "idle"}
       aria-description="Grab equipment to move it, or empty floor to pan. Release to drop. Select equipment and use arrow keys for precise placement; Escape cancels a grab or clears selection. Hold Space or Shift to pan over equipment. Use the zoom buttons or scroll to zoom."
-      viewBox={`${-(layout.width + 4) / (2 * zoom) + pan.x} ${-(layout.depth + 4) / (2 * zoom) + pan.z} ${(layout.width + 4) / zoom} ${(layout.depth + 4) / zoom}`}
+      viewBox={`${-(layout.width + 6) / (2 * zoom) + pan.x} ${-(layout.depth + 6) / (2 * zoom) + pan.z} ${(layout.width + 6) / zoom} ${(layout.depth + 6) / zoom}`}
       data-zoom={zoom.toFixed(3)}
       className="h-full w-full bg-muted/30 text-foreground"
       role="img"
@@ -467,17 +467,19 @@ export function FloorPlan({
               {area.origin === "reference" && (
                 <text
                   x={cx}
-                  y={cz + 0.12}
+                  y={area.kind === "storage" ? area.z - 0.2 : cz + 0.12}
                   textAnchor="middle"
                   fill={color}
-                  fontSize={Math.min(0.8, area.width / 8)}
+                  fontSize={Math.min(0.6, area.width / 8)}
                   fontWeight="600"
                 >
-                  {area.name.split(/\s*\/\s*/).map((part, line) => (
-                    <tspan key={line} x={cx} dy={line ? ".95em" : 0}>
-                      {part}
-                    </tspan>
-                  ))}
+                  {area.kind === "storage"
+                    ? "Warehouse"
+                    : area.kind === "inbound"
+                      ? "Loading"
+                      : area.kind === "outbound"
+                        ? "Exit"
+                        : "Production"}
                 </text>
               )}
               {area.door && (

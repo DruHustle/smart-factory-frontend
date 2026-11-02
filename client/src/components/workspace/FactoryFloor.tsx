@@ -1,14 +1,5 @@
 import type { PhysicalDimensions } from "@shared/named-factory";
-import {
-  Component,
-  lazy,
-  Suspense,
-  useEffect,
-  useRef,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useMemo, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import {
   Box,
@@ -53,6 +44,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FloorPlan } from "./FactoryFloorPlan";
+import { FactorySceneStage } from "./FactorySceneStage";
 import {
   FactoryConnectionEditor,
   useConnectionAppearances,
@@ -67,20 +59,6 @@ import {
 } from "./FactoryDiagramEditor";
 import { useFactoryDiagram } from "./useFactoryDiagram";
 import { EngineeringDrawingExport } from "./EngineeringDrawingExport";
-const Scene = lazy(() => import("./FactoryFloorScene"));
-class FloorSceneBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
-}
-
 export function FactoryFloor({
   items,
   links,
@@ -611,52 +589,20 @@ export function FactoryFloor({
             reset={reset}
           />
         ) : (
-          <FloorSceneBoundary
-            fallback={
-              <FloorPlan
-                layout={layout}
-                links={links}
-                selected={selected}
-                onSelect={selectOnFloor}
-                onMove={movable ? moveItem : undefined}
-                onItemDrag={itemDragged}
-                onItemDrop={onInventoryDelete ? itemDropped : undefined}
-                onDelete={requestDelete}
-                reset={reset}
-              />
-            }
-          >
-            <Suspense
-              fallback={
-                <FloorPlan
-                  layout={layout}
-                  links={links}
-                  selected={selected}
-                  onSelect={selectOnFloor}
-                  onMove={movable ? moveItem : undefined}
-                  onItemDrag={itemDragged}
-                  onItemDrop={onInventoryDelete ? itemDropped : undefined}
-                  onDelete={requestDelete}
-                  reset={reset}
-                />
-              }
-            >
-              <Scene
-                layout={layout}
-                links={links}
-                connectionAppearances={connectionRoutes.values}
-                selected={selected}
-                onSelect={selectOnFloor}
-                dark={theme === "dark"}
-                reset={reset}
-                zone={zone}
-                onMove={movable ? moveItem : undefined}
-                onItemDrag={itemDragged}
-                onItemDrop={onInventoryDelete ? itemDropped : undefined}
-                onDelete={requestDelete}
-              />
-            </Suspense>
-          </FloorSceneBoundary>
+          <FactorySceneStage
+            layout={layout}
+            links={links}
+            connectionAppearances={connectionRoutes.values}
+            selected={selected}
+            onSelect={selectOnFloor}
+            dark={theme === "dark"}
+            reset={reset}
+            zone={zone}
+            onMove={movable ? moveItem : undefined}
+            onItemDrag={itemDragged}
+            onItemDrop={onInventoryDelete ? itemDropped : undefined}
+            onDelete={requestDelete}
+          />
         )}
         {editor}
         {!schematic && onInventoryDelete && (grabbedRef || selected) && (

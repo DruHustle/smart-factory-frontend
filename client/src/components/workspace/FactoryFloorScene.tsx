@@ -20,7 +20,6 @@ import {
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
 import {
   FactoryScenePreparation,
-  FactoryRefreshBatch,
   createFactorySprite,
   disposeFactoryScene,
   deferFactorySceneDisposal,
@@ -146,6 +145,8 @@ export default function FactoryFloorScene({
   onItemDrag,
   onItemDrop,
   onDelete,
+  onPresentationState,
+  managedFallback = false,
 }: {
   layout: Layout;
   links: FloorLink[];
@@ -156,6 +157,8 @@ export default function FactoryFloorScene({
   reset: number;
   zone: string;
   onMove?: FloorMove;
+  onPresentationState?: (state: "loading" | "ready" | "failed") => void;
+  managedFallback?: boolean;
 } & FloorDragHandlers) {
   const [rotateEnabled, setRotateEnabled] = useState(false);
   const [exploring, setExploring] = useState(false);
@@ -170,6 +173,9 @@ export default function FactoryFloorScene({
   const latestLayout = useRef(layout);
   latestLayout.current = layout;
   const currentTheme = useRef(dark);
+  const presentationState = useRef(onPresentationState);
+  const sceneGeneration = useRef(0);
+  presentationState.current = onPresentationState;
   const host = useRef<HTMLDivElement>(null),
     choose = useRef(onSelect),
     selection = useRef(selected),
@@ -222,21 +228,57 @@ export default function FactoryFloorScene({
         )
       : "") +
     JSON.stringify(layout.zones.map(({ count, ...zone }) => zone));
+  useLayoutEffect(() => {
+    sceneGeneration.current++;
+    if (!failed) {
+      setReady(false);
+      presentationState.current?.("loading");
+    }
+  }, [key]);
+  useLayoutEffect(() => {
+    if (failed) presentationState.current?.("failed");
+  }, [failed]);
   useEffect(() => {
     if (failed) return;
+    const generation = sceneGeneration.current;
     if (exploringRef.current) {
       exploringRef.current = false;
       setExploring(false);
     }
     let cleanup: (() => void) | undefined;
+    let emergencyCleanup: (() => void) | undefined;
+    let generationFailed = false;
+    const failScene = () => {
+      if (generationFailed || generation !== sceneGeneration.current) return;
+      generationFailed = true;
+      presentationState.current?.("failed");
+      setFailed(true);
+      if (cleanup) cleanup();
+      else emergencyCleanup?.();
+    };
     let secondFrame = 0;
     // Present the summary and accessible floor before initializing WebGL.
-    const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => {
-        cleanup = mountScene();
+    let firstFrame = 0;
+    try {
+      firstFrame = requestAnimationFrame(() => {
+        try {
+          secondFrame = requestAnimationFrame(() => {
+            try {
+              cleanup = mountScene();
+              if (cleanup) emergencyCleanup = undefined;
+            } catch {
+              failScene();
+            }
+          });
+        } catch {
+          failScene();
+        }
       });
-    });
+    } catch {
+      failScene();
+    }
     function mountScene() {
+      if (generation !== sceneGeneration.current) return;
       const element = host.current;
       if (!element) return;
       const initialDark = currentTheme.current;
@@ -252,15 +294,54 @@ export default function FactoryFloorScene({
           powerPreference: "high-performance",
         });
       } catch {
-        setFailed(true);
+        failScene();
         return;
       }
       let cancelForResize = () => {};
       let disposed = false,
         scenePrepared = false,
         dirty = true,
-        frame = 0;
+        frame = 0,
+        firstFramePresented = false,
+        presentationFrame = 0;
+      const abortSteps: (() => void)[] = [];
+      const abortRoots: (() => Iterable<THREE.Object3D>)[] = [];
+      const abortMaterials: (() => Iterable<THREE.Material>)[] = [];
+      const abortTextures: (() => Iterable<THREE.Texture>)[] = [];
+      const abortGeometries: (() => Iterable<THREE.BufferGeometry>)[] = [];
+      function* collect<T>(sources: (() => Iterable<T>)[]) {
+        for (const source of sources) yield* source();
+      }
+      emergencyCleanup = () => {
+        if (disposed) return;
+        disposed = true;
+        runtime.current = null;
+        try {
+          cancelAnimationFrame(frame);
+          cancelAnimationFrame(presentationFrame);
+        } catch {
+          /* Continue cleanup. */
+        }
+        for (const step of abortSteps) {
+          try {
+            step();
+          } catch {
+            /* Continue releasing the partial viewer. */
+          }
+        }
+        try {
+          disposeFactoryScene(collect(abortRoots), {
+            materials: collect(abortMaterials),
+            textures: collect(abortTextures),
+            geometries: collect(abortGeometries),
+          });
+        } finally {
+          renderer.domElement.remove();
+          releaseFactorySceneRenderer(renderer);
+        }
+      };
       const scene = new THREE.Scene();
+      abortRoots.push(() => [scene]);
       scene.background = new THREE.Color(initialDark ? "#182532" : "#dce3e6");
       const gl = renderer.getContext(),
         debug = gl.getExtension("WEBGL_debug_renderer_info");
@@ -283,6 +364,7 @@ export default function FactoryFloorScene({
       renderer.domElement.dataset.floorReferenceFailures = "0";
       let referenceFailures = 0;
       let studio: THREE.Texture | undefined;
+      abortTextures.push(() => (studio ? [studio] : []));
       const environment = createStudioEnvironment()
         .then((texture) => {
           if (disposed) {
@@ -340,13 +422,16 @@ export default function FactoryFloorScene({
         camera.far,
       );
       const controls = new OrbitControls(camera, renderer.domElement);
+      abortSteps.push(() => controls.dispose());
       const preparation = new FactoryScenePreparation(
         renderer,
         camera,
         scene,
         environment,
       );
+      abortSteps.push(() => preparation.dispose());
       const pendingReferences = new Set<THREE.Object3D>();
+      abortRoots.push(() => pendingReferences);
       void preparation
         .enqueue(() => ({
           object: scene,
@@ -358,8 +443,7 @@ export default function FactoryFloorScene({
         }))
         .catch(() => {
           if (disposed) return;
-          setFailed(true);
-          cleanup?.();
+          failScene();
         });
       controls.enableDamping = false;
       controls.cursorStyle = "grab";
@@ -517,7 +601,11 @@ export default function FactoryFloorScene({
       scene.add(fill);
       const viewerMaterials = new Map<THREE.Material, THREE.Material>();
       const viewerTextures = new Map<THREE.Texture, THREE.Texture>();
+      abortMaterials.push(() => viewerMaterials.values());
+      abortTextures.push(() => viewerTextures.values());
+      abortGeometries.push(() => viewerReferenceGeometries(viewerMaterials));
       const metalGrain = createSurfaceGrain("metal");
+      abortTextures.push(() => [metalGrain]);
       metalGrain.repeat.set(24, 24);
       const finishMaterial = (material: THREE.Material) => {
         if (!(material instanceof THREE.MeshStandardMaterial)) return;
@@ -542,7 +630,9 @@ export default function FactoryFloorScene({
         material.envMapIntensity = 0.9;
       };
       const contactMaterial = createContactShadow();
+      abortMaterials.push(() => [contactMaterial]);
       const contactGeometry = new THREE.PlaneGeometry(1, 1);
+      abortGeometries.push(() => [contactGeometry]);
       renderer.domElement.dataset.graphicsQuality = software
         ? "efficient-pbr"
         : "high-pbr";
@@ -603,17 +693,10 @@ export default function FactoryFloorScene({
           string,
           THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>
         >();
-      let updateConnections = (_updateShadow = true) => {};
-      // Software renderers can spend substantial time rebuilding the same
-      // shadow map as references arrive. Routes remain synchronous; only the
-      // shadow refresh is coalesced and the final reference always flushes it.
-      const referenceRefresh = new FactoryRefreshBatch(() => {
-        renderer.shadowMap.needsUpdate = true;
-        dirty = true;
-      });
-      let remainingReferences = 0;
+      let updateConnections = () => {};
       const labels = new Map<string, THREE.Sprite>();
       const retired: THREE.Object3D[] = [];
+      abortRoots.push(() => retired);
       const zoneLabels = new Map<
         number,
         { sprite: THREE.Sprite; count: number }
@@ -729,28 +812,6 @@ export default function FactoryFloorScene({
           !["raspberry-pi-5", "esp32-wrover-dht11"].includes(p.model) &&
           (p.model !== "raspberry-pi-4b" || p.item.equipmentId)
         ) {
-          remainingReferences++;
-          let finished = false;
-          const finishReference = (changed: boolean) => {
-            if (finished) return true;
-            finished = true;
-            remainingReferences--;
-            try {
-              if (changed) {
-                updateConnections(!software);
-                if (software) referenceRefresh.request();
-              }
-              return true;
-            } catch {
-              // The reference is already attached; report a viewer failure
-              // instead of misreporting the delivered model as unavailable.
-              if (!disposed) setFailed(true);
-              return false;
-            } finally {
-              if (software && remainingReferences === 0)
-                referenceRefresh.flush();
-            }
-          };
           void referenceModel(p.model)
             .then((model) => {
               if (disposed) return;
@@ -818,7 +879,14 @@ export default function FactoryFloorScene({
                     renderer.domElement.dataset.referenceMaterialCount = String(
                       viewerMaterials.size,
                     );
-                    if (!finishReference(true)) return;
+                    try {
+                      updateConnections();
+                    } catch {
+                      // The model is already attached. A failed scene update
+                      // needs the accessible fallback, not a missing-model claim.
+                      if (!disposed) failScene();
+                      return;
+                    }
                     setLoaded((n) => n + 1);
                     dirty = true;
                   },
@@ -828,7 +896,6 @@ export default function FactoryFloorScene({
             .catch(() => {
               // Keep the selectable proxy and tell the user the detail is unavailable.
               if (!disposed) {
-                finishReference(false);
                 renderer.domElement.dataset.floorReferenceFailures = String(
                   ++referenceFailures,
                 );
@@ -839,8 +906,7 @@ export default function FactoryFloorScene({
       }
       const connectionLayer = new FactoryConnectionLayer(software);
       scene.add(connectionLayer.root);
-      updateConnections = (updateShadow = true) => {
-        if (updateShadow) referenceRefresh.cancel();
+      updateConnections = () => {
         connectionLayer.update(links, objects, appearances.current, {
           width: layout.width,
           depth: layout.depth,
@@ -858,7 +924,7 @@ export default function FactoryFloorScene({
         renderer.domElement.dataset.connectionCount = String(
           connectionLayer.summary.length,
         );
-        if (updateShadow) renderer.shadowMap.needsUpdate = true;
+        renderer.shadowMap.needsUpdate = true;
         dirty = true;
       };
       updateConnections();
@@ -927,7 +993,6 @@ export default function FactoryFloorScene({
         dirty = true;
       };
       const setExploreMode = (enabled: boolean, ref?: string | null) => {
-        referenceRefresh.flush();
         if (
           explorePointer &&
           renderer.domElement.hasPointerCapture(explorePointer.id)
@@ -1105,6 +1170,7 @@ export default function FactoryFloorScene({
       runtime.current.theme(currentTheme.current);
       runtime.current.focus(selection.current);
       const observer = new ResizeObserver(size);
+      abortSteps.push(() => observer.disconnect());
       observer.observe(element);
       fit();
       const remembered = cameraMemory.current;
@@ -1184,7 +1250,7 @@ export default function FactoryFloorScene({
         controls.enablePan = controls.enableRotate = controls.enableZoom = true;
       };
       const cancel = (releaseCapture = true, updateRoutes = true) => {
-        dragEvents.current.onItemDrag?.(null);
+        if (dragging) dragEvents.current.onItemDrag?.(null);
         pauseRotation();
         start = undefined;
         if (dragging) {
@@ -1629,44 +1695,12 @@ export default function FactoryFloorScene({
       document.addEventListener("visibilitychange", visibility);
       const lost = (event: Event) => {
         event.preventDefault();
+        if (generation !== sceneGeneration.current) return;
         cancelAnimationFrame(frame);
-        setFailed(true);
-        cleanup?.();
+        failScene();
       };
       renderer.domElement.addEventListener("webglcontextlost", lost);
-      const tick = () => {
-        if (disposed) return;
-        frame = requestAnimationFrame(tick);
-        if (document.hidden || !scenePrepared) return;
-        if (!exploringRef.current) controls.update();
-        if (dirty) {
-          renderer.render(scene, exploringRef.current ? exploreCamera : camera);
-          dirty = false;
-          setReady(true);
-        }
-      };
-      frame = requestAnimationFrame(tick);
-      return () => {
-        if (disposed) return;
-        cameraMemory.current = {
-          width: layout.width,
-          depth: layout.depth,
-          zone,
-          reset,
-          position: camera.position.clone(),
-          target: controls.target.clone(),
-          zoom: camera.zoom,
-        };
-        disposed = true;
-        referenceRefresh.dispose();
-        preparation.dispose();
-        // The viewer is being removed, so rebuilding routes is unnecessary
-        // and must not interrupt resource cleanup if a driver has failed.
-        cancel(true, false);
-        cancelAnimationFrame(frame);
-        observer.disconnect();
-        controls.dispose();
-        runtime.current = null;
+      const detachListeners = () => {
         renderer.domElement.removeEventListener("dblclick", focusEquipment);
         renderer.domElement.removeEventListener("pointercancel", pointerCancel);
         renderer.domElement.removeEventListener(
@@ -1684,6 +1718,62 @@ export default function FactoryFloorScene({
         renderer.domElement.removeEventListener("pointerdown", down, true);
         renderer.domElement.removeEventListener("pointerup", up, true);
         renderer.domElement.removeEventListener("webglcontextlost", lost);
+      };
+      abortSteps.push(detachListeners);
+      const tick = () => {
+        if (disposed) return;
+        try {
+          frame = requestAnimationFrame(tick);
+          if (document.hidden || !scenePrepared) return;
+          if (!exploringRef.current) controls.update();
+          if (dirty) {
+            renderer.render(
+              scene,
+              exploringRef.current ? exploreCamera : camera,
+            );
+            dirty = false;
+            if (!firstFramePresented) {
+              firstFramePresented = true;
+              setReady(true);
+              // Give the submitted 3D frame a presentation opportunity before
+              // replacing the immediately available floor plan.
+              presentationFrame = requestAnimationFrame(() => {
+                if (
+                  !disposed &&
+                  !generationFailed &&
+                  generation === sceneGeneration.current
+                )
+                  presentationState.current?.("ready");
+              });
+            }
+          }
+        } catch {
+          failScene();
+        }
+      };
+      frame = requestAnimationFrame(tick);
+      return () => {
+        if (disposed) return;
+        cameraMemory.current = {
+          width: layout.width,
+          depth: layout.depth,
+          zone,
+          reset,
+          position: camera.position.clone(),
+          target: controls.target.clone(),
+          zoom: camera.zoom,
+        };
+        disposed = true;
+        preparation.dispose();
+        // The viewer is being removed, so rebuilding routes is unnecessary
+        // and must not interrupt resource cleanup if a driver has failed.
+        cancel(true, false);
+        cancelAnimationFrame(frame);
+        cancelAnimationFrame(presentationFrame);
+        observer.disconnect();
+        controls.dispose();
+        runtime.current = null;
+        detachListeners();
         // Stop this viewer immediately, then release its owned GPU resources in
         // yielding batches so a new route (or another viewer) can paint first.
         renderer.domElement.remove();
@@ -1891,7 +1981,7 @@ export default function FactoryFloorScene({
           </button>
         </div>
       )}
-      {failed && (
+      {failed && !managedFallback && (
         <>
           <FloorPlan
             layout={layout}

@@ -2,49 +2,12 @@ import * as THREE from "three";
 
 type PreparedObject = { object: THREE.Object3D; activate: () => void };
 
-/** Coalesce model-triggered refreshes while guaranteeing a final update. */
-export class FactoryRefreshBatch {
-  private timer: ReturnType<typeof setTimeout> | undefined;
-  private stopped = false;
-
-  constructor(
-    private refresh: () => void,
-    private delay = 150,
-  ) {}
-
-  request() {
-    if (this.stopped || this.timer !== undefined) return;
-    this.timer = setTimeout(() => {
-      this.timer = undefined;
-      if (!this.stopped) this.refresh();
-    }, this.delay);
-  }
-
-  cancel() {
-    if (this.timer !== undefined) clearTimeout(this.timer);
-    this.timer = undefined;
-  }
-
-  flush() {
-    if (this.stopped || this.timer === undefined) return;
-    this.cancel();
-    this.refresh();
-  }
-
-  dispose() {
-    this.stopped = true;
-    this.cancel();
-  }
-}
-
 /** Keep cold shader work and reference uploads out of one first-use frame. */
 export class FactoryScenePreparation {
   private stopped = false;
   private tail: Promise<unknown> = Promise.resolve();
   private waits = new Set<() => void>();
   private compiledReferences = new Set<string>();
-  private previousActivationPresented = false;
-  private pending = 0;
 
   constructor(
     private renderer: Pick<THREE.WebGLRenderer, "compileAsync">,
@@ -79,15 +42,8 @@ export class FactoryScenePreparation {
     build: () => PreparedObject,
     referenceKey?: string,
   ): Promise<boolean> {
-    const queuedWhileBusy = this.pending > 0;
-    this.pending++;
     const task = this.tail.then(async () => {
-      // The previous activation already yielded a frame before settling. Use
-      // that same turn for queued work instead of waiting a second frame. A
-      // new burst after an idle period still gets its own initial yield.
-      const reuseTurn = queuedWhileBusy && this.previousActivationPresented;
-      this.previousActivationPresented = false;
-      if (!reuseTurn) await this.presentationTurn();
+      await this.presentationTurn();
       if (this.stopped) return false;
       await this.environment;
       if (this.stopped) return false;
@@ -110,18 +66,10 @@ export class FactoryScenePreparation {
       // Allow input and the submitted draw to progress before building the
       // next reference, including when its shader programs are already ready.
       await this.presentationTurn();
-      if (!this.stopped) this.previousActivationPresented = true;
       return !this.stopped;
     });
     // One failed reference retains its proxy without starving later models.
-    this.tail = task.then(
-      () => {
-        this.pending--;
-      },
-      () => {
-        this.pending--;
-      },
-    );
+    this.tail = task.catch(() => {});
     return task;
   }
 
