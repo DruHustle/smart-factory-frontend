@@ -1585,6 +1585,7 @@ export const appRouter = router({
             status: z.enum(["active", "acknowledged", "resolved"]).optional(),
             openOnly: z.boolean().optional(),
             severity: alertSeverityEnum.optional(),
+            order: z.literal("severity").optional(),
             limit: z.number().int().min(1).max(1000).optional(),
             startTime: z.number().int().positive().optional(),
             endTime: z.number().int().positive().optional(),

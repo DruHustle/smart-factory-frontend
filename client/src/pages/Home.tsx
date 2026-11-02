@@ -13,7 +13,6 @@ import {
   CircleHelp,
   Bell,
   Clock3,
-  Gauge,
   ChevronRight,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -30,7 +29,6 @@ import {
 } from "@/components/workspace/Primitives";
 import { FactoryFloor } from "@/components/workspace/FactoryFloor";
 import { ObservationTrend } from "@/components/workspace/ObservationTrend";
-import { SourceStates } from "@/components/workspace/OverviewGraphics";
 import { OverviewInfrastructure } from "@/components/workspace/OverviewInfrastructure";
 import { SystemItemTypes } from "@/components/workspace/SystemInventoryOverview";
 import { metrics, type Metric } from "@shared/measurements";
@@ -68,7 +66,7 @@ function LegacyHome() {
     enabled: !!user,
   });
   const incidents = trpc.alerts.list.useQuery(
-    { openOnly: true, limit: 2 },
+    { openOnly: true, limit: 2, order: "severity" },
     options,
   );
   const network = trpc.networkDiagnostics.overview.useQuery(
@@ -244,8 +242,8 @@ function LegacyHome() {
           </Link>
         ))}
       </div>
-      <div className="overview-main-grid grid min-w-0 items-stretch gap-3">
-        <div className="min-w-0">
+      <div className="overview-main-grid grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.35fr)]">
+        <div className="order-2 min-w-0 xl:order-1">
           {floor.isLoading ? (
             <div className="flex h-[28rem] items-center justify-center rounded-lg border bg-card">
               <EmptyState title="Loading the complete factory floor…" />
@@ -284,7 +282,7 @@ function LegacyHome() {
         </div>
         <aside
           aria-label="Factory status"
-          className="overview-status grid min-w-0 gap-3 md:grid-cols-2"
+          className="overview-status order-1 min-w-0 xl:order-2"
         >
           <Card className="overview-panel min-w-0">
             <CardHeader>
@@ -323,6 +321,9 @@ function LegacyHome() {
                           <strong className="line-clamp-2 block text-xs font-semibold">
                             {incident.message}
                           </strong>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {incident.deviceName ?? "Equipment unavailable"}
+                          </span>
                           <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
                             <span className="capitalize">
                               {incident.severity}
@@ -332,6 +333,13 @@ function LegacyHome() {
                               value={incident.createdAt.toISOString()}
                               historical
                             />
+                          </span>
+                          <span className="mt-1 block text-[10px] text-muted-foreground">
+                            {incident.assignedToName ??
+                              (incident.assignedToId
+                                ? "Owner unavailable"
+                                : "Unassigned")}{" "}
+                            · Review {incident.status}
                           </span>
                         </span>
                         <ChevronRight
@@ -349,24 +357,6 @@ function LegacyHome() {
               >
                 View alerts <ArrowRight className="size-3" aria-hidden />
               </Link>
-            </CardContent>
-          </Card>
-          <Card className="overview-panel min-w-0">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gauge className="size-4 text-info" aria-hidden />
-                Connection health
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {stats && !overview.error ? (
-                <SourceStates stats={stats.devices} compact />
-              ) : (
-                <EmptyState title="Connection summary unavailable" />
-              )}
-              <p className="mt-2 text-[10px] text-muted-foreground">
-                {demo ? "Simulated" : "Reported states"}
-              </p>
             </CardContent>
           </Card>
         </aside>

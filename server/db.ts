@@ -2234,6 +2234,7 @@ export async function getAlerts(filters?: {
   severity?: Alert["severity"];
   limit?: number;
   openOnly?: boolean;
+  order?: "severity";
   startTime?: number;
   endTime?: number;
 }) {
@@ -2265,7 +2266,15 @@ export async function getAlerts(filters?: {
     const finalQuery =
       conditions.length > 0 ? query.where(and(...conditions)) : query;
     return finalQuery
-      .orderBy(desc(alerts.createdAt))
+      .orderBy(
+        ...(filters?.order === "severity"
+          ? [
+              sql`case ${alerts.severity} when 'critical' then 0 when 'warning' then 1 else 2 end`,
+            ]
+          : []),
+        desc(alerts.createdAt),
+        desc(alerts.id),
+      )
       .limit(filters?.limit || 100);
   });
 }

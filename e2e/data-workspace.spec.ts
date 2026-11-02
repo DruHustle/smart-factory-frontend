@@ -21,6 +21,7 @@ async function workspaceFixture(
     floor: "normal" | "empty" | "error";
     telemetry?: "unverified" | "verified";
     summary?: "populated" | "error";
+    attention?: boolean;
   } = { floor: "normal" },
 ) {
   let signedIn = true;
@@ -308,7 +309,20 @@ async function workspaceFixture(
           };
           break;
         case "alerts.list":
-          value = [];
+          value = control.attention
+            ? [
+                {
+                  id: 42,
+                  message: "Pressure below configured threshold",
+                  severity: "critical",
+                  createdAt: new Date("2026-10-31T12:00:00Z"),
+                  deviceName: "Compressor pressure sensor",
+                  assignedToName: "Operator",
+                  assignedToId: 12,
+                  status: "acknowledged",
+                },
+              ]
+            : [];
           break;
         case "factories.list":
           value = [];
@@ -1460,6 +1474,40 @@ test("Overview prioritizes connectivity, review, incidents and unread notificati
       ),
     )
     .toBe(true);
+});
+
+test("Overview requests severity priority and puts attention before the floor on mobile", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const requests = await workspaceFixture(page, false, {
+    floor: "normal",
+    summary: "populated",
+    attention: true,
+  });
+  await page.goto("/#/");
+  const attention = page.getByRole("link", {
+    name: /Pressure below configured threshold/,
+  });
+  await expect(attention).toContainText("Compressor pressure sensor");
+  await expect(attention).toContainText("critical");
+  await expect(attention).toContainText("Operator");
+  await expect(attention).toHaveAttribute("href", "#/alerts/42");
+  expect(
+    requests.some(
+      (r) =>
+        r.procedure === "alerts.list" &&
+        r.input.order === "severity" &&
+        r.input.openOnly,
+    ),
+  ).toBe(true);
+  const statusBox = await page.getByLabel("Factory status").boundingBox();
+  const floorBox = await page.getByTestId("factory-floor").boundingBox();
+  expect(statusBox && floorBox && statusBox.y < floorBox.y).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const wideStatus = await page.getByLabel("Factory status").boundingBox();
+  const wideFloor = await page.getByTestId("factory-floor").boundingBox();
+  expect(wideStatus && wideFloor && wideStatus.x > wideFloor.x).toBe(true);
 });
 
 test("Overview reports unavailable summaries instead of false zero counts", async ({
