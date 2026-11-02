@@ -1,0 +1,173 @@
+name: Diagnostic only - e79 sidebar and floor pacing
+
+# Never a deployment or a substitute for required exact-revision release gates.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/sidebar-pacing-diagnostic.yml'
+      - 'scripts/qualification/sidebar-pacing-prepare.py'
+      - 'scripts/qualification/sidebar-pacing-report.py'
+      - 'scripts/qualification/sidebar-ab-instrument.py'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Diagnostic only - e79 control and paced variant
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Check out diagnostic scripts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: diagnostic
+          persist-credentials: false
+      - name: Check out unmodified e79 control
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: e79bf737664862f82ea31bb634cca6de804159a0
+          path: control
+          persist-credentials: false
+      - name: Check out e79 for ephemeral paced variant
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: e79bf737664862f82ea31bb634cca6de804159a0
+          path: paced
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Confirm exact source and unchanged test limits
+        shell: bash
+        run: |
+          set -euo pipefail
+          for repo in control paced; do
+            test "$(git -C "$repo" rev-parse HEAD)" = e79bf737664862f82ea31bb634cca6de804159a0
+            test -z "$(git -C "$repo" status --porcelain --untracked-files=no)"
+            for config in playwright.navigation.config.ts playwright.experience.config.ts; do
+              grep -Fq 'timeout: 60000' "$repo/$config"
+              grep -Fq 'retries: 0' "$repo/$config"
+            done
+          done
+          cmp control/pnpm-lock.yaml paced/pnpm-lock.yaml
+          cmp control/e2e/navigation.spec.ts paced/e2e/navigation.spec.ts
+          cmp control/e2e/overview.spec.ts paced/e2e/overview.spec.ts
+          cmp control/scripts/public-demo/e2e.sh paced/scripts/public-demo/e2e.sh
+          cmp control/scripts/experience/e2e.sh paced/scripts/experience/e2e.sh
+      - name: Install control dependencies
+        working-directory: control
+        run: pnpm install --frozen-lockfile
+      - name: Install paced-variant dependencies
+        working-directory: paced
+        run: pnpm install --frozen-lockfile
+      - name: Install the pinned browser once
+        working-directory: control
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Prepare ephemeral timing and isolated fixture names
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cd control && pnpm exec playwright --version)" = "$(cd paced && pnpm exec playwright --version)"
+          for repo in control paced; do
+            python3 diagnostic/scripts/qualification/sidebar-ab-instrument.py "$repo"
+            python3 diagnostic/scripts/qualification/sidebar-pacing-prepare.py "$repo" "$repo"
+          done
+          cmp control/e2e/navigation.spec.ts paced/e2e/navigation.spec.ts
+          cmp control/e2e/overview.spec.ts paced/e2e/overview.spec.ts
+          cmp control/scripts/experience/e2e.sh paced/scripts/experience/e2e.sh
+          cmp control/playwright.navigation.config.ts paced/playwright.navigation.config.ts
+          cmp control/playwright.experience.config.ts paced/playwright.experience.config.ts
+          # The control changes only the two ephemeral test copies and the
+          # isolated Compose namespace; paced adds exactly one runtime file.
+          control_files=$'e2e/navigation.spec.ts\ne2e/overview.spec.ts\nscripts/experience/e2e.sh'
+          paced_files=$'client/src/components/workspace/factory-scene-preparation.ts\ne2e/navigation.spec.ts\ne2e/overview.spec.ts\nscripts/experience/e2e.sh'
+          test "$(git -C control diff --name-only)" = "$control_files"
+          test "$(git -C paced diff --name-only)" = "$paced_files"
+      - name: Run original sidebar and floor cases on the same runner
+        shell: bash
+        env:
+          DOTENV_CONFIG_PATH: /dev/null
+          NAV_GREP: 'shared demo Viewer: aligned desktop, collapsed and mobile navigation \(dark\)'
+          FLOOR_GREP: 'Overview graphics whole factory (390|1440)px light'
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]]
+          umask 077
+          private="$RUNNER_TEMP/sidebar-pacing-private"
+          out="$RUNNER_TEMP/sidebar-pacing-results"
+          mkdir -p "$private" "$out"
+          printf 'case\tkind\tvariant\texit\tcleanup\n' > "$private/status.tsv"
+          # ABBA within each suite reduces cache and ordering bias. All test
+          # bodies, 60-second case limits and 30-second readiness limit remain.
+          for item in nav-control-1 nav-paced-1 nav-paced-2 nav-control-2 \
+                      floor-control-1 floor-paced-1 floor-paced-2 floor-control-2; do
+            kind="${item%%-*}"
+            rest="${item#*-}"
+            variant="${rest%-*}"
+            project="sf-pace-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${item}"
+            events="$private/${item}-events.jsonl"
+            report="$private/${item}-report.json"
+            : > "$events"
+            set +e
+            if [ "$kind" = nav ]; then
+              (
+                cd "$GITHUB_WORKSPACE/$variant"
+                SIDEBAR_DIAGNOSTIC_FILE="$events" \
+                PLAYWRIGHT_JSON_OUTPUT_FILE="$report" \
+                PUBLIC_DEMO_COMPOSE_PROJECT="$project" \
+                PUBLIC_DEMO_E2E_PORT=3126 E2E_DATABASE_PORT=0 E2E_REDIS_PORT=0 \
+                pnpm e2e:public-demo --config=playwright.navigation.config.ts \
+                  --grep "$NAV_GREP" --reporter=json
+              ) > "$private/${item}.log" 2>&1
+              test_exit=$?
+            else
+              (
+                cd "$GITHUB_WORKSPACE/$variant"
+                FLOOR_PACING_DIAGNOSTIC_FILE="$events" \
+                PLAYWRIGHT_JSON_OUTPUT_FILE="$report" \
+                EXPERIENCE_DIAGNOSTIC_PROJECT="$project" \
+                EXPERIENCE_E2E_PORT=3123 E2E_DATABASE_PORT=55450 E2E_REDIS_PORT=56400 \
+                OVERVIEW_EVIDENCE_DIR="$private/${item}-visual" \
+                pnpm e2e:experience --grep "$FLOOR_GREP" --reporter=json
+              ) > "$private/${item}.log" 2>&1
+              test_exit=$?
+            fi
+            set -e
+            # Remove only the uniquely labelled disposable fixture resources.
+            cleanup=0
+            (
+              cd "$GITHUB_WORKSPACE/$variant"
+              E2E_DATABASE_PORT=0 E2E_REDIS_PORT=0 \
+                docker compose --env-file /dev/null -p "$project" \
+                -f docker-compose.e2e.yml down --volumes --remove-orphans
+            ) > "$private/${item}-cleanup.log" 2>&1 || cleanup=1
+            for type in container network volume; do
+              if [ "$type" = container ]; then
+                remaining="$(docker container ls -aq --filter "label=com.docker.compose.project=$project")" || cleanup=1
+              else
+                remaining="$(docker "$type" ls -q --filter "label=com.docker.compose.project=$project")" || cleanup=1
+              fi
+              test -z "$remaining" || cleanup=1
+            done
+            test -s "$events" && test -s "$report" || test_exit=125
+            printf '%s\t%s\t%s\t%s\t%s\n' "$item" "$kind" "$variant" "$test_exit" "$cleanup" >> "$private/status.tsv"
+          done
+          # The reporter emits only allowlisted categories and numeric values;
+          # raw test output, reporter JSON, screenshots and video stay private.
+          python3 diagnostic/scripts/qualification/sidebar-pacing-report.py \
+            "$private/status.tsv" "$private" "$out/summary.json"
+      - name: Retain numeric and category summary only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sidebar-pacing-diagnostic-numeric
+          path: ${{ runner.temp }}/sidebar-pacing-results/summary.json
+          if-no-files-found: warn
+          retention-days: 7
