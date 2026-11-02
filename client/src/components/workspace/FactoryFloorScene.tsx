@@ -20,6 +20,7 @@ import {
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
 import {
   FactoryScenePreparation,
+  FactoryRefreshBatch,
   createFactorySprite,
   disposeFactoryScene,
   deferFactorySceneDisposal,
@@ -602,7 +603,15 @@ export default function FactoryFloorScene({
           string,
           THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>
         >();
-      let updateConnections = () => {};
+      let updateConnections = (_updateShadow = true) => {};
+      // Software renderers can spend substantial time rebuilding the same
+      // shadow map as references arrive. Routes remain synchronous; only the
+      // shadow refresh is coalesced and the final reference always flushes it.
+      const referenceRefresh = new FactoryRefreshBatch(() => {
+        renderer.shadowMap.needsUpdate = true;
+        dirty = true;
+      });
+      let remainingReferences = 0;
       const labels = new Map<string, THREE.Sprite>();
       const retired: THREE.Object3D[] = [];
       const zoneLabels = new Map<
@@ -719,7 +728,29 @@ export default function FactoryFloorScene({
           p.model &&
           !["raspberry-pi-5", "esp32-wrover-dht11"].includes(p.model) &&
           (p.model !== "raspberry-pi-4b" || p.item.equipmentId)
-        )
+        ) {
+          remainingReferences++;
+          let finished = false;
+          const finishReference = (changed: boolean) => {
+            if (finished) return true;
+            finished = true;
+            remainingReferences--;
+            try {
+              if (changed) {
+                updateConnections(!software);
+                if (software) referenceRefresh.request();
+              }
+              return true;
+            } catch {
+              // The reference is already attached; report a viewer failure
+              // instead of misreporting the delivered model as unavailable.
+              if (!disposed) setFailed(true);
+              return false;
+            } finally {
+              if (software && remainingReferences === 0)
+                referenceRefresh.flush();
+            }
+          };
           void referenceModel(p.model)
             .then((model) => {
               if (disposed) return;
@@ -778,18 +809,17 @@ export default function FactoryFloorScene({
                     retired.push(body);
                     group.add(normalized);
                     pendingReferences.delete(normalized);
-                    setLoaded((n) => n + 1);
                     const nvidia = floorNvidiaAsset(p.model!);
                     if (nvidia) {
                       renderedNvidia.add(nvidia);
                       renderer.domElement.dataset.floorNvidiaModels =
                         JSON.stringify([...renderedNvidia].sort());
                     }
-                    renderer.shadowMap.needsUpdate = true;
                     renderer.domElement.dataset.referenceMaterialCount = String(
                       viewerMaterials.size,
                     );
-                    updateConnections();
+                    if (!finishReference(true)) return;
+                    setLoaded((n) => n + 1);
                     dirty = true;
                   },
                 };
@@ -798,16 +828,19 @@ export default function FactoryFloorScene({
             .catch(() => {
               // Keep the selectable proxy and tell the user the detail is unavailable.
               if (!disposed) {
+                finishReference(false);
                 renderer.domElement.dataset.floorReferenceFailures = String(
                   ++referenceFailures,
                 );
                 setUnavailable((count) => count + 1);
               }
             });
+        }
       }
       const connectionLayer = new FactoryConnectionLayer(software);
       scene.add(connectionLayer.root);
-      updateConnections = () => {
+      updateConnections = (updateShadow = true) => {
+        if (updateShadow) referenceRefresh.cancel();
         connectionLayer.update(links, objects, appearances.current, {
           width: layout.width,
           depth: layout.depth,
@@ -825,7 +858,7 @@ export default function FactoryFloorScene({
         renderer.domElement.dataset.connectionCount = String(
           connectionLayer.summary.length,
         );
-        renderer.shadowMap.needsUpdate = true;
+        if (updateShadow) renderer.shadowMap.needsUpdate = true;
         dirty = true;
       };
       updateConnections();
@@ -894,6 +927,7 @@ export default function FactoryFloorScene({
         dirty = true;
       };
       const setExploreMode = (enabled: boolean, ref?: string | null) => {
+        referenceRefresh.flush();
         if (
           explorePointer &&
           renderer.domElement.hasPointerCapture(explorePointer.id)
@@ -1149,7 +1183,7 @@ export default function FactoryFloorScene({
       const unlockView = () => {
         controls.enablePan = controls.enableRotate = controls.enableZoom = true;
       };
-      const cancel = (releaseCapture = true) => {
+      const cancel = (releaseCapture = true, updateRoutes = true) => {
         dragEvents.current.onItemDrag?.(null);
         pauseRotation();
         start = undefined;
@@ -1157,7 +1191,7 @@ export default function FactoryFloorScene({
           const ended = dragging;
           dragging = undefined;
           objects.get(ended.ref)?.position.copy(ended.original);
-          updateConnections();
+          if (updateRoutes) updateConnections();
           if (
             releaseCapture &&
             renderer.domElement.hasPointerCapture(ended.pointerId)
@@ -1624,8 +1658,11 @@ export default function FactoryFloorScene({
           zoom: camera.zoom,
         };
         disposed = true;
+        referenceRefresh.dispose();
         preparation.dispose();
-        cancel();
+        // The viewer is being removed, so rebuilding routes is unnecessary
+        // and must not interrupt resource cleanup if a driver has failed.
+        cancel(true, false);
         cancelAnimationFrame(frame);
         observer.disconnect();
         controls.dispose();

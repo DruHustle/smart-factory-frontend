@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import {
   FactoryScenePreparation,
+  FactoryRefreshBatch,
   createFactorySprite,
   deferFactorySceneDisposal,
   releaseFactorySceneRenderer,
@@ -31,6 +32,32 @@ describe("factory scene graphics preparation", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("coalesces refreshes, flushes the final state, and cancels on disposal", async () => {
+    const refresh = vi.fn();
+    const batch = new FactoryRefreshBatch(refresh, 150);
+    batch.request();
+    batch.request();
+    await vi.advanceTimersByTimeAsync(149);
+    expect(refresh).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    batch.request();
+    batch.flush();
+    expect(refresh).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(150);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    batch.request();
+    batch.cancel();
+    await vi.advanceTimersByTimeAsync(150);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    batch.request();
+    batch.dispose();
+    batch.request();
+    batch.flush();
+    await vi.advanceTimersByTimeAsync(150);
+    expect(refresh).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the proxy until the configured environment and target-scene shaders are ready", async () => {

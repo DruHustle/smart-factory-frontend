@@ -2,6 +2,41 @@ import * as THREE from "three";
 
 type PreparedObject = { object: THREE.Object3D; activate: () => void };
 
+/** Coalesce model-triggered refreshes while guaranteeing a final update. */
+export class FactoryRefreshBatch {
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private stopped = false;
+
+  constructor(
+    private refresh: () => void,
+    private delay = 150,
+  ) {}
+
+  request() {
+    if (this.stopped || this.timer !== undefined) return;
+    this.timer = setTimeout(() => {
+      this.timer = undefined;
+      if (!this.stopped) this.refresh();
+    }, this.delay);
+  }
+
+  cancel() {
+    if (this.timer !== undefined) clearTimeout(this.timer);
+    this.timer = undefined;
+  }
+
+  flush() {
+    if (this.stopped || this.timer === undefined) return;
+    this.cancel();
+    this.refresh();
+  }
+
+  dispose() {
+    this.stopped = true;
+    this.cancel();
+  }
+}
+
 /** Keep cold shader work and reference uploads out of one first-use frame. */
 export class FactoryScenePreparation {
   private stopped = false;

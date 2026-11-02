@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "../../client/src/index.css";
 import FactoryFloorScene from "../../client/src/components/workspace/FactoryFloorScene";
+import { FactoryConnectionLayer } from "../../client/src/components/workspace/factory-connections";
 import { layoutFactory } from "../../shared/factory-floor";
 import type { InventoryItem } from "../../shared/inventory";
 
@@ -14,12 +15,14 @@ function Floor({
   itemType,
   count,
   movable,
+  second,
 }: {
   id: string;
   name: string;
   itemType: string;
   count: number;
   movable: boolean;
+  second?: { name: string; type: string };
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [dark, setDark] = useState(false);
@@ -58,6 +61,9 @@ function Floor({
     ref: `asset:${index + 1}`,
     id: String(index + 1),
     identifier: `synthetic-${index + 1}`,
+    ...(index === 1 && second
+      ? { name: second.name, itemType: second.type }
+      : {}),
   }));
   const layout = layoutFactory(items);
   // Put synthetic items around the camera target for direct picking.
@@ -99,15 +105,17 @@ declare global {
         itemType: string,
         count?: number,
         movable?: boolean,
+        second?: { name: string; type: string },
       ) => void;
       unmount: (id: string) => void;
       setTheme: (id: string, dark: boolean) => void;
       themeReady: (id: string) => boolean;
+      failConnections: () => void;
     };
   }
 }
 window.floorNvidiaHarness = {
-  mount(id, name, itemType, count = 1, movable = false) {
+  mount(id, name, itemType, count = 1, movable = false, second) {
     if (roots.has(id)) throw new Error("Fixture already mounted");
     const host = document.createElement("section");
     host.id = id;
@@ -121,6 +129,7 @@ window.floorNvidiaHarness = {
         itemType={itemType}
         count={count}
         movable={movable}
+        second={second}
       />,
     );
   },
@@ -131,6 +140,11 @@ window.floorNvidiaHarness = {
   },
   themeReady(id) {
     return themes.has(id);
+  },
+  failConnections() {
+    FactoryConnectionLayer.prototype.update = () => {
+      throw new Error("Synthetic connection update failure");
+    };
   },
   unmount(id) {
     const root = roots.get(id);

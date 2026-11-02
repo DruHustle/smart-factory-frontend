@@ -147,6 +147,78 @@ test("failed model delivery retains a selectable proxy and reports the simplifie
   await pickItem(page, canvas, host);
 });
 
+test("connection failure during a grab releases the viewer and shows the floor plan", async ({
+  page,
+}) => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = false;
+  await page.route(
+    "**/models/nvidia/nvidia-storage-rack/compact.*.glb",
+    async (route) => {
+      requested = true;
+      await held;
+      await route.continue();
+    },
+  );
+  await fixture(page);
+  await page.evaluate(
+    ({ first, second }) =>
+      window.floorNvidiaHarness.mount(
+        "floor",
+        first.name,
+        first.type,
+        2,
+        true,
+        second,
+      ),
+    { first: assets[0], second: assets[1] },
+  );
+  const host = page.locator("#floor");
+  const canvas = host.getByRole("img", {
+    name: "Interactive 3D factory floor",
+  });
+  await expect(host.getByRole("status")).toContainText(
+    "1 detailed models ready",
+    { timeout: 30000 },
+  );
+  await expect.poll(() => requested).toBe(true);
+  const point = await itemPoint(page, canvas);
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + 20, point.y + 12);
+  await expect(host.getByTestId("dragged")).toHaveText("asset:1");
+  await canvas.evaluate((node) => {
+    (
+      window as typeof window & { testContext: WebGL2RenderingContext | null }
+    ).testContext = (node as HTMLCanvasElement).getContext("webgl2");
+  });
+  await page.evaluate(() => window.floorNvidiaHarness.failConnections());
+  release();
+  await expect(host.getByRole("status")).toContainText(
+    "3D unavailable on this device",
+    { timeout: 30000 },
+  );
+  await expect(
+    host
+      .getByRole("img", { name: "Accessible factory floor plan" })
+      .getByRole("button"),
+  ).toHaveCount(2);
+  await expect(host.getByTestId("dragged")).toHaveText("none");
+  await page.waitForFunction(
+    () =>
+      (
+        window as typeof window & { testContext: WebGL2RenderingContext | null }
+      ).testContext?.isContextLost(),
+    null,
+    { timeout: 30000 },
+  );
+  await page.mouse.up();
+  await expect(host.getByTestId("moves")).toHaveText("0");
+});
+
 test("two instances of one NVIDIA model render and remain independently selectable", async ({
   page,
 }, testInfo) => {
