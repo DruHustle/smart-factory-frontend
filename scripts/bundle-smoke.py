@@ -374,6 +374,9 @@ try:
     print('PASS: IdentityService rejects the actual anonymous request and its own durable outbox reaches the native security workspace.')
     device=trpc(engineer,'devices.create',{'deviceId':'bundle-gateway','name':'Bundle gateway','type':'gateway'})
     alert=int(sql(f'''INSERT INTO alerts ("deviceId",type,severity,message,"errorCode") VALUES ({device['id']},'system_error','critical','Bundle incident','SF-TEST') RETURNING id'''))
+    incident_action=trpc(engineer,'alerts.createAction',{'id':alert,'title':'Inspect the bundle sensor','ownerId':engineer_id,'dueDate':'2026-12-10'})['id']
+    assert trpc(viewer,'alerts.actions',{'id':alert},query=True)['items'][0]['id']==incident_action
+    assert any(item['id']==incident_action for item in trpc(viewer,'alerts.actionQueue',{'page':0,'pageSize':25},query=True)['items'])
     trpc(engineer,'alerts.assign',{'id':alert,'assignedToId':engineer_id})
     items=trpc(engineer,'notifications.list',query=True)
     assert len([item for item in items if item['alertId']==alert]) == 2
@@ -515,11 +518,12 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             expected_sources=rollback_sources if position==0 else {'frontend':candidate_runtime['source'],'backend':candidate_runtime['backendSource'],'edge':candidate_runtime['edgeSource']}
             assert transition_runtime['source']==expected_sources['frontend']
             assert transition_runtime['backendSource']==expected_sources['backend'] and transition_runtime['edgeSource']==expected_sources['edge']
-            assert transition_runtime['schema']['ready'] is True and transition_runtime['schema']['digest']==candidate_runtime['schema']['digest']
+            assert transition_runtime['schema']['ready'] is True
+            if position==1: assert transition_runtime['schema']['digest']==candidate_runtime['schema']['digest']
             assert transition_runtime['worker']['fresh'] is True and transition_runtime['worker']['compatible'] is True
             # Additive UI features are hidden on the qualified fallback API.
             # Every core workspace capability must remain available.
-            required_capabilities = set(candidate_runtime['capabilities']) - {'assistant-provider-selection-v1', 'ot-incident-review-v1'}
+            required_capabilities = set(candidate_runtime['capabilities']) - {'assistant-provider-selection-v1', 'ot-incident-review-v1', 'ot-follow-up-actions-v1'}
             assert required_capabilities.issubset(transition_runtime['capabilities'])
             if position==0: fallback_runtime=transition_runtime
             verify_authored_workspaces(authored_workspaces,viewer)
@@ -529,6 +533,7 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             assert trpc(viewer,'auth.me',query=True)['id']==viewer_id
             assert http(engineer,'/api/trpc/assets.list')[0]==401
             assert sql('SELECT count(*) FROM sensor_readings WHERE "assetId" IS NULL')=='2'
+            assert sql(f"SELECT count(*) FROM incident_actions WHERE id={incident_action} AND alert_id={alert} AND status='open'")=='1'
             publish_industrial_rollback(industrial_fixture)
             verify_industrial_rollback(industrial_fixture,viewer)
         if named_factory:
@@ -536,10 +541,12 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             assert any(row['action']=='inventory.deleted' for row in trpc(viewer,'factories.activity.list',{'factoryId':named_factory},query=True)['items'])
         runtime=http(plain,'/api/runtime/contract')[1]
         assert verify_packaged_references(viewer,plain)==reference_evidence, 'Restored candidate lost native authored assets.'
+        assert trpc(viewer,'alerts.actions',{'id':alert},query=True)['items'][0]['id']==incident_action
+        assert any(item['id']==incident_action for item in trpc(viewer,'alerts.actionQueue',{'page':0,'pageSize':25},query=True)['items'])
         assert fallback_runtime is not None and len(industrial_fixture['reports'])==3
         rollback_evidence={'qualifiedPriorImage':rollback_image,'restoredCandidateImage':current_image,'revokedAccountStayedRejected':True,'activeViewerPreserved':True,'telemetryIdentitiesPreserved':True,'schemaCompatible':True,
             'runtime':fallback_runtime,'industrialObservationsPreserved':True,'industrialObservationCount':3,'industrialFallbackIngestionVerified':True,
-            'authoredInstalledModelsPreserved':True,'authoredInstalledModelCount':len(authored_workspaces),'fallbackStatelessReferencesVerified':True,'unknownStatelessReferencesRejected':True}
+            'authoredInstalledModelsPreserved':True,'authoredInstalledModelCount':len(authored_workspaces),'fallbackStatelessReferencesVerified':True,'unknownStatelessReferencesRejected':True,'incidentActionsPreserved':True}
         print('PASS: rollback and roll-forward preserve sessions, revocation, schema and all three industrial observations; the fallback also ingests new MQTT observations without dropping quality or exact 64-bit values.')
     # The explicit public-demo installer must not change private inventory or queue email.
     sql("INSERT INTO users(\"openId\",email,name,role) VALUES('demo-bundle-owner','admin@dev.local','Synthetic demo owner','admin')")

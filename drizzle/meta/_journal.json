@@ -253,6 +253,13 @@
       "when": 1793053000007,
       "tag": "0035_industrial_connectivity",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793053000008,
+      "tag": "0036_incident_actions",
+      "breakpoints": true
     }
   ]
 }

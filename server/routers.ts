@@ -10,6 +10,12 @@ import {
   emptyNotificationPage,
 } from "./notifications";
 import { incidentHistory, addIncidentNote } from "./incidents";
+import {
+  incidentActions,
+  incidentActionQueue,
+  createIncidentAction,
+  updateIncidentAction,
+} from "./incidentActions";
 import { canonicalUnits } from "../shared/measurements";
 import { observationTrend } from "./trends";
 import { deviceReadingSummary } from "./reporting";
@@ -119,6 +125,36 @@ const deviceTypeEnum = z.enum([
 ]);
 const deviceStatusEnum = z.enum(["online", "offline", "maintenance", "error"]);
 const alertSeverityEnum = z.enum(["info", "warning", "critical"]);
+const actionDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00Z`);
+    return (
+      Number.isFinite(date.getTime()) &&
+      Number(value.slice(0, 4)) >= 1 &&
+      date.toISOString().slice(0, 10) === value
+    );
+  }, "Enter a valid date")
+  .nullable();
+const actionText = z
+  .string()
+  .trim()
+  .min(1)
+  .max(240)
+  .refine(
+    (value) => !/[\u0000-\u001f\u007f]/.test(value),
+    "Remove control characters",
+  );
+const actionOutcome = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine(
+    (value) => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value),
+    "Remove control characters",
+  )
+  .nullable();
 const otaUnavailableMessage =
   "OTA delivery is disabled: no verified firmware release service and device update agent are connected. No update request was queued.";
 const metricEnum = z.enum([
@@ -1534,6 +1570,50 @@ export const appRouter = router({
   }),
 
   alerts: router({
+    actionQueue: viewerProcedure
+      .input(
+        z.object({
+          page: z.number().int().min(0).max(100000).default(0),
+          pageSize: z.number().int().min(1).max(50).default(25),
+        }),
+      )
+      .query(({ input }) => incidentActionQueue(input.page, input.pageSize)),
+    actions: viewerProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          after: z.number().int().nonnegative().default(0),
+        }),
+      )
+      .query(({ input }) => incidentActions(input.id, input.after)),
+    createAction: engineerProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          title: actionText,
+          ownerId: z.number().int().positive(),
+          dueDate: actionDate,
+        }),
+      )
+      .mutation(({ input, ctx }) => createIncidentAction(input, ctx.user.id)),
+    updateAction: engineerProcedure
+      .input(
+        z
+          .object({
+            id: z.number().int().positive(),
+            actionId: z.number().int().positive(),
+            expectedVersion: z.number().int().positive(),
+            ownerId: z.number().int().positive(),
+            dueDate: actionDate,
+            status: z.enum(["open", "in_progress", "completed"]),
+            outcome: actionOutcome,
+          })
+          .refine((input) => input.status !== "completed" || !!input.outcome, {
+            message: "Record the observed outcome before completing an action",
+            path: ["outcome"],
+          }),
+      )
+      .mutation(({ input, ctx }) => updateIncidentAction(input, ctx.user.id)),
     history: viewerProcedure
       .input(
         z.object({

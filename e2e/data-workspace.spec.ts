@@ -25,6 +25,7 @@ async function workspaceFixture(
     attention?: boolean;
     olderApi?: boolean;
     viewer?: boolean;
+    actions?: boolean;
   } = { floor: "normal" },
 ) {
   let signedIn = true;
@@ -336,6 +337,25 @@ async function workspaceFixture(
                 },
               ]
             : [];
+          break;
+        case "alerts.actionQueue":
+          value = {
+            items: control.actions
+              ? [
+                  {
+                    id: 3,
+                    incidentId: 42,
+                    title: "Inspect compressor",
+                    ownerId: 12,
+                    ownerName: "Operator",
+                    dueDate: "2026-12-10",
+                    status: "open",
+                    deviceName: "Compressor pressure sensor",
+                  },
+                ]
+              : [],
+            hasMore: false,
+          };
           break;
         case "factories.list":
           value = [];
@@ -1510,7 +1530,7 @@ test("Overview requests severity priority and puts attention before the floor on
   await expect(attention).toContainText("Compressor pressure sensor");
   await expect(attention).toContainText("critical");
   await expect(attention).toContainText("Operator");
-  await expect(attention).toHaveAttribute("href", "#/alerts/42");
+  await expect(attention).toHaveAttribute("href", "#/alerts/42?return=%2F");
   expect(
     requests.some(
       (r) =>
@@ -1582,4 +1602,16 @@ test("An offline source does not declare the asset stopped or unhealthy", async 
   await expect(
     details.locator("dt", { hasText: "Asset condition" }).locator("+ dd"),
   ).toHaveText("Unknown");
+});
+
+test("Overview links outstanding actions to their incident", async ({
+  page,
+}) => {
+  await workspaceFixture(page, false, { floor: "normal", actions: true });
+  await page.goto("/#/");
+  await page.getByText("Follow-up · 1", { exact: true }).click();
+  const action = page.getByRole("link", { name: /Inspect compressor/ });
+  await expect(action).toContainText("Operator");
+  await expect(action).toContainText("2026-12-10");
+  await expect(action).toHaveAttribute("href", "#/alerts/42?return=%2F");
 });

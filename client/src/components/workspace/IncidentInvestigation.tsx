@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRuntimeCapability } from "@/components/RuntimeBoundary";
+import { IncidentActions } from "./IncidentActions";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -34,6 +35,7 @@ export function IncidentInvestigation({
   const categorizedNotesSupported = useRuntimeCapability(
     "ot-incident-review-v1",
   );
+  const actionsSupported = useRuntimeCapability("ot-follow-up-actions-v1");
   const { user } = useAuth(),
     active = useDocumentActive(),
     utils = trpc.useUtils(),
@@ -313,12 +315,26 @@ export function IncidentInvestigation({
               >
                 <p className="font-medium capitalize">
                   {a.kind === "note"
-                    ? incidentNoteLabel(a.detail.category)
+                    ? a.detail.action
+                      ? "Action"
+                      : incidentNoteLabel(a.detail.category)
                     : a.kind.replaceAll("_", " ")}
                 </p>
                 {a.detail.text && (
                   <p className="mt-1 whitespace-pre-wrap break-words">
                     {a.detail.text}
+                  </p>
+                )}
+                {a.detail.action && (
+                  <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted-foreground">
+                    {a.detail.action.status.replaceAll("_", " ")} · Account{" "}
+                    {a.detail.action.ownerId}
+                    {a.detail.action.dueDate
+                      ? ` · Due ${a.detail.action.dueDate}`
+                      : ""}
+                    {a.detail.action.outcome
+                      ? ` · ${a.detail.action.outcome}`
+                      : ""}
                   </p>
                 )}
                 {a.kind === "assigned" && (
@@ -432,6 +448,15 @@ export function IncidentInvestigation({
           )}
           {e.resolvedAt && (
             <p className="text-xs">Resolved {e.resolvedAt.toLocaleString()}</p>
+          )}
+          {actionsSupported && (
+            <IncidentActions
+              id={id}
+              canManage={canManage}
+              assignees={assignees.data ?? []}
+              assigneesUnavailable={!!assignees.error}
+              retryAssignees={() => void assignees.refetch()}
+            />
           )}
           {canRespond ? (
             <form

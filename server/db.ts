@@ -2208,7 +2208,7 @@ export async function acknowledgeAlert(id: number, actorId: number) {
 }
 
 /** Keep incident views aligned with the device and asset inventories shown in the UI. */
-function visibleAlertEntitiesCondition() {
+export function visibleAlertEntitiesCondition() {
   const liveDevice = and(
     eq(devices.id, alerts.deviceId),
     visibleRecordSql(devices.isDemo),

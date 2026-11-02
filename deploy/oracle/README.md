@@ -64,7 +64,7 @@ Vercel UI artifact. This fallback identifies the release observed in production
 on 2026-11-02; independently qualify it with the candidate and preserve the
 installed image under its own protected reference. Capture `/release.json` at cutover and retain the
 current UI artifact. Qualification must run the fallback against additive
-`0035_industrial_connectivity`, retain its actual runtime contract, and verify
+the candidate's additive migrations, retain its actual runtime contract, and verify
 new industrial observations through MQTT, the worker, the API and history before,
 during and after rollback. A successful old-version HTTP response alone cannot
 prove data preservation. The candidate UI requires `industrial-connectivity-v1`

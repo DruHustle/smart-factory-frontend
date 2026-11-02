@@ -90,6 +90,8 @@ const walkthroughQueries = new Set([
   "thresholds.getForDevice",
   "alerts.page",
   "alerts.history",
+  "alerts.actions",
+  "alerts.actionQueue",
   "alerts.list",
   "alerts.getById",
   "alerts.getStats",
@@ -178,7 +180,10 @@ const visibilityBoundary = t.middleware(
     const run = () =>
       withVisibility(policy, () => next({ ctx: { ...ctx, user } }));
     return type === "mutation" &&
-      (/^(factories|assets|devices|equipment|thresholds|alerts|ota)\./.test(path) || path === "connectivity.save")
+      (/^(factories|assets|devices|equipment|thresholds|alerts|ota)\./.test(
+        path,
+      ) ||
+        path === "connectivity.save")
       ? withMutationActor(user, run)
       : run();
   },

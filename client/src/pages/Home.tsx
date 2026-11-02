@@ -73,6 +73,11 @@ function LegacyHome() {
     { openOnly: true, limit: 2, order: "severity" },
     { ...options, enabled: incidentPrioritySupported },
   );
+  const actionsSupported = useRuntimeCapability("ot-follow-up-actions-v1");
+  const actions = trpc.alerts.actionQueue.useQuery(
+    { page: 0, pageSize: 3 },
+    { ...options, enabled: actionsSupported },
+  );
   const network = trpc.networkDiagnostics.overview.useQuery(
     { scenario: "normal" },
     options,
@@ -135,6 +140,7 @@ function LegacyHome() {
       overview.refetch(),
       notifications.refetch(),
       ...(incidentPrioritySupported ? [incidents.refetch()] : []),
+      ...(actionsSupported ? [actions.refetch()] : []),
       network.refetch(),
     ]);
   };
@@ -281,7 +287,7 @@ function LegacyHome() {
                   {incidents.data.map((incident) => (
                     <li key={incident.id}>
                       <Link
-                        href={`/alerts/${incident.id}`}
+                        href={`/alerts/${incident.id}?return=${encodeURIComponent(location)}`}
                         className="flex min-h-16 items-start gap-2 rounded-lg border p-2.5 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
                       >
                         <span
@@ -330,6 +336,38 @@ function LegacyHome() {
               </Link>
             </CardContent>
           </Card>
+          {actionsSupported && actions.data?.items.length ? (
+            <details className="mt-3 rounded-lg border bg-card p-3 text-xs">
+              <summary className="cursor-pointer font-medium">
+                Follow-up · {actions.data.items.length}
+                {actions.data.hasMore ? "+" : ""}
+              </summary>
+              <ul
+                className="mt-2 space-y-2"
+                aria-label="Outstanding follow-up actions"
+              >
+                {actions.data.items.map((action) => (
+                  <li key={action.id}>
+                    <Link
+                      href={`/alerts/${action.incidentId}?return=${encodeURIComponent(location)}`}
+                      className="block rounded-md border p-2 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      <strong className="block">{action.title}</strong>
+                      <span className="mt-1 block text-muted-foreground">
+                        {action.deviceName ?? "Source unavailable"} ·{" "}
+                        {action.ownerName ?? "Owner unavailable"}
+                        {action.dueDate ? ` · Due ${action.dueDate}` : ""}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : actionsSupported && actions.error ? (
+            <p role="status" className="mt-3 text-xs text-muted-foreground">
+              Follow-up actions unavailable.
+            </p>
+          ) : null}
         </aside>
         <div className="order-2 min-w-0 xl:order-1">
           {floor.isLoading ? (

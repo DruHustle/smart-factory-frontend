@@ -19,6 +19,14 @@ export async function incidentHistory(id: number, after = 0) {
         text?: string;
         assignedToId?: number | null;
         category?: IncidentNoteCategory;
+        action?: {
+          id: number;
+          ownerId: number;
+          dueDate: string | null;
+          status: string;
+          outcome?: string | null;
+          version?: number;
+        };
       };
       createdAt: Date;
       actorId: number | null;

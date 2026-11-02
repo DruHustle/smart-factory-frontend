@@ -33,6 +33,7 @@ export const requiredCapabilities = [
 export const optionalCapabilities = [
   "assistant-provider-selection-v1",
   "ot-incident-review-v1",
+  "ot-follow-up-actions-v1",
 ] as const;
 export type RuntimeContract = {
   contractVersion: number;

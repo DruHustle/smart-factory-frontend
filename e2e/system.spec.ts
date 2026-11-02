@@ -7,6 +7,8 @@ import {
 import { expect, test } from "@playwright/test";
 import { selectSection } from "./experience-helpers";
 import { readFile } from "node:fs/promises";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 
 async function loginAs(
   page: import("@playwright/test").Page,
@@ -218,7 +220,8 @@ test("incident review falls back to uncategorized notes with an older API", asyn
     const response = await route.fetch();
     const contract = await response.json();
     contract.capabilities = contract.capabilities.filter(
-      (value: string) => value !== "ot-incident-review-v1",
+      (value: string) =>
+        !["ot-incident-review-v1", "ot-follow-up-actions-v1"].includes(value),
     );
     await route.fulfill({ response, json: contract });
   });
@@ -229,6 +232,7 @@ test("incident review falls back to uncategorized notes with an older API", asyn
     .first()
     .click();
   await expect(page.getByLabel("Update type")).toHaveCount(0);
+  await expect(page.getByLabel("Incident actions")).toHaveCount(0);
   await page
     .getByLabel("Record investigation update")
     .fill("Fallback review note.");
@@ -263,6 +267,46 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
   await expect(
     page.getByText("Assignment updated", { exact: true }),
   ).toBeVisible();
+  await page.getByText("Add follow-up action", { exact: true }).click();
+  await page.getByLabel("Action title").fill("Inspect the service assembly");
+  await page
+    .getByLabel("Action owner")
+    .selectOption({ label: "Local security engineer" });
+  await page.getByLabel("Action due date").fill("2026-12-10");
+  await page
+    .getByRole("button", { name: "Create action", exact: true })
+    .click();
+  await expect(page.getByText("Action created", { exact: true })).toBeVisible();
+  await page.goto("/#/");
+  await page.getByText("Follow-up · 1", { exact: true }).click();
+  await page
+    .getByRole("link", { name: /Inspect the service assembly/ })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "E2E service review due", exact: true }),
+  ).toBeVisible();
+  await page.getByText("Inspect the service assembly", { exact: true }).click();
+  await page
+    .getByLabel("Status for Inspect the service assembly")
+    .selectOption("completed");
+  await page
+    .getByLabel("Outcome for Inspect the service assembly")
+    .fill("Inspection completed; the observed pressure was stable.");
+  await page.getByRole("button", { name: "Save action", exact: true }).click();
+  await expect(page.getByText("Action updated", { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByText("Inspect the service assembly", { exact: true }).click();
+  await expect(
+    page.getByLabel("Outcome for Inspect the service assembly"),
+  ).toHaveValue("Inspection completed; the observed pressure was stable.");
+  await expect(page.getByText("Review: active", { exact: true })).toBeVisible();
+  if (process.env.OT_EVIDENCE_DIR) {
+    mkdirSync(process.env.OT_EVIDENCE_DIR, { recursive: true });
+    await page.getByLabel("Incident actions").screenshot({
+      path: join(process.env.OT_EVIDENCE_DIR, "incident-action.png"),
+      animations: "disabled",
+    });
+  }
   await page.getByLabel("Update type").selectOption("finding");
   await page
     .getByLabel("Record investigation update")
