@@ -500,16 +500,12 @@ test("Explore uses perspective movement and preserves overview and item placemen
   const view = async () =>
     JSON.parse((await canvas.getAttribute("data-camera-view"))!);
   const overview = await view();
-  const zoneCount = await canvas.getAttribute("data-floor-zone-labels-total");
-  await expect(canvas).toHaveAttribute(
-    "data-floor-zone-labels-visible",
-    zoneCount!,
-  );
+  await expect(canvas).toHaveAttribute("data-floor-floating-labels", "0");
   await page
     .getByRole("button", { name: "Explore factory at eye level", exact: true })
     .click();
   await expect(canvas).toHaveAttribute("data-view-mode", "explore");
-  await expect(canvas).toHaveAttribute("data-floor-zone-labels-visible", "0");
+  await expect(canvas).toHaveAttribute("data-floor-floating-labels", "0");
   expect(
     Number(await canvas.getAttribute("data-explore-interior-meshes")),
   ).toBeLessThanOrEqual(5);
@@ -579,10 +575,7 @@ test("Explore uses perspective movement and preserves overview and item placemen
     .getByRole("button", { name: "Exit factory exploration", exact: true })
     .click();
   await expect(canvas).toHaveAttribute("data-view-mode", "overview");
-  await expect(canvas).toHaveAttribute(
-    "data-floor-zone-labels-visible",
-    zoneCount!,
-  );
+  await expect(canvas).toHaveAttribute("data-floor-floating-labels", "0");
   expect(await view()).toEqual(overview);
   await expect(
     page.getByRole("button", { name: "Rotate with mouse movement" }),

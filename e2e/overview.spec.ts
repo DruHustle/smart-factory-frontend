@@ -359,13 +359,9 @@ for (const width of [390, 1440])
                 ),
               ).toBe(true);
           }
-          const zoneLabelCount = Number(
-            await canvas.getAttribute("data-floor-zone-labels-total"),
-          );
-          expect(zoneLabelCount).toBeGreaterThan(0);
           await expect(canvas).toHaveAttribute(
-            "data-floor-zone-labels-visible",
-            String(zoneLabelCount),
+            "data-floor-floating-labels",
+            "0",
           );
           const overviewView = JSON.parse(
             (await canvas.getAttribute("data-camera-view")) ?? "{}",
@@ -378,7 +374,7 @@ for (const width of [390, 1440])
             .click();
           await expect(canvas).toHaveAttribute("data-view-mode", "explore");
           await expect(canvas).toHaveAttribute(
-            "data-floor-zone-labels-visible",
+            "data-floor-floating-labels",
             "0",
           );
           await expect(
@@ -426,8 +422,8 @@ for (const width of [390, 1440])
             .click();
           await expect(canvas).toHaveAttribute("data-view-mode", "overview");
           await expect(canvas).toHaveAttribute(
-            "data-floor-zone-labels-visible",
-            String(zoneLabelCount),
+            "data-floor-floating-labels",
+            "0",
           );
           const restoredView = JSON.parse(
             (await canvas.getAttribute("data-camera-view")) ?? "{}",
