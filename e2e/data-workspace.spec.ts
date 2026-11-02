@@ -341,20 +341,53 @@ async function workspaceFixture(
         case "alerts.actionQueue":
           value = {
             items: control.actions
-              ? [
-                  {
-                    id: 3,
-                    incidentId: 42,
-                    title: "Inspect compressor",
-                    ownerId: 12,
-                    ownerName: "Operator",
-                    dueDate: "2026-12-10",
-                    status: "open",
-                    deviceName: "Compressor pressure sensor",
-                  },
-                ]
+              ? input.page === 0
+                ? [
+                    {
+                      id: 3,
+                      incidentId: 42,
+                      title: "Inspect compressor",
+                      ownerId: 12,
+                      ownerName: "Operator",
+                      dueDate: "2026-12-10",
+                      status: "open",
+                      deviceName: "Compressor pressure sensor",
+                    },
+                    {
+                      id: 4,
+                      incidentId: 42,
+                      title: "Inspect pump",
+                      ownerId: 12,
+                      ownerName: "Operator",
+                      dueDate: null,
+                      status: "open",
+                      deviceName: "Pump",
+                    },
+                    {
+                      id: 5,
+                      incidentId: 42,
+                      title: "Inspect motor",
+                      ownerId: 12,
+                      ownerName: "Operator",
+                      dueDate: null,
+                      status: "open",
+                      deviceName: "Motor",
+                    },
+                  ]
+                : [
+                    {
+                      id: 6,
+                      incidentId: 43,
+                      title: "Inspect conveyor",
+                      ownerId: 12,
+                      ownerName: "Operator",
+                      dueDate: null,
+                      status: "open",
+                      deviceName: "Conveyor",
+                    },
+                  ]
               : [],
-            hasMore: false,
+            hasMore: !!control.actions && input.page === 0,
           };
           break;
         case "factories.list":
@@ -1609,9 +1642,17 @@ test("Overview links outstanding actions to their incident", async ({
 }) => {
   await workspaceFixture(page, false, { floor: "normal", actions: true });
   await page.goto("/#/");
-  await page.getByText("Follow-up · 1", { exact: true }).click();
+  await page.getByText("Follow-up · 3+", { exact: true }).click();
   const action = page.getByRole("link", { name: /Inspect compressor/ });
   await expect(action).toContainText("Operator");
   await expect(action).toContainText("2026-12-10");
   await expect(action).toHaveAttribute("href", "#/alerts/42?return=%2F");
+  await page.getByRole("button", { name: "Next actions" }).click();
+  await expect(
+    page.getByRole("link", { name: /Inspect conveyor/ }),
+  ).toHaveAttribute("href", "#/alerts/43?return=%2F");
+  await page.getByRole("button", { name: "Previous actions" }).click();
+  await expect(
+    page.getByRole("link", { name: /Inspect compressor/ }),
+  ).toBeVisible();
 });

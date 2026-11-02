@@ -47,7 +47,8 @@ function LegacyHome() {
   const active = useDocumentActive(),
     { user } = useAuth();
   const [location, navigate] = useWorkspaceLocation(),
-    [anchor, setAnchor] = useState(() => Date.now());
+    [anchor, setAnchor] = useState(() => Date.now()),
+    [actionPage, setActionPage] = useState(0);
   const params = new URLSearchParams(location.split("?")[1] ?? "");
   const update = (values: Record<string, string>) => {
     const next = new URLSearchParams(params);
@@ -75,8 +76,12 @@ function LegacyHome() {
   );
   const actionsSupported = useRuntimeCapability("ot-follow-up-actions-v1");
   const actions = trpc.alerts.actionQueue.useQuery(
-    { page: 0, pageSize: 3 },
-    { ...options, enabled: actionsSupported },
+    { page: actionPage, pageSize: 3 },
+    {
+      ...options,
+      enabled: actionsSupported,
+      placeholderData: (previous) => previous,
+    },
   );
   const network = trpc.networkDiagnostics.overview.useQuery(
     { scenario: "normal" },
@@ -336,32 +341,83 @@ function LegacyHome() {
               </Link>
             </CardContent>
           </Card>
-          {actionsSupported && actions.data?.items.length ? (
+          {actionsSupported &&
+          (actions.data?.items.length || actionPage > 0) ? (
             <details className="mt-3 rounded-lg border bg-card p-3 text-xs">
               <summary className="cursor-pointer font-medium">
-                Follow-up · {actions.data.items.length}
-                {actions.data.hasMore ? "+" : ""}
+                Follow-up ·{" "}
+                {actionPage
+                  ? `page ${actionPage + 1}`
+                  : `${actions.data?.items.length ?? 0}${actions.data?.hasMore ? "+" : ""}`}
               </summary>
-              <ul
-                className="mt-2 space-y-2"
-                aria-label="Outstanding follow-up actions"
-              >
-                {actions.data.items.map((action) => (
-                  <li key={action.id}>
-                    <Link
-                      href={`/alerts/${action.incidentId}?return=${encodeURIComponent(location)}`}
-                      className="block rounded-md border p-2 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
-                    >
-                      <strong className="block">{action.title}</strong>
-                      <span className="mt-1 block text-muted-foreground">
-                        {action.deviceName ?? "Source unavailable"} ·{" "}
-                        {action.ownerName ?? "Owner unavailable"}
-                        {action.dueDate ? ` · Due ${action.dueDate}` : ""}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {actions.isPlaceholderData ? (
+                <p role="status" className="mt-2 text-muted-foreground">
+                  Loading actions…
+                </p>
+              ) : (
+                !actions.error && (
+                  <ul
+                    className="mt-2 space-y-2"
+                    aria-label="Outstanding follow-up actions"
+                  >
+                    {actions.data?.items.map((action) => (
+                      <li key={action.id}>
+                        <Link
+                          href={`/alerts/${action.incidentId}?return=${encodeURIComponent(location)}`}
+                          className="block rounded-md border p-2 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          <strong className="block">{action.title}</strong>
+                          <span className="mt-1 block text-muted-foreground">
+                            {action.deviceName ?? "Source unavailable"} ·{" "}
+                            {action.ownerName ?? "Owner unavailable"}
+                            {action.dueDate ? ` · Due ${action.dueDate}` : ""}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              )}
+              {actions.error && (
+                <p role="alert" className="mt-2">
+                  Actions unavailable.{" "}
+                  <button
+                    className="underline"
+                    onClick={() => void actions.refetch()}
+                  >
+                    Retry
+                  </button>
+                </p>
+              )}
+              {!actions.isFetching && !actions.data?.items.length && (
+                <p className="mt-2 text-muted-foreground">
+                  No actions on this page.
+                </p>
+              )}
+              {(actionPage > 0 || actions.data?.hasMore) && (
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={actions.isFetching || actionPage === 0}
+                    onClick={() => setActionPage((page) => page - 1)}
+                  >
+                    Previous actions
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      actions.isFetching ||
+                      !actions.data?.hasMore ||
+                      actionPage >= 100000
+                    }
+                    onClick={() => setActionPage((page) => page + 1)}
+                  >
+                    Next actions
+                  </Button>
+                </div>
+              )}
             </details>
           ) : actionsSupported && actions.error ? (
             <p role="status" className="mt-3 text-xs text-muted-foreground">
