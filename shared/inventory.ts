@@ -50,9 +50,9 @@ export function observedStatus(
   if (!input.lastObserved) return "unknown";
   const age = now - Date.parse(input.lastObserved);
   if (!Number.isFinite(age) || age < 0) return "unknown";
-  if (input.reported === "offline") return "offline";
   if (!input.freshnessMs) return "unknown"; // No commissioned policy: do not invent a timeout.
-  return age <= input.freshnessMs ? "live" : "stale";
+  if (age > input.freshnessMs) return "stale";
+  return input.reported === "offline" ? "offline" : "live";
 }
 export const itemHref = (
   ref: string,

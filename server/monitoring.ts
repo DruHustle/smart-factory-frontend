@@ -24,7 +24,7 @@ export const monitoringInput = z.object({
   pageSize: z.number().int().min(1).max(50).default(25),
 });
 export const deviceProjection = () =>
-  sql`with source as(select d.*,${deviceFreshnessSql(sql`d.metadata`)} as freshness from devices d where ${visibleRecordSql(sql`d."isDemo"`)}), observed as(select *,case when status in ('maintenance','error') then status::text when "lastSeen" is null or "lastSeen">now() then 'unknown' when status='offline' then 'offline' when freshness is null then 'unknown' when "lastSeen">=now()-freshness*interval '1 millisecond' then 'live' else 'stale' end as observed from source)`;
+  sql`with source as(select d.*,${deviceFreshnessSql(sql`d.metadata`)} as freshness from devices d where ${visibleRecordSql(sql`d."isDemo"`)}), observed as(select *,case when status in ('maintenance','error') then status::text when "lastSeen" is null or "lastSeen">now() then 'unknown' when freshness is null then 'unknown' when "lastSeen"<now()-freshness*interval '1 millisecond' then 'stale' when status='offline' then 'offline' else 'live' end as observed from source)`;
 export async function monitoringPage(input: z.infer<typeof monitoringInput>) {
   const db = await getDb();
   if (!db) throw Error("Database unavailable");

@@ -37,6 +37,14 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           state: "live",
         },
         { metadata: { freshnessMs: 30000 }, state: "stale", stale: true },
+        { metadata: {}, state: "unknown", offline: true },
+        { metadata: { freshnessMs: 30000 }, state: "offline", offline: true },
+        {
+          metadata: { freshnessMs: 30000 },
+          state: "stale",
+          stale: true,
+          offline: true,
+        },
       ];
       const db = (await getDb())!;
       await db.insert(devices).values(
@@ -44,7 +52,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           deviceId: `projection-${index}`,
           name: `Projection ${index}`,
           type: "sensor" as const,
-          status: example.future ? ("offline" as const) : ("online" as const),
+          status:
+            example.future || example.offline
+              ? ("offline" as const)
+              : ("online" as const),
           lastSeen: new Date(
             now + (example.future ? 60000 : example.stale ? -60000 : -1000),
           ),
@@ -74,7 +85,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           legacy.find((item) => item.deviceId === identifier)?.observedStatus,
         ).toBe(example.state);
       }
-      for (const status of ["unknown", "live", "stale"] as const) {
+      for (const status of ["unknown", "live", "stale", "offline"] as const) {
         const expected = cases.filter(
           (example) => example.state === status,
         ).length;

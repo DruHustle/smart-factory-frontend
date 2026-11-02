@@ -39,6 +39,22 @@ it("requires commissioned source freshness and keeps no observations distinct fr
   expect(observedStatus({ reported: "offline", freshnessMs: 5000 }, now)).toBe(
     "unknown",
   );
+  // An offline report also expires: silence cannot prove the current state.
+  expect(
+    observedStatus({ reported: "offline", lastObserved: recent }, now),
+  ).toBe("unknown");
+  expect(
+    observedStatus(
+      { reported: "offline", lastObserved: recent, freshnessMs: 1000 },
+      now,
+    ),
+  ).toBe("offline");
+  expect(
+    observedStatus(
+      { reported: "offline", lastObserved: recent, freshnessMs: 999 },
+      now,
+    ),
+  ).toBe("stale");
 });
 it("bounds the endpoint and validates supported registration routes", () => {
   expect(inventoryFilter.safeParse({ pageSize: 10000 }).success).toBe(false);
