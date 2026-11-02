@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRuntimeCapability } from "@/components/RuntimeBoundary";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -30,6 +31,9 @@ export function IncidentInvestigation({
   returnTo: string;
   compact?: boolean;
 }) {
+  const categorizedNotesSupported = useRuntimeCapability(
+    "ot-incident-review-v1",
+  );
   const { user } = useAuth(),
     active = useDocumentActive(),
     utils = trpc.useUtils(),
@@ -435,7 +439,11 @@ export function IncidentInvestigation({
               className="space-y-2 border-t pt-4"
               onSubmit={(ev) => {
                 ev.preventDefault();
-                addNote.mutate({ id, text: note, category: noteCategory });
+                addNote.mutate(
+                  categorizedNotesSupported
+                    ? { id, text: note, category: noteCategory }
+                    : { id, text: note },
+                );
               }}
             >
               <label
@@ -444,22 +452,24 @@ export function IncidentInvestigation({
               >
                 Record investigation update
               </label>
-              <select
-                aria-label="Update type"
-                className="h-10 w-full rounded-md border border-input bg-card px-2 text-sm"
-                disabled={busy}
-                value={noteCategory}
-                onChange={(ev) =>
-                  setNoteCategory(ev.target.value as IncidentNoteCategory)
-                }
-              >
-                {incidentNoteCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {incidentNoteLabels[category]}
-                  </option>
-                ))}
-              </select>
-              {noteCategory === "next_step" && (
+              {categorizedNotesSupported && (
+                <select
+                  aria-label="Update type"
+                  className="h-10 w-full rounded-md border border-input bg-card px-2 text-sm"
+                  disabled={busy}
+                  value={noteCategory}
+                  onChange={(ev) =>
+                    setNoteCategory(ev.target.value as IncidentNoteCategory)
+                  }
+                >
+                  {incidentNoteCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {incidentNoteLabels[category]}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {categorizedNotesSupported && noteCategory === "next_step" && (
                 <p className="text-xs text-muted-foreground">
                   This records a review note; assign responsibility separately.
                 </p>

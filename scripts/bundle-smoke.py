@@ -517,9 +517,9 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             assert transition_runtime['backendSource']==expected_sources['backend'] and transition_runtime['edgeSource']==expected_sources['edge']
             assert transition_runtime['schema']['ready'] is True and transition_runtime['schema']['digest']==candidate_runtime['schema']['digest']
             assert transition_runtime['worker']['fresh'] is True and transition_runtime['worker']['compatible'] is True
-            # The selected-model chooser is additive and is hidden on the qualified
-            # fallback API. Every core workspace capability must remain available.
-            required_capabilities = set(candidate_runtime['capabilities']) - {'assistant-provider-selection-v1'}
+            # Additive UI features are hidden on the qualified fallback API.
+            # Every core workspace capability must remain available.
+            required_capabilities = set(candidate_runtime['capabilities']) - {'assistant-provider-selection-v1', 'ot-incident-review-v1'}
             assert required_capabilities.issubset(transition_runtime['capabilities'])
             if position==0: fallback_runtime=transition_runtime
             verify_authored_workspaces(authored_workspaces,viewer)

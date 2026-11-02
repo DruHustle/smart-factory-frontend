@@ -1,4 +1,5 @@
 import { FactorySelector } from "@/components/workspace/FactorySelector";
+import { useRuntimeCapability } from "@/components/RuntimeBoundary";
 import { FactoryWorkspace } from "@/components/workspace/FactoryWorkspace";
 import { useFactorySelection } from "@/lib/factory-selection";
 import { useState } from "react";
@@ -65,9 +66,12 @@ function LegacyHome() {
     ...options,
     enabled: !!user,
   });
+  const incidentPrioritySupported = useRuntimeCapability(
+    "ot-incident-review-v1",
+  );
   const incidents = trpc.alerts.list.useQuery(
     { openOnly: true, limit: 2, order: "severity" },
-    options,
+    { ...options, enabled: incidentPrioritySupported },
   );
   const network = trpc.networkDiagnostics.overview.useQuery(
     { scenario: "normal" },
@@ -130,7 +134,7 @@ function LegacyHome() {
       floor.refetch(),
       overview.refetch(),
       notifications.refetch(),
-      incidents.refetch(),
+      ...(incidentPrioritySupported ? [incidents.refetch()] : []),
       network.refetch(),
     ]);
   };
@@ -255,7 +259,11 @@ function LegacyHome() {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col">
-              {incidents.error ? (
+              {!incidentPrioritySupported ? (
+                <p className="text-xs text-muted-foreground">
+                  Priority view unavailable. Open alerts to review incidents.
+                </p>
+              ) : incidents.error ? (
                 <EmptyState error title="Incidents unavailable" />
               ) : incidents.isLoading ? (
                 <p className="text-xs text-muted-foreground" role="status">

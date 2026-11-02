@@ -210,6 +210,39 @@ test("Assistant answers from approved guides and the current API snapshot", asyn
   expect(browserErrors).toEqual([]);
 });
 
+test("incident review falls back to uncategorized notes with an older API", async ({
+  page,
+}) => {
+  await loginAs(page, "engineer");
+  await page.route("**/api/runtime/contract", async (route) => {
+    const response = await route.fetch();
+    const contract = await response.json();
+    contract.capabilities = contract.capabilities.filter(
+      (value: string) => value !== "ot-incident-review-v1",
+    );
+    await route.fulfill({ response, json: contract });
+  });
+  await page.goto("/#/alerts?search=E2E%20service%20review%20due");
+  await page
+    .getByRole("link")
+    .filter({ hasText: "E2E service review due" })
+    .first()
+    .click();
+  await expect(page.getByLabel("Update type")).toHaveCount(0);
+  await page
+    .getByLabel("Record investigation update")
+    .fill("Fallback review note.");
+  const saved = page.waitForRequest(
+    (request) =>
+      request.url().includes("alerts.addNote") && request.method() === "POST",
+  );
+  await page.getByRole("button", { name: "Save update", exact: true }).click();
+  expect((await saved).postData()).not.toContain('"category"');
+  await expect(page.getByLabel("Record investigation update")).toHaveValue("");
+  await page.reload();
+  await expect(page.getByText("Fallback review note.")).toBeVisible();
+});
+
 test("engineers assign incidents, explicitly confirm downtime, record notes and resolve", async ({
   page,
 }) => {
@@ -275,8 +308,11 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
     .getByLabel("Record investigation update")
     .fill("Inspect the service assembly on the next shift.");
   await page.getByRole("button", { name: "Save update", exact: true }).click();
+  await expect(page.getByLabel("Record investigation update")).toHaveValue("");
   await expect(
-    page.getByText("Inspect the service assembly on the next shift."),
+    page
+      .locator("li")
+      .getByText("Inspect the service assembly on the next shift."),
   ).toBeVisible();
   await page.reload();
   await expect(

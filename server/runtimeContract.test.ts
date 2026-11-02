@@ -33,6 +33,13 @@ it("keeps an older qualified API compatible when additive provider selection is 
     ),
   ).toBeNull();
 });
+it("keeps categorized investigation features optional for a safe older API fallback", () => {
+  expect(optionalCapabilities).toContain("ot-incident-review-v1");
+  expect(requiredCapabilities as readonly string[]).not.toContain(
+    "ot-incident-review-v1",
+  );
+  expect(runtimeCompatibility(compatible, true)).toBeNull();
+});
 it("rejects ready-but-incompatible, unversioned and incomplete services", () => {
   expect(runtimeCompatibility({ status: "ready" })).toBeTruthy();
   expect(

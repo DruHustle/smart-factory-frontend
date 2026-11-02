@@ -4,6 +4,7 @@ import { join } from "node:path";
 import superjson from "superjson";
 import {
   requiredCapabilities,
+  optionalCapabilities,
   runtimeContractVersion,
 } from "../shared/runtime-contract";
 import { demoInfrastructure } from "../server/infrastructure/demo";
@@ -22,6 +23,7 @@ async function workspaceFixture(
     telemetry?: "unverified" | "verified";
     summary?: "populated" | "error";
     attention?: boolean;
+    olderApi?: boolean;
   } = { floor: "normal" },
 ) {
   let signedIn = true;
@@ -30,7 +32,9 @@ async function workspaceFixture(
     route.fulfill({
       json: {
         contractVersion: runtimeContractVersion,
-        capabilities: requiredCapabilities,
+        capabilities: control.olderApi
+          ? requiredCapabilities
+          : [...requiredCapabilities, ...optionalCapabilities],
         schema: { ready: true },
         versioned: true,
       },
@@ -1526,4 +1530,24 @@ test("Overview reports unavailable summaries instead of false zero counts", asyn
   await expect(
     cards.getByRole("link", { name: /^Unread notifications\s+Unavailable$/ }),
   ).toBeVisible();
+});
+
+test("Overview does not claim priority ordering with an older API", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page, false, {
+    floor: "normal",
+    olderApi: true,
+  });
+  await page.goto("/#/");
+  await expect(
+    page.getByText(
+      "Priority view unavailable. Open alerts to review incidents.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /View alerts/ })).toHaveAttribute(
+    "href",
+    "#/alerts?status=open",
+  );
+  expect(requests.some((r) => r.procedure === "alerts.list")).toBe(false);
 });

@@ -32,6 +32,7 @@ export const requiredCapabilities = [
 /** Additive features may be hidden when the compatible rollback API lacks them. */
 export const optionalCapabilities = [
   "assistant-provider-selection-v1",
+  "ot-incident-review-v1",
 ] as const;
 export type RuntimeContract = {
   contractVersion: number;
