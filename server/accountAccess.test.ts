@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 import postgres from "postgres";
 import { sql, eq } from "drizzle-orm";
 import {
@@ -62,14 +63,20 @@ describe.skipIf(!sourceUrl)("persistent account and session boundaries", () => {
       "JWT_SECRET",
       "isolated-account-regression-key-at-least-32-bytes",
     );
-    execFileSync("pnpm", ["exec", "drizzle-kit", "migrate"], {
-      env: {
-        ...process.env,
-        DOTENV_CONFIG_PATH: "/dev/null",
-        DATABASE_SSL_MODE: "disable",
+    // Use the locked local CLI, without invoking a global package manager that
+    // can select or install a different version before this safety gate runs.
+    execFileSync(
+      process.execPath,
+      [resolve("node_modules/drizzle-kit/bin.cjs"), "migrate"],
+      {
+        env: {
+          ...process.env,
+          DOTENV_CONFIG_PATH: "/dev/null",
+          DATABASE_SSL_MODE: "disable",
+        },
+        stdio: "pipe",
       },
-      stdio: "pipe",
-    });
+    );
     passwordHash = await sdk.hashPassword(password);
   }, 20000);
   beforeEach(async () => {

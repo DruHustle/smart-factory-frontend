@@ -90,6 +90,84 @@ async function pickItem(page: Page, canvas: Locator, host: Locator) {
   await expect(host.getByTestId("selected")).toHaveText("asset:1");
 }
 
+test("selectable local geometry appears before delayed studio lighting and upgrades without losing selection", async ({
+  page,
+}, testInfo) => {
+  // Hold the optional atlas until after the usable scene is observed. Extend
+  // only its five-second timeout so this invariant is independent of CI GPU
+  // speed; this test does not claim a universal first-frame time budget.
+  await page.addInitScript(() => {
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    AbortSignal.timeout = (milliseconds) =>
+      timeout(milliseconds === 5000 ? 60_000 : milliseconds);
+  });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = false;
+  await page.route("**/studio-environment.bin.gz*", async (route) => {
+    if (route.request().resourceType() !== "fetch") {
+      await route.continue();
+      return;
+    }
+    requested = true;
+    await held;
+    await route.continue();
+  });
+  await fixture(page);
+  const { host, canvas } = await mount(page, "floor", assets[0]);
+  try {
+    await expect.poll(() => requested).toBe(true);
+    await expect(canvas).toHaveAttribute("data-floor-first-frame-ms", /\d+/);
+    await expect(canvas).toHaveAttribute(
+      "data-graphics-environment",
+      "direct-light-preview",
+    );
+    await expect(host.getByRole("status")).toContainText("1 items on floor");
+    await pickItem(page, canvas, host);
+    const firstFrameMs = Number(
+      await canvas.getAttribute("data-floor-first-frame-ms"),
+    );
+    expect(Number.isFinite(firstFrameMs)).toBe(true);
+    await host.screenshot({
+      path: testInfo.outputPath("selectable-lighting-preview.png"),
+    });
+    release();
+    await expect(canvas).toHaveAttribute(
+      "data-graphics-environment",
+      "baked-hdr-studio",
+      { timeout: 30000 },
+    );
+    await expect(canvas).toHaveAttribute(
+      "data-floor-nvidia-models",
+      JSON.stringify([assets[0].slug]),
+      { timeout: 30000 },
+    );
+    await expect(host.getByTestId("selected")).toHaveText("asset:1");
+    await expect(canvas).toHaveAttribute(
+      "data-floor-first-frame-ms",
+      String(firstFrameMs),
+    );
+    await host.screenshot({
+      path: testInfo.outputPath("detailed-studio-lighting.png"),
+    });
+    await testInfo.attach("progressive-floor-timing.json", {
+      contentType: "application/json",
+      body: JSON.stringify({
+        fixture: "single conveyor, controlled delayed studio atlas",
+        renderer: await canvas.getAttribute("data-graphics-quality"),
+        firstFrameMs,
+        environmentReadyMs: Number(
+          await canvas.getAttribute("data-floor-environment-ready-ms"),
+        ),
+      }),
+    });
+  } finally {
+    release();
+  }
+});
+
 for (const width of [390, 1440]) {
   test(`reviewed NVIDIA floor models attach and remain selectable at ${width}px`, async ({
     page,

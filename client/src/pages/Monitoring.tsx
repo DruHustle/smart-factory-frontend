@@ -39,6 +39,8 @@ import {
   type Metric,
 } from "@shared/measurements";
 import { useWorkspaceLocation } from "@/lib/hashLocation";
+import { OperationsWorkspace } from "@/components/operations/OperationsWorkspace";
+import { ObservationValidity } from "@/components/workspace/ObservationValidity";
 const scopes = [
   "operational",
   "live",
@@ -242,6 +244,7 @@ export default function Monitoring() {
           </>
         }
       />
+      <OperationsWorkspace scenarioOnly />
       <div className="rounded-lg border bg-card p-3">
         <div className="flex gap-2">
           <div className="relative min-w-0 flex-1">
@@ -417,6 +420,7 @@ export default function Monitoring() {
                         historical={!r || !currentSample(r)}
                       />
                     </p>
+                    <ObservationValidity reading={r} />
                     <p className="capitalize text-muted-foreground">
                       {String(r?.integration?.mode ?? "unknown")} · Quality:{" "}
                       {String(r?.integration?.sourceQuality ?? "unknown")}

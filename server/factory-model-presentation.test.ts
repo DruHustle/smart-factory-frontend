@@ -19,11 +19,11 @@ describe("factory model presentation", () => {
     expect(request).toHaveBeenCalledOnce();
   });
 
-  it("requests a trailing frame for a partial batch and after the final failure", () => {
+  it("requests a partial batch within 120 ms without waiting for another model or a failed download", () => {
     const request = vi.fn();
     const batch = new FactoryModelPresentation<number>(request);
     batch.add(1);
-    vi.advanceTimersByTime(999);
+    vi.advanceTimersByTime(119);
     expect(request).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(request).toHaveBeenCalledOnce();

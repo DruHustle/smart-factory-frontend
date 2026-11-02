@@ -12,10 +12,13 @@ import {
 } from "@/components/ui/dialog";
 import { metrics, sourceUnits } from "@shared/measurements";
 import { EmptyState } from "./Primitives";
+import { useRuntimeCapability } from "@/components/RuntimeBoundary";
 type Policy = {
   route: "direct" | "gateway" | "unconfigured";
   gatewayId?: string;
   freshnessSeconds?: number;
+  acquisitionMode?: "cyclic" | "on_change";
+  valueValiditySeconds?: number;
   maxLatenessSeconds: number;
   clockSkewSeconds: number;
   legacyCurrent: boolean;
@@ -31,6 +34,7 @@ export function CommissioningDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const validitySupported = useRuntimeCapability("ot-alarm-conditions-v1");
   const query = trpc.devices.getById.useQuery({ id }, { enabled: open }),
     utils = trpc.useUtils(),
     [error, setError] = useState(""),
@@ -190,6 +194,62 @@ export function CommissioningDialog({
                   Refine the search for others.
                 </p>
               </div>
+            )}
+            {validitySupported && (
+              <fieldset className="space-y-3 rounded-md border p-3">
+                <legend className="px-1 text-sm font-medium">
+                  Measurement acquisition
+                </legend>
+                <label className="block space-y-1 text-xs">
+                  Reporting mode
+                  <select
+                    aria-label="Measurement reporting mode"
+                    className={control}
+                    value={policy.acquisitionMode ?? "cyclic"}
+                    onChange={(e) =>
+                      setPolicy({
+                        ...policy,
+                        acquisitionMode: e.target.value as
+                          | "cyclic"
+                          | "on_change",
+                        valueValiditySeconds:
+                          e.target.value === "on_change"
+                            ? (policy.valueValiditySeconds ?? 3600)
+                            : undefined,
+                      })
+                    }
+                  >
+                    <option value="cyclic">Cyclic samples</option>
+                    <option value="on_change">
+                      On change / exception reporting
+                    </option>
+                  </select>
+                </label>
+                {policy.acquisitionMode === "on_change" && (
+                  <label className="block space-y-1 text-xs">
+                    Maximum held-value validity (seconds)
+                    <Input
+                      type="number"
+                      min={5}
+                      max={86400}
+                      value={policy.valueValiditySeconds ?? ""}
+                      onChange={(e) =>
+                        setPolicy({
+                          ...policy,
+                          valueValiditySeconds: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  An unchanged value can remain valid within the reviewed hold
+                  window. Its sample timestamp stays unchanged; gateway
+                  keepalives never renew measurement validity.
+                </p>
+              </fieldset>
             )}
             <div className="grid gap-3 sm:grid-cols-3">
               {[

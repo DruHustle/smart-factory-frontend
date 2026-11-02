@@ -44,6 +44,7 @@ const readOnlyMutations = new Set([
   "auth.resetPassword",
   "assistant.ask",
   "assistant.askSelected",
+  "assistant.askInContext",
 ]);
 const operationalMutations = Object.entries(appRouter._def.procedures).filter(
   ([path, procedure]) =>
@@ -66,17 +67,22 @@ describe("central shared-walkthrough containment", () => {
       expect(
         (await caller.assistant.providers()).providers.map((p) => p.id),
       ).toEqual(["auto", "local"]);
-      await expect(
-        caller.assistant.askSelected({
-          question: "Review the factory pump",
-          selection: { provider: "gemini" },
-        }),
-      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-      const answer = await caller.assistant.askSelected({
-        question: "What is your name?",
-        selection: { provider: "local" },
-      });
-      expect(answer.execution).toEqual({ provider: "local", model: null });
+      for (const ask of [
+        caller.assistant.askSelected,
+        caller.assistant.askInContext,
+      ]) {
+        await expect(
+          ask({
+            question: "Review the factory pump",
+            selection: { provider: "gemini" },
+          }),
+        ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+        const answer = await ask({
+          question: "What is your name?",
+          selection: { provider: "local" },
+        });
+        expect(answer.execution).toEqual({ provider: "local", model: null });
+      }
     }
     expect(fetcher).not.toHaveBeenCalled();
   });

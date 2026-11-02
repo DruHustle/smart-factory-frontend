@@ -34,6 +34,9 @@ export const optionalCapabilities = [
   "assistant-provider-selection-v1",
   "ot-incident-review-v1",
   "ot-follow-up-actions-v1",
+  "ot-alarm-conditions-v1",
+  "ot-operations-v1",
+  "ot-investigation-context-v1",
 ] as const;
 export type RuntimeContract = {
   contractVersion: number;

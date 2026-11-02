@@ -477,6 +477,16 @@ export const alerts = pgTable(
       .notNull()
       .default("SF-SYS-000"),
     status: alertStatusEnum("status").default("active").notNull(),
+    /** Source evidence is independent of investigation status and acknowledgement. */
+    sourceCondition: text("source_condition")
+      .$type<import("../shared/alarm-condition").SourceCondition>()
+      .default("unknown")
+      .notNull(),
+    conditionObservedAt: timestamp("condition_observed_at", { withTimezone: true }),
+    conditionValidUntil: timestamp("condition_valid_until", { withTimezone: true }),
+    conditionInvalidReason: varchar("condition_invalid_reason", { length: 100 }),
+    conditionEvidence: jsonb("condition_evidence")
+      .$type<import("../shared/alarm-condition").AlarmConditionEvidence>(),
     assignedToId: integer("assignedToId").references(() => users.id, {
       onDelete: "set null",
     }),

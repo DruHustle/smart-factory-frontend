@@ -1,6 +1,10 @@
 import { sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { getAlertById, getDb, visibleAlertEntitiesCondition } from "./db";
+import {
+  incidentFactoryCondition,
+  validateIncidentFactoryScope,
+} from "./incidentFactoryScope";
 
 type ActionStatus = "open" | "in_progress" | "completed";
 export type ActionInput = {
@@ -19,9 +23,14 @@ type ActionUpdate = {
   outcome: string | null;
 };
 
-export async function incidentActionQueue(page: number, pageSize: number) {
+export async function incidentActionQueue(
+  page: number,
+  pageSize: number,
+  factoryId?: string,
+) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "SERVICE_UNAVAILABLE" });
+  await validateIncidentFactoryScope(db, factoryId);
   const rows = await db.execute(sql`
     select a.id, a.alert_id as "incidentId", a.title, a.owner_id as "ownerId",
       u.name as "ownerName", a.due_date::text as "dueDate", a.status,
@@ -30,6 +39,7 @@ export async function incidentActionQueue(page: number, pageSize: number) {
       join devices d on d.id=alerts."deviceId"
       left join users u on u.id=a.owner_id
     where a.status in ('open','in_progress') and ${visibleAlertEntitiesCondition()}
+      and ${incidentFactoryCondition(factoryId)}
     order by a.due_date asc nulls last, a.id desc limit ${pageSize + 1} offset ${page * pageSize}`);
   return {
     items: rows.slice(0, pageSize) as unknown as {

@@ -102,35 +102,86 @@ export function convertCanonicalTo(
   return (value - zero) / (one - zero);
 }
 
-/** A recent gateway heartbeat does not make an older measurement current. */
-export function currentSample(
-  reading: {
-    timestamp?: number | null;
-    sampleAt?: number | null;
-    mode?: string;
-    evidence?: unknown;
-    integration?: unknown;
-  },
-  now = Date.now(),
-): boolean {
+/** A bounded on-change hold never changes the actual sample timestamp. */
+export type SourceContinuity = {
+  offline: boolean;
+  interruptedAt: number | null;
+  commissioningRevision: number | null;
+};
+export type SampleValidityInput = {
+  timestamp?: number | null;
+  sampleAt?: number | null;
+  mode?: string;
+  evidence?: unknown;
+  integration?: unknown;
+  sourceContinuity?: SourceContinuity | null;
+};
+export function sampleValidity(reading: SampleValidityInput, now = Date.now()) {
+  type Evidence = {
+    eligible?: boolean;
+    validForMs?: number | null;
+    acquisitionMode?: "cyclic" | "on_change";
+    commissioningRevision?: number;
+    reason?: string | null;
+  };
   const metadata = reading.integration as
-      | {
-          mode?: string;
-          evidence?: { eligible?: boolean; validForMs?: number | null };
-        }
-      | undefined,
-    evidence = (reading.evidence ?? metadata?.evidence) as
-      | { eligible?: boolean; validForMs?: number | null }
-      | undefined,
-    at = reading.timestamp ?? reading.sampleAt,
-    mode = reading.mode ?? metadata?.mode;
-  return (
+    | { mode?: string; evidence?: Evidence }
+    | undefined;
+  const evidence = (reading.evidence ?? metadata?.evidence) as
+    | Evidence
+    | undefined;
+  const at = reading.timestamp ?? reading.sampleAt;
+  const mode = reading.mode ?? metadata?.mode;
+  const acquisitionMode = evidence?.acquisitionMode ?? "cyclic";
+  const ageMs = typeof at === "number" && Number.isFinite(at) ? now - at : null;
+  const validForMs = evidence?.validForMs;
+  const continuity = reading.sourceContinuity;
+  const sourceReason = continuity?.offline
+    ? "source_connection_offline"
+    : continuity?.interruptedAt != null &&
+        typeof at === "number" &&
+        continuity.interruptedAt >= at
+      ? "source_connection_interrupted"
+      : continuity?.commissioningRevision != null &&
+          evidence?.commissioningRevision !== continuity.commissioningRevision
+        ? "commissioning_changed"
+        : null;
+  const verified =
     mode === "live" &&
     evidence?.eligible === true &&
-    typeof at === "number" &&
-    typeof evidence.validForMs === "number" &&
-    evidence.validForMs > 0 &&
-    at <= now &&
-    now - at <= evidence.validForMs
-  );
+    ageMs !== null &&
+    ageMs >= 0 &&
+    typeof validForMs === "number" &&
+    Number.isFinite(validForMs) &&
+    validForMs > 0 &&
+    validForMs <= 86400000 &&
+    sourceReason === null;
+  const state = !verified
+    ? ("unverified" as const)
+    : ageMs > validForMs
+      ? ("stale" as const)
+      : acquisitionMode === "on_change"
+        ? ("held" as const)
+        : ("current" as const);
+  return {
+    state,
+    acquisitionMode,
+    sampleAt: typeof at === "number" ? at : null,
+    ageMs,
+    validForMs: typeof validForMs === "number" ? validForMs : null,
+    reason: !verified
+      ? (sourceReason ?? evidence?.reason ?? "measurement_not_verified")
+      : state === "stale"
+        ? "maximum_value_age_exceeded"
+        : null,
+  };
+}
+
+/** Communication keepalives do not renew a measurement's bounded validity. */
+export function currentSample(
+  reading: SampleValidityInput,
+  now = Date.now(),
+): boolean {
+  const state = sampleValidity(reading, now).state;
+  return state === "current" || state === "held";
 }

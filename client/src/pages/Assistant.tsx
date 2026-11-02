@@ -42,7 +42,12 @@ import {
   assistantHistory,
   mayAdoptInferredContext,
   selectAssistantContext,
+  selectAssistantInvestigation,
 } from "@/lib/assistant-history";
+import {
+  investigationFromSearch,
+  investigationKey,
+} from "@shared/assistant-investigation";
 import { PageHeader } from "@/components/workspace/Primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,7 +90,10 @@ export default function Assistant() {
     active = useDocumentActive(),
     reduce = useMediaQuery("(prefers-reduced-motion: reduce)");
   const { id: factoryId, demo: factoryDemo } = useFactorySelection();
-  const [location] = useWorkspaceLocation();
+  const [location, navigate] = useWorkspaceLocation();
+  const handoff = investigationFromSearch(
+    new URLSearchParams(location.split("?")[1] ?? ""),
+  );
   const sandbox = useDemoSandbox();
   const owner = `${factoryId ?? "all"}:${user?.id ?? "signed-out"}:${user?.role ?? ""}:${user?.access?.demoOnly ? "demo" : (user?.access?.workspaceView ?? "configured")}`;
   const [session, setSession] = useAssistantSession(owner),
@@ -144,6 +152,11 @@ export default function Assistant() {
   const selectionSupported = useRuntimeCapability(
     "assistant-provider-selection-v1",
   );
+  const investigationSupported = useRuntimeCapability(
+    "ot-investigation-context-v1",
+  );
+  const handoffBlocked =
+    !!handoff.error || (!!session.investigation && !investigationSupported);
   const scrollToLatest = (smooth = true) => {
     follow.current = true;
     setShowLatest(false);
@@ -216,15 +229,35 @@ export default function Assistant() {
     [owner],
   );
   useEffect(() => {
-    const requested = new URLSearchParams(location.split("?")[1] ?? "").get(
-      "asset",
-    );
+    const query = new URLSearchParams(location.split("?")[1] ?? "");
+    const linked = investigationFromSearch(query);
+    if (linked.error) return;
+    if (linked.context) {
+      if (
+        investigationKey(readAssistantSession(owner)?.investigation) ===
+        investigationKey(linked.context)
+      )
+        return;
+      runningRequest.current?.cancel();
+      setSession((s) => selectAssistantInvestigation(s, linked.context));
+      return;
+    }
+    const requested = query.get("asset");
     if (!requested || requested.length < 3 || requested.length > 128) return;
-    if (readAssistantSession(owner)?.selectedAssetId === requested) return;
+    if (
+      readAssistantSession(owner)?.selectedAssetId === requested &&
+      !readAssistantSession(owner)?.investigation
+    )
+      return;
     // An explicit item link changes the next question's context. Earlier turns
     // keep their captured evidence, and navigation never submits the draft.
     runningRequest.current?.cancel();
-    setSession((s) => selectAssistantContext(s, requested, null));
+    setSession((s) =>
+      selectAssistantInvestigation(
+        selectAssistantContext(s, requested, null),
+        undefined,
+      ),
+    );
   }, [owner, location]);
   const inspect = (id: string, n?: number) => {
     inspectorOpener.current =
@@ -272,13 +305,17 @@ export default function Assistant() {
     try {
       // The separate additive endpoint fails visibly if the API rolls back while
       // this page is open. An older ask schema must never drop an explicit choice.
-      const raw = await (turn.request.selection
-          ? utils.client.assistant.askSelected.mutate(turn.request, {
+      const raw = await (turn.request.investigation
+          ? utils.client.assistant.askInContext.mutate(turn.request, {
               signal: controller.signal,
             })
-          : utils.client.assistant.ask.mutate(turn.request, {
-              signal: controller.signal,
-            })),
+          : turn.request.selection
+            ? utils.client.assistant.askSelected.mutate(turn.request, {
+                signal: controller.signal,
+              })
+            : utils.client.assistant.ask.mutate(turn.request, {
+                signal: controller.signal,
+              })),
         presentation = validatedAssistantPresentation(
           (raw as AssistantAnswer).presentation,
           raw.sources.length,
@@ -351,7 +388,7 @@ export default function Assistant() {
   };
   const submit = (event?: FormEvent, suggestion?: string) => {
     event?.preventDefault();
-    if (requestPending.current || busy) return;
+    if (requestPending.current || busy || handoffBlocked) return;
     const current = readAssistantSession(owner) ?? session,
       raw = suggestion ?? current.draft,
       question = raw.trim();
@@ -384,11 +421,14 @@ export default function Assistant() {
         question,
         factoryId: factoryId ?? undefined,
         selectedAssetId: context?.assetId,
+        ...(current.investigation
+          ? { investigation: current.investigation }
+          : {}),
         history,
         ...(selectionSupported && current.selection.provider !== "auto"
           ? { selection: current.selection }
           : {}),
-        ...(factoryDemo
+        ...(factoryDemo && !current.investigation
           ? {
               demoContext: captureDemoAssistantContext(
                 question,
@@ -500,6 +540,57 @@ export default function Assistant() {
           </div>
         }
       />
+      {(session.investigation || handoff.error) && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-xs"
+          aria-label="Investigation context"
+        >
+          <div className="min-w-0 space-y-1">
+            {handoff.error ? (
+              <p role="alert">{handoff.error}</p>
+            ) : (
+              <>
+                <p className="font-medium">
+                  Selected investigation ·{" "}
+                  {session.investigation?.incidentId
+                    ? `Incident ${session.investigation.incidentId} · `
+                    : ""}
+                  {session.investigation?.metric ?? "Source signal"} ·{" "}
+                  {session.investigation?.scope ?? "Workspace evidence"}
+                </p>
+                <p>
+                  {session.investigation?.startTime &&
+                  session.investigation.endTime
+                    ? `${new Date(session.investigation.startTime).toLocaleString()} – ${new Date(session.investigation.endTime).toLocaleString()}`
+                    : "Window around the recorded event"}
+                  . Historical evidence stays separate from current readings.
+                </p>
+                {!investigationSupported && (
+                  <p role="alert">
+                    The connected service does not yet support this
+                    investigation. Return to the source or clear the selection.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            onClick={() => {
+              setSession((s) => selectAssistantInvestigation(s, undefined));
+              const query = new URLSearchParams();
+              if (factoryId) query.set("factory", factoryId);
+              if (session.selectedAssetId !== "automatic")
+                query.set("asset", session.selectedAssetId);
+              navigate("/assistant" + (query.size ? "?" + query : ""));
+            }}
+          >
+            Clear investigation
+          </Button>
+        </div>
+      )}
       {selectionSupported && (
         <AssistantModelSelect
           value={session.selection}
@@ -825,7 +916,7 @@ export default function Assistant() {
                 <Button
                   type="submit"
                   aria-label="Ask"
-                  disabled={busy || invalid}
+                  disabled={busy || invalid || handoffBlocked}
                   size="icon"
                   className="mb-1 size-10 shrink-0"
                 >

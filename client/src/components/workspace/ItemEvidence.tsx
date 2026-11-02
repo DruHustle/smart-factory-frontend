@@ -8,6 +8,7 @@ import type { InventoryItem } from "@shared/inventory";
 import { useWorkspaceLocation } from "@/lib/hashLocation";
 import { metrics, type Metric } from "@shared/measurements";
 import { ObservationValues } from "./ObservationValues";
+import { parseAnalysisDate } from "@/lib/analysis-range";
 export function ItemActivity({ item }: { item: InventoryItem }) {
   const device = trpc.devices.getById.useQuery(
     { id: Number(item.id) },
@@ -97,8 +98,10 @@ export function ItemTelemetry({ item }: { item: InventoryItem }) {
       ? (params.get("metric") as Metric)
       : "temperature",
   );
-  const from = Number(params.get("from")),
-    to = Number(params.get("to"));
+  const time = (value: string | null) =>
+    value && /^\d+$/.test(value) ? Number(value) : parseAnalysisDate(value);
+  const from = time(params.get("from")),
+    to = time(params.get("to"));
   const validRange =
     params.has("from") &&
     params.has("to") &&
@@ -107,6 +110,15 @@ export function ItemTelemetry({ item }: { item: InventoryItem }) {
     from > 0 &&
     to > from &&
     to - from <= 93 * 86400000;
+  if ((params.has("from") || params.has("to")) && !validRange)
+    return (
+      <EmptyState
+        error
+        title="Invalid observation window"
+        description="Return to the source and select a complete window. No current window has been substituted."
+      />
+    );
+  const attribution = item.kind === "device" ? params.get("asset") : null;
   return (
     <div className="space-y-3">
       {item.sampleAt &&
@@ -150,9 +162,21 @@ export function ItemTelemetry({ item }: { item: InventoryItem }) {
           )}
         </select>
       </label>
+      {attribution && (
+        <p className="text-sm text-muted-foreground">
+          Source observations attributed to {attribution}. Other assets on this
+          source are excluded.
+        </p>
+      )}
       <ObservationTrend
         deviceId={item.kind === "device" ? Number(item.id) : undefined}
-        assetIds={item.kind !== "device" ? [item.identifier] : undefined}
+        assetIds={
+          item.kind !== "device"
+            ? [item.identifier]
+            : attribution
+              ? [attribution]
+              : undefined
+        }
         scope={scope}
         metric={metric}
         onMetricChange={setMetric}

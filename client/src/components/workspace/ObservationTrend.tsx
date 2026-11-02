@@ -19,6 +19,9 @@ import { trpc } from "@/lib/trpc";
 import { canonicalUnits, metrics, type Metric } from "@shared/measurements";
 import { EmptyState, Measurement, SampleTime } from "./Primitives";
 import { Button } from "@/components/ui/button";
+import { useRuntimeCapability } from "@/components/RuntimeBoundary";
+import { assistantInvestigationHref } from "@shared/assistant-investigation";
+import { useFactorySelection } from "@/lib/factory-selection";
 export type TrendScope =
   | "operational"
   | "live"
@@ -58,6 +61,10 @@ export function ObservationTrend({
   threshold?: { value: number; unit: string; label: string };
 }) {
   const { user } = useAuth();
+  const investigationSupported = useRuntimeCapability(
+    "ot-investigation-context-v1",
+  );
+  const { id: factoryId } = useFactorySelection();
   const showcase = trpc.system.showcase.useQuery(undefined, {
     enabled: !!user?.access?.demoOnly && !snapshot,
     staleTime: 300000,
@@ -153,6 +160,31 @@ export function ObservationTrend({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
         <h2 className="font-semibold">{title}</h2>
         <div className="flex flex-wrap gap-2">
+          {investigationSupported &&
+            !snapshot &&
+            (deviceId || assetIds?.length === 1) &&
+            input.endTime > input.startTime &&
+            input.endTime - input.startTime <= 86400000 && (
+              <Button asChild variant="outline" size="sm">
+                <Link
+                  href={assistantInvestigationHref(
+                    {
+                      ...(assetIds?.length === 1
+                        ? { assetId: assetIds[0] }
+                        : {}),
+                      ...(deviceId ? { deviceId } : {}),
+                      metric: selected,
+                      scope,
+                      startTime: input.startTime,
+                      endTime: input.endTime,
+                    },
+                    factoryId,
+                  )}
+                >
+                  Ask about this window
+                </Link>
+              </Button>
+            )}
           {openHref && (
             <Button asChild variant="outline" size="sm">
               <Link

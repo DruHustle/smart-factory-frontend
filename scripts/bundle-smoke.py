@@ -8,6 +8,10 @@ import hashlib, json, os, re, secrets, subprocess, tempfile, time, urllib.reques
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ['docker', 'compose', '--env-file', '/dev/null', '-p', 'smart-factory-bundle-test', '-f', str(ROOT / 'docker-compose.bundle-test.yml')]
 BASE = 'http://127.0.0.1:3110'
+OT_EXPANDED_CAPABILITIES = {'ot-alarm-conditions-v1', 'ot-operations-v1', 'ot-investigation-context-v1'}
+ADDITIVE_FALLBACK_CAPABILITIES = OT_EXPANDED_CAPABILITIES | {
+    'assistant-provider-selection-v1', 'ot-incident-review-v1', 'ot-follow-up-actions-v1',
+}
 def run(args, capture=False):
     return subprocess.run(args, cwd=ROOT, check=True, text=True, stdout=subprocess.PIPE if capture else None).stdout
 def sql(value):
@@ -42,6 +46,108 @@ def wait(check, timeout=90):
         except (OSError, AssertionError): pass
         time.sleep(1)
     raise AssertionError('Acceptance condition timed out')
+
+def ot_rollback_fingerprint(fixture):
+    """Compare the exact additive evidence, independently of legacy review updates."""
+    alert_ids=','.join(str(int(item['id'])) for item in fixture['alarms'])
+    activity_ids=','.join(str(int(item['activityId'])) for item in fixture['alarms'])
+    audit_ids=','.join(str(int(value)) for value in fixture['auditIds'])
+    snapshot=sql(f'''SELECT jsonb_build_object(
+      'commissioning',(SELECT metadata->'commissioning' FROM devices WHERE id={int(fixture['deviceId'])}),
+      'conditions',(SELECT jsonb_agg(jsonb_build_object('id',id,'condition',source_condition,
+        'observedAt',condition_observed_at,'validUntil',condition_valid_until,
+        'invalidReason',condition_invalid_reason,'evidence',condition_evidence) ORDER BY id)
+        FROM alerts WHERE id IN ({alert_ids})),
+      'conditionActivity',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM incident_activity a WHERE id IN ({activity_ids})),
+      'configuration',(SELECT to_jsonb(c) FROM ot_operations_configuration c WHERE scope='installation'),
+      'production',(SELECT to_jsonb(p) FROM ot_production_periods p WHERE id={int(fixture['periodId'])}),
+      'handover',(SELECT to_jsonb(h) FROM ot_shift_handover h WHERE id={int(fixture['handoverId'])}),
+      'audit',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM ot_operations_activity a WHERE id IN ({audit_ids}))
+    )::text''')
+    return hashlib.sha256(snapshot.encode()).hexdigest()
+
+def verify_ot_rollback(fixture, viewer, candidate):
+    assert ot_rollback_fingerprint(fixture)==fixture['fingerprint'], 'Alarm or operations evidence changed across image transition.'
+    for alarm in fixture['alarms']:
+        record=trpc(viewer,'alerts.getById',{'id':alarm['id']},query=True)
+        assert record['id']==alarm['id'], 'The fallback lost the legacy incident read path.'
+        if candidate:
+            assert record['sourceCondition']==alarm['condition']
+            assert record['conditionEvidence']['readingId']==alarm['readingId']
+            assert record['conditionInvalidReason']==alarm['invalidReason']
+            history=trpc(viewer,'alerts.history',{'id':alarm['id']},query=True)
+            assert any(int(item['id'])==alarm['activityId'] and item['kind']==alarm['kind'] for item in history['items'])
+    if candidate:
+        commissioning=trpc(viewer,'devices.getById',{'id':fixture['deviceId']},query=True)['metadata']['commissioning']
+        assert commissioning['acquisitionMode']=='on_change' and commissioning['valueValiditySeconds']==600
+        summary=trpc(viewer,'operations.summary',{'at':fixture['endTime'],'startTime':fixture['startTime'],'endTime':fixture['endTime']},query=True)
+        assert summary['configured'] and summary['version']==1 and summary['demo'] is False
+        assert summary['configuration']==fixture['configuration']
+        assert any(item['id']==fixture['periodId'] and item['provenance']=='manual' and item['author']=='Engineer reviewer' for item in summary['records'])
+        note=next(item for item in summary['notes'] if item['id']==fixture['handoverId'])
+        assert note['text']==fixture['note'] and note['nextStep']==fixture['nextStep']
+        assert note['assetRefs']==fixture['assetRefs'] and note['incidentIds']==[fixture['alarms'][0]['id']]
+        assert summary['analysis']['coveragePercent']==100
+        assert summary['analysis']['totalCount']==500 and summary['analysis']['goodCount']==480
+        assert abs(summary['analysis']['oee']-0.8)<1e-9
+        assert abs(summary['analysis']['energyPerGoodUnit']-0.025)<1e-9
+
+def prepare_ot_rollback(engineer, viewer, device):
+    """Synthetic, explicitly identified data for 0037/0038 retention; never a hardware claim."""
+    boundary='Bundle rollback production line'
+    # A complete historical hour avoids future evidence and partial-shift ambiguity.
+    end_time=((int(time.time())//86400)-1)*86400000+12*3600000
+    start_time=end_time-3600000
+    revision=(device.get('metadata') or {}).get('commissioning',{}).get('revision',0)
+    commissioned=trpc(engineer,'devices.updateCommissioning',{'id':device['id'],'expectedRevision':revision,'name':device['name'],
+        'location':device.get('location'),'zone':device.get('zone'),'policy':{'route':'direct','freshnessSeconds':30,'acquisitionMode':'on_change','valueValiditySeconds':600}})
+    commissioning=commissioned['metadata']['commissioning']
+    threshold_id=int(sql(f'''INSERT INTO alert_thresholds ("deviceId",metric,unit,"maxValue") VALUES ({device['id']},'temperature','°C',50) RETURNING id'''))
+    threshold={'id':threshold_id,'deviceId':device['id'],'metric':'temperature','unit':'°C','minValue':None,'maxValue':50,'warningMin':None,'warningMax':None,'enabled':True}
+    alarms=[]
+    for index,(condition,invalid_reason,value,kind) in enumerate([
+        ('active',None,60,'source_active'),('cleared',None,30,'source_cleared'),('active','source_quality',65,'source_unverified'),
+    ]):
+        occurred=start_time+(index+1)*60000
+        observed=datetime.fromtimestamp(occurred/1000,timezone.utc).isoformat()
+        valid_until=datetime.fromtimestamp((occurred+600000)/1000,timezone.utc).isoformat() if not invalid_reason else None
+        measurement={'sourceValue':value,'sourceUnit':'°C','canonicalValue':value,'canonicalUnit':'°C','conversionVersion':'sf-units-v1','quality':'good'}
+        readings=json.dumps({'temperature':measurement}).replace("'","''")
+        reading_id=int(sql(f'''INSERT INTO sensor_readings ("deviceId","assetId",temperature,timestamp,integration,measurements)
+          VALUES ({device['id']},'urn:bundle:motor',{value},{occurred},'{{"mode":"live","fixture":"synthetic-ot-rollback"}}'::jsonb,'{readings}'::jsonb) RETURNING id'''))
+        evidence={'readingId':reading_id,'occurredAt':occurred,'receivedAt':observed,'sourceDeviceId':device['deviceId'],'gatewayId':None,'mode':'live',
+                  'metric':'temperature','value':value,'unit':'°C','measurement':measurement,'thresholdConfiguration':threshold,'commissioningRevision':commissioning['revision'],'acquisitionMode':'on_change'}
+        encoded=json.dumps(evidence).replace("'","''")
+        reason="'"+invalid_reason+"'" if invalid_reason else 'NULL'
+        expiry="'"+valid_until+"'::timestamptz" if valid_until else 'NULL'
+        alert_id=int(sql(f'''INSERT INTO alerts ("deviceId","assetId",type,severity,metric,value,threshold,message,
+          source_condition,condition_observed_at,condition_valid_until,condition_invalid_reason,condition_evidence)
+          VALUES ({device['id']},'urn:bundle:motor','threshold_exceeded','warning','temperature',{value},50,
+          'Synthetic OT rollback evidence {index+1}','{condition}','{observed}'::timestamptz,{expiry},{reason},'{encoded}'::jsonb) RETURNING id'''))
+        detail=json.dumps({'readingId':reading_id,'occurredAt':occurred,'value':value,'unit':'°C','thresholdId':threshold_id,'reason':invalid_reason}).replace("'","''")
+        activity_id=int(sql(f"INSERT INTO incident_activity(alert_id,kind,detail) VALUES({alert_id},'{kind}','{detail}'::jsonb) RETURNING id"))
+        alarms.append({'id':alert_id,'condition':condition,'invalidReason':invalid_reason,'readingId':reading_id,'activityId':activity_id,'kind':kind})
+    configuration={'timeZone':'UTC','shifts':[{'id':'bundle-day','name':'Bundle day','startMinute':0}],
+                   'boundaryLabel':boundary,'countUnit':'units','currency':'USD','idealCycleSeconds':6,'energyMeterBoundary':boundary}
+    configured=trpc(engineer,'operations.configure',{'expectedVersion':0,'configuration':configuration})
+    assert configured['version']==1
+    period={'startTime':start_time,'endTime':end_time,'product':'Synthetic rollback batch','totalCount':500,'goodCount':480,
+            'idealCycleSeconds':6,'meterStartKwh':1000,'meterEndKwh':1012,'meterBoundary':boundary,'complete':True,
+            'evidence':'Synthetic qualification count and meter sheet; no production or physical equipment assertion.',
+            'downtime':[{'startTime':start_time+900000,'endTime':start_time+1200000,'reason':'Synthetic inspection','planned':False}]}
+    saved=trpc(engineer,'operations.recordProduction',{'expectedVersion':1,'period':period})
+    asset_id=int(sql("SELECT id FROM assets WHERE \"assetId\"='urn:bundle:motor'"))
+    refs=[f'asset:{asset_id}']
+    note='Synthetic inspection remains open across the image transition.'
+    next_step='Compare the retained readings and record an owned outcome after restoration.'
+    handover=trpc(engineer,'operations.addHandover',{'expectedVersion':1,'at':end_time,'text':note,'nextStep':next_step,'assetRefs':refs,'incidentIds':[alarms[0]['id']]})
+    audit_ids=json.loads(sql("SELECT jsonb_agg(id ORDER BY id)::text FROM ot_operations_activity WHERE scope='installation'"))
+    assert len(audit_ids)==3, 'Configuration, production and handover must each retain an actor audit.'
+    fixture={'deviceId':device['id'],'alarms':alarms,'configuration':configuration,'startTime':start_time,'endTime':end_time,'periodId':saved['id'],
+             'handoverId':handover['id'],'auditIds':audit_ids,'assetRefs':refs,'note':note,'nextStep':next_step}
+    fixture['fingerprint']=ot_rollback_fingerprint(fixture)
+    verify_ot_rollback(fixture,viewer,True)
+    return fixture
 
 def verify_packaged_references(viewer, anonymous):
     """Use the real packaged API, not local Vite/static files or mocked auth."""
@@ -502,9 +608,11 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
         candidate_runtime=runtime
         rollback_sources=json.loads((ROOT/'deploy/rollback-sources.json').read_text())
         assert 'industrial-connectivity-v1' in candidate_runtime['capabilities']
+        assert OT_EXPANDED_CAPABILITIES.issubset(candidate_runtime['capabilities'])
         industrial_fixture=prepare_industrial_rollback(engineer)
         publish_industrial_rollback(industrial_fixture)
         verify_industrial_rollback(industrial_fixture,viewer)
+        ot_fixture=prepare_ot_rollback(engineer,viewer,device)
         fallback_runtime=None
         user=next(u for u in trpc(admin,'users.list',query=True) if u['id']==engineer_id)
         trpc(admin,'users.setEnabled',{'id':engineer_id,'enabled':False,'expectedVersion':user['accessVersion']})
@@ -523,7 +631,7 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             assert transition_runtime['worker']['fresh'] is True and transition_runtime['worker']['compatible'] is True
             # Additive UI features are hidden on the qualified fallback API.
             # Every core workspace capability must remain available.
-            required_capabilities = set(candidate_runtime['capabilities']) - {'assistant-provider-selection-v1', 'ot-incident-review-v1', 'ot-follow-up-actions-v1'}
+            required_capabilities = set(candidate_runtime['capabilities']) - ADDITIVE_FALLBACK_CAPABILITIES if position==0 else set(candidate_runtime['capabilities'])
             assert required_capabilities.issubset(transition_runtime['capabilities'])
             if position==0: fallback_runtime=transition_runtime
             verify_authored_workspaces(authored_workspaces,viewer)
@@ -534,6 +642,12 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             assert http(engineer,'/api/trpc/assets.list')[0]==401
             assert sql('SELECT count(*) FROM sensor_readings WHERE "assetId" IS NULL')=='2'
             assert sql(f"SELECT count(*) FROM incident_actions WHERE id={incident_action} AND alert_id={alert} AND status='open'")=='1'
+            verify_ot_rollback(ot_fixture,viewer,position==1)
+            if position==0:
+                # A supported legacy write must preserve additive source evidence.
+                trpc(admin,'alerts.updateStatus',{'id':ot_fixture['alarms'][0]['id'],'status':'acknowledged'})
+                assert trpc(viewer,'alerts.getById',{'id':ot_fixture['alarms'][0]['id']},query=True)['acknowledgedAt'] is not None
+                assert ot_rollback_fingerprint(ot_fixture)==ot_fixture['fingerprint'], 'Legacy acknowledgement overwrote source condition or operations evidence.'
             publish_industrial_rollback(industrial_fixture)
             verify_industrial_rollback(industrial_fixture,viewer)
         if named_factory:
@@ -543,11 +657,16 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
         assert verify_packaged_references(viewer,plain)==reference_evidence, 'Restored candidate lost native authored assets.'
         assert trpc(viewer,'alerts.actions',{'id':alert},query=True)['items'][0]['id']==incident_action
         assert any(item['id']==incident_action for item in trpc(viewer,'alerts.actionQueue',{'page':0,'pageSize':25},query=True)['items'])
+        verify_ot_rollback(ot_fixture,viewer,True)
         assert fallback_runtime is not None and len(industrial_fixture['reports'])==3
         rollback_evidence={'qualifiedPriorImage':rollback_image,'restoredCandidateImage':current_image,'revokedAccountStayedRejected':True,'activeViewerPreserved':True,'telemetryIdentitiesPreserved':True,'schemaCompatible':True,
             'runtime':fallback_runtime,'industrialObservationsPreserved':True,'industrialObservationCount':3,'industrialFallbackIngestionVerified':True,
-            'authoredInstalledModelsPreserved':True,'authoredInstalledModelCount':len(authored_workspaces),'fallbackStatelessReferencesVerified':True,'unknownStatelessReferencesRejected':True,'incidentActionsPreserved':True}
-        print('PASS: rollback and roll-forward preserve sessions, revocation, schema and all three industrial observations; the fallback also ingests new MQTT observations without dropping quality or exact 64-bit values.')
+            'authoredInstalledModelsPreserved':True,'authoredInstalledModelCount':len(authored_workspaces),'fallbackStatelessReferencesVerified':True,'unknownStatelessReferencesRejected':True,'incidentActionsPreserved':True,
+            'alarmConditionEvidencePreserved':True,'alarmConditionActivityTypes':['source_active','source_cleared','source_unverified'],'onChangeCommissioningPreserved':True,
+            'legacyAcknowledgementPreservedSourceEvidence':True,'operationsConfigurationPreserved':True,'productionPeriodsPreserved':True,
+            'shiftHandoverPreserved':True,'operationsActorAuditPreserved':True,'otEvidenceFingerprint':ot_fixture['fingerprint'],
+            'candidateOtCapabilitiesRestored':True}
+        print('PASS: rollback and roll-forward preserve sessions, revocation, strict schema identity, industrial observations, alarm source evidence, production and handover; legacy acknowledgement cannot clear a source condition, and restored OT calculations agree.')
     # The explicit public-demo installer must not change private inventory or queue email.
     sql("INSERT INTO users(\"openId\",email,name,role) VALUES('demo-bundle-owner','admin@dev.local','Synthetic demo owner','admin')")
     private_before=sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(d) ORDER BY id)::text,'')) FROM devices d WHERE \"isDemo\"=false")

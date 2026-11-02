@@ -218,18 +218,46 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     });
     expect(thresholds.length).toBeGreaterThan(0);
 
+    const observedAt = Date.now();
     await db.ingestTelemetryByDeviceId({
       deviceId: testDeviceExternalId,
       temperature: 70,
       units: { temperature: "°C" },
+      transportRetainVerified: true,
       integration: {
         mode: "live",
         sourceQuality: "good",
         sourceConnection: "online",
         gatewayReceivedAt: new Date().toISOString(),
       },
-      timestamp: Date.now(),
+      timestamp: observedAt,
     });
+
+    // A manually created legacy warning has no verified rule/source snapshot.
+    // Current evidence creates its own event instead of rewriting that history.
+    const legacyWarning = await caller.alerts.getById({ id: testAlertId });
+    expect(legacyWarning).toMatchObject({
+      severity: "warning",
+      sourceCondition: "unknown",
+    });
+    const verified = (await db.getAlerts({ deviceId: testDeviceId })).find(
+      (alert) =>
+        alert.type === "threshold_exceeded" &&
+        alert.metric === "temperature" &&
+        alert.sourceCondition === "active" &&
+        alert.conditionEvidence?.occurredAt === observedAt,
+    );
+    expect(verified).toMatchObject({
+      severity: "critical",
+      errorCode: "SF-THR-TEMP-CRIT",
+      currentCondition: "active",
+      conditionEvidence: {
+        value: 70,
+        thresholdConfiguration: { maxValue: 60, warningMax: 55 },
+      },
+    });
+    expect(verified!.id).not.toBe(testAlertId);
+    testAlertId = verified!.id;
 
     const readings = await caller.readings.getForDevice({
       deviceId: testDeviceId,
@@ -249,6 +277,7 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     expect(alertStatusUpdated?.status).toBe("acknowledged");
     expect(alertStatusUpdated?.severity).toBe("critical");
     expect(alertStatusUpdated?.errorCode).toBe("SF-THR-TEMP-CRIT");
+    expect(alertStatusUpdated?.sourceCondition).toBe("active");
 
     const downtimeStarted = await caller.alerts.startDowntime({
       id: testAlertId,
@@ -256,6 +285,7 @@ databaseDescribe("App Function Coverage (explicit TEST_DATABASE_URL)", () => {
     expect(downtimeStarted?.downtimeStartedAt).toBeInstanceOf(Date);
     const updatedAlert = await caller.alerts.resolve({ id: testAlertId });
     expect(updatedAlert?.status).toBe("resolved");
+    expect(updatedAlert?.sourceCondition).toBe("active");
 
     await expect(
       caller.ota.deploy({

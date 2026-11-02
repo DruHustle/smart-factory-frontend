@@ -8,6 +8,8 @@ import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/workspace/Primitives";
+import { ObservationTrend } from "@/components/workspace/ObservationTrend";
+import { assistantTrendSnapshot } from "@shared/assistant";
 export function EvidenceInspector({
   turn,
   context,
@@ -52,8 +54,34 @@ export function EvidenceInspector({
     return () => cancelAnimationFrame(frame);
   }, [turn?.id, citation]);
   const sources = turn?.result?.sources ?? [];
+  const investigation = turn?.result?.investigation;
+  const investigatedTrend = assistantTrendSnapshot.safeParse(
+    investigation?.snapshot,
+  );
   return (
     <div ref={root} className="min-w-0 space-y-5">
+      {investigation && investigatedTrend.success && (
+        <section aria-label="Investigation evidence" className="space-y-2">
+          <h2 className="font-semibold">Selected investigation</h2>
+          <p className="text-xs text-muted-foreground">
+            {investigation.name} · {investigatedTrend.data.scope} · recorded
+            window. Gaps remain missing data.
+          </p>
+          <ObservationTrend
+            compact
+            snapshot={investigatedTrend.data}
+            title="Selected time window"
+            assetIds={
+              investigation.assetId ? [investigation.assetId] : undefined
+            }
+            deviceId={investigation.deviceId}
+            metric={investigatedTrend.data.metric}
+            scope={investigatedTrend.data.scope}
+            startTime={investigatedTrend.data.startTime}
+            endTime={investigatedTrend.data.endTime}
+          />
+        </section>
+      )}
       <section aria-label="Equipment context" className="space-y-3">
         <h2 className="font-semibold">Equipment context</h2>
         {equipment ? (

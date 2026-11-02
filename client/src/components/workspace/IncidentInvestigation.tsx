@@ -17,6 +17,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { observationHref, itemHref } from "@shared/inventory";
+import { assistantInvestigationHref } from "@shared/assistant-investigation";
+import { alarmConditionReasonLabel } from "@shared/alarm-condition";
+import { metrics, type Metric } from "@shared/measurements";
+import { useFactorySelection } from "@/lib/factory-selection";
 import {
   incidentNoteCategories,
   incidentNoteLabel,
@@ -36,6 +40,11 @@ export function IncidentInvestigation({
     "ot-incident-review-v1",
   );
   const actionsSupported = useRuntimeCapability("ot-follow-up-actions-v1");
+  const conditionSupported = useRuntimeCapability("ot-alarm-conditions-v1");
+  const investigationSupported = useRuntimeCapability(
+    "ot-investigation-context-v1",
+  );
+  const { id: factoryId } = useFactorySelection();
   const { user } = useAuth(),
     active = useDocumentActive(),
     utils = trpc.useUtils(),
@@ -147,11 +156,30 @@ export function IncidentInvestigation({
           {e.occurrences > 1 && (
             <Badge variant="outline">{e.occurrences} observations</Badge>
           )}
+          {conditionSupported && (
+            <Badge
+              variant="outline"
+              data-current-condition={e.currentCondition ?? "unknown"}
+            >
+              Source: {e.currentCondition ?? "unknown"} ·{" "}
+              {e.acknowledged ? "Acknowledged" : "Unacknowledged"}
+            </Badge>
+          )}
         </div>
         <p className="text-xs text-muted-foreground">
-          Review status does not establish the current physical condition. Check
-          source evidence.
+          {conditionSupported && e.conditionReason
+            ? alarmConditionReasonLabel(e.conditionReason)
+            : "Review status does not establish the current physical condition. Check source evidence."}
         </p>
+        {conditionSupported && e.conditionEvidence?.occurredAt && (
+          <p className="text-xs text-muted-foreground">
+            Last verified source state: {e.sourceCondition} ·{" "}
+            {new Date(e.conditionEvidence.occurredAt).toLocaleString()}.
+            {e.conditionValidUntil
+              ? ` Validity ends ${new Date(e.conditionValidUntil).toLocaleString()}.`
+              : ""}
+          </p>
+        )}
       </div>
       <div
         className={
@@ -300,6 +328,26 @@ export function IncidentInvestigation({
               {e.type} · {e.errorCode}
             </p>
           </details>
+          {investigationSupported && (
+            <Button asChild variant="outline" className="w-full">
+              <Link
+                href={assistantInvestigationHref(
+                  {
+                    incidentId: e.id,
+                    deviceId: e.deviceId,
+                    ...(e.assetId ? { assetId: e.assetId } : {}),
+                    ...(metrics.includes(e.metric as Metric)
+                      ? { metric: e.metric as Metric }
+                      : {}),
+                    scope: user?.access?.demoOnly ? "simulated" : "operational",
+                  },
+                  factoryId,
+                )}
+              >
+                Investigate with Assistant
+              </Link>
+            </Button>
+          )}
         </div>
         <div className="space-y-4">
           <h3 className="font-semibold">Investigation timeline</h3>

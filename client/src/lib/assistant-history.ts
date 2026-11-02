@@ -1,4 +1,8 @@
 import type { AssistantSession, AssistantTurn } from "./assistant-session";
+import {
+  investigationKey,
+  type InvestigationContext,
+} from "@shared/assistant-investigation";
 
 export function selectAssistantContext(
   session: AssistantSession,
@@ -9,8 +13,34 @@ export function selectAssistantContext(
     ...session,
     selectedAssetId: assetId,
     selectedAssetName: name,
+    ...(session.selectedAssetId !== assetId
+      ? { investigation: undefined }
+      : {}),
     contextRevision:
       session.contextRevision + (session.selectedAssetId === assetId ? 0 : 1),
+  };
+}
+
+/** Equipment, incident and time window all define the evidence for a follow-up. */
+export function selectAssistantInvestigation(
+  session: AssistantSession,
+  investigation?: InvestigationContext,
+): AssistantSession {
+  const selectedAssetId = investigation
+    ? (investigation.assetId ?? "automatic")
+    : session.selectedAssetId;
+  const changed =
+    selectedAssetId !== session.selectedAssetId ||
+    investigationKey(investigation) !== investigationKey(session.investigation);
+  return {
+    ...session,
+    selectedAssetId,
+    selectedAssetName:
+      selectedAssetId === session.selectedAssetId
+        ? session.selectedAssetName
+        : null,
+    investigation,
+    contextRevision: session.contextRevision + (changed ? 1 : 0),
   };
 }
 
@@ -20,6 +50,7 @@ export function mayAdoptInferredContext(
 ) {
   return (
     session.selectedAssetId === "automatic" &&
+    !session.investigation &&
     session.contextRevision === turn.contextRevision
   );
 }

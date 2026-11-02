@@ -34,6 +34,7 @@ import { OverviewInfrastructure } from "@/components/workspace/OverviewInfrastru
 import { SystemItemTypes } from "@/components/workspace/SystemInventoryOverview";
 import { metrics, type Metric } from "@shared/measurements";
 import type { FloorLink } from "@shared/factory-floor";
+import { OperationsWorkspace } from "@/components/operations/OperationsWorkspace";
 
 export default function Home() {
   const { id } = useFactorySelection();
@@ -470,6 +471,7 @@ function LegacyHome() {
           )}
         </div>
       </div>
+      <OperationsWorkspace compact />
       <div className="overview-bottom-grid grid min-w-0 items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,2.15fr)_minmax(14rem,1fr)_minmax(13rem,.9fr)]">
         <div className="overview-telemetry min-w-0 lg:col-span-2 xl:col-span-1">
           {assetIds.length > 0 && assetIds.length <= 1000 ? (

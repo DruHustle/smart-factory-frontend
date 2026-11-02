@@ -28,6 +28,8 @@ import { Badge } from "@/components/ui/badge";
 import SecuritySummary from "@/components/SecuritySummary";
 import { AssetConnectivity } from "@/components/connectivity/AssetConnectivity";
 import { Bot, Cable } from "lucide-react";
+import { OperationsWorkspace } from "@/components/operations/OperationsWorkspace";
+import { ObservationValidity } from "@/components/workspace/ObservationValidity";
 const Aas = lazy(() => import("./AssetAdministrationShell"));
 const Device = lazy(() => import("./DeviceDetail"));
 const loadEquipment = () => import("./EquipmentView");
@@ -205,6 +207,12 @@ export default function ItemWorkspace() {
           </>
         }
       />
+      {!is3D && (
+        <OperationsWorkspace
+          scenarioOnly
+          contextAsset={{ ref: i.ref, name: i.name }}
+        />
+      )}
       <details className="text-xs">
         <summary className="cursor-pointer text-muted-foreground">
           Item identity
@@ -229,6 +237,7 @@ export default function ItemWorkspace() {
           <span className="capitalize">Lifecycle: {i.lifecycle}</span>
         )}
       </div>
+      <ObservationValidity reading={i} />
       <SectionNav
         label="Item sections"
         value={section}
@@ -242,7 +251,25 @@ export default function ItemWorkspace() {
             { staleTime: 15000 },
           );
         }}
-        onChange={(v) => navigate(itemHref(ref, v, safeReturn))}
+        onChange={(v) => {
+          const href = itemHref(ref, v, safeReturn);
+          const preserved = new URLSearchParams(href.split("?")[1] ?? "");
+          for (const key of [
+            "asset",
+            "otScenario",
+            "from",
+            "to",
+            "factory",
+            "metric",
+            "scope",
+          ]) {
+            const value = query.get(key);
+            if (value != null) preserved.set(key, value);
+          }
+          navigate(
+            href.split("?")[0] + (preserved.size ? "?" + preserved : ""),
+          );
+        }}
       >
         {i.kind === "asset" &&
           ["telemetry", "connections"].includes(section) && (

@@ -9,6 +9,13 @@ import {
 } from "../shared/runtime-contract";
 import { demoInfrastructure } from "../server/infrastructure/demo";
 import { demoNetwork } from "../server/network-diagnostics/demo";
+import { demoOperations } from "../server/operations/demo";
+import {
+  analyseProduction,
+  defaultOperationsConfiguration,
+  resolveShift,
+  type OperationsSummary,
+} from "../shared/operations";
 import { canonicalUnits } from "../shared/measurements";
 import type { InventoryItem } from "../shared/inventory";
 
@@ -315,6 +322,49 @@ async function workspaceFixture(
         case "system.showcase":
           value = null;
           break;
+        case "operations.summary": {
+          if (demo) {
+            value = demoOperations(
+              input.scenario ?? "healthy",
+              null,
+              input.startTime != null && input.endTime != null
+                ? { startTime: input.startTime, endTime: input.endTime }
+                : undefined,
+            );
+            break;
+          }
+          const fixtureAt = Date.parse("2026-10-31T12:00:00Z");
+          const configuration = {
+            ...defaultOperationsConfiguration,
+            boundaryLabel: "Synthetic fixture installation",
+          };
+          const shift = resolveShift(configuration, input.at ?? fixtureAt);
+          const startTime = input.startTime ?? shift.startTime;
+          const endTime = input.endTime ?? Math.min(shift.endTime, fixtureAt);
+          value = {
+            scope: {
+              id: input.factoryId ?? "installation",
+              label: "Synthetic fixture installation",
+            },
+            configured: false,
+            configuration,
+            version: 0,
+            demo: false,
+            shift,
+            analysis: analyseProduction(
+              [],
+              startTime,
+              endTime,
+              configuration.boundaryLabel,
+            ),
+            records: [],
+            notes: [],
+            notesHasMore: false,
+            outstanding: [],
+            evidence: null,
+          } satisfies OperationsSummary;
+          break;
+        }
         case "analytics.getOverview":
           value = {
             devices: {

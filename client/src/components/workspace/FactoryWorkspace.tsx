@@ -39,6 +39,8 @@ import { itemHref, type InventoryItem } from "@shared/inventory";
 import { gatewayLinksForFloor } from "@shared/factory-floor";
 import { DEMO_ACCOUNTS } from "@shared/demo-accounts";
 import { factoryZoneSuggestions } from "./factory-spaces";
+import { OperationsWorkspace } from "@/components/operations/OperationsWorkspace";
+import { FactoryAttention } from "./FactoryAttention";
 
 type Controller = ReturnType<typeof useNamedFactory>;
 type Tab = "equipment" | "floor" | "activity";
@@ -471,79 +473,103 @@ export function FactoryWorkspace({
               this view. Their saved placements are retained.
             </p>
           )}
-          <FactoryFloor
-            items={items}
-            links={gatewayLinksForFloor(items)}
-            selected={selected}
-            onSelect={(ref) => setSelected(ref || null)}
-            returnTo={`/${mode === "inventory" ? "inventory" : ""}?factory=${id}`}
-            demo={c.demo}
-            measured
-            itemDimensions={draft.dimensions}
-            layoutDocument={draft.document}
-            movable={c.canEdit}
-            arrangementKey={`named-factory:${id}`}
-            onLayoutMove={(ref, x, z) =>
-              change((next) => {
-                const p = next.document.placements.find((p) => p.ref === ref);
-                if (p) {
-                  p.x = x;
-                  p.z = z;
-                }
-              })
+          <div
+            className={
+              mode === "overview" && !c.demo
+                ? "grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.35fr)]"
+                : "min-w-0"
             }
-            onGrabStart={() => setTab(null)}
-            onGrabChange={c.setGrabbing}
-            onInventoryDelete={
-              c.canDelete
-                ? async (ref) => {
-                    const warnings = await c.remove(ref);
-                    warnings?.forEach((warning) =>
-                      toast.warning(warning, { duration: 15000 }),
+          >
+            <div className="min-w-0">
+              <FactoryFloor
+                items={items}
+                links={gatewayLinksForFloor(items)}
+                selected={selected}
+                onSelect={(ref) => setSelected(ref || null)}
+                returnTo={`/${mode === "inventory" ? "inventory" : ""}?factory=${id}`}
+                demo={c.demo}
+                measured
+                itemDimensions={draft.dimensions}
+                layoutDocument={draft.document}
+                movable={c.canEdit}
+                arrangementKey={`named-factory:${id}`}
+                onLayoutMove={(ref, x, z) =>
+                  change((next) => {
+                    const p = next.document.placements.find(
+                      (p) => p.ref === ref,
                     );
-                    if (selected === ref) setSelected(null);
-                    toast.success("Item removed from factory inventory");
-                  }
-                : undefined
-            }
-            headerActions={
-              <>
-                {c.canEdit && (
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="size-9"
-                    title="Add equipment"
-                    aria-label="Add equipment"
-                    onClick={() => setTab("equipment")}
-                  >
-                    <Plus className="size-4" />
-                  </Button>
-                )}
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-9"
-                  title="Edit factory floor"
-                  aria-label="Edit factory floor"
-                  onClick={() => setTab("floor")}
-                >
-                  <Settings2 className="size-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-9"
-                  title="Factory activity"
-                  aria-label="Factory activity"
-                  onClick={() => setTab("activity")}
-                >
-                  <History className="size-4" />
-                </Button>
-              </>
-            }
-            editor={editor}
-          />
+                    if (p) {
+                      p.x = x;
+                      p.z = z;
+                    }
+                  })
+                }
+                onGrabStart={() => setTab(null)}
+                onGrabChange={c.setGrabbing}
+                onInventoryDelete={
+                  c.canDelete
+                    ? async (ref) => {
+                        const warnings = await c.remove(ref);
+                        warnings?.forEach((warning) =>
+                          toast.warning(warning, { duration: 15000 }),
+                        );
+                        if (selected === ref) setSelected(null);
+                        toast.success("Item removed from factory inventory");
+                      }
+                    : undefined
+                }
+                headerActions={
+                  <>
+                    {c.canEdit && (
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="size-9"
+                        title="Add equipment"
+                        aria-label="Add equipment"
+                        onClick={() => setTab("equipment")}
+                      >
+                        <Plus className="size-4" />
+                      </Button>
+                    )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-9"
+                      title="Edit factory floor"
+                      aria-label="Edit factory floor"
+                      onClick={() => setTab("floor")}
+                    >
+                      <Settings2 className="size-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-9"
+                      title="Factory activity"
+                      aria-label="Factory activity"
+                      onClick={() => setTab("activity")}
+                    >
+                      <History className="size-4" />
+                    </Button>
+                  </>
+                }
+                editor={editor}
+              />
+            </div>
+            {mode === "overview" && !c.demo && (
+              <FactoryAttention factoryId={id} />
+            )}
+          </div>
+          {mode === "overview" && (
+            <OperationsWorkspace
+              factoryId={id}
+              compact
+              contextAsset={
+                active ? { ref: active.ref, name: active.name } : undefined
+              }
+            />
+          )}
           <section
             className="rounded-lg border bg-card p-4"
             aria-label="Factory inventory"

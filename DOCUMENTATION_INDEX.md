@@ -16,6 +16,8 @@
 - [Authentication and roles](AUTHENTICATION.md)
 - [Login troubleshooting](LOGIN_TROUBLESHOOTING.md)
 - [Smart Factory Assistant configuration and data boundaries](docs/assistant.md)
+- [OT operations, source validity, production analysis and shift handover](docs/ot-operations.md)
+- [Expanded OT workflow qualification and release limits](docs/ot-operations-qualification.md)
 - [Factory layouts, mouse grabbing and fullscreen](docs/factory-layouts.md)
 - [Floor plan, process/P&ID and electrical diagrams](docs/factory-diagrams.md)
 - [Editable, resettable demo sandbox](docs/editable-demo.md)

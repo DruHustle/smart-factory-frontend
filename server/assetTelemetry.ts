@@ -234,7 +234,7 @@ export async function getAssetTelemetry(
           rows.filter((r) => r.ag === 0).map((r) => [String(r.assetId), r]),
         );
       const incidentRows = await tx.execute(
-        sql`select al."assetId",count(*) filter(where al.status<>'resolved' and al.severity='critical')::int as "activeCritical",count(*) filter(where al.status<>'resolved' and al.severity='warning')::int as "activeWarning",count(*) filter(where al."createdAt">=${new Date(startTime).toISOString()}::timestamptz)::int as "eventsInPeriod" from alerts al where al."assetId" in (${sql.join(
+        sql`select al."assetId",count(*) filter(where (al.status<>'resolved' or al.source_condition='active') and al.severity='critical')::int as "activeCritical",count(*) filter(where (al.status<>'resolved' or al.source_condition='active') and al.severity='warning')::int as "activeWarning",count(*) filter(where al."createdAt">=${new Date(startTime).toISOString()}::timestamptz)::int as "eventsInPeriod" from alerts al where al."assetId" in (${sql.join(
           assetIds.map((id) => sql`${id}`),
           sql`,`,
         )}) and al."createdAt"<=${new Date(endTime).toISOString()}::timestamptz and exists(select 1 from devices d where d.id=al."deviceId" and ${visibleRecordSql(sql`d."isDemo"`)}) group by al."assetId"`,

@@ -1,0 +1,633 @@
+{
+  "scope": "Local isolated qualification; production deployment and actual fallback image cutover are separate",
+  "environment": {
+    "node": "v24.22.1",
+    "postgres": "16",
+    "browser": "Google Chrome156 with SwiftShader"
+  },
+  "tests": {
+    "files": 121,
+    "total": 1039,
+    "passed": 1039,
+    "failed": 0,
+    "skipped": 0
+  },
+  "files": [
+    {
+      "path": "server/aasImportMapping.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/aasModel.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/aasProvisioningClient.test.ts",
+      "status": "passed",
+      "tests": 7
+    },
+    {
+      "path": "server/aasRepositoryProxy.test.ts",
+      "status": "passed",
+      "tests": 8
+    },
+    {
+      "path": "server/access-policy.test.ts",
+      "status": "passed",
+      "tests": 13
+    },
+    {
+      "path": "server/accountAccess.test.ts",
+      "status": "passed",
+      "tests": 12
+    },
+    {
+      "path": "server/accountRequests.test.ts",
+      "status": "passed",
+      "tests": 31
+    },
+    {
+      "path": "server/alarm-condition.test.ts",
+      "status": "passed",
+      "tests": 7
+    },
+    {
+      "path": "server/alert-classification.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/alert-priority.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/analysis-range.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/api-base.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/app.functions.test.ts",
+      "status": "passed",
+      "tests": 6
+    },
+    {
+      "path": "server/assistant-cancellation.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/assistant-history.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/assistant-investigation-integration.test.ts",
+      "status": "passed",
+      "tests": 8
+    },
+    {
+      "path": "server/assistant-investigation.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/assistant-selection.test.ts",
+      "status": "passed",
+      "tests": 11
+    },
+    {
+      "path": "server/assistantKnowledge.test.ts",
+      "status": "passed",
+      "tests": 37
+    },
+    {
+      "path": "server/assistantProvider.test.ts",
+      "status": "passed",
+      "tests": 9
+    },
+    {
+      "path": "server/auth.http-lifecycle.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/auth.logout.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/authorization.test.ts",
+      "status": "passed",
+      "tests": 12
+    },
+    {
+      "path": "server/automationml.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/bootstrapAdmin.test.ts",
+      "status": "passed",
+      "tests": 10
+    },
+    {
+      "path": "server/browserOriginPolicy.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/camera-motion.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/clientErrors.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/cookies.security.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/data-workspace.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/demo-aas.test.ts",
+      "status": "passed",
+      "tests": 26
+    },
+    {
+      "path": "server/demo-accounts.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/demo-asset-projection.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/demo-passport.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/demo-sandbox.test.ts",
+      "status": "passed",
+      "tests": 33
+    },
+    {
+      "path": "server/demoData.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/deviceConnectivity.test.ts",
+      "status": "passed",
+      "tests": 6
+    },
+    {
+      "path": "server/engineering-drawing.test.ts",
+      "status": "passed",
+      "tests": 10
+    },
+    {
+      "path": "server/factory-connections.test.ts",
+      "status": "passed",
+      "tests": 19
+    },
+    {
+      "path": "server/factory-diagrams.test.ts",
+      "status": "passed",
+      "tests": 11
+    },
+    {
+      "path": "server/factory-environment.test.ts",
+      "status": "passed",
+      "tests": 12
+    },
+    {
+      "path": "server/factory-graphics.test.ts",
+      "status": "passed",
+      "tests": 6
+    },
+    {
+      "path": "server/factory-layouts.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/factory-model-presentation.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/factory-scene-preparation.test.ts",
+      "status": "passed",
+      "tests": 22
+    },
+    {
+      "path": "server/factory-schematic-layout.test.ts",
+      "status": "passed",
+      "tests": 7
+    },
+    {
+      "path": "server/factory-spaces.test.ts",
+      "status": "passed",
+      "tests": 6
+    },
+    {
+      "path": "server/factory.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/fixture-auth-safety.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/floor-explore-navigation.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/floor-picking.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/frontend-fetch.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/incident-actions.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/incident-factory-scope.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/incident-follow-up.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/inventory-location.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/inventory.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/lazy-resource.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/list-filters.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/loginRateLimit.test.ts",
+      "status": "passed",
+      "tests": 13
+    },
+    {
+      "path": "server/mqtt-topics.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/named-factories.test.ts",
+      "status": "passed",
+      "tests": 12
+    },
+    {
+      "path": "server/notification-configuration.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/notification-visibility.test.ts",
+      "status": "passed",
+      "tests": 9
+    },
+    {
+      "path": "server/observation-projections.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/observationPolicy.test.ts",
+      "status": "passed",
+      "tests": 18
+    },
+    {
+      "path": "server/ota-bounds.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/passport-visibility.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/password-recovery-link.test.ts",
+      "status": "passed",
+      "tests": 17
+    },
+    {
+      "path": "server/passwordRecovery.test.ts",
+      "status": "passed",
+      "tests": 42
+    },
+    {
+      "path": "server/pdfExport.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/production-workflows.test.ts",
+      "status": "passed",
+      "tests": 8
+    },
+    {
+      "path": "server/registration.security.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/release-policy.test.ts",
+      "status": "passed",
+      "tests": 30
+    },
+    {
+      "path": "server/report-preview.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/runtimeContract.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/startup-health.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/telemetry-contract.test.ts",
+      "status": "passed",
+      "tests": 8
+    },
+    {
+      "path": "server/visual-workspaces.test.ts",
+      "status": "passed",
+      "tests": 8
+    },
+    {
+      "path": "server/websocket.auth.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/websocket.bounds.test.ts",
+      "status": "passed",
+      "tests": 7
+    },
+    {
+      "path": "server/websocket.redis.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/equipment/access.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/equipment/admission.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/equipment/authored-assets.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/equipment/authored-persistence.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/equipment/benchmark.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/equipment/contact-shadow.test.ts",
+      "status": "passed",
+      "tests": 9
+    },
+    {
+      "path": "server/equipment/drawing-frame.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/equipment/factory-models.test.ts",
+      "status": "passed",
+      "tests": 7
+    },
+    {
+      "path": "server/equipment/floor-reference-delivery.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/equipment/gpu-frame.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/equipment/industrial-release.test.ts",
+      "status": "passed",
+      "tests": 10
+    },
+    {
+      "path": "server/equipment/inspection.test.ts",
+      "status": "passed",
+      "tests": 12
+    },
+    {
+      "path": "server/equipment/local.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/equipment/native-packaging.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/equipment/openusd.test.ts",
+      "status": "passed",
+      "tests": 11
+    },
+    {
+      "path": "server/equipment/packages.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/equipment/provenance-policy.test.ts",
+      "status": "passed",
+      "tests": 112
+    },
+    {
+      "path": "server/equipment/raspberry-pi.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/equipment/studio-environment.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/infrastructure/boundaries.test.ts",
+      "status": "passed",
+      "tests": 6
+    },
+    {
+      "path": "server/infrastructure/configuration.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/infrastructure/freshness.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/infrastructure/integration.test.ts",
+      "status": "passed",
+      "tests": 4
+    },
+    {
+      "path": "server/onesa/artifact-access.test.ts",
+      "status": "passed",
+      "tests": 9
+    },
+    {
+      "path": "server/onesa/artifacts.test.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "path": "server/onesa/contract.test.ts",
+      "status": "passed",
+      "tests": 17
+    },
+    {
+      "path": "server/onesa/delivery.test.ts",
+      "status": "passed",
+      "tests": 14
+    },
+    {
+      "path": "server/connectivity/contract.test.ts",
+      "status": "passed",
+      "tests": 14
+    },
+    {
+      "path": "server/connectivity/integration.test.ts",
+      "status": "passed",
+      "tests": 10
+    },
+    {
+      "path": "server/connectivity/network-evidence.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/network-diagnostics/contract.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "path": "server/network-diagnostics/http.test.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "path": "server/network-diagnostics/store.test.ts",
+      "status": "passed",
+      "tests": 1
+    },
+    {
+      "path": "server/operations/calculations.test.ts",
+      "status": "passed",
+      "tests": 18
+    },
+    {
+      "path": "server/operations/persistence.test.ts",
+      "status": "passed",
+      "tests": 6
+    },
+    {
+      "path": "server/security/contract.test.ts",
+      "status": "passed",
+      "tests": 41
+    },
+    {
+      "path": "server/security/http-access.test.ts",
+      "status": "passed",
+      "tests": 12
+    },
+    {
+      "path": "server/security/reports.test.ts",
+      "status": "passed",
+      "tests": 9
+    },
+    {
+      "path": "server/security/security.test.ts",
+      "status": "passed",
+      "tests": 22
+    }
+  ],
+  "browserJourneys": {
+    "otOperations": 4,
+    "existingDataWorkspace": 37,
+    "sceneRelated": 29,
+    "finalNvidiaLighting": 13
+  },
+  "migrations": {
+    "0037_ot_alarm_conditions.sql": "9f253b28da7f87fb19f8f5b562f4233ae32c6132946c48369df9edb03f19d972",
+    "0038_ot_operations.sql": "57806d770c4f93f790c4e6225480f128d9ab42655428d80af7e8e8459fa40f61"
+  },
+  "actualFallbackImageTestedLocally": false
+}

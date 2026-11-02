@@ -1,4 +1,7 @@
 import { incidentNoteCategories } from "../shared/incidentNotes";
+import { investigationContext } from "../shared/assistant-investigation";
+import { loadInvestigationEvidence } from "./assistantInvestigation";
+import { operationsRouter } from "./operations/router";
 import { isPlannedAsset } from "./planned-assets";
 import { factoriesRouter } from "./factories";
 import { deleteAssetInventoryRecord } from "./inventory-deletion";
@@ -392,6 +395,7 @@ const assistantAskProcedure = viewerProcedure
       demoContext: demoAssistantContext.optional(),
       factoryId: z.uuid().optional(),
       selectedAssetId: z.string().trim().min(3).max(128).optional(),
+      investigation: investigationContext.optional(),
       selection: assistantSelection.optional(),
       history: z
         .array(
@@ -427,6 +431,7 @@ const assistantAskProcedure = viewerProcedure
       ) &&
       !isDefinitionQuestion(input.question) &&
       !input.demoContext &&
+      !input.investigation &&
       !input.factoryId
     ) {
       if (!(await import("./security/store")).enabled())
@@ -469,6 +474,9 @@ const assistantAskProcedure = viewerProcedure
         };
       }
     }
+    const investigationEvidence = input.investigation
+      ? await loadInvestigationEvidence(input.investigation, input.selectedAssetId, demoOnlyRead() ? undefined : input.factoryId)
+      : undefined;
     const {
       provider: _provider,
       model: _model,
@@ -476,7 +484,8 @@ const assistantAskProcedure = viewerProcedure
     } = await answerFactoryQuestion(input.question, {
       signal,
       role: ctx.user.role,
-      selectedAssetId: input.selectedAssetId,
+      selectedAssetId: investigationEvidence?.assetId ?? input.selectedAssetId,
+      investigationEvidence,
       history: input.history,
       demoContext: input.demoContext,
       factoryId: demoOnlyRead() ? undefined : input.factoryId,
@@ -489,6 +498,7 @@ const assistantAskProcedure = viewerProcedure
   });
 
 export const appRouter = router({
+  operations: operationsRouter,
   security: securityRouter,
   equipment: equipmentRouter,
   onesa: onesaRouter,
@@ -1439,7 +1449,7 @@ export const appRouter = router({
             metric: metricEnum,
           })
           .refine(
-            (v) => !!v.deviceId !== !!v.assetIds?.length,
+            (v) => !!v.deviceId || !!v.assetIds?.length,
             "Select a source or one or more assets",
           ),
       )
@@ -1575,9 +1585,12 @@ export const appRouter = router({
         z.object({
           page: z.number().int().min(0).max(100000).default(0),
           pageSize: z.number().int().min(1).max(50).default(25),
+          factoryId: z.string().uuid().optional(),
         }),
       )
-      .query(({ input }) => incidentActionQueue(input.page, input.pageSize)),
+      .query(({ input }) =>
+        incidentActionQueue(input.page, input.pageSize, input.factoryId),
+      ),
     actions: viewerProcedure
       .input(
         z.object({
@@ -1649,6 +1662,9 @@ export const appRouter = router({
           search: z.string().trim().max(100).optional(),
           deviceId: z.number().int().positive().optional(),
           status: z.enum(["active", "acknowledged", "resolved"]).optional(),
+          factoryId: z.string().uuid().optional(),
+          sourceCondition: z.enum(["unknown", "active", "cleared"]).optional(),
+          acknowledged: z.boolean().optional(),
           openOnly: z.boolean().optional(),
           severity: alertSeverityEnum.optional(),
           startTime: z.number().int().nonnegative().optional(),
@@ -1665,6 +1681,9 @@ export const appRouter = router({
           .object({
             deviceId: z.number().int().positive().optional(),
             status: z.enum(["active", "acknowledged", "resolved"]).optional(),
+            factoryId: z.string().uuid().optional(),
+            sourceCondition: z.enum(["unknown", "active", "cleared"]).optional(),
+            acknowledged: z.boolean().optional(),
             openOnly: z.boolean().optional(),
             severity: alertSeverityEnum.optional(),
             order: z.literal("severity").optional(),
@@ -1948,6 +1967,10 @@ export const appRouter = router({
             endTime: z.number().int().positive(),
             severity: alertSeverityEnum.optional(),
             status: z.enum(["active", "acknowledged", "resolved"]).optional(),
+            deviceId: z.number().int().positive().optional(),
+            factoryId: z.string().uuid().optional(),
+            sourceCondition: z.enum(["unknown", "active", "cleared"]).optional(),
+            acknowledged: z.boolean().optional(),
             openOnly: z.boolean().optional(),
             search: z.string().trim().max(100).optional(),
           })
@@ -2051,6 +2074,7 @@ export const appRouter = router({
         ),
       ),
     ask: assistantAskProcedure,
+    askInContext: assistantAskProcedure,
     // An additive route prevents older APIs from silently ignoring a selected model.
     askSelected: assistantAskProcedure,
   }),

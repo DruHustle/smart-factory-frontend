@@ -1,5 +1,9 @@
 import { buildAssistantPresentation } from "./assistantPresentation";
 import {
+  investigationGroundedAnswer,
+  type InvestigationEvidence,
+} from "./assistantInvestigation";
+import {
   metrics,
   measurementValue,
   measurementUnit,
@@ -949,6 +953,7 @@ export async function answerFactoryQuestion(
     selection?: AssistantSelection;
     demoContext?: DemoAssistantContext;
     factoryId?: string;
+    investigationEvidence?: InvestigationEvidence;
   } = {},
 ) {
   options.signal?.throwIfAborted();
@@ -967,7 +972,7 @@ export async function answerFactoryQuestion(
       model: null,
       contextAt: new Date().toISOString(),
     };
-  if (plan.direct || plan.needsSubject)
+  if ((plan.direct || plan.needsSubject) && !options.investigationEvidence)
     return {
       answer:
         plan.direct ??
@@ -978,7 +983,12 @@ export async function answerFactoryQuestion(
       contextAt: new Date().toISOString(),
     };
   const terms = termsOf(plan.resolvedQuestion);
-  if (plan.includeEvidence && options.demoContext && demoOnlyRead()) {
+  if (
+    plan.includeEvidence &&
+    options.demoContext &&
+    demoOnlyRead() &&
+    !options.investigationEvidence
+  ) {
     return {
       ...answerDemoQuestion(plan.resolvedQuestion, options.demoContext),
       provider: "local" as const,
@@ -1024,11 +1034,37 @@ export async function answerFactoryQuestion(
     .sort((left, right) => right.score - left.score)
     .slice(0, 4);
   const sources = buildSources(matches, terms, runtime);
+  const investigationSourceOffset = sources.length;
+  if (options.investigationEvidence)
+    sources.push(...options.investigationEvidence.sources);
   const presentation = await buildAssistantPresentation(
     plan.resolvedQuestion,
     runtime,
     sources,
   );
+  if (options.investigationEvidence && presentation) {
+    // A current value must not masquerade as a reading in the selected historical window.
+    delete presentation.trend;
+    const evidence = options.investigationEvidence;
+    presentation.events = presentation.events.filter((event) => {
+      const at = Date.parse(event.at);
+      return (
+        at >= evidence.from &&
+        at <= evidence.to &&
+        (!evidence.incidentId || event.id === evidence.incidentId)
+      );
+    });
+  }
+  const investigation = options.investigationEvidence
+    ? {
+        name: options.investigationEvidence.name,
+        assetId: options.investigationEvidence.assetId,
+        deviceId: options.investigationEvidence.deviceId,
+        incidentId: options.investigationEvidence.incidentId,
+        snapshot: options.investigationEvidence.trend,
+        sourceNumber: investigationSourceOffset + 1,
+      }
+    : undefined;
   const history = (options.history ?? []).slice(-12).map((item) => ({
     role: item.role,
     content: item.content
@@ -1040,6 +1076,20 @@ export async function answerFactoryQuestion(
     requestedStyle: plan.style,
     accessRole: options.role ?? "viewer",
     selectedAssetId: options.selectedAssetId ?? null,
+    selectedInvestigation: options.investigationEvidence
+      ? {
+          name: options.investigationEvidence.name,
+          metric: options.investigationEvidence.metric,
+          scope: options.investigationEvidence.scope,
+          from: options.investigationEvidence.from,
+          to: options.investigationEvidence.to,
+          summary: options.investigationEvidence.trend.summary,
+          records: options.investigationEvidence.trend.total,
+          verified: options.investigationEvidence.trend.verified,
+          instruction:
+            "Use this selected historical window for this investigation. Current-state records are separate context, not measurements from this window. Do not infer causation from correlation.",
+        }
+      : undefined,
     contextStatus: runtime.status,
     contextCapturedAt: runtime.capturedAt,
     currentState: runtime.payload,
@@ -1093,22 +1143,29 @@ export async function answerFactoryQuestion(
       model: result.completion.model,
       contextAt: runtime.capturedAt,
       presentation,
+      investigation,
     };
   }
 
   return {
-    answer: localGroundedAnswer(
-      plan.resolvedQuestion,
-      matches,
-      terms,
-      runtime,
-      result.configured,
-    ),
+    answer: options.investigationEvidence
+      ? investigationGroundedAnswer(
+          options.investigationEvidence,
+          investigationSourceOffset,
+        )
+      : localGroundedAnswer(
+          plan.resolvedQuestion,
+          matches,
+          terms,
+          runtime,
+          result.configured,
+        ),
     sources,
     provider: "local" as const,
     model: null,
     contextAt: runtime.capturedAt,
     presentation,
+    investigation,
   };
 }
 

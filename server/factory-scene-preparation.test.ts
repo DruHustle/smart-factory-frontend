@@ -33,6 +33,40 @@ describe("factory scene graphics preparation", () => {
     vi.unstubAllGlobals();
   });
 
+  it("presents the local proxy scene while optional lighting is pending, then prepares detail against it", async () => {
+    const environment = deferred(),
+      scene = new THREE.Scene(),
+      proxyReady = vi.fn(),
+      detailReady = vi.fn(),
+      buildDetail = vi.fn(() => ({
+        object: new THREE.Group(),
+        activate: detailReady,
+      })),
+      compileAsync = vi.fn(async (object: THREE.Object3D) => object);
+    const preparation = new FactoryScenePreparation(
+      { compileAsync },
+      new THREE.Camera(),
+      scene,
+      environment.promise,
+    );
+    const initial = preparation.enqueue(
+      () => ({ object: scene, activate: proxyReady }),
+      undefined,
+      { waitForEnvironment: false },
+    );
+    const detail = preparation.enqueue(buildDetail, "conveyor");
+    await vi.runAllTimersAsync();
+    expect(await initial).toBe(true);
+    expect(proxyReady).toHaveBeenCalledOnce();
+    expect(compileAsync).toHaveBeenCalledOnce();
+    expect(buildDetail).not.toHaveBeenCalled();
+    environment.resolve();
+    await vi.runAllTimersAsync();
+    expect(await detail).toBe(true);
+    expect(detailReady).toHaveBeenCalledOnce();
+    expect(compileAsync).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps the proxy until the configured environment and target-scene shaders are ready", async () => {
     const environment = deferred(),
       shader = deferred(),

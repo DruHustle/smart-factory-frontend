@@ -51,6 +51,8 @@ export const commissioningInput = z
     route: z.enum(["direct", "gateway", "unconfigured"]),
     gatewayId: wireIdentifier.optional(),
     freshnessSeconds: z.number().int().min(5).max(86400).optional(),
+    acquisitionMode: z.enum(["cyclic", "on_change"]).optional(),
+    valueValiditySeconds: z.number().int().min(5).max(86400).optional(),
     maxLatenessSeconds: z.number().int().min(5).max(3600).default(120),
     clockSkewSeconds: z.number().int().min(0).max(60).default(30),
     legacyCurrent: z.boolean().default(false),
@@ -58,6 +60,22 @@ export const commissioningInput = z
   })
   .strict()
   .superRefine((v, c) => {
+    if (v.acquisitionMode === "on_change" && !v.valueValiditySeconds)
+      c.addIssue({
+        code: "custom",
+        path: ["valueValiditySeconds"],
+        message:
+          "On-change acquisition requires an explicit maximum value age.",
+      });
+    if (
+      v.acquisitionMode !== "on_change" &&
+      v.valueValiditySeconds !== undefined
+    )
+      c.addIssue({
+        code: "custom",
+        path: ["valueValiditySeconds"],
+        message: "Maximum value age is only used for on-change acquisition.",
+      });
     if (v.route === "gateway" && !v.gatewayId)
       c.addIssue({
         code: "custom",
@@ -184,9 +202,18 @@ export function currentObservation(
     eligible: reason === null,
     reason,
     policyVersion: "current-observation-v1",
-    validForMs: policy?.freshnessSeconds
-      ? policy.freshnessSeconds * 1000
-      : null,
+    commissioningRevision: policy?.revision,
+    validForMs:
+      policy?.acquisitionMode === "on_change"
+        ? policy.valueValiditySeconds
+          ? policy.valueValiditySeconds * 1000
+          : null
+        : policy?.freshnessSeconds
+          ? policy.freshnessSeconds * 1000
+          : null,
+    acquisitionMode: policy?.acquisitionMode ?? "cyclic",
+    validityRule:
+      policy?.acquisitionMode === "on_change" ? "bounded_hold" : "sample_age",
     legacyReviewed: !p && !!policy?.legacyCurrent,
   };
 }

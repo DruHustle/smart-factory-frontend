@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AssistantAnswer } from "@shared/assistant";
 import type { AssistantSelection } from "@shared/assistant-providers";
+import type { InvestigationContext } from "@shared/assistant-investigation";
 import type { DemoAssistantContext } from "@shared/demo-assistant";
 export type TurnContext = { assetId: string; name: string } | null;
 export type AssistantTurn = {
@@ -16,6 +17,7 @@ export type AssistantTurn = {
     history: Array<{ role: "user" | "assistant"; content: string }>;
     demoContext?: DemoAssistantContext;
     factoryId?: string;
+    investigation?: InvestigationContext;
   };
   status: "pending" | "complete" | "failed" | "cancelled";
   result?: AssistantAnswer;
@@ -27,6 +29,7 @@ export type AssistantSession = {
   draft: string;
   selectedAssetId: string;
   selectedAssetName: string | null;
+  investigation?: InvestigationContext;
   contextRevision: number;
   selection: AssistantSelection;
   turns: AssistantTurn[];

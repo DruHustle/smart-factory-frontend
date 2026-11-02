@@ -19,6 +19,12 @@ export async function incidentHistory(id: number, after = 0) {
         text?: string;
         assignedToId?: number | null;
         category?: IncidentNoteCategory;
+        readingId?: number;
+        occurredAt?: number;
+        value?: number;
+        unit?: string;
+        thresholdId?: number;
+        reason?: string;
         action?: {
           id: number;
           ownerId: number;

@@ -53,6 +53,9 @@ import {
 } from "@shared/factory-floor";
 
 type Layout = FloorLayout;
+// Use the atlas for fill and reflections while retaining the key light's
+// shadow contrast, material color and visible floor markings.
+const studioIntensity = 0.25;
 const indicatorColor = (item: Layout["placements"][number]["item"]) =>
   item.status === "error"
     ? 0xef6461
@@ -253,6 +256,7 @@ export default function FactoryFloorScene({
       if (generation !== sceneGeneration.current) return;
       const element = host.current;
       if (!element) return;
+      const sceneStartedAt = performance.now();
       const initialDark = currentTheme.current;
       setFailed(false);
       setReady(false);
@@ -281,6 +285,11 @@ export default function FactoryFloorScene({
       const abortMaterials: (() => Iterable<THREE.Material>)[] = [];
       const abortTextures: (() => Iterable<THREE.Texture>)[] = [];
       const abortGeometries: (() => Iterable<THREE.BufferGeometry>)[] = [];
+      let releaseFirstPresentation = () => {};
+      const firstPresentation = new Promise<void>((resolve) => {
+        releaseFirstPresentation = resolve;
+      });
+      abortSteps.push(releaseFirstPresentation);
       function* collect<T>(sources: (() => Iterable<T>)[]) {
         for (const source of sources) yield* source();
       }
@@ -337,16 +346,35 @@ export default function FactoryFloorScene({
       let referenceFailures = 0;
       let studio: THREE.Texture | undefined;
       abortTextures.push(() => (studio ? [studio] : []));
+      renderer.domElement.dataset.graphicsEnvironment = "direct-light-preview";
       const environment = createStudioEnvironment()
-        .then((texture) => {
+        .then(async (texture) => {
+          // Present selectable local geometry before spending a frame on the
+          // downloaded reflection atlas, even on a slow or offline connection.
+          await firstPresentation;
           if (disposed) {
             texture.dispose();
             return;
           }
           studio = texture;
+          // Compile the richer lighting against a separate target scene. The
+          // visible scene keeps its prepared direct-light programs and remains
+          // interactive while these optional shaders are compiled.
+          const lighting = new THREE.Scene();
+          lighting.environment = texture;
+          lighting.environmentIntensity = studioIntensity;
+          await renderer.compileAsync(
+            scene,
+            exploringRef.current ? exploreCamera : camera,
+            lighting,
+          );
+          if (disposed) return;
           scene.environment = texture;
-          scene.environmentIntensity = 0.85;
+          scene.environmentIntensity = studioIntensity;
           renderer.domElement.dataset.graphicsEnvironment = "baked-hdr-studio";
+          renderer.domElement.dataset.floorEnvironmentReadyMs = String(
+            Math.round(performance.now() - sceneStartedAt),
+          );
           dirty = true;
         })
         .catch(() => {
@@ -405,14 +433,18 @@ export default function FactoryFloorScene({
       const pendingReferences = new Set<THREE.Object3D>();
       abortRoots.push(() => pendingReferences);
       void preparation
-        .enqueue(() => ({
-          object: scene,
-          activate: () => {
-            scenePrepared = true;
-            renderer.shadowMap.needsUpdate = true;
-            dirty = true;
-          },
-        }))
+        .enqueue(
+          () => ({
+            object: scene,
+            activate: () => {
+              scenePrepared = true;
+              renderer.shadowMap.needsUpdate = true;
+              dirty = true;
+            },
+          }),
+          undefined,
+          { waitForEnvironment: false },
+        )
         .catch(() => {
           if (disposed) return;
           failScene();
@@ -1696,6 +1728,9 @@ export default function FactoryFloorScene({
             for (const model of models) model.publish();
             if (!firstFramePresented) {
               firstFramePresented = true;
+              renderer.domElement.dataset.floorFirstFrameMs = String(
+                Math.round(performance.now() - sceneStartedAt),
+              );
               setReady(true);
               // Give the submitted 3D frame a presentation opportunity before
               // replacing the immediately available floor plan.
@@ -1704,8 +1739,10 @@ export default function FactoryFloorScene({
                   !disposed &&
                   !generationFailed &&
                   generation === sceneGeneration.current
-                )
+                ) {
+                  releaseFirstPresentation();
                   presentationState.current?.("ready");
+                }
               });
             }
           }
@@ -1726,6 +1763,7 @@ export default function FactoryFloorScene({
           zoom: camera.zoom,
         };
         disposed = true;
+        releaseFirstPresentation();
         stagedModels.dispose();
         preparation.dispose();
         // The viewer is being removed, so rebuilding routes is unnecessary

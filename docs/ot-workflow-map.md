@@ -1,6 +1,6 @@
-# OT workflow map and evidence limitations
+# Incremental OT workflow baseline and evidence limitations
 
-This map describes the current Smart Factory implementation and its known gaps. It is not a commissioning record. Demo data is simulated; operational conclusions require commissioned sources and suitable quality and freshness rules.
+This map records the incremental candidate `ff299a33d0e3c5f335ca47eb0615a29c84870657` and its known gaps at handoff. The [expanded OT operations guide](ot-operations.md) describes the subsequent implementation. Neither document is a commissioning record. Demo data is simulated; operational conclusions require commissioned sources and suitable quality and freshness rules.
 
 The API advertises `ot-incident-review-v1` when it supports priority ordering and categorized notes. Against a compatible older API, Overview links to the alert queue without claiming priority, and investigation notes remain uncategorized. The separate `ot-follow-up-actions-v1` capability enables action records and the Overview follow-up list. On an older API, action controls are hidden and their stored data is preserved. Deploy the API before the UI; a compatible fallback keeps ordinary notes available without silently dropping categories.
 

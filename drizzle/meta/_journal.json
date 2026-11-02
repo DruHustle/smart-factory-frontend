@@ -260,6 +260,20 @@
       "when": 1793053000008,
       "tag": "0036_incident_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793053000009,
+      "tag": "0037_ot_alarm_conditions",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793053000010,
+      "tag": "0038_ot_operations",
+      "breakpoints": true
     }
   ]
 }

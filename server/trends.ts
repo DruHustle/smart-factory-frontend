@@ -27,12 +27,17 @@ export async function observationTrend(input: {
     );
   if (input.deviceId && !(await getDeviceById(input.deviceId)))
     throw Error("Observation source unavailable");
-  const subject = input.deviceId
-    ? sql`r."deviceId"=${input.deviceId}`
-    : sql`r."assetId" in (${sql.join(
+  const subjects = [];
+  if (input.deviceId) subjects.push(sql`r."deviceId"=${input.deviceId}`);
+  if (input.assetIds?.length)
+    subjects.push(
+      sql`r."assetId" in (${sql.join(
         (input.assetIds ?? []).map((id) => sql`${id}`),
         sql`,`,
-      )})`;
+      )})`,
+    );
+  if (!subjects.length) throw Error("Select an observation source or asset");
+  const subject = sql`(${sql.join(subjects, sql` and `)})`;
   const [result] = await db.execute(
     sql`with observations as materialized(select r.id,r.timestamp,${metricSql(input.metric)} as value from sensor_readings r where ${subject} and r.timestamp>=${input.startTime} and r.timestamp<=${input.endTime} and ${evidenceSql(scope, sql`r.integration`)} and exists(select 1 from devices d where d.id=r."deviceId" and ${visibleRecordSql(sql`d."isDemo"`)}) and (r."assetId" is null or exists(select 1 from assets a where a."assetId"=r."assetId" and ${visibleRecordSql(sql`a."isDemo"`)}))), buckets as(select floor((timestamp-${input.startTime})::numeric/${intervalMs})::int as bucket,avg(value) as value,count(value)::int as count from observations group by 1), summary as(select count(*)::int as total,count(value)::int as verified,min(value) as min,max(value) as max,avg(value) as average from observations), series as(select n as bucket,${input.startTime}::bigint+n::bigint*${intervalMs} as timestamp from generate_series(0,floor((${input.endTime}::bigint-${input.startTime}::bigint)::numeric/${intervalMs})::int) n) select summary.*,(select value from observations where value is not null order by timestamp desc,id desc limit 1) as latest,(select max(timestamp) from observations where value is not null) as "latestAt",coalesce((select jsonb_agg(jsonb_build_object('timestamp',s.timestamp,'value',b.value,'count',coalesce(b.count,0)) order by s.timestamp) from series s left join buckets b using(bucket)),'[]'::jsonb) as buckets from summary`,
   );

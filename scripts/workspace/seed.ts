@@ -3,6 +3,7 @@ import {
   getDb,
   closeDatabase,
   ingestTelemetryByDeviceId,
+  recordDeviceHeartbeat,
 } from "../../server/db";
 import { registerDevice } from "../../server/deviceRegistration";
 import { createEquipment, template } from "../../server/equipment/local";
@@ -60,17 +61,11 @@ await ingestTelemetryByDeviceId({
     gatewayReceivedAt: new Date().toISOString(),
   },
 });
-await ingestTelemetryByDeviceId({
+await recordDeviceHeartbeat({
   deviceId: gateway.deviceId,
-  gatewayId: gateway.deviceId,
   timestamp: Date.now() - 1000,
-  units: { temperature: "°C" },
-  integration: {
-    mode: "live",
-    sourceQuality: "good",
-    sourceConnection: "online",
-    gatewayReceivedAt: new Date().toISOString(),
-  },
+  status: "online",
+  transportRetainVerified: true,
 });
 await registerDevice({
   name: "Workspace observed offline",
@@ -93,7 +88,9 @@ await ingestTelemetryByDeviceId({
 });
 // Model a previously eligible observation that has since aged out. Delivering
 // an already-old sample above deliberately does not establish current state.
-await db.execute(sql`update devices set "lastSeen"=now()-interval '1 hour',status=case when "deviceId"='workspace-offline' then 'offline'::device_status else 'online'::device_status end where "deviceId" in('workspace-offline','workspace-child-a')`);
+await db.execute(
+  sql`update devices set "lastSeen"=now()-interval '1 hour',status=case when "deviceId"='workspace-offline' then 'offline'::device_status else 'online'::device_status end where "deviceId" in('workspace-offline','workspace-child-a')`,
+);
 const shell = {
   modelType: "AssetAdministrationShell",
   id: "urn:workspace:vendor:shell",

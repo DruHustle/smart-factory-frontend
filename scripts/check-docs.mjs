@@ -91,7 +91,7 @@ try {
 const store = path.join(root, 'node_modules/.pnpm');
 const mermaid = (await readdir(store)).find(name => name.startsWith('mermaid@'));
 if (!mermaid) throw new Error('Mermaid bundle unavailable');
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined });
 try {
   const page = await browser.newPage();
   await page.setContent('<html><body></body></html>');

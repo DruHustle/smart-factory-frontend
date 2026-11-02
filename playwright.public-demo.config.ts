@@ -10,6 +10,7 @@ export default defineConfig({
     "raspberry-pi.spec.ts",
     "onesa.spec.ts",
     "equipment-standalone.spec.ts",
+    "ot-operations.spec.ts",
   ],
   outputDir: "test-results/public-demo",
   workers: 1,

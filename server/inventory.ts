@@ -7,6 +7,8 @@ import { observedStatus, type InventoryItem } from "../shared/inventory";
 import { router, viewerProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { deviceFreshnessSql } from "./deviceFreshness";
+import { sourceContinuity } from "./sourceContinuity";
+import type { ApplicationDatabase } from "./database-scope";
 export const inventoryFilter = z.object({
   factoryId: z.uuid().optional(),
   unassignedOnly: z.boolean().optional(),
@@ -41,9 +43,9 @@ const projection = (mode: Filter["mode"] = "all") => sql`with inventory as (
  exists(select 1 from asset_devices c where c."assetId"=a.id) as configured,
  case when exists(select 1 from asset_devices c where c."assetId"=a.id and c.protocol='mqtt_direct') then 'Direct MQTT' when exists(select 1 from asset_devices c where c."assetId"=a.id) then 'Linked devices' else 'Not configured' end as route,null::text as "gatewayId",
  null::text as reported,(select case when bool_and(c.protocol='ada031_v4_serial') then 120000::bigint else null end from asset_devices c where c."assetId"=a.id) as "freshnessMs",(select max(c."lastSeen") from asset_devices c where c."assetId"=a.id) as "lastObserved",r.timestamp as "sampleAt",coalesce(r.integration->>'mode','unknown') as mode,
- coalesce(r.integration->>'sourceQuality','unknown') as quality,a."lifecycleStage"::text as lifecycle,true as aas,w.id::text as "equipmentId",null::text as firmware,r.measurements,r.values,r.integration->'evidence' as evidence,a."isDemo" as "isDemo"
+ coalesce(r.integration->>'sourceQuality','unknown') as quality,a."lifecycleStage"::text as lifecycle,true as aas,w.id::text as "equipmentId",null::text as firmware,r.measurements,r.values,r.integration->'evidence' as evidence,a."isDemo" as "isDemo",r."deviceId" as "observationDeviceId"
  from assets a left join equipment_workspaces w on w.asset_id=a.id and ${visibleRecordSql(sql`w.is_demo`)}
- left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where exists(select 1 from devices observed_source where observed_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`observed_source."isDemo"`)}) and "assetId"=a."assetId" and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true
+ left join lateral(select "deviceId",timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where exists(select 1 from devices observed_source where observed_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`observed_source."isDemo"`)}) and "assetId"=a."assetId" and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true
  where ${visibleRecordSql(sql`a."isDemo"`)} and not exists(select 1 from equipment_workspaces sw where sw.asset_id=a.id and sw.is_standalone=true)
  union all
  select 'device:'||d.id,'device',d.id::text,d.name,d."deviceId",d.type::text,d.location,d.zone,
@@ -51,12 +53,12 @@ const projection = (mode: Filter["mode"] = "all") => sql`with inventory as (
  case when d.metadata->>'gatewayId' is not null then 'Via gateway: '||(d.metadata->>'gatewayId') when d.metadata->>'connectionMode'='direct_mqtt' then 'Direct MQTT' when d.type='gateway' and d.metadata->>'connectionMode'='gateway' then 'Gateway uplink' else 'Not configured' end,d.metadata->>'gatewayId',
  d.status::text,${deviceFreshnessSql(sql`d.metadata`)},
  d."lastSeen",r.timestamp,coalesce(r.integration->>'mode','unknown'),
- coalesce(r.integration->>'sourceQuality','unknown'),null,false,null,d."firmwareVersion",r.measurements,r.values,r.integration->'evidence',d."isDemo"
+ coalesce(r.integration->>'sourceQuality','unknown'),null,false,null,d."firmwareVersion",r.measurements,r.values,r.integration->'evidence',d."isDemo",d.id
  from devices d left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where ("assetId" is null or exists(select 1 from assets observed_asset where observed_asset."assetId"=sensor_readings."assetId" and ${visibleRecordSql(sql`observed_asset."isDemo"`)})) and "deviceId"=d.id and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true where ${visibleRecordSql(sql`d."isDemo"`)}
  union all
  select 'equipment:'||w.id,'equipment',w.id::text,a.name,a."assetId",'3D equipment',a.location,a.zone,
- exists(select 1 from asset_devices c where c."assetId"=a.id),'Local observations',null::text,null,null,null,r.timestamp,coalesce(r.integration->>'mode','unknown'),'unknown',a."lifecycleStage"::text,false,w.id::text,null,r.measurements,r.values,r.integration->'evidence',w.is_demo
- from equipment_workspaces w join assets a on a.id=w.asset_id left join lateral(select timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where exists(select 1 from devices observed_source where observed_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`observed_source."isDemo"`)}) and "assetId"=a."assetId" and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true
+ exists(select 1 from asset_devices c where c."assetId"=a.id),'Local observations',null::text,null,null,null,r.timestamp,coalesce(r.integration->>'mode','unknown'),'unknown',a."lifecycleStage"::text,false,w.id::text,null,r.measurements,r.values,r.integration->'evidence',w.is_demo,r."deviceId"
+ from equipment_workspaces w join assets a on a.id=w.asset_id left join lateral(select "deviceId",timestamp,integration,measurements,jsonb_build_object('temperature',temperature,'humidity',humidity,'vibration',vibration,'power',power,'pressure',pressure,'rpm',rpm) as values from sensor_readings where exists(select 1 from devices observed_source where observed_source.id=sensor_readings."deviceId" and ${visibleRecordSql(sql`observed_source."isDemo"`)}) and "assetId"=a."assetId" and timestamp<=${Date.now()} and ${evidenceSql(mode, sql`integration`)} order by timestamp desc,id desc limit 1) r on true
  where w.is_standalone=true and ${visibleRecordSql(sql`w.is_demo`)} and ${visibleRecordSql(sql`a."isDemo"`)}
 ), observed as materialized(select *,case when reported in ('maintenance','error') then reported when "lastObserved" is null or "lastObserved">now() then 'unknown' when "freshnessMs" is null then 'unknown' when "lastObserved"<now()-"freshnessMs"*interval '1 millisecond' then 'stale' when reported='offline' then 'offline' else 'live' end as status from inventory)`;
 const viewCondition = (view: Filter["view"]) =>
@@ -76,6 +78,18 @@ const normalize = (r: any): InventoryItem => ({
   freshnessMs: r.freshnessMs == null ? null : Number(r.freshnessMs),
   status: observedStatus(r),
 });
+async function normalizeRows(db: ApplicationDatabase, rows: any[]) {
+  const continuity = await sourceContinuity(
+    db,
+    rows.flatMap((row) =>
+      row.observationDeviceId == null ? [] : [Number(row.observationDeviceId)],
+    ),
+  );
+  return rows.map(({ observationDeviceId, ...row }) => ({
+    ...normalize(row),
+    sourceContinuity: continuity.get(Number(observationDeviceId)) ?? null,
+  }));
+}
 async function database() {
   const db = await getDb();
   if (!db)
@@ -101,7 +115,7 @@ export async function listInventory(f: Filter) {
     sql`${projection(f.mode)}, filtered as(select * from observed where ${where}), paged as(select filtered.*,(select fi.inventory_tag from factory_items fi where fi.ref=filtered.ref) as "factoryTag",(select fi.factory_id from factory_items fi where fi.ref=filtered.ref) as "factoryId" from filtered order by ${f.sort === "recent" ? sql`"sampleAt" desc nulls last,name,ref` : sql`lower(name),ref`} limit ${f.pageSize} offset ${f.page * f.pageSize}), grouped as(select kind,"itemType",("equipmentId" is not null) as equipment,count(*)::int as count from observed where ${scopeWhere} group by kind,"itemType",("equipmentId" is not null)) select coalesce((select jsonb_agg(p) from paged p),'[]'::jsonb) as items,(select count(*)::int from filtered) as total,coalesce((select jsonb_agg(g) from grouped g),'[]'::jsonb) as groups`,
   );
   return {
-    items: (result.items as any[]).map(normalize),
+    items: await normalizeRows(db, result.items as any[]),
     total: Number(result.total),
     groups: result.groups as {
       kind: string;
@@ -128,7 +142,7 @@ export async function inventoryItemsByRefs(
       sql`,`,
     )})`,
   );
-  return rows.map(normalize);
+  return normalizeRows(db, rows);
 }
 
 export const inventoryRouter = router({
@@ -153,6 +167,6 @@ export const inventoryRouter = router({
           code: "NOT_FOUND",
           message: "Item not found or unavailable in this workspace.",
         });
-      return normalize(row);
+      return (await normalizeRows(db, [row]))[0];
     }),
 });

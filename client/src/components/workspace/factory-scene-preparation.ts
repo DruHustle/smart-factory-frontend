@@ -41,11 +41,15 @@ export class FactoryScenePreparation {
   enqueue(
     build: () => PreparedObject,
     referenceKey?: string,
+    options: { waitForEnvironment?: boolean } = {},
   ): Promise<boolean> {
     const task = this.tail.then(async () => {
       await this.presentationTurn();
       if (this.stopped) return false;
-      await this.environment;
+      // The immediately usable proxy scene has direct lighting. Its first
+      // presentation must not depend on downloading the optional HDR atlas.
+      // Detailed references still prepare against the final lighting by default.
+      if (options.waitForEnvironment !== false) await this.environment;
       if (this.stopped) return false;
       const prepared = build();
       if (!referenceKey || !this.compiledReferences.has(referenceKey)) {

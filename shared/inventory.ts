@@ -36,6 +36,7 @@ export type InventoryItem = {
   measurements?: import("./measurements").Measurements;
   values?: Partial<Record<import("./measurements").Metric, number | null>>;
   evidence?: { eligible?: boolean; reason?: string; validForMs?: number };
+  sourceContinuity?: import("./measurements").SourceContinuity | null;
 };
 export function observedStatus(
   input: {

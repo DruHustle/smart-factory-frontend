@@ -7,7 +7,7 @@ export class FactoryModelPresentation<T> {
   constructor(
     private requestFrame: () => void,
     private maxItems = 4,
-    private maxDelayMs = 1000,
+    private maxDelayMs = 120,
   ) {}
 
   add(item: T) {

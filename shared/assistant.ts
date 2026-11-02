@@ -172,6 +172,14 @@ export type AssistantAnswer = {
   sources: AssistantSource[];
   contextAt: string;
   presentation?: AssistantPresentation;
+  investigation?: {
+    name: string;
+    assetId?: string;
+    deviceId?: number;
+    incidentId?: number;
+    snapshot: AssistantTrendSnapshot;
+    sourceNumber: number;
+  };
   execution?: {
     provider: "local" | import("./assistant-providers").AssistantProviderName;
     model: string | null;

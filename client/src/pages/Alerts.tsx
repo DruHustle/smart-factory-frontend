@@ -9,6 +9,8 @@ import { useWorkspaceLocation } from "@/lib/hashLocation";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { IncidentInvestigation } from "@/components/workspace/IncidentInvestigation";
+import { useRuntimeCapability } from "@/components/RuntimeBoundary";
+import { alarmConditionReasonLabel } from "@shared/alarm-condition";
 import {
   PageHeader,
   EmptyState,
@@ -25,6 +27,7 @@ export default function Alerts() {
     [location, navigate] = useWorkspaceLocation(),
     active = useDocumentActive(),
     wide = useMediaQuery("(min-width:1280px)"),
+    conditionSupported = useRuntimeCapability("ot-alarm-conditions-v1"),
     [filterOpen, setFilterOpen] = useState(false),
     params = new URLSearchParams(location.split("?")[1] ?? "");
   const search = (params.get("search") ?? "").slice(0, 100),
@@ -49,7 +52,19 @@ export default function Alerts() {
         : undefined,
     deviceId = /^[1-9]\d*$/.test(params.get("deviceId") ?? "")
       ? Number(params.get("deviceId"))
-      : undefined;
+      : undefined,
+    factoryId = params.get("factory") || params.get("factoryId") || undefined,
+    sourceCondition = ["unknown", "active", "cleared"].includes(
+      params.get("condition") ?? "",
+    )
+      ? (params.get("condition") as "unknown" | "active" | "cleared")
+      : undefined,
+    acknowledgement = ["yes", "no"].includes(params.get("ack") ?? "")
+      ? params.get("ack")!
+      : "all",
+    unsupportedScope =
+      !conditionSupported &&
+      !!(factoryId || sourceCondition || acknowledgement !== "all");
   const filters = {
     search,
     status:
@@ -64,6 +79,14 @@ export default function Alerts() {
     startTime,
     endTime,
     deviceId,
+    ...(conditionSupported
+      ? {
+          factoryId,
+          sourceCondition,
+          acknowledged:
+            acknowledgement === "all" ? undefined : acknowledgement === "yes",
+        }
+      : {}),
   };
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -75,7 +98,7 @@ export default function Alerts() {
   const queue = trpc.alerts.page.useQuery(
       { ...filters, search: settledSearch, page, pageSize: 25 },
       {
-        enabled: !eventId,
+        enabled: !eventId && !unsupportedScope,
         refetchInterval: active ? 30000 : false,
         refetchIntervalInBackground: false,
       },
@@ -119,7 +142,7 @@ export default function Alerts() {
     <div className="space-y-4">
       <PageHeader
         title="Alerts"
-        description="Review process incidents and track their resolution."
+        description="Check source conditions, acknowledge incidents and track investigation outcomes."
         action={
           <>
             <Button
@@ -131,7 +154,7 @@ export default function Alerts() {
               <RefreshCw className="size-4" />
               Refresh
             </Button>
-            {!user?.access?.demoOnly && (
+            {!user?.access?.demoOnly && !unsupportedScope && (
               <ExportButton
                 label="Export history"
                 onExportHtml={() =>
@@ -151,13 +174,20 @@ export default function Alerts() {
         value={status}
         sections={[
           { id: "open", label: "Open" },
-          { id: "active", label: "Active" },
-          { id: "acknowledged", label: "Acknowledged" },
-          { id: "resolved", label: "Resolved" },
+          { id: "active", label: "Awaiting review" },
+          { id: "acknowledged", label: "Review acknowledged" },
+          { id: "resolved", label: "Review complete" },
           { id: "all", label: "All history" },
         ]}
         onChange={(v) => update("status", v)}
       >
+        {conditionSupported && (
+          <p className="text-xs text-muted-foreground">
+            Source condition comes from verified measurements. Acknowledgement
+            and review completion are recorded separately. Open includes
+            unfinished reviews and source conditions still recorded as active.
+          </p>
+        )}
         <div className="rounded-lg border bg-card p-3">
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
@@ -185,6 +215,49 @@ export default function Alerts() {
           </div>
           {filterOpen && (
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {conditionSupported && (
+                <>
+                  <label className="space-y-1 text-xs">
+                    Last verified source condition
+                    <select
+                      className={control}
+                      aria-label="Last verified source condition"
+                      value={sourceCondition ?? "all"}
+                      onChange={(e) =>
+                        update(
+                          "condition",
+                          e.target.value === "all" ? "" : e.target.value,
+                        )
+                      }
+                    >
+                      <option value="all">All source conditions</option>
+                      <option value="active">
+                        Active at last verification
+                      </option>
+                      <option value="cleared">Cleared by measurement</option>
+                      <option value="unknown">Never verified</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-xs">
+                    Acknowledgement
+                    <select
+                      className={control}
+                      aria-label="Acknowledgement"
+                      value={acknowledgement}
+                      onChange={(e) =>
+                        update(
+                          "ack",
+                          e.target.value === "all" ? "" : e.target.value,
+                        )
+                      }
+                    >
+                      <option value="all">All acknowledgements</option>
+                      <option value="no">Unacknowledged</option>
+                      <option value="yes">Acknowledged</option>
+                    </select>
+                  </label>
+                </>
+              )}
               <label className="space-y-1 text-xs">
                 Severity
                 <select
@@ -227,6 +300,13 @@ export default function Alerts() {
           {severity === "all" ? "All severities" : severity} ·{" "}
           {from || to ? "Selected dates" : "All recorded history"}
           {deviceId ? ` · Source device:${deviceId}` : ""}
+          {factoryId ? " · Selected factory" : ""}
+          {sourceCondition
+            ? ` · Last verified condition: ${sourceCondition}`
+            : ""}
+          {acknowledgement !== "all"
+            ? ` · ${acknowledgement === "yes" ? "Acknowledged" : "Unacknowledged"}`
+            : ""}
           {params.size > 0 && (
             <button
               className="ml-3 text-primary underline"
@@ -236,7 +316,13 @@ export default function Alerts() {
             </button>
           )}
         </p>
-        {queue.isLoading ? (
+        {unsupportedScope ? (
+          <EmptyState
+            error
+            title="This service cannot apply the selected scope"
+            description="Factory and source-condition filters require the operational update. Clear filters to view the supported incident queue."
+          />
+        ) : queue.isLoading ? (
           <EmptyState title="Loading incidents…" />
         ) : queue.error ? (
           <EmptyState
@@ -287,8 +373,43 @@ export default function Alerts() {
                           {e.deviceName ?? "Observation source"} ·{" "}
                           {e.assignedToName ?? "Unassigned"}
                         </p>
-                        <p className="mt-1 text-xs capitalize text-muted-foreground">
-                          {e.status}
+                        {conditionSupported && (
+                          <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+                            <Badge
+                              variant="outline"
+                              className={
+                                e.currentCondition === "active"
+                                  ? "border-destructive/40 text-destructive"
+                                  : e.currentCondition === "cleared"
+                                    ? "border-success/40 text-success"
+                                    : "border-warning/40 text-warning"
+                              }
+                            >
+                              Source: {e.currentCondition ?? "unknown"}
+                            </Badge>
+                            <Badge variant="outline">
+                              {e.acknowledged
+                                ? "Acknowledged"
+                                : "Unacknowledged"}
+                            </Badge>
+                          </div>
+                        )}
+                        {conditionSupported &&
+                          e.currentCondition === "unknown" && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {alarmConditionReasonLabel(e.conditionReason)}
+                              {e.sourceCondition !== "unknown"
+                                ? ` Last verified: ${e.sourceCondition}.`
+                                : ""}
+                            </p>
+                          )}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Review:{" "}
+                          {e.status === "resolved"
+                            ? "complete"
+                            : e.status === "acknowledged"
+                              ? "acknowledged"
+                              : "awaiting review"}
                           {e.downtimeStartedAt && e.status !== "resolved"
                             ? " · Confirmed downtime"
                             : ""}
@@ -296,8 +417,10 @@ export default function Alerts() {
                       </div>
                       <div className="text-xs text-muted-foreground">
                         <SampleTime
-                          value={(
-                            e.lastObservedAt ?? e.createdAt
+                          value={new Date(
+                            e.conditionEvidence?.occurredAt ??
+                              e.lastObservedAt ??
+                              e.createdAt,
                           ).toISOString()}
                           historical
                         />

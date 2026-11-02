@@ -51,6 +51,7 @@ const observeDecisions = t.middleware(async ({ next, path }) => {
   return result;
 });
 const walkthroughQueries = new Set([
+  "operations.summary",
   "system.health",
   "system.demoData",
   "system.showcase",
@@ -136,6 +137,7 @@ const accessBoundary = t.middleware(
         "auth.resetPassword",
         "assistant.ask",
         "assistant.askSelected",
+        "assistant.askInContext",
       ].includes(path) &&
       (demonstrationOnly(ctx.user) ||
         requestedDataWorkspace(ctx.req?.headers?.cookie) === "demo")

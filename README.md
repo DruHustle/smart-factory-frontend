@@ -11,6 +11,8 @@ Production topology is **Vercel UI → Oracle ARM64 API**, with a separate **sin
 
 [28 October review and gap remediation](docs/review-2026-10-28.md) · [Service health operating guide](docs/service-health.md)
 
+[OT operations, verified alarm evidence, production analysis and shift handover](docs/ot-operations.md) · [Expanded OT qualification](docs/ot-operations-qualification.md)
+
 ## Local development
 
 All three repositories belong under the plain `smart-factory` workspace parent.
@@ -52,7 +54,7 @@ The [industrial device connectivity guide](docs/industrial-device-connectivity.m
 
 Individual viewer/operator/engineer/admin roles apply to approved accounts, including on a site that offers shared demo accounts. Reserved demo identities remain read-only and see approved demonstration records only. They cannot mutate operational data, create privileged users, issue commands, export private data or retry email. An individual who selects Demo data also has a read-only demonstration view; selecting Live restores role-scoped operational access. Fixture targets remain read-only for individual users.
 
-Manual production readings are retired. Ingestion validates identity, source/asset links, provenance, engineering conversions, route and duplicate delivery. Unknown identities and route mismatches enter bounded quarantine. Delayed, retained, bad-quality, simulated, replayed or unclassified evidence may be historical without becoming current physical state. Explicit live mode is still subject to current-observation eligibility. Unknown units remain unknown.
+Manual process telemetry entry is retired. The separate operations workflow accepts explicitly labelled manual production periods and utility-counter evidence for configured boundaries; it does not turn those records into live sensor observations. Ingestion validates identity, source/asset links, provenance, engineering conversions, route and duplicate delivery. Unknown identities and route mismatches enter bounded quarantine. Delayed, retained, bad-quality, simulated, replayed or unclassified evidence may be historical without becoming current physical state. Explicit live mode is still subject to current-observation eligibility. Unknown units remain unknown.
 
 Demo visibility is persisted, administrator controlled and refreshed per request. Viewing never seeds. The deterministic showcase is an explicit CLI operation limited to disposable local `_e2e` storage:
 

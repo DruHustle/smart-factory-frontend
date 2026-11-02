@@ -37,7 +37,12 @@ import {
   type AssetLifecycleStage,
 } from "../shared/asset-lifecycle";
 import { getAlertErrorCode } from "../shared/alert-codes";
-import { evaluateAlertThreshold } from "../shared/alert-thresholds";
+import { annotateAlarmConditions } from "./alarmConditions";
+import { annotateSourceContinuity } from "./sourceContinuity";
+import {
+  incidentFactoryCondition,
+  validateIncidentFactoryScope,
+} from "./incidentFactoryScope";
 import {
   deviceWithCurrentStatus,
   type ObservedDevice,
@@ -107,6 +112,9 @@ export type Asset = schema.Asset;
 export type InsertAsset = schema.InsertAsset;
 export type AssetVersion = schema.AssetVersion;
 export type SensorReading = schema.SensorReading;
+export type CurrentSensorReading = SensorReading & {
+  sourceContinuity: import("../shared/measurements").SourceContinuity | null;
+};
 export type InsertSensorReading = schema.InsertSensorReading;
 export type AlertThreshold = schema.AlertThreshold;
 export type InsertAlertThreshold = schema.InsertAlertThreshold;
@@ -1838,7 +1846,7 @@ export async function getSensorReadings(
 export async function getLatestReading(
   deviceId: number,
   scope: EvidenceScope = defaultEvidenceScope(),
-): Promise<SensorReading | undefined> {
+): Promise<CurrentSensorReading | undefined> {
   return withDb(async (db) => {
     const result = await db
       .select()
@@ -1853,7 +1861,7 @@ export async function getLatestReading(
       )
       .orderBy(desc(sensorReadings.timestamp))
       .limit(1);
-    return result[0];
+    return (await annotateSourceContinuity(db, result))[0];
   });
 }
 
@@ -1861,10 +1869,10 @@ export async function getLatestReading(
 export async function getLatestReadings(
   deviceIds: number[],
   scope: EvidenceScope = defaultEvidenceScope(),
-): Promise<SensorReading[]> {
+): Promise<CurrentSensorReading[]> {
   if (deviceIds.length === 0) return [];
-  return withDb(async (db) =>
-    db
+  return withDb(async (db) => {
+    const rows = await db
       .selectDistinctOn([sensorReadings.deviceId])
       .from(sensorReadings)
       .where(
@@ -1875,18 +1883,19 @@ export async function getLatestReadings(
           evidenceSql(scope, sensorReadings.integration),
         ),
       )
-      .orderBy(sensorReadings.deviceId, desc(sensorReadings.timestamp)),
-  );
+      .orderBy(sensorReadings.deviceId, desc(sensorReadings.timestamp));
+    return annotateSourceContinuity(db, rows);
+  });
 }
 
 /** A gateway can report multiple machines; never substitute its newest sample for another asset. */
 export async function getLatestAssetReadings(
   assetIds: string[],
   scope: EvidenceScope = defaultEvidenceScope(),
-): Promise<SensorReading[]> {
+): Promise<CurrentSensorReading[]> {
   if (assetIds.length === 0) return [];
-  return withDb(async (db) =>
-    db
+  return withDb(async (db) => {
+    const rows = await db
       .selectDistinctOn([sensorReadings.assetId])
       .from(sensorReadings)
       .where(
@@ -1901,8 +1910,9 @@ export async function getLatestAssetReadings(
         sensorReadings.assetId,
         desc(sensorReadings.timestamp),
         desc(sensorReadings.id),
-      ),
-  );
+      );
+    return annotateSourceContinuity(db, rows);
+  });
 }
 
 export async function getAggregatedReadings(
@@ -2187,12 +2197,12 @@ export async function acknowledgeAlert(id: number, actorId: number) {
         .limit(1)
         .for("update");
       if (!current) return undefined;
-      if (current.status !== "active")
-        throw new Error("Only active alerts can be acknowledged");
+      if (current.acknowledgedAt || current.status === "acknowledged")
+        throw new Error("This alert is already acknowledged");
       const [updated] = await tx
         .update(alerts)
         .set({
-          status: "acknowledged",
+          status: current.status === "resolved" ? "resolved" : "acknowledged",
           acknowledgedBy: actorId,
           acknowledgedAt: new Date(),
           updatedAt: new Date(),
@@ -2230,7 +2240,10 @@ export function visibleAlertEntitiesCondition() {
 
 export async function getAlerts(filters?: {
   deviceId?: number;
+  factoryId?: string;
   status?: Alert["status"];
+  sourceCondition?: Alert["sourceCondition"];
+  acknowledged?: boolean;
   severity?: Alert["severity"];
   limit?: number;
   openOnly?: boolean;
@@ -2239,6 +2252,7 @@ export async function getAlerts(filters?: {
   endTime?: number;
 }) {
   return withDb(async (db) => {
+    await validateIncidentFactoryScope(db, filters?.factoryId);
     let query = db
       .select({
         ...getTableColumns(alerts),
@@ -2249,15 +2263,31 @@ export async function getAlerts(filters?: {
       .from(alerts)
       .leftJoin(users, eq(alerts.assignedToId, users.id))
       .leftJoin(devices, eq(alerts.deviceId, devices.id));
-    const conditions = [visibleAlertEntitiesCondition()];
+    const conditions = [
+      visibleAlertEntitiesCondition(),
+      incidentFactoryCondition(filters?.factoryId),
+    ];
 
     if (filters?.deviceId)
       conditions.push(eq(alerts.deviceId, filters.deviceId));
     if (filters?.status) conditions.push(eq(alerts.status, filters.status));
+    if (filters?.sourceCondition)
+      conditions.push(eq(alerts.sourceCondition, filters.sourceCondition));
+    if (filters?.acknowledged !== undefined)
+      conditions.push(
+        filters.acknowledged
+          ? sql`(${alerts.acknowledgedAt} is not null or ${alerts.status}='acknowledged')`
+          : sql`(${alerts.acknowledgedAt} is null and ${alerts.status}<>'acknowledged')`,
+      );
     if (filters?.severity)
       conditions.push(eq(alerts.severity, filters.severity));
     if (filters?.openOnly)
-      conditions.push(inArray(alerts.status, ["active", "acknowledged"]));
+      conditions.push(
+        or(
+          inArray(alerts.status, ["active", "acknowledged"]),
+          eq(alerts.sourceCondition, "active"),
+        )!,
+      );
     if (filters?.startTime !== undefined)
       conditions.push(gte(alerts.createdAt, new Date(filters.startTime)));
     if (filters?.endTime !== undefined)
@@ -2265,7 +2295,7 @@ export async function getAlerts(filters?: {
 
     const finalQuery =
       conditions.length > 0 ? query.where(and(...conditions)) : query;
-    return finalQuery
+    const rows = await finalQuery
       .orderBy(
         ...(filters?.order === "severity"
           ? [
@@ -2276,12 +2306,16 @@ export async function getAlerts(filters?: {
         desc(alerts.id),
       )
       .limit(filters?.limit || 100);
+    return annotateAlarmConditions(db, rows);
   });
 }
 
 export type IncidentFilters = {
   deviceId?: number;
+  factoryId?: string;
   status?: Alert["status"];
+  sourceCondition?: Alert["sourceCondition"];
+  acknowledged?: boolean;
   severity?: Alert["severity"];
   openOnly?: boolean;
   startTime?: number;
@@ -2290,12 +2324,28 @@ export type IncidentFilters = {
   assignedToId?: number;
 };
 function incidentCondition(filters: IncidentFilters) {
-  const conditions = [visibleAlertEntitiesCondition()];
+  const conditions = [
+    visibleAlertEntitiesCondition(),
+    incidentFactoryCondition(filters.factoryId),
+  ];
   if (filters.deviceId) conditions.push(eq(alerts.deviceId, filters.deviceId));
   if (filters.status) conditions.push(eq(alerts.status, filters.status));
+  if (filters.sourceCondition)
+    conditions.push(eq(alerts.sourceCondition, filters.sourceCondition));
+  if (filters.acknowledged !== undefined)
+    conditions.push(
+      filters.acknowledged
+        ? sql`(${alerts.acknowledgedAt} is not null or ${alerts.status}='acknowledged')`
+        : sql`(${alerts.acknowledgedAt} is null and ${alerts.status}<>'acknowledged')`,
+    );
   if (filters.severity) conditions.push(eq(alerts.severity, filters.severity));
   if (filters.openOnly)
-    conditions.push(inArray(alerts.status, ["active", "acknowledged"]));
+    conditions.push(
+      or(
+        inArray(alerts.status, ["active", "acknowledged"]),
+        eq(alerts.sourceCondition, "active"),
+      )!,
+    );
   if (filters.startTime !== undefined)
     conditions.push(gte(alerts.createdAt, new Date(filters.startTime)));
   if (filters.endTime !== undefined)
@@ -2318,6 +2368,7 @@ export async function getAlertPage(
   return withDb((db) =>
     db.transaction(
       async (tx) => {
+        await validateIncidentFactoryScope(tx, filters.factoryId);
         const condition = incidentCondition(filters);
         const [summary] = await tx
           .select({
@@ -2344,7 +2395,7 @@ export async function getAlertPage(
           .limit(pageSize)
           .offset(page * pageSize);
         return {
-          items,
+          items: await annotateAlarmConditions(tx, items),
           summary,
           total: summary.total,
           returned: items.length,
@@ -2377,7 +2428,7 @@ export async function getAlertById(id: number) {
       .leftJoin(users, eq(alerts.assignedToId, users.id))
       .leftJoin(devices, eq(alerts.deviceId, devices.id))
       .where(and(eq(alerts.id, id), visibleAlertEntitiesCondition()));
-    return alert;
+    return alert ? (await annotateAlarmConditions(db, [alert]))[0] : undefined;
   });
 }
 
@@ -2405,12 +2456,12 @@ export async function getAlertStats(deviceIds?: number[]) {
       .select({
         total: sql<number>`count(*)::int`,
         active: sql<number>`count(*) filter (where ${alerts.status} = 'active')::int`,
-        open: sql<number>`count(*) filter (where ${alerts.status} <> 'resolved')::int`,
+        open: sql<number>`count(*) filter (where ${alerts.status} <> 'resolved' or ${alerts.sourceCondition} = 'active')::int`,
         acknowledged: sql<number>`count(*) filter (where ${alerts.status} = 'acknowledged')::int`,
         resolved: sql<number>`count(*) filter (where ${alerts.status} = 'resolved')::int`,
-        critical: sql<number>`count(*) filter (where ${alerts.severity} = 'critical' and ${alerts.status} <> 'resolved')::int`,
-        warning: sql<number>`count(*) filter (where ${alerts.severity} = 'warning' and ${alerts.status} <> 'resolved')::int`,
-        info: sql<number>`count(*) filter (where ${alerts.severity} = 'info' and ${alerts.status} <> 'resolved')::int`,
+        critical: sql<number>`count(*) filter (where ${alerts.severity} = 'critical' and (${alerts.status} <> 'resolved' or ${alerts.sourceCondition} = 'active'))::int`,
+        warning: sql<number>`count(*) filter (where ${alerts.severity} = 'warning' and (${alerts.status} <> 'resolved' or ${alerts.sourceCondition} = 'active'))::int`,
+        info: sql<number>`count(*) filter (where ${alerts.severity} = 'info' and (${alerts.status} <> 'resolved' or ${alerts.sourceCondition} = 'active'))::int`,
         activeDowntime: sql<number>`count(*) filter (where ${alerts.downtimeStartedAt} is not null and ${alerts.status} <> 'resolved')::int`,
         longestActiveDowntimeSeconds: sql<
           number | null

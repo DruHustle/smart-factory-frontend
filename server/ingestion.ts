@@ -1,13 +1,11 @@
 import { createHash } from "node:crypto";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { getDb, stableJson } from "./db";
 import {
   devices,
   assets,
   assetDevices,
   sensorReadings,
-  alertThresholds,
-  alerts,
 } from "../drizzle/schema";
 import { edgeTelemetrySchema } from "./telemetrySchema";
 import {
@@ -16,9 +14,8 @@ import {
   TelemetryPolicyError,
   type Commissioning,
 } from "./observationPolicy";
-import { evaluateAlertThreshold } from "../shared/alert-thresholds";
-import { getAlertErrorCode } from "../shared/alert-codes";
-import type { Metric } from "../shared/measurements";
+import { observeAlarmConditions } from "./alarmConditions";
+import { metrics, type Metric } from "../shared/measurements";
 import { capture, recordCaptureFailure } from "./onesa/store";
 import { ingestConnectivity } from "./connectivity/store";
 export type TelemetryInput = {
@@ -59,7 +56,8 @@ export async function ingestTelemetryByDeviceId(
   const canonicalInput = { ...input, ingestionId: undefined };
   if (canonicalInput.integration === undefined)
     delete canonicalInput.integration;
-  if (canonicalInput.connectivity === undefined) delete canonicalInput.connectivity;
+  if (canonicalInput.connectivity === undefined)
+    delete canonicalInput.connectivity;
   if (canonicalInput.units === undefined) delete canonicalInput.units;
   if (canonicalInput.mapping === undefined) delete canonicalInput.mapping;
   delete canonicalInput.transportRetainVerified;
@@ -134,10 +132,30 @@ export async function ingestTelemetryByDeviceId(
           : "route_mismatch",
       );
     if (input.connectivity) {
-      const eligibility = currentObservation(input, policy, null, receivedAt.getTime());
-      const result = await ingestConnectivity(tx, device, { ...input, timestamp: raw.timestamp }, eligibility.eligible);
-      return "rejection" in result && result.rejection ? reject(result.rejection) : result;
+      const eligibility = currentObservation(
+        input,
+        policy,
+        null,
+        receivedAt.getTime(),
+      );
+      const result = await ingestConnectivity(
+        tx,
+        device,
+        { ...input, timestamp: raw.timestamp },
+        eligibility.eligible,
+      );
+      return "rejection" in result && result.rejection
+        ? reject(result.rejection)
+        : result;
     }
+    // Heartbeats have a dedicated authenticated ingress route. Empty telemetry
+    // must not replace the newest measurement or make process evidence current.
+    if (
+      !metrics.some((metric) => input[metric] != null) &&
+      !Object.keys(input.assetSignals ?? {}).length &&
+      input.sensorStatus !== "read_error"
+    )
+      return reject("no_measurement");
     let normalized: ReturnType<typeof normalizeMeasurements>;
     try {
       normalized = normalizeMeasurements(input, policy);
@@ -265,10 +283,26 @@ export async function ingestTelemetryByDeviceId(
       }
     } else if (input.mapping && Object.keys(input.mapping).length)
       return reject("mapping_requires_reviewed_asset");
+    // Source-sample order is independent of a gateway heartbeat's lastSeen.
+    const [lastMeasurement] = await tx
+      .select({ timestamp: sensorReadings.timestamp })
+      .from(sensorReadings)
+      .where(
+        and(
+          eq(sensorReadings.deviceId, device.id),
+          attributedAssetId
+            ? eq(sensorReadings.assetId, attributedAssetId)
+            : isNull(sensorReadings.assetId),
+          sql`${sensorReadings.integration}->'evidence'->>'eligible'='true'`,
+        ),
+      )
+      .orderBy(desc(sensorReadings.timestamp))
+      .limit(1);
+    const lastMeasurementAt = lastMeasurement?.timestamp ?? null;
     const eligibility = currentObservation(
       input,
       policy,
-      device.lastSeen?.getTime() ?? null,
+      lastMeasurementAt,
       receivedAt.getTime(),
     );
     const operational = eligibility.eligible && !device.isDemo;
@@ -316,7 +350,9 @@ export async function ingestTelemetryByDeviceId(
           status: ["maintenance", "error"].includes(device.status)
             ? device.status
             : "online",
-          lastSeen: new Date(input.timestamp),
+          lastSeen: new Date(
+            Math.max(input.timestamp, device.lastSeen?.getTime() ?? 0),
+          ),
           updatedAt: receivedAt,
           metadata: {
             ...device.metadata,
@@ -349,96 +385,17 @@ export async function ingestTelemetryByDeviceId(
         recordCaptureFailure();
       }
     }
-    if (operational) {
-      const thresholds = await tx
-        .select()
-        .from(alertThresholds)
-        .where(eq(alertThresholds.deviceId, device.id));
-      for (const threshold of thresholds) {
-        const metric = threshold.metric as Metric,
-          measurement = normalized.measurements[metric],
-          value = normalized.values[metric];
-        if (
-          !threshold.enabled ||
-          !threshold.unit ||
-          threshold.unit !== measurement?.canonicalUnit ||
-          measurement.quality !== "good"
-        )
-          continue;
-        const breach = evaluateAlertThreshold(value, threshold);
-        if (!breach || value == null) continue;
-        const [open] = await tx
-          .select()
-          .from(alerts)
-          .where(
-            and(
-              eq(alerts.deviceId, device.id),
-              attributedAssetId
-                ? eq(alerts.assetId, attributedAssetId)
-                : isNull(alerts.assetId),
-              eq(alerts.metric, threshold.metric),
-              inArray(alerts.status, ["active", "acknowledged"]),
-            ),
-          )
-          .limit(1);
-        const message = `${metric} reported ${value} ${threshold.unit} ${breach.direction} configured ${breach.severity} threshold ${breach.threshold}`;
-        const errorCode = getAlertErrorCode({
-          type: "threshold_exceeded",
-          metric: threshold.metric,
-          severity: breach.severity,
-        });
-        const evidence = {
-          readingId: inserted.id,
-          occurredAt: input.timestamp,
-          receivedAt: receivedAt.toISOString(),
-          sourceDeviceId: device.deviceId,
-          gatewayId: input.gatewayId ?? null,
-          mode: String(
-            (input.integration as { mode?: string })?.mode ?? "unknown",
-          ),
-          quality: measurement.quality,
-          metric,
-          value,
-          threshold: breach.threshold,
-          unit: threshold.unit,
-          measurement,
-        };
-        if (open) {
-          const severity =
-            open.severity === "critical" ? "critical" : breach.severity;
-          await tx
-            .update(alerts)
-            .set({
-              severity,
-              value,
-              threshold: breach.threshold,
-              message,
-              errorCode,
-              latestEvidenceSnapshot: evidence,
-              lastObservedAt: new Date(input.timestamp),
-              occurrences: sql`${alerts.occurrences}+1`,
-              updatedAt: receivedAt,
-            })
-            .where(eq(alerts.id, open.id));
-        } else
-          await tx.insert(alerts).values({
-            deviceId: device.id,
-            assetId: attributedAssetId,
-            type: "threshold_exceeded",
-            severity: breach.severity,
-            metric,
-            value,
-            threshold: breach.threshold,
-            message,
-            errorCode,
-            evidenceSnapshot: evidence,
-            latestEvidenceSnapshot: evidence,
-            lastObservedAt: new Date(input.timestamp),
-            createdAt: new Date(input.timestamp),
-            updatedAt: receivedAt,
-          });
-      }
-    }
+    await observeAlarmConditions(tx, {
+      device,
+      input,
+      assetId: attributedAssetId,
+      readingId: inserted.id,
+      receivedAt,
+      policy,
+      normalized,
+      eligibility,
+      lastMeasurementAt,
+    });
     return {
       deviceId: device.deviceId,
       receivedAt,
@@ -450,6 +407,7 @@ export async function ingestTelemetryByDeviceId(
   const outcome = transaction
     ? await persist(transaction)
     : await db.transaction(persist);
-  if ("rejection" in outcome && outcome.rejection) throw new TelemetryPolicyError(outcome.rejection);
+  if ("rejection" in outcome && outcome.rejection)
+    throw new TelemetryPolicyError(outcome.rejection);
   return outcome;
 }

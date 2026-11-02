@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { canonicalUnits, metrics, type Metric } from "@shared/measurements";
 import { analysisRange } from "@/lib/analysis-range";
+import { useFactorySelection } from "@/lib/factory-selection";
+import { OperationsWorkspace } from "@/components/operations/OperationsWorkspace";
 const fields = [
   "assetType",
   "zone",
@@ -27,6 +29,7 @@ const fields = [
 ] as const;
 type Group = (typeof fields)[number];
 export default function AnalyticsPage() {
+  const { id: factoryId } = useFactorySelection();
   const { user } = useAuth(),
     [location, navigate] = useWorkspaceLocation(),
     params = new URLSearchParams(location.split("?")[1] ?? "");
@@ -57,10 +60,12 @@ export default function AnalyticsPage() {
           ? "simulated"
           : "operational"
     ) as TrendScope;
-  const rangeAnchor = user?.access?.demoOnly && showcase.data ? Date.parse(showcase.data.anchor) : anchor;
-  const { custom, range, endTime, startTime, valid, intervalMs } = analysisRange(
-    params, rangeAnchor, user?.access?.demoOnly ? "1h" : "7d",
-  );
+  const rangeAnchor =
+    user?.access?.demoOnly && showcase.data
+      ? Date.parse(showcase.data.anchor)
+      : anchor;
+  const { custom, range, endTime, startTime, valid, intervalMs } =
+    analysisRange(params, rangeAnchor, user?.access?.demoOnly ? "1h" : "7d");
   const update = (values: Record<string, string>) => {
     const next = new URLSearchParams(params);
     for (const [k, v] of Object.entries(values))
@@ -109,8 +114,7 @@ export default function AnalyticsPage() {
     }
     groups.set(key, entry);
   }
-  const control =
-    "workspace-control";
+  const control = "workspace-control";
   return (
     <div className="space-y-4">
       <PageHeader
@@ -163,8 +167,12 @@ export default function AnalyticsPage() {
                 e.target.value === "custom"
                   ? {
                       range: "custom",
-                      from: new Date(valid ? startTime : rangeAnchor - 3600000).toISOString().slice(0, 16),
-                      to: new Date(valid ? endTime : rangeAnchor).toISOString().slice(0, 16),
+                      from: new Date(valid ? startTime : rangeAnchor - 3600000)
+                        .toISOString()
+                        .slice(0, 16),
+                      to: new Date(valid ? endTime : rangeAnchor)
+                        .toISOString()
+                        .slice(0, 16),
                     }
                   : { range: e.target.value, from: "", to: "" },
               )
@@ -282,6 +290,18 @@ export default function AnalyticsPage() {
           </>
         )}
       </div>
+      {valid && (
+        <OperationsWorkspace
+          factoryId={factoryId ?? undefined}
+          window={{ startTime, endTime }}
+        />
+      )}
+      {user?.access?.demoOnly && params.has("otScenario") && (
+        <p className="text-sm text-muted-foreground">
+          The following observation charts show stored baseline telemetry. The
+          selected recorded scenario and its signals are shown separately above.
+        </p>
+      )}
       {!valid ? (
         <EmptyState
           error
