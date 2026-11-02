@@ -38,7 +38,7 @@ for (const width of [390, 1440])
           await page.setViewportSize({ width, height: 1000 });
           await page.goto("/#/login");
           await page
-            .getByRole("button", { name: "Demo Viewer", exact: true })
+            .getByRole("button", { name: "Viewer", exact: true })
             .click();
           await page.getByRole("button", { name: /^sign in$/i }).click();
           await expect(

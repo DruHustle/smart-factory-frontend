@@ -94,6 +94,7 @@ export function disposeConnectionObject(object: THREE.Object3D) {
 
 type Entry = { signature: string; object: THREE.Group; summary: {
   id: string; type: string; shape: string; diameter: number; color: string;
+  routing?: "tray";
   from: number[]; to: number[]; midpoint: number[];
 } };
 
@@ -101,13 +102,23 @@ type Entry = { signature: string; object: THREE.Group; summary: {
 export class FactoryConnectionLayer {
   readonly root = new THREE.Group();
   private entries = new Map<string, Entry>();
+  private trayBranches = new Map<string, THREE.Group>();
+  private trayTrunks = new Map<string, THREE.Group>();
   constructor(private efficient = false) {
     this.root.name = "factory-physical-connections";
     this.root.userData.nonSelectable = true;
   }
 
-  update(links: FloorLink[], objects: Map<string, THREE.Group>, appearances: ConnectionAppearances) {
+  update(links: FloorLink[], objects: Map<string, THREE.Group>, appearances: ConnectionAppearances,
+    bounds?: { width: number; depth: number }) {
     const active = new Set<string>();
+    // The automatic cable tray is illustrative. Keep it inside the floor rather
+    // than drawing high diagonal lines between every pair of devices.
+    const minZ = Math.min(0, ...[...objects.values()].map((item) => item.position.z));
+    const trayZ = bounds && Number.isFinite(bounds.depth) && bounds.depth > 1
+      ? -bounds.depth / 2 + Math.min(0.5, bounds.depth / 4) : minZ - 0.5;
+    type Tray = { appearance: ConnectionAppearance; endpoints: Map<string, THREE.Vector3> };
+    const trays = new Map<string, Tray>();
     for (const link of links) {
       const id = connectionKey(link), fromObject = objects.get(link.from), toObject = objects.get(link.to);
       if (!fromObject || !toObject || fromObject === toObject || active.has(id)) continue;
@@ -117,15 +128,28 @@ export class FactoryConnectionLayer {
       catch { appearance = defaultConnectionAppearance(link); }
       const from = connectionAnchor(fromObject, toObject, appearance);
       const to = connectionAnchor(toObject, fromObject, appearance);
-      const signature = JSON.stringify([from.toArray(), to.toArray(), appearance]);
+      const autoTray = appearance.type === "wire" && appearance.routing === "tray";
+      if (autoTray) {
+        const key = JSON.stringify([appearance.color, appearance.diameter, appearance.height, trayZ]);
+        const tray = trays.get(key) ?? { appearance, endpoints: new Map<string, THREE.Vector3>() };
+        for (const point of [from, to])
+          tray.endpoints.set(JSON.stringify(point.toArray()), point);
+        trays.set(key, tray);
+      }
+      const signature = JSON.stringify([from.toArray(), to.toArray(), appearance, autoTray ? trayZ : null]);
       const previous = this.entries.get(id);
       if (previous?.signature === signature) continue;
       if (previous) { disposeConnectionObject(previous.object); this.entries.delete(id); }
-      const path = connectionPath(from, to, appearance);
+      const level = Math.max(appearance.height, appearance.diameter / 2 + 0.025);
+      const path = autoTray ? roundedPath([
+        from, new THREE.Vector3(from.x, level, from.z), new THREE.Vector3(from.x, level, trayZ),
+        new THREE.Vector3(to.x, level, trayZ), new THREE.Vector3(to.x, level, to.z), to,
+      ], Math.max(appearance.bendRadius, appearance.diameter * 0.75)) : connectionPath(from, to, appearance);
       if (!path || path.getLength() < 0.001) continue;
       const object = new THREE.Group();
       object.name = `connection:${id}`;
       object.userData.nonSelectable = true;
+      if (!autoTray) {
       const material = new THREE.MeshStandardMaterial({
         color: appearance.color,
         metalness: appearance.type === "pipe" ? 0.72 : 0.05,
@@ -150,9 +174,11 @@ export class FactoryConnectionLayer {
         collar.castShadow = collar.receiveShadow = true;
         object.add(collar);
       }
+      }
       this.root.add(object);
       this.entries.set(id, { signature, object, summary: {
         id, type: appearance.type, shape: appearance.shape,
+        ...(autoTray ? { routing: "tray" as const } : {}),
         diameter: appearance.diameter, color: appearance.color,
         from: from.toArray(), to: to.toArray(), midpoint: path.getPoint(0.5).toArray(),
       } });
@@ -162,12 +188,98 @@ export class FactoryConnectionLayer {
       disposeConnectionObject(entry.object);
       this.entries.delete(id);
     }
+    this.updateTrays(trays, trayZ);
+  }
+
+  private updateTrays(
+    trays: Map<string, { appearance: ConnectionAppearance; endpoints: Map<string, THREE.Vector3> }>,
+    trayZ: number,
+  ) {
+    const activeBranches = new Set<string>(), activeTrunks = new Set<string>();
+    for (const [style, { appearance, endpoints }] of trays) {
+      const points = [...endpoints.values()];
+      if (!points.length) continue;
+      const level = Math.max(appearance.height, appearance.diameter / 2 + 0.025);
+      const minX = Math.min(...points.map((point) => point.x));
+      const maxX = Math.max(...points.map((point) => point.x));
+      const trunkKey = JSON.stringify([style, minX, maxX]);
+      activeTrunks.add(trunkKey);
+      if (!this.trayTrunks.has(trunkKey) && maxX - minX > 0.001) {
+        const group = new THREE.Group();
+        group.name = "illustrative-cable-tray";
+        group.userData.nonSelectable = true;
+        const width = Math.max(0.12, appearance.diameter * 2);
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(maxX - minX, appearance.diameter, width),
+          new THREE.MeshStandardMaterial({ color: appearance.color, metalness: 0.35, roughness: 0.7 }),
+        );
+        mesh.position.set((minX + maxX) / 2, level - appearance.diameter / 2, trayZ);
+        group.add(mesh);
+        this.root.add(group);
+        this.trayTrunks.set(trunkKey, group);
+      }
+      const aisles = new Map<number, THREE.Vector3[]>();
+      for (const point of points) {
+        const aisle = aisles.get(point.x) ?? [];
+        aisle.push(point);
+        aisles.set(point.x, aisle);
+      }
+      for (const [x, anchors] of aisles) {
+        // All branches reach the same trunk. Merge overlapping collinear runs
+        // rather than stacking identical translucent-looking tube surfaces.
+        const start = Math.min(trayZ, ...anchors.map((point) => point.z));
+        const end = Math.max(trayZ, ...anchors.map((point) => point.z));
+        const verticals = new Map<number, { min: number; max: number }>();
+        for (const point of anchors) {
+          const range = verticals.get(point.z) ?? { min: level, max: level };
+          range.min = Math.min(range.min, point.y);
+          range.max = Math.max(range.max, point.y);
+          verticals.set(point.z, range);
+        }
+        const verticalRanges = [...verticals].sort(([a], [b]) => a - b);
+        const branchKey = JSON.stringify([style, x, start, end, verticalRanges]);
+        activeBranches.add(branchKey);
+        if (this.trayBranches.has(branchKey)) continue;
+        const group = new THREE.Group();
+        group.name = "illustrative-cable-tray-branch";
+        group.userData.nonSelectable = true;
+        const material = new THREE.MeshStandardMaterial({ color: appearance.color, metalness: 0.05, roughness: 0.72 });
+        const addRun = (from: THREE.Vector3, to: THREE.Vector3) => {
+          const length = from.distanceTo(to);
+          if (length < 0.001) return;
+          const segments = Math.min(64, Math.max(8, Math.ceil(length * 2)));
+          const mesh = new THREE.Mesh(
+            new THREE.TubeGeometry(new THREE.LineCurve3(from, to), segments, appearance.diameter / 2, this.efficient ? 6 : 8, false),
+            material,
+          );
+          // Low-profile cable routes should not pepper the floor with wire shadows.
+          mesh.castShadow = false;
+          mesh.receiveShadow = true;
+          group.add(mesh);
+        };
+        addRun(new THREE.Vector3(x, level, start), new THREE.Vector3(x, level, end));
+        for (const [z, range] of verticalRanges)
+          addRun(new THREE.Vector3(x, range.min, z), new THREE.Vector3(x, range.max, z));
+        if (!group.children.length) { material.dispose(); continue; }
+        this.root.add(group);
+        this.trayBranches.set(branchKey, group);
+      }
+    }
+    for (const [key, group] of this.trayBranches) if (!activeBranches.has(key)) {
+      disposeConnectionObject(group); this.trayBranches.delete(key);
+    }
+    for (const [key, group] of this.trayTrunks) if (!activeTrunks.has(key)) {
+      disposeConnectionObject(group); this.trayTrunks.delete(key);
+    }
   }
 
   get summary() { return [...this.entries.values()].map((entry) => entry.summary); }
+  get trayMetrics() { return { trunks: this.trayTrunks.size, branches: this.trayBranches.size }; }
   dispose() {
     for (const entry of this.entries.values()) disposeConnectionObject(entry.object);
-    this.entries.clear();
+    for (const group of this.trayBranches.values()) disposeConnectionObject(group);
+    for (const group of this.trayTrunks.values()) disposeConnectionObject(group);
+    this.entries.clear(); this.trayBranches.clear(); this.trayTrunks.clear();
     this.root.removeFromParent();
   }
 }

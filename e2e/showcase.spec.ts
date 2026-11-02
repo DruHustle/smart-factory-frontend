@@ -19,7 +19,7 @@ async function enterDemo(page: import("@playwright/test").Page, width: number) {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/#/login");
-  await page.getByRole("button", { name: "Demo Viewer", exact: true }).click();
+  await page.getByRole("button", { name: "Viewer", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
@@ -154,7 +154,7 @@ test("demonstration exposes exact component evidence and preserved inspection vi
   );
   await page.goto("/#/login");
   await page
-    .getByRole("button", { name: "Demo Engineer", exact: true })
+    .getByRole("button", { name: "Engineer", exact: true })
     .click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(

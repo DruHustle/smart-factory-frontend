@@ -15,6 +15,10 @@ export class FactoryScenePreparation {
     private environment: Promise<unknown>,
   ) {}
 
+  setCamera(camera: THREE.Camera) {
+    this.camera = camera;
+  }
+
   private presentationTurn() {
     return new Promise<void>((resolve) => {
       if (this.stopped) return resolve();

@@ -79,7 +79,7 @@
 }
 @media (min-width: 1280px) {
   .overview-floor-viewport {
-    height: clamp(19rem, 23vw, 23rem);
+    height: clamp(27rem, 35vw, 36rem);
   }
   .overview-trend {
     grid-template-columns: minmax(0, 1fr) 6.6rem;

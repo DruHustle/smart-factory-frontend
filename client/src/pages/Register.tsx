@@ -14,11 +14,31 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Factory, Lock, Mail, User, Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { userFacingApiError } from "@/lib/errors";
 import { FirstAdministratorHelp } from "@/components/FirstAdministratorHelp";
+
+const REQUESTED_ROLES = [
+  "Administrator",
+  "Engineer",
+  "Operator",
+  "Viewer",
+] as const;
+type RequestedRole = (typeof REQUESTED_ROLES)[number];
+
+function RegistrationShell({ children }: { children: ReactNode }) {
+  return (
+    <main
+      data-theme-scope="fixed-dark"
+      className="dark relative flex min-h-screen items-center justify-center bg-background text-foreground bg-[url('/images/industrial-blur-bg.webp')] bg-cover bg-center p-4 sm:p-6"
+    >
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      {children}
+    </main>
+  );
+}
 
 export default function Register() {
   const policy = trpc.auth.registrationPolicy.useQuery();
@@ -29,6 +49,9 @@ export default function Register() {
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const [requestedRole, setRequestedRole] = useState<RequestedRole | null>(
+    null,
+  );
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +60,17 @@ export default function Register() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!requestedRole) {
+      setError("Choose the role you would like to request.");
+      return;
+    }
+    const requestDetails = `Requested role: ${requestedRole}${jobTitle.trim() ? ` · Job title: ${jobTitle.trim()}` : ""}`;
+    if (requestDetails.length > 255) {
+      setError(
+        "Shorten your job title so your requested role and title fit in the request.",
+      );
+      return;
+    }
     if (new TextEncoder().encode(password).length > 72) {
       setError(
         "The password is too long. Use at most 72 UTF-8 bytes; accented characters and emoji can use more than one byte.",
@@ -57,7 +91,9 @@ export default function Register() {
         password,
         name: name.trim(),
         organization: organization.trim(),
-        jobTitle: jobTitle.trim(),
+        // The existing request detail is shown to the approving administrator.
+        // This is a preference only; the server never assigns privileges from it.
+        jobTitle: requestDetails,
       });
       setPassword("");
       setSubmitted(true);
@@ -73,16 +109,62 @@ export default function Register() {
     }
   };
 
+  if (!requestedRole)
+    return (
+      <RegistrationShell>
+        <Card className="relative z-10 w-full max-w-md">
+          <CardHeader className="space-y-1 text-center">
+            <div className="mb-4 flex justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
+                <Factory className="h-7 w-7 text-primary-foreground" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold tracking-wide">Choose a role</h1>
+            <CardDescription>
+              Select the role you need. An administrator reviews your request
+              and assigns access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div
+              className="grid grid-cols-2 gap-2"
+              role="group"
+              aria-label="Requested role"
+            >
+              {REQUESTED_ROLES.map((role) => (
+                <Button
+                  key={role}
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => setRequestedRole(role)}
+                >
+                  {role}
+                </Button>
+              ))}
+            </div>
+            <Button asChild variant="ghost" className="w-full">
+              <Link href="/login">Back to login</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </RegistrationShell>
+    );
+
   if (policy.isLoading)
     return (
-      <div role="status" className="p-8">
-        Checking account registration…
-      </div>
+      <RegistrationShell>
+        <Card className="relative z-10 w-full max-w-md">
+          <CardContent className="p-8">
+            <p role="status">Checking account registration…</p>
+          </CardContent>
+        </Card>
+      </RegistrationShell>
     );
   if (!policy.data?.enabled)
     return (
-      <main className="mx-auto my-16 max-w-md px-4">
-        <Card>
+      <RegistrationShell>
+        <Card className="relative z-10 w-full max-w-md">
           <CardHeader>
             <h1 className="text-2xl font-semibold">Account access</h1>
           </CardHeader>
@@ -104,13 +186,13 @@ export default function Register() {
             <Button onClick={() => navigate("/login")}>Back to login</Button>
           </CardContent>
         </Card>
-      </main>
+      </RegistrationShell>
     );
 
   if (submitted)
     return (
-      <main className="mx-auto my-16 max-w-md px-4">
-        <Card>
+      <RegistrationShell>
+        <Card className="relative z-10 w-full max-w-md">
           <CardHeader>
             <h1 className="text-2xl font-semibold">Request received</h1>
             <CardDescription>
@@ -147,11 +229,11 @@ export default function Register() {
             <Button onClick={() => navigate("/login")}>Back to login</Button>
           </CardContent>
         </Card>
-      </main>
+      </RegistrationShell>
     );
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-background p-4 sm:p-6">
+    <RegistrationShell>
       {/* Dark Overlay - Matches Login Page */}
 
       {/* Register Card */}
@@ -171,24 +253,24 @@ export default function Register() {
 
           {/* Subtitle */}
           <CardDescription className="text-muted-foreground">
-            Enter your details for administrator approval. You can sign in once
-            your request has been approved.
+            Need personal access? Register for administrator approval.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <ol
-            aria-label="Account approval steps"
-            className="list-decimal space-y-1 rounded-lg border bg-muted/20 py-3 pl-8 pr-3 text-sm text-muted-foreground"
-          >
-            <li>
-              Request access with your personal email and chosen password.
-            </li>
-            <li>
-              An administrator verifies your identity and assigns your role.
-            </li>
-            <li>Sign in after the administrator confirms approval.</li>
-          </ol>
+          <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 px-3 py-2 text-sm">
+            <span>
+              Requested role: <strong>{requestedRole}</strong>
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setRequestedRole(null)}
+            >
+              Change role
+            </Button>
+          </div>
           {/* Registration Form */}
           <form onSubmit={handleRegister} className="space-y-4">
             {/* Full Name Field */}
@@ -254,7 +336,9 @@ export default function Register() {
                 id="job-title"
                 value={jobTitle}
                 onChange={(e) => setJobTitle(e.target.value)}
-                maxLength={255}
+                maxLength={
+                  255 - "Requested role: Administrator · Job title: ".length
+                }
                 autoComplete="organization-title"
               />
             </div>
@@ -339,6 +423,6 @@ export default function Register() {
           </div>
         </CardContent>
       </Card>
-    </main>
+    </RegistrationShell>
   );
 }

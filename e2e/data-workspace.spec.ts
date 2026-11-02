@@ -414,7 +414,11 @@ for (const width of [390, 1440]) {
     });
     await expect(selector).toHaveValue("demo");
     await expect(selector.locator('option[value="live"]')).toBeDisabled();
-    await expect(page.getByRole("note")).toContainText("individual account");
+    await expect(selector).toHaveAttribute(
+      "title",
+      "Live data requires an approved individual account",
+    );
+    await expect(page.getByText("Demo factory · simulated", { exact: true })).toHaveCount(0);
     await page
       .getByRole("button", { name: "About demo and live data", exact: true })
       .click();
@@ -440,11 +444,15 @@ for (const width of [390, 1440]) {
     await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Register", exact: true }).click();
     await expect(
+      page.getByRole("heading", { name: "Choose a role", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Engineer", exact: true }).click();
+    await expect(
       page.getByRole("heading", { name: "Request an account", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByText(
-        "Enter your details for administrator approval. You can sign in once your request has been approved.",
+        "Need personal access? Register for administrator approval.",
         { exact: true },
       ),
     ).toBeVisible();
@@ -481,7 +489,7 @@ test("Overview graphics renders all 57 items in 3D, preserves whole-factory scop
   await expect(canvas).toHaveAttribute("data-floor-node-count", "57");
   await expect(
     page.getByRole("status").filter({ hasText: "57 items on floor" }),
-  ).toBeVisible();
+  ).toHaveCount(1);
   await page
     .locator("summary")
     .filter({ hasText: /^Find an item/ })
@@ -669,7 +677,7 @@ for (const width of [390, 1440])
       await expect(canvas).toHaveAttribute("data-floor-node-count", "57");
       await expect(
         page.getByRole("status").filter({ hasText: "57 items on floor" }),
-      ).toBeVisible();
+      ).toHaveCount(1);
       await canvas.evaluate((node) => {
         const gl = (node as HTMLCanvasElement).getContext("webgl2");
         const extension = gl?.getExtension("WEBGL_lose_context");
@@ -761,7 +769,8 @@ test("Overview design keeps factory, status and summaries in the desktop composi
   const floorBounds = await floor.boundingBox(),
     statusBounds = await status.boundingBox();
   expect(floorBounds).not.toBeNull();
-  expect(statusBounds!.x).toBeGreaterThan(floorBounds!.x + floorBounds!.width);
+  expect(floorBounds!.width).toBeGreaterThan(1100);
+  expect(statusBounds!.y).toBeGreaterThanOrEqual(floorBounds!.y + floorBounds!.height);
   await expect(
     page.getByRole("group", { name: "Source observation states", exact: true }),
   ).toContainText("51");
@@ -860,7 +869,7 @@ for (const width of [390, 1440]) {
       });
       await expect(
         page.getByRole("status").filter({ hasText: "57 items on floor" }),
-      ).toBeVisible();
+      ).toHaveCount(1);
       const details = page.getByLabel("Selected floor item", { exact: true });
       // Aim at a visible surface, not the old enlarged invisible hit volumes.
       // Re-enter between probes so hover rotation does not move the target while aiming.

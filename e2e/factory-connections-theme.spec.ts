@@ -111,7 +111,11 @@ for (const width of [390, 1440]) {
     const original = await readPlacements(page), lines = await planLines(page);
     await page.getByRole("button", { name: "3D floor", exact: true }).click();
     await expect(canvas).toHaveAttribute("data-connection-count", "2");
-    await page.getByTestId("connection-routing").locator("summary").click();
+    await expect(page.getByText(/3D wires & pipes · \d+ connections/)).toHaveCount(0);
+    const routing = page.getByRole("button", { name: "Edit 3D connections", exact: true });
+    await expect(routing).toHaveAttribute("aria-expanded", "false");
+    await routing.click();
+    await expect(routing).toHaveAttribute("aria-expanded", "true");
     await page.getByLabel("3D connection", { exact: true }).selectOption(processId);
     const camera = await canvas.getAttribute("data-camera-view");
     await page.getByLabel("3D connection type", { exact: true }).selectOption("wire");

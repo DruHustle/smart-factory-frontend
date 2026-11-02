@@ -13,7 +13,6 @@ import {
   Clock3,
   Gauge,
   ChevronRight,
-  CircleAlert,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
@@ -201,34 +200,6 @@ function LegacyHome() {
           </>
         }
       />
-      {demo && (
-        <div
-          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border border-warning/25 bg-warning/5 px-3 py-1.5 text-xs"
-          role="note"
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <CircleAlert className="size-4 shrink-0 text-warning" aria-hidden />
-            <span>
-              <strong>Demo factory · simulated</strong>
-            </span>
-          </span>
-          {demo && (
-            <Link
-              href="/sandbox"
-              aria-label="Open editable demo"
-              className="inline-flex min-h-11 items-center gap-1 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
-            >
-              Editable demo
-            </Link>
-          )}
-          <Link
-            href="/demo"
-            className="inline-flex min-h-7 items-center gap-1 underline"
-          >
-            Demo guide <ArrowRight className="size-3" aria-hidden />
-          </Link>
-        </div>
-      )}
       <div className="overview-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {kpis.map((kpi) => (
           <Link
@@ -254,7 +225,7 @@ function LegacyHome() {
           </Link>
         ))}
       </div>
-      <div className="overview-main-grid grid min-w-0 items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="overview-main-grid grid min-w-0 items-stretch gap-3">
         <div className="min-w-0">
           {floor.isLoading ? (
             <div className="flex h-[28rem] items-center justify-center rounded-lg border bg-card">
@@ -294,7 +265,7 @@ function LegacyHome() {
         </div>
         <aside
           aria-label="Factory status"
-          className="overview-status grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-1"
+          className="overview-status grid min-w-0 gap-3 md:grid-cols-2"
         >
           <Card className="overview-panel min-w-0">
             <CardHeader>
@@ -302,11 +273,6 @@ function LegacyHome() {
                 <Clock3 className="size-4 text-info" aria-hidden />
                 Needs attention
               </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {overview.error
-                  ? "Incident count unavailable"
-                  : `${stats?.alerts.open ?? "…"} open process incidents`}
-              </p>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col">
               {incidents.error ? (

@@ -174,7 +174,16 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: public-demo-browser-evidence
-          path: test-results/public-demo/
+          path: |
+            test-results/public-demo/**/*.json
+            test-results/public-demo/**/*.log
+            test-results/public-demo/**/*.txt
+            test-results/public-demo/**/*.md
+            test-results/public-demo/**/*.xml
+            test-results/public-demo/**/*.csv
+            test-results/public-demo/**/*.tsv
+            test-results/public-demo/**/*.dxf
+            test-results/public-demo/**/*.sha256
           if-no-files-found: ignore
       - name: Verify independent native equipment view
         if: matrix.suite == 'equipment'
@@ -218,7 +227,16 @@ jobs:
         if: always()
         with:
           name: workspace-rendered-evidence
-          path: test-results/
+          path: |
+            test-results/**/*.json
+            test-results/**/*.log
+            test-results/**/*.txt
+            test-results/**/*.md
+            test-results/**/*.xml
+            test-results/**/*.csv
+            test-results/**/*.tsv
+            test-results/**/*.dxf
+            test-results/**/*.sha256
           if-no-files-found: warn
 
   visual-workspaces:
@@ -252,6 +270,8 @@ jobs:
         run: pnpm exec playwright test --config=playwright.overview-contract.config.ts
         env:
           CAD_EVIDENCE_DIR: test-results/cad-exports
+      - name: Verify NVIDIA references on the factory floor
+        run: pnpm exec playwright test --config=playwright.nvidia-floor.config.ts
       - name: Audit actual browser engineering downloads
         run: '"$RUNNER_TEMP/smart-factory-cad/bin/python" scripts/engineering/verify-browser-exports.py test-results/cad-exports'
       - name: Verify layout editing under delayed account responses and draft capacity
@@ -264,7 +284,16 @@ jobs:
         if: always()
         with:
           name: visual-workspace-evidence
-          path: test-results/
+          path: |
+            test-results/**/*.json
+            test-results/**/*.log
+            test-results/**/*.txt
+            test-results/**/*.md
+            test-results/**/*.xml
+            test-results/**/*.csv
+            test-results/**/*.tsv
+            test-results/**/*.dxf
+            test-results/**/*.sha256
           if-no-files-found: warn
 
   experience-journeys:
@@ -283,10 +312,45 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - name: Verify desktop, mobile, theme and zoom journeys
+        id: experience
         run: pnpm e2e:experience experience.spec.ts --output="$RUNNER_TEMP/experience-results"
         env:
           EXPERIENCE_CAPTURE_PHASE: preview
           EXPERIENCE_PREVIEW_DIR: ${{ runner.temp }}/experience-screenshots
+      - name: Report synthetic failure-state markers
+        if: ${{ failure() && steps.experience.outcome == 'failure' }}
+        env:
+          EXPERIENCE_RESULTS_DIR: ${{ runner.temp }}/experience-results
+        run: |
+          python3 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["EXPERIENCE_RESULTS_DIR"])
+          markers = {key: False for key in (
+              "snapshot_present", "read_error", "loading", "error",
+              "named_factory", "login", "legacy_inventory",
+          )}
+          for path in root.rglob("error-context.md"):
+              try:
+                  if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
+                      markers["read_error"] = True
+                      continue
+                  snapshot = path.read_text(encoding="utf-8", errors="replace")
+              except OSError:
+                  markers["read_error"] = True
+                  continue
+              markers["snapshot_present"] = True
+              markers["loading"] |= any(x in snapshot for x in ("Loading inventory", "Loading factory"))
+              markers["error"] |= any(x in snapshot for x in ("Inventory unavailable", "This factory is unavailable"))
+              markers["named_factory"] |= any(x in snapshot for x in ("Factory totals", "Shared factory", "View all inventory"))
+              markers["login"] |= 'textbox "Email"' in snapshot and 'textbox "Password"' in snapshot
+              markers["legacy_inventory"] |= 'status "Inventory results"' in snapshot or (
+                  'heading "Assets & devices"' in snapshot and 'textbox "Search inventory"' in snapshot
+              )
+          print(json.dumps(markers, sort_keys=True))
+          PYCODE
 
   evidence-led-workspaces:
     name: Assistant, design system and infrastructure
@@ -313,7 +377,16 @@ jobs:
         if: always()
         with:
           name: evidence-led-workspaces
-          path: test-results/
+          path: |
+            test-results/**/*.json
+            test-results/**/*.log
+            test-results/**/*.txt
+            test-results/**/*.md
+            test-results/**/*.xml
+            test-results/**/*.csv
+            test-results/**/*.tsv
+            test-results/**/*.dxf
+            test-results/**/*.sha256
           if-no-files-found: warn
 
   sidebar-navigation:
@@ -338,7 +411,16 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: sidebar-navigation-evidence
-          path: test-results/navigation/
+          path: |
+            test-results/navigation/**/*.json
+            test-results/navigation/**/*.log
+            test-results/navigation/**/*.txt
+            test-results/navigation/**/*.md
+            test-results/navigation/**/*.xml
+            test-results/navigation/**/*.csv
+            test-results/navigation/**/*.tsv
+            test-results/navigation/**/*.dxf
+            test-results/navigation/**/*.sha256
           if-no-files-found: ignore
 
   trusted-cross-service:
@@ -476,6 +558,15 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: nvidia-library-browser-evidence
-          path: test-results/openusd/
+          path: |
+            test-results/openusd/**/*.json
+            test-results/openusd/**/*.log
+            test-results/openusd/**/*.txt
+            test-results/openusd/**/*.md
+            test-results/openusd/**/*.xml
+            test-results/openusd/**/*.csv
+            test-results/openusd/**/*.tsv
+            test-results/openusd/**/*.dxf
+            test-results/openusd/**/*.sha256
           retention-days: 7
           if-no-files-found: warn

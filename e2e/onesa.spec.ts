@@ -107,7 +107,7 @@ test("public demo engineering identity cannot read private integration configura
   );
   await page.goto("/#/login");
   await page
-    .getByRole("button", { name: "Demo Engineer", exact: true })
+    .getByRole("button", { name: "Engineer", exact: true })
     .click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(

@@ -21,6 +21,7 @@ import {
   Trash2,
   Workflow,
   Cable,
+  Info,
 } from "lucide-react";
 import { layoutFactory, type FloorLink } from "@shared/factory-floor";
 import { currentSample } from "@shared/measurements";
@@ -156,6 +157,7 @@ export function FactoryFloor({
     [zone, setZone] = useState("all"),
     [reset, setReset] = useState(0),
     [search, setSearch] = useState("");
+  const [floorHelpOpen, setFloorHelpOpen] = useState(false);
   const schematic = view === "process" || view === "electrical";
   const diagram = useFactoryDiagram({
     scope: drawingScope,
@@ -329,14 +331,39 @@ export function FactoryFloor({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            <Box className="size-4 text-info" />
-            Factory floor
-          </h2>
+          <div className="flex items-center gap-1">
+            <h2 className="flex items-center gap-2 text-base font-semibold">
+              <Box className="size-4 text-info" />
+              Factory floor
+            </h2>
+            <details
+              className="group relative"
+              onToggle={(event) => setFloorHelpOpen(event.currentTarget.open)}
+            >
+              <summary
+                role="button"
+                aria-label="Factory floor controls"
+                aria-expanded={floorHelpOpen}
+                title="Factory floor controls"
+                className="flex size-9 cursor-pointer list-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
+              >
+                <Info className="size-4" aria-hidden="true" />
+              </summary>
+              <div className="absolute left-1/2 top-full z-50 w-[min(18rem,calc(100vw-4rem))] -translate-x-1/2 rounded-md border bg-popover p-3 text-xs leading-relaxed text-popover-foreground shadow-md sm:left-0 sm:translate-x-0">
+                {schematic
+                  ? "Select equipment or a connection to inspect it. Hold and drag to pan; use the zoom controls or scroll to zoom."
+                  : movable
+                    ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
+                    : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
+                {view === "3d" &&
+                  "With Rotate off, hovering stays still. With Rotate on, click empty floor to start mouse rotation; click again to stop. Scroll or pinch to zoom. In Explore mode, drag to look and use W, A, S, D or the on-screen controls to move."}
+                {fullscreen.expanded && " · Esc to exit fullscreen."}
+              </div>
+            </details>
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {visible.length} of {items.length} items shown ·{" "}
-            {layoutDocument ? layoutDocument.zones.length : zones.length} zones{" "}
-            {demo && "· Simulated installation"}
+            {layoutDocument ? layoutDocument.zones.length : zones.length} zones
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1">
@@ -358,6 +385,13 @@ export function FactoryFloor({
             ))}
           </select>
           <div className="flex shrink-0 items-center gap-1">
+            {view === "3d" && (
+              <FactoryConnectionEditor
+                links={links}
+                layout={layout}
+                controller={connectionRoutes}
+              />
+            )}
             <Button
               variant="outline"
               size="icon"
@@ -463,30 +497,6 @@ export function FactoryFloor({
           ))}
         </div>
       </div>
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 border-b px-4 py-2 text-xs text-muted-foreground">
-        <details className="group min-w-0">
-          <summary className="cursor-pointer rounded-sm text-foreground underline decoration-border underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            View controls
-          </summary>
-          <p className="mt-2 max-w-xl leading-relaxed">
-            {schematic
-              ? "Select equipment or a connection to inspect it. Hold and drag to pan; use the zoom controls or scroll to zoom."
-              : movable
-                ? "Hold and drag an item to move it, or empty floor to pan. Release to stop."
-                : "Click equipment to inspect it; hold and drag to pan. Release to stop."}{" "}
-            {view === "3d" &&
-              "With Rotate on, click empty floor to start mouse rotation; click again to stop. Scroll or pinch to zoom."}
-            {fullscreen.expanded && " · Esc to exit fullscreen."}
-          </p>
-        </details>
-      </div>
-      {view === "3d" && (
-        <FactoryConnectionEditor
-          links={links}
-          layout={layout}
-          controller={connectionRoutes}
-        />
-      )}
       {schematic && (
         <>
           <div
@@ -569,7 +579,7 @@ export function FactoryFloor({
         </div>
       )}
       <div
-        className={`overview-floor-viewport relative min-w-0 ${measured ? "h-[24rem] sm:h-[32rem]" : "h-[21rem]"}`}
+        className={`overview-floor-viewport relative min-w-0 ${measured ? "h-[24rem] sm:h-[32rem]" : "h-[25rem] sm:h-[30rem]"}`}
         data-testid="factory-floor"
         data-total-items={items.length}
         data-visible-items={visible.length}
@@ -670,6 +680,7 @@ export function FactoryFloor({
         {!schematic && fullscreen.expanded && active && (
           <p
             aria-live="polite"
+            data-floor-selection-overlay="true"
             className="pointer-events-none absolute bottom-12 left-3 max-w-[calc(100%-1.5rem)] rounded-md border bg-background/95 px-2 py-1 text-xs font-medium"
           >
             {active.name}

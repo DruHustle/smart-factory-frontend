@@ -335,7 +335,7 @@ test("Assistant handles unavailable WebGL and clears sensitive state on logout",
   await page.getByRole("button", { name: "Open account menu" }).click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Demo Viewer", exact: true }).click();
+  await page.getByRole("button", { name: "Viewer", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),

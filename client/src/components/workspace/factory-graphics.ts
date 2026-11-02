@@ -216,6 +216,7 @@ export const factoryModelSize: Record<string, number> = {
   "loading-door": 3.48,
   "exit-door": 2.12,
   "process-sensor": 0.18,
+  "mobile-cart": 1.58,
   conveyor: 4,
   "robot-arm": 3.2,
   "storage-tank": 3.1,

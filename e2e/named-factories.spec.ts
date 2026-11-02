@@ -13,7 +13,7 @@ const factoryIn = (state: any, id: string) => {
 async function prepare(page: Page) {
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto("/#/login");
-  await page.getByRole("button", { name: "Demo Admin", exact: true }).click();
+  await page.getByRole("button", { name: "Admin", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
@@ -57,6 +57,80 @@ async function add(page: Page, type: string, name: string, tag: string) {
     page.getByLabel("Factory editor", { exact: true }),
   ).not.toBeVisible();
 }
+
+test.describe("Explore with a selected named-factory item", () => {
+  test.use({ hasTouch: true });
+  for (const width of [320, 390])
+    test(`controls do not cover the delete action at ${width}px`, async ({
+      page,
+    }) => {
+      const factoryId = await prepare(page);
+      await add(page, "pump", "Acceptance pump", "P-01");
+      await page
+        .getByRole("button", {
+          name: "Select Acceptance pump on floor",
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", { name: "Close factory editor", exact: true })
+        .click();
+      await page.getByRole("button", { name: "3D floor", exact: true }).click();
+      await page.setViewportSize({ width, height: 844 });
+      await page
+        .getByRole("button", { name: "Enter fullscreen", exact: true })
+        .click();
+      const before = await snapshot(page);
+      await page
+        .getByRole("button", {
+          name: "Explore factory at eye level",
+          exact: true,
+        })
+        .tap();
+      const canvas = page.getByRole("img", {
+        name: "Interactive 3D factory floor",
+        exact: true,
+      });
+      await expect(canvas).toHaveAttribute("data-view-mode", "explore");
+      const floor = (await canvas.boundingBox())!;
+      const controls = (await page
+        .getByRole("group", { name: "Explore controls" })
+        .boundingBox())!;
+      const exit = (await page
+        .getByRole("button", { name: "Exit factory exploration" })
+        .boundingBox())!;
+      const legend = (await page
+        .getByLabel("Floor indicator legend")
+        .boundingBox())!;
+      const selection = (await page
+        .locator('[data-floor-selection-overlay="true"]')
+        .boundingBox())!;
+      const deleteButton = page.getByRole("button", {
+        name: "Delete selected item from factory inventory",
+        exact: true,
+      });
+      await expect(deleteButton).toBeVisible();
+      const deletion = (await deleteButton.boundingBox())!;
+      const overlaps = (a: typeof controls, b: typeof controls) =>
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      expect(controls.x).toBeGreaterThanOrEqual(floor.x);
+      expect(controls.y).toBeGreaterThanOrEqual(floor.y);
+      expect(controls.x + controls.width).toBeLessThanOrEqual(
+        floor.x + floor.width,
+      );
+      expect(controls.y + controls.height).toBeLessThanOrEqual(
+        floor.y + floor.height,
+      );
+      for (const overlay of [exit, legend, selection, deletion])
+        expect(overlaps(controls, overlay)).toBe(false);
+      expect(factoryIn(await snapshot(page), factoryId)).toEqual(
+        factoryIn(before, factoryId),
+      );
+    });
+});
 test("named factory inventory, hand drop to bin and attributed history stay consistent", async ({
   page,
 }) => {

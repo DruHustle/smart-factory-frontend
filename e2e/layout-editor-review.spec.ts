@@ -484,6 +484,225 @@ async function refitGrabTarget(
   };
 }
 
+test("Explore uses perspective movement and preserves overview and item placement", async ({
+  page,
+}) => {
+  const { canvas, item, placement } = await grabFixture(page);
+  const originalPlacement = await placement();
+  await page.mouse.click(item.x, item.y);
+  await expect(
+    page.getByLabel("Selected floor item", { exact: true }),
+  ).toBeVisible();
+  await canvas.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(placement).not.toEqual(originalPlacement);
+  const initialPlacement = await placement();
+  const view = async () =>
+    JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+  const overview = await view();
+  const zoneCount = await canvas.getAttribute("data-floor-zone-labels-total");
+  await expect(canvas).toHaveAttribute(
+    "data-floor-zone-labels-visible",
+    zoneCount!,
+  );
+  await page
+    .getByRole("button", { name: "Explore factory at eye level", exact: true })
+    .click();
+  await expect(canvas).toHaveAttribute("data-view-mode", "explore");
+  await expect(canvas).toHaveAttribute("data-floor-zone-labels-visible", "0");
+  expect(
+    Number(await canvas.getAttribute("data-explore-interior-meshes")),
+  ).toBeLessThanOrEqual(5);
+  expect(
+    Number(await canvas.getAttribute("data-explore-interior-meshes")),
+  ).toBeGreaterThanOrEqual(5);
+  await expect(
+    page.getByRole("button", { name: "Rotate with mouse movement" }),
+  ).toHaveCount(0);
+  const start = await view();
+  expect(start.mode).toBe("explore");
+  expect(start.position[1]).toBeCloseTo(1.65);
+  await canvas.focus();
+  await page.keyboard.press("w");
+  await expect
+    .poll(async () => (await view()).position)
+    .not.toEqual(start.position);
+  const moved = await view();
+  await page.keyboard.press("ArrowLeft");
+  await expect
+    .poll(async () => (await view()).target)
+    .not.toEqual(moved.target);
+  const turned = await view();
+  const name = page.getByLabel("Layout name", { exact: true });
+  await name.focus();
+  await page.keyboard.type("w");
+  expect(await view()).toEqual(turned);
+  await page
+    .getByRole("button", { name: "Focus selected equipment", exact: true })
+    .click();
+  await canvas.scrollIntoViewIfNeeded();
+  await canvas.click({ position: { x: 8, y: 8 } });
+  const details = page.getByLabel("Selected floor item", { exact: true });
+  await expect(details).toHaveCount(0);
+  const bounds = (await canvas.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  const visible = {
+    left: Math.max(0, bounds.x + 2),
+    right: Math.min(viewport.width - 1, bounds.x + bounds.width - 2),
+    top: Math.max(0, bounds.y + 2),
+    bottom: Math.min(viewport.height - 1, bounds.y + bounds.height - 2),
+  };
+  const focusedView = await view();
+  let hit: { x: number; y: number } | undefined;
+  // Scan the actually visible canvas with its real triangle raycast; do not
+  // enlarge hit areas or assume an object occupies the projection centre.
+  for (let row = 0; row <= 12 && !hit; row++) {
+    for (let column = 0; column <= 12; column++) {
+      const x = visible.left + ((visible.right - visible.left) * column) / 12;
+      const y = visible.top + ((visible.bottom - visible.top) * row) / 12;
+      await page.mouse.move(x, y);
+      if ((await canvas.getAttribute("data-grab-target")) === "asset:1") {
+        hit = { x, y };
+        break;
+      }
+    }
+  }
+  expect(
+    hit,
+    "A visible pump surface must be hit by the real perspective raycast",
+  ).toBeDefined();
+  expect(await view()).toEqual(focusedView);
+  await page.mouse.click(hit!.x, hit!.y);
+  await expect(details).toContainText("Review pump");
+  expect(await placement()).toEqual(initialPlacement);
+  await page
+    .getByRole("button", { name: "Exit factory exploration", exact: true })
+    .click();
+  await expect(canvas).toHaveAttribute("data-view-mode", "overview");
+  await expect(canvas).toHaveAttribute(
+    "data-floor-zone-labels-visible",
+    zoneCount!,
+  );
+  expect(await view()).toEqual(overview);
+  await expect(
+    page.getByRole("button", { name: "Rotate with mouse movement" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  expect(await placement()).toEqual(initialPlacement);
+  await page
+    .getByRole("button", { name: "Explore factory at eye level", exact: true })
+    .click();
+  await canvas.focus();
+  await page.keyboard.press("Escape");
+  await expect(canvas).toHaveAttribute("data-view-mode", "overview");
+  expect(await view()).toEqual(overview);
+  await page
+    .getByRole("button", { name: "Explore factory at eye level", exact: true })
+    .click();
+  const contextLost = await canvas.evaluate((element: HTMLCanvasElement) => {
+    const gl = element.getContext("webgl2");
+    const extension = gl?.getExtension("WEBGL_lose_context");
+    if (!extension) return false;
+    extension.loseContext();
+    return true;
+  });
+  expect(contextLost).toBe(true);
+  await expect(
+    page.getByRole("img", {
+      name: "Accessible factory floor plan",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("3D unavailable on this device · Showing floor plan"),
+  ).toBeVisible();
+});
+
+test.describe("Explore touch controls", () => {
+  test.use({ hasTouch: true });
+  for (const width of [320, 390])
+    test(`move and turn controls fit at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      const { canvas, item, placement } = await grabFixture(page);
+      const original = await placement();
+      await page.mouse.click(item.x, item.y);
+      await expect(
+        page.getByLabel("Selected floor item", { exact: true }),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Enter fullscreen", exact: true })
+        .tap();
+      await page
+        .getByRole("button", {
+          name: "Explore factory at eye level",
+          exact: true,
+        })
+        .tap();
+      await expect(canvas).toHaveAttribute("data-view-mode", "explore");
+      const floorBox = (await canvas.boundingBox())!;
+      const controls = (await page
+        .getByRole("group", { name: "Explore controls" })
+        .boundingBox())!;
+      const exit = (await page
+        .getByRole("button", { name: "Exit factory exploration" })
+        .boundingBox())!;
+      const legend = (await page
+        .getByLabel("Floor indicator legend")
+        .boundingBox())!;
+      const selection = (await page
+        .locator('[data-floor-selection-overlay="true"]')
+        .boundingBox())!;
+      const overlaps = (a: typeof controls, b: typeof controls) =>
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      expect(controls.x).toBeGreaterThanOrEqual(floorBox.x);
+      expect(controls.y).toBeGreaterThanOrEqual(floorBox.y);
+      expect(controls.x + controls.width).toBeLessThanOrEqual(
+        floorBox.x + floorBox.width,
+      );
+      expect(controls.y + controls.height).toBeLessThanOrEqual(
+        floorBox.y + floorBox.height,
+      );
+      for (const overlay of [exit, legend, selection])
+        expect(overlaps(controls, overlay)).toBe(false);
+      const deleteButton = page.getByRole("button", {
+        name: "Delete selected item from factory inventory",
+        exact: true,
+      });
+      if (await deleteButton.isVisible())
+        expect(overlaps(controls, (await deleteButton.boundingBox())!)).toBe(
+          false,
+        );
+      const view = async () =>
+        JSON.parse((await canvas.getAttribute("data-camera-view"))!);
+      const before = await view();
+      const forward = page.getByRole("button", {
+        name: "Move forward",
+        exact: true,
+      });
+      await forward.tap();
+      await expect
+        .poll(async () => (await view()).position)
+        .not.toEqual(before.position);
+      const moved = await view();
+      await page.getByRole("button", { name: "Turn right", exact: true }).tap();
+      await expect
+        .poll(async () => (await view()).target)
+        .not.toEqual(moved.target);
+      expect(await placement()).toEqual(original);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page
+        .getByRole("button", { name: "Exit factory exploration", exact: true })
+        .tap();
+      await expect(canvas).toHaveAttribute("data-view-mode", "overview");
+    });
+});
+
 test("loading, warehouse, production and exit areas follow saved named zones in 3D and plan", async ({
   page,
 }) => {

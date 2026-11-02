@@ -72,6 +72,15 @@ export const factoryCatalog: Array<{
     height: 3,
   },
   {
+    id: "mobile-cart",
+    label: "Mobile cart",
+    kind: "asset",
+    itemType: "mobile_cart",
+    width: 0.4,
+    depth: 0.84,
+    height: 1.58,
+  },
+  {
     id: "loading",
     label: "Loading door",
     kind: "asset",

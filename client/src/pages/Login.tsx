@@ -23,7 +23,6 @@ import { trpc } from "@/lib/trpc";
 import { safeSessionStorage } from "@/lib/storage";
 import { userFacingApiError } from "@/lib/errors";
 import { DEMO_ACCOUNTS, type DemoAccount } from "../../../shared/demo-accounts";
-import { FirstAdministratorHelp } from "@/components/FirstAdministratorHelp";
 
 const DEMO_ACCOUNT_CACHE_KEY = "smart-factory:demo-account-shortcuts:v1";
 const BUILD_ENABLES_DEMO_ACCOUNTS =
@@ -241,16 +240,9 @@ export default function Login() {
             </Link>
           </div>
 
-          <div className="space-y-2 text-center">
-            <p className="text-sm text-muted-foreground">
-              Need personal access? Register for administrator approval.
-            </p>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/register">Register</Link>
-            </Button>
-          </div>
-
-          <FirstAdministratorHelp />
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/register">Register</Link>
+          </Button>
 
           {/* Demo Accounts Section */}
           {demoAccountsQuery.isLoading && demoAccounts.length === 0 && (
@@ -267,26 +259,27 @@ export default function Login() {
               <p className="text-xs text-center text-muted-foreground">
                 Demo Accounts (click to fill):
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
+              <div
+                className="flex w-full gap-1 sm:gap-2"
+                role="group"
+                aria-label="Demo accounts"
+              >
                 {demoAccounts.map((account) => (
                   <Button
                     key={account.role}
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={() =>
                       fillDemoCredentials(account.email, account.password)
                     }
-                    className="text-xs border-white/20 hover:bg-white/10"
+                    className="!min-h-[44px] min-w-0 flex-1 px-1 text-[11px] border-white/20 hover:bg-white/10 sm:px-2 sm:text-xs"
                     title={account.description}
                   >
-                    {account.label}
+                    {account.label.replace(/^Demo\s+/i, "")}
                   </Button>
                 ))}
               </div>
-              <p className="text-xs text-center text-muted-foreground">
-                Shared demo accounts explore demonstration data. They cannot
-                approve personal accounts or grant Live access.
-              </p>
             </div>
           )}
 

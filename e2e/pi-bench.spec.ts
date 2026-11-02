@@ -6,7 +6,7 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
   const layoutMetrics: Record<string, number>[] = [];
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/login");
-  await page.getByRole("button", { name: "Demo Admin", exact: true }).click();
+  await page.getByRole("button", { name: "Admin", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
@@ -49,18 +49,20 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
       )
       .toBe(true);
     const floor = page.getByTestId("factory-floor");
-    const status = await floor.getByRole("status").boundingBox();
+    const status = floor.getByRole("status");
+    await expect(status).toHaveClass(/sr-only/);
     const rotate = await floor
       .getByRole("button", { name: "Rotate with mouse movement", exact: true })
       .boundingBox();
-    expect(status).not.toBeNull();
+    const floorBounds = await floor.boundingBox();
     expect(rotate).not.toBeNull();
+    expect(floorBounds).not.toBeNull();
     expect(
-      status!.x + status!.width <= rotate!.x ||
-        rotate!.x + rotate!.width <= status!.x ||
-        status!.y + status!.height <= rotate!.y ||
-        rotate!.y + rotate!.height <= status!.y,
-      `Factory status and rotation control must not overlap at ${width}px`,
+      rotate!.x >= floorBounds!.x &&
+        rotate!.x + rotate!.width <= floorBounds!.x + floorBounds!.width &&
+        rotate!.y >= floorBounds!.y &&
+        rotate!.y + rotate!.height <= floorBounds!.y + floorBounds!.height,
+      `The rotation control must remain inside the factory floor at ${width}px`,
     ).toBe(true);
     if (width === 390) {
       await expect
@@ -78,14 +80,27 @@ test("current hardware bench shows the Pi 5, WROVER/DHT11 and recorded gateway p
         new Set(rows).size,
         "All four representations should fit a single mobile toolbar row",
       ).toBe(1);
-      const help = page
-        .locator("summary")
-        .filter({ hasText: /^View controls$/ });
-      await help.click();
+      const help = page.getByRole("button", {
+        name: "Factory floor controls",
+        exact: true,
+      });
+      const beforeHelp = await floor.boundingBox();
+      await expect(help).toHaveAttribute("aria-expanded", "false");
+      await help.focus();
+      await help.press("Enter");
+      await expect(help).toHaveAttribute("aria-expanded", "true");
       await expect(
-        page.getByText(/With Rotate on, click empty floor to start mouse rotation; click again to stop/),
+        page.getByText(
+          /With Rotate off, hovering stays still\. With Rotate on, click empty floor to start mouse rotation; click again to stop/,
+        ),
       ).toBeVisible();
-      await help.click();
+      expect((await floor.boundingBox())?.y).toBe(beforeHelp?.y);
+      await help.focus();
+      await help.press("Enter");
+      await expect(help).toHaveAttribute("aria-expanded", "false");
+      await expect(
+        page.getByText(/With Rotate off, hovering stays still/),
+      ).toBeHidden();
     }
     const viewerBox = await page
       .getByRole("region", { name: "Factory floor overview", exact: true })
@@ -155,7 +170,7 @@ test("a returning demo user adds the Pi bench while retaining saved work and an 
   page,
 }) => {
   await page.goto("/#/login");
-  await page.getByRole("button", { name: "Demo Admin", exact: true }).click();
+  await page.getByRole("button", { name: "Admin", exact: true }).click();
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),

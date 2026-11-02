@@ -4,6 +4,8 @@ export type RoutePoint = { x: number; y: number; z: number };
 export type ConnectionAppearance = {
   type: "wire" | "pipe";
   shape: "straight" | "elbow" | "curve" | "custom";
+  // Optional for compatibility with saved v1 preferences and older clients.
+  routing?: "tray";
   height: number;
   diameter: number;
   bendRadius: number;
@@ -22,8 +24,9 @@ export function defaultConnectionAppearance(link: FloorLink): ConnectionAppearan
   const pipe = link.kind === "process";
   return {
     type: pipe ? "pipe" : "wire",
-    shape: pipe ? "elbow" : "curve",
-    height: pipe ? 0.8 : 0.35,
+    shape: "elbow",
+    ...(pipe ? {} : { routing: "tray" as const }),
+    height: pipe ? 0.8 : 0.12,
     diameter: pipe ? 0.16 : 0.07,
     bendRadius: 0.25,
     color: pipe ? "#a5b1bf" : "#405d6b",
@@ -47,6 +50,8 @@ export function validateConnectionAppearance(value: unknown): ConnectionAppearan
   if (type !== "wire" && type !== "pipe") throw Error("Choose wire or pipe.");
   if (shape !== "straight" && shape !== "elbow" && shape !== "curve" && shape !== "custom")
     throw Error("Choose a supported route shape.");
+  if (value.routing !== undefined && value.routing !== "tray")
+    throw Error("Choose a supported automatic routing mode.");
   if (typeof color !== "string" || !/^#[a-f\d]{6}$/i.test(color))
     throw Error("Choose a six-digit colour.");
   if (!Array.isArray(value.points) || value.points.length > MAX_ROUTE_POINTS)
@@ -60,7 +65,9 @@ export function validateConnectionAppearance(value: unknown): ConnectionAppearan
     };
   });
   return {
-    type, shape, color: color.toLowerCase(), points,
+    type, shape, ...(value.routing === "tray" && type === "wire" && shape === "elbow"
+      ? { routing: "tray" as const } : {}),
+    color: color.toLowerCase(), points,
     height: number(value.height, 0.05, 100, "Route height"),
     diameter: number(value.diameter, 0.02, 1, "Diameter"),
     bendRadius: number(value.bendRadius, 0.01, 10, "Bend radius"),

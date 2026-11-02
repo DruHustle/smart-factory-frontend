@@ -274,6 +274,23 @@ for (const width of [390, 1440])
             floor = page.getByTestId("factory-floor");
           await expect(floor).toHaveAttribute("data-total-items", count);
           await expect(floor).toHaveAttribute("data-visible-items", count);
+          if (width === 1440) {
+            const floorBox = await floor.boundingBox();
+            const mainBox = await page
+              .locator(".overview-main-grid")
+              .boundingBox();
+            const statusBox = await page
+              .getByRole("complementary", { name: "Factory status" })
+              .boundingBox();
+            expect(floorBox).not.toBeNull();
+            expect(mainBox).not.toBeNull();
+            expect(statusBox).not.toBeNull();
+            expect(floorBox!.width).toBeGreaterThanOrEqual(mainBox!.width - 2);
+            expect(floorBox!.height).toBeGreaterThanOrEqual(432);
+            expect(statusBox!.y).toBeGreaterThanOrEqual(
+              floorBox!.y + floorBox!.height,
+            );
+          }
           await expect(
             page.getByRole("img", {
               name: "Interactive 3D factory floor",
@@ -291,6 +308,136 @@ for (const width of [390, 1440])
               { timeout: 30000 },
             )
             .toBe(expectedDetailedModels);
+          const renderedNvidia = JSON.parse(
+            (await page
+              .getByRole("img", {
+                name: "Interactive 3D factory floor",
+                exact: true,
+              })
+              .getAttribute("data-floor-nvidia-models")) ?? "[]",
+          ) as string[];
+          expect(renderedNvidia).toContain("nvidia-transfer-conveyor");
+          const canvas = page.getByRole("img", {
+            name: "Interactive 3D factory floor",
+            exact: true,
+          });
+          const routes = JSON.parse(
+            (await canvas.getAttribute("data-connection-routes")) ?? "[]",
+          ) as { id: string; routing?: string; from: number[]; to: number[] }[];
+          const trayLinks = routes.filter((route) => route.routing === "tray");
+          const trayTrunks = Number(
+            await canvas.getAttribute("data-connection-tray-trunks"),
+          );
+          const trayBranches = Number(
+            await canvas.getAttribute("data-connection-tray-branches"),
+          );
+          expect(routes).toHaveLength(
+            Number(await canvas.getAttribute("data-connection-count")),
+          );
+          expect(trayLinks.length).toBeGreaterThan(1);
+          expect(trayTrunks).toBeGreaterThan(0);
+          expect(trayTrunks).toBeLessThan(trayLinks.length);
+          expect(trayBranches).toBeLessThan(trayLinks.length * 2);
+          expect(
+            routes.every((route) =>
+              [...route.from, ...route.to].every(Number.isFinite),
+            ),
+          ).toBe(true);
+          const renderedRouteIds = new Set(routes.map((route) => route.id));
+          const floorRefs = new Set(
+            (snapshot.items as InventoryItem[]).map((item) => item.ref),
+          );
+          for (const link of snapshot.links) {
+            if (
+              link.from !== link.to &&
+              floorRefs.has(link.from) &&
+              floorRefs.has(link.to)
+            )
+              expect(
+                renderedRouteIds.has(
+                  JSON.stringify([link.kind, link.from, link.to]),
+                ),
+              ).toBe(true);
+          }
+          const zoneLabelCount = Number(
+            await canvas.getAttribute("data-floor-zone-labels-total"),
+          );
+          expect(zoneLabelCount).toBeGreaterThan(0);
+          await expect(canvas).toHaveAttribute(
+            "data-floor-zone-labels-visible",
+            String(zoneLabelCount),
+          );
+          const overviewView = JSON.parse(
+            (await canvas.getAttribute("data-camera-view")) ?? "{}",
+          );
+          await floor
+            .getByRole("button", {
+              name: "Explore factory at eye level",
+              exact: true,
+            })
+            .click();
+          await expect(canvas).toHaveAttribute("data-view-mode", "explore");
+          await expect(canvas).toHaveAttribute(
+            "data-floor-zone-labels-visible",
+            "0",
+          );
+          await expect(
+            floor.getByRole("group", { name: "Explore controls" }),
+          ).toBeVisible();
+          const controlsBox = await floor
+            .getByRole("group", { name: "Explore controls" })
+            .boundingBox();
+          const legendBox = await floor
+            .getByLabel("Floor indicator legend", { exact: true })
+            .boundingBox();
+          expect(controlsBox).not.toBeNull();
+          expect(legendBox).not.toBeNull();
+          expect(
+            controlsBox!.x + controlsBox!.width <= legendBox!.x ||
+              legendBox!.x + legendBox!.width <= controlsBox!.x ||
+              controlsBox!.y + controlsBox!.height <= legendBox!.y ||
+              legendBox!.y + legendBox!.height <= controlsBox!.y,
+          ).toBe(true);
+          const exploreView = JSON.parse(
+            (await canvas.getAttribute("data-camera-view")) ?? "{}",
+          );
+          expect(exploreView.mode).toBe("explore");
+          expect(exploreView.position[1]).toBeCloseTo(1.65, 3);
+          await floor.screenshot({
+            path: `${directory}/factory-explore-${theme}-${width}.png`,
+            animations: "disabled",
+          });
+          await floor
+            .getByRole("button", { name: "Turn right", exact: true })
+            .click();
+          await expect
+            .poll(() => canvas.getAttribute("data-camera-view"))
+            .not.toBe(JSON.stringify(exploreView));
+          expect(
+            JSON.parse(
+              (await canvas.getAttribute("data-floor-nvidia-models")) ?? "[]",
+            ),
+          ).toContain("nvidia-transfer-conveyor");
+          await floor
+            .getByRole("button", {
+              name: "Exit factory exploration",
+              exact: true,
+            })
+            .click();
+          await expect(canvas).toHaveAttribute("data-view-mode", "overview");
+          await expect(canvas).toHaveAttribute(
+            "data-floor-zone-labels-visible",
+            String(zoneLabelCount),
+          );
+          const restoredView = JSON.parse(
+            (await canvas.getAttribute("data-camera-view")) ?? "{}",
+          );
+          for (const field of ["position", "target"] as const)
+            for (let axis = 0; axis < 3; axis++)
+              expect(restoredView[field][axis]).toBeCloseTo(
+                overviewView[field][axis],
+                3,
+              );
           await expect(
             page.getByRole("heading", {
               name: "Factory observations",
@@ -308,6 +455,10 @@ for (const width of [390, 1440])
           await capture(page, `factory-floor-${theme}-${width}`, {
             total: snapshot.total,
             detailedModelsReady: expectedDetailedModels,
+            renderedNvidia,
+            trayLinks: trayLinks.length,
+            trayTrunks,
+            trayBranches,
             proceduralDeviceIds,
             complete: snapshot.complete,
             styles,

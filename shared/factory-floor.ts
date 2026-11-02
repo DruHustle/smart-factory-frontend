@@ -61,10 +61,12 @@ export function floorModel(
     return "esp32-wrover-dht11";
   if (item.identifier === "pi-edge-01" || /raspberry\s*pi\s*5/.test(type))
     return "raspberry-pi-5";
-  if (/warehouse_rack/.test(type)) return "warehouse-rack";
+  if (/\b(?:warehouse|storage)[ _-]+rack\b/.test(type)) return "warehouse-rack";
   if (/loading_door/.test(type)) return "loading-door";
   if (/exit_door/.test(type)) return "exit-door";
   if (/sensor|transmitter|transducer/.test(type)) return "process-sensor";
+  if (/\b(?:mobile|industrial)[ _-]+cart\b|\btrolley\b/.test(type))
+    return "mobile-cart";
   if (/conveyor|infeed|outfeed/.test(type)) return "conveyor";
   if (/robot|palletiz/.test(type)) return "robot-arm";
   if (/tank|vessel|mixer/.test(type)) return "storage-tank";
@@ -74,6 +76,20 @@ export function floorModel(
   if (/raspberry|gateway|edge/.test(type)) return "raspberry-pi-4b";
   if (/pump|motor|compressor|turbine/.test(type)) return "pump-motor";
   return null;
+}
+
+/** Reviewed visual references only; this never changes an item's identity or data. */
+export function floorNvidiaAsset(model: string): string | null {
+  switch (model) {
+    case "conveyor":
+      return "nvidia-transfer-conveyor";
+    case "warehouse-rack":
+      return "nvidia-storage-rack";
+    case "mobile-cart":
+      return "nvidia-mobile-cart";
+    default:
+      return null;
+  }
 }
 
 export function layoutFactory(items: InventoryItem[]) {
