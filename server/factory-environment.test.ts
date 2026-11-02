@@ -3,6 +3,7 @@ import * as THREE from "three";
 import {
   createEquipmentProxy,
   createWorkshop,
+  setWorkshopTheme,
 } from "../client/src/components/workspace/FactoryEnvironment";
 import { layoutFactory } from "../shared/factory-floor";
 
@@ -60,6 +61,46 @@ describe("immediate factory geometry", () => {
         object.geometry.dispose();
         object.material.dispose();
       });
+    }
+  });
+
+  it("switches the existing workshop palette to the exact other theme without replacing geometry", () => {
+    const hall = layoutFactory([]);
+    const bench = {
+      ...hall,
+      measured: true,
+      width: 3,
+      depth: 3,
+      zones: [],
+      placements: [{ model: "raspberry-pi-5" }],
+    } as unknown as Parameters<typeof createWorkshop>[0];
+    for (const layout of [hall, bench]) {
+      const light = createWorkshop(layout, false),
+        expectedDark = createWorkshop(layout, true);
+      const snapshot = (root: THREE.Object3D) => {
+        const colors: number[] = [],
+          geometries: THREE.BufferGeometry[] = [];
+        root.traverse((object) => {
+          if (!(object instanceof THREE.Mesh)) return;
+          geometries.push(object.geometry);
+          for (const material of Array.isArray(object.material)
+            ? object.material
+            : [object.material]) {
+            if (material instanceof THREE.MeshStandardMaterial)
+              colors.push(material.color.getHex());
+          }
+        });
+        return { colors, geometries };
+      };
+      const before = snapshot(light),
+        dark = snapshot(expectedDark);
+      expect(before.colors).not.toEqual(dark.colors);
+      setWorkshopTheme(light, true);
+      expect(snapshot(light).colors).toEqual(dark.colors);
+      expect(snapshot(light).geometries).toEqual(before.geometries);
+      setWorkshopTheme(light, false);
+      expect(snapshot(light).colors).toEqual(before.colors);
+      expect(snapshot(light).geometries).toEqual(before.geometries);
     }
   });
 });

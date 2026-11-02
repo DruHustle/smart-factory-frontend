@@ -74,6 +74,42 @@ const surface = (
   roughness = 0.5,
 ) => new THREE.MeshStandardMaterial({ color, metalness, roughness });
 
+const workshopThemes = new WeakMap<
+  THREE.Material,
+  { light: THREE.Color; dark: THREE.Color }
+>();
+
+function themedSurface(
+  dark: boolean,
+  lightColor: THREE.ColorRepresentation,
+  darkColor: THREE.ColorRepresentation,
+  metalness = 0.1,
+  roughness = 0.5,
+) {
+  const light = new THREE.Color(lightColor),
+    night = new THREE.Color(darkColor),
+    material = surface(dark ? night : light, metalness, roughness);
+  workshopThemes.set(material, { light, dark: night });
+  return material;
+}
+
+/** Change the workshop palette without rebuilding its geometry or viewer. */
+export function setWorkshopTheme(root: THREE.Object3D, dark: boolean) {
+  const visited = new Set<THREE.Material>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    for (const material of Array.isArray(object.material)
+      ? object.material
+      : [object.material]) {
+      if (visited.has(material)) continue;
+      visited.add(material);
+      const colors = workshopThemes.get(material);
+      if (colors && material instanceof THREE.MeshStandardMaterial)
+        material.color.copy(dark ? colors.dark : colors.light);
+    }
+  });
+}
+
 export function isBenchHardwareLayout(layout: FloorLayout) {
   return (
     !!layout.measured &&
@@ -90,9 +126,9 @@ export function isBenchHardwareLayout(layout: FloorLayout) {
 export function createWorkshop(layout: FloorLayout, dark: boolean) {
   if (isBenchHardwareLayout(layout)) {
     const bench = new WorkshopBuilder(),
-      edge = surface(dark ? 0x354149 : 0x62727a, 0.45, 0.45),
-      top = surface(dark ? 0x485963 : 0x9aa9ae, 0.15, 0.7),
-      mat = surface(dark ? 0x24586a : 0x5b8993, 0.04, 0.9);
+      edge = themedSurface(dark, 0x62727a, 0x354149, 0.45, 0.45),
+      top = themedSurface(dark, 0x9aa9ae, 0x485963, 0.15, 0.7),
+      mat = themedSurface(dark, 0x5b8993, 0x24586a, 0.04, 0.9);
     bench.box(edge, [3.7, 0.13, 2.7], [0, -0.18, 0]);
     bench.box(top, [3.54, 0.035, 2.54], [0, -0.095, 0]);
     bench.box(mat, [3.27, 0.012, 2.28], [0, -0.07, 0]);
@@ -102,7 +138,7 @@ export function createWorkshop(layout: FloorLayout, dark: boolean) {
     return bench.finish();
   }
   const b = new WorkshopBuilder();
-  const concrete = surface(dark ? 0x3d454b : 0xb9b8b1, 0.02, 0.88);
+  const concrete = themedSurface(dark, 0xb9b8b1, 0x3d454b, 0.02, 0.88);
   const grain = createSurfaceGrain("concrete");
   const padding = layout.measured ? 0 : 3;
   grain.repeat.set(
@@ -113,15 +149,15 @@ export function createWorkshop(layout: FloorLayout, dark: boolean) {
   concrete.roughnessMap = grain;
   concrete.bumpMap = grain;
   concrete.bumpScale = 0.004;
-  const tile = surface(dark ? 0x3b4852 : 0xd0d3d0, 0.08, 0.73);
+  const tile = themedSurface(dark, 0xd0d3d0, 0x3b4852, 0.08, 0.73);
   tile.roughnessMap = grain;
   tile.bumpMap = grain;
   tile.bumpScale = 0.002;
-  const steel = surface(dark ? 0x72828a : 0x99a5ab, 0.72, 0.32);
-  const wall = surface(dark ? 0x344451 : 0xdce1e2, 0.08, 0.85);
-  const window = surface(dark ? 0x172e3b : 0x97b2bd, 0.38, 0.25);
+  const steel = themedSurface(dark, 0x99a5ab, 0x72828a, 0.72, 0.32);
+  const wall = themedSurface(dark, 0xdce1e2, 0x344451, 0.08, 0.85);
+  const window = themedSurface(dark, 0x97b2bd, 0x172e3b, 0.38, 0.25);
   const yellow = surface(0xe8b746, 0.15, 0.5);
-  const seams = surface(dark ? 0x2a363f : 0xaab2b3, 0, 1);
+  const seams = themedSurface(dark, 0xaab2b3, 0x2a363f, 0, 1);
   const orange = surface(0xc95d24, 0.45, 0.38);
   const w = layout.width + padding,
     d = layout.depth + padding;
@@ -216,7 +252,7 @@ export function createWorkshop(layout: FloorLayout, dark: boolean) {
   const lamp = surface(0xf7f7ed, 0, 0.45);
   lamp.emissive.set(0xffefcf);
   lamp.emissiveIntensity = 1.4;
-  const scuff = surface(dark ? 0x26333d : 0x839399, 0.1, 0.78);
+  const scuff = themedSurface(dark, 0x839399, 0x26333d, 0.1, 0.78);
   for (const [a, c] of north)
     b.box(scuff, [c - a, 0.48, 0.03], [(a + c) / 2, 0.24, -d / 2 + 0.1]);
   for (const [a, c] of west)
@@ -513,16 +549,18 @@ export function createEquipmentProxy(model: string | null, itemType = "") {
 export function createFactorySpaces(layout: FloorLayout, dark: boolean) {
   const root = new THREE.Group();
   root.name = "factory-loading-storage-and-exit";
-  const steel = surface(dark ? 0x81939d : 0x8397a0, 0.72, 0.33);
+  const steel = themedSurface(dark, 0x8397a0, 0x81939d, 0.72, 0.33);
   const yellow = surface(0xd9a53b, 0.1, 0.65);
   const black = surface(0x293b43, 0.04, 0.78);
-  const carton = surface(dark ? 0xa58259 : 0xb99469, 0, 0.88);
+  const carton = themedSurface(dark, 0xb99469, 0xa58259, 0, 0.88);
   const label = surface(0xe6e6d9, 0, 0.75);
   for (const area of factoryAreas(layout)) {
     const b = new WorkshopBuilder();
     const color = new THREE.Color(factoryAreaColors[area.kind]);
-    const paint = surface(
-      color.clone().lerp(new THREE.Color(dark ? 0x384b54 : 0xe0e5df), 0.75),
+    const paint = themedSurface(
+      dark,
+      color.clone().lerp(new THREE.Color(0xe0e5df), 0.75),
+      color.clone().lerp(new THREE.Color(0x384b54), 0.75),
       0,
       0.86,
     );

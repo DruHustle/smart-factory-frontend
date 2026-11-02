@@ -63,8 +63,9 @@ export class FactoryScenePreparation {
         if (this.stopped) return false;
       }
       prepared.activate();
-      // The next task begins with a presentation turn, allowing this object
-      // to draw before more geometry is prepared without waiting twice.
+      // Allow input and the submitted draw to progress before building the
+      // next reference, including when its shader programs are already ready.
+      await this.presentationTurn();
       return !this.stopped;
     });
     // One failed reference retains its proxy without starving later models.

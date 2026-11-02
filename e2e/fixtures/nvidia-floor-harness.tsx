@@ -1,5 +1,5 @@
 // Synthetic browser-only harness for the real floor component; not an app route.
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "../../client/src/index.css";
 import FactoryFloorScene from "../../client/src/components/workspace/FactoryFloorScene";
@@ -7,16 +7,30 @@ import { layoutFactory } from "../../shared/factory-floor";
 import type { InventoryItem } from "../../shared/inventory";
 
 const roots = new Map<string, Root>();
+const themes = new Map<string, (dark: boolean) => void>();
 function Floor({
+  id,
   name,
   itemType,
   count,
+  movable,
 }: {
+  id: string;
   name: string;
   itemType: string;
   count: number;
+  movable: boolean;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [dark, setDark] = useState(false);
+  const [dragged, setDragged] = useState<string | null>(null);
+  const [moves, setMoves] = useState(0);
+  useEffect(() => {
+    themes.set(id, setDark);
+    return () => {
+      themes.delete(id);
+    };
+  }, [id]);
   const item: InventoryItem = {
     ref: "asset:1",
     kind: "asset",
@@ -54,13 +68,20 @@ function Floor({
   return (
     <>
       <div data-testid="selected">{selected ?? "none"}</div>
+      <div data-testid="theme">{dark ? "dark" : "light"}</div>
+      {movable && <div data-testid="dragged">{dragged ?? "none"}</div>}
+      {movable && <div data-testid="moves">{moves}</div>}
       <div style={{ width: "100%", height: 420 }}>
         <FactoryFloorScene
           layout={layout}
           links={[]}
           selected={selected}
           onSelect={setSelected}
-          dark={false}
+          onMove={movable ? () => setMoves((count) => count + 1) : undefined}
+          onItemDrag={
+            movable ? (item) => setDragged(item?.ref ?? null) : undefined
+          }
+          dark={dark}
           reset={0}
           zone="all"
         />
@@ -77,20 +98,39 @@ declare global {
         name: string,
         itemType: string,
         count?: number,
+        movable?: boolean,
       ) => void;
       unmount: (id: string) => void;
+      setTheme: (id: string, dark: boolean) => void;
+      themeReady: (id: string) => boolean;
     };
   }
 }
 window.floorNvidiaHarness = {
-  mount(id, name, itemType, count = 1) {
+  mount(id, name, itemType, count = 1, movable = false) {
     if (roots.has(id)) throw new Error("Fixture already mounted");
     const host = document.createElement("section");
     host.id = id;
     document.body.append(host);
     const root = createRoot(host);
     roots.set(id, root);
-    root.render(<Floor name={name} itemType={itemType} count={count} />);
+    root.render(
+      <Floor
+        id={id}
+        name={name}
+        itemType={itemType}
+        count={count}
+        movable={movable}
+      />,
+    );
+  },
+  setTheme(id, dark) {
+    const update = themes.get(id);
+    if (!update) throw new Error("Fixture not mounted");
+    update(dark);
+  },
+  themeReady(id) {
+    return themes.has(id);
   },
   unmount(id) {
     const root = roots.get(id);

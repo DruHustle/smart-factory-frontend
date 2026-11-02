@@ -63,7 +63,7 @@ async function mount(page: Page, id: string, asset: (typeof assets)[number]) {
   return { host, canvas };
 }
 
-async function pickItem(page: Page, canvas: Locator, host: Locator) {
+async function itemPoint(page: Page, canvas: Locator) {
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Factory floor canvas missing");
   let point: { x: number; y: number } | undefined;
@@ -81,7 +81,12 @@ async function pickItem(page: Page, canvas: Locator, host: Locator) {
     }
   }
   expect(point, "The actual visible item should be selectable").toBeDefined();
-  await page.mouse.click(point!.x, point!.y);
+  return point!;
+}
+
+async function pickItem(page: Page, canvas: Locator, host: Locator) {
+  const point = await itemPoint(page, canvas);
+  await page.mouse.click(point.x, point.y);
   await expect(host.getByTestId("selected")).toHaveText("asset:1");
 }
 
@@ -192,6 +197,236 @@ test("two instances of one NVIDIA model render and remain independently selectab
   await host.screenshot({
     path: testInfo.outputPath("repeated-conveyors.png"),
   });
+});
+
+test("theme changes preserve the viewer, selection and eye-level camera", async ({
+  page,
+}, testInfo) => {
+  await fixture(page);
+  const { host, canvas } = await mount(page, "floor", assets[0]);
+  await expect(host.getByRole("status")).toContainText(
+    "1 detailed models ready",
+    {
+      timeout: 30000,
+    },
+  );
+  await pickItem(page, canvas, host);
+  await host
+    .getByRole("button", { name: "Explore factory at eye level" })
+    .click();
+  await expect(canvas).toHaveAttribute("data-view-mode", "explore");
+  const original = await canvas.elementHandle();
+  if (!original) throw new Error("Factory floor canvas missing");
+  const view = await canvas.getAttribute("data-camera-view");
+  await canvas.evaluate((node) => {
+    const canvas = node as HTMLCanvasElement & {
+      testContext?: WebGL2RenderingContext | null;
+    };
+    canvas.testContext = canvas.getContext("webgl2");
+  });
+  const light = await canvas.screenshot({
+    path: testInfo.outputPath("explore-light.png"),
+  });
+  let modelRequests = 0;
+  page.on("request", (request) => {
+    if (request.url().includes("/models/nvidia/")) modelRequests++;
+  });
+  await page.evaluate(() => window.floorNvidiaHarness.setTheme("floor", true));
+  await expect(canvas).toHaveAttribute("data-factory-theme", "dark");
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  const dark = await canvas.screenshot({
+    path: testInfo.outputPath("explore-dark.png"),
+  });
+  expect(light.equals(dark)).toBe(false);
+  expect(await canvas.evaluate((node, prior) => node === prior, original)).toBe(
+    true,
+  );
+  expect(
+    await canvas.evaluate((node) => {
+      const canvas = node as HTMLCanvasElement & {
+        testContext?: WebGL2RenderingContext | null;
+      };
+      return (
+        !!canvas.testContext &&
+        canvas.testContext === canvas.getContext("webgl2") &&
+        !canvas.testContext.isContextLost()
+      );
+    }),
+  ).toBe(true);
+  await expect(canvas).toHaveAttribute("data-view-mode", "explore");
+  await expect(canvas).toHaveAttribute("data-camera-view", view!);
+  await expect(host.getByTestId("selected")).toHaveText("asset:1");
+  expect(modelRequests).toBe(0);
+  await page.evaluate(() => window.floorNvidiaHarness.setTheme("floor", false));
+  await expect(canvas).toHaveAttribute("data-factory-theme", "light");
+  await expect(canvas).toHaveAttribute("data-view-mode", "explore");
+});
+
+test("the latest theme is used when the viewer has not mounted yet", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.evaluate(() => {
+    const original = window.requestAnimationFrame;
+    const pending: FrameRequestCallback[] = [];
+    window.requestAnimationFrame = (callback) => {
+      pending.push(callback);
+      return pending.length;
+    };
+    (window as typeof window & { resumeFrames: () => void }).resumeFrames =
+      () => {
+        window.requestAnimationFrame = original;
+        for (const callback of pending) original(callback);
+      };
+    window.floorNvidiaHarness.mount("floor", "Transfer conveyor", "conveyor");
+  });
+  await page.waitForFunction(() =>
+    window.floorNvidiaHarness.themeReady("floor"),
+  );
+  await page.evaluate(() => window.floorNvidiaHarness.setTheme("floor", true));
+  // Wait for React to commit the updated prop while animation frames are held.
+  await expect(page.locator("#floor").getByTestId("theme")).toHaveText("dark");
+  await page.evaluate(() =>
+    (window as typeof window & { resumeFrames: () => void }).resumeFrames(),
+  );
+  const host = page.locator("#floor");
+  const canvas = host.getByRole("img", {
+    name: "Interactive 3D factory floor",
+  });
+  await expect(canvas).toHaveAttribute("data-factory-theme", "dark");
+  await expect(host.getByRole("status")).toContainText(
+    "1 detailed models ready",
+    {
+      timeout: 30000,
+    },
+  );
+});
+
+test("a theme change cancels an active equipment grab", async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(
+    (asset) =>
+      window.floorNvidiaHarness.mount("floor", asset.name, asset.type, 1, true),
+    assets[0],
+  );
+  const host = page.locator("#floor");
+  const canvas = host.getByRole("img", {
+    name: "Interactive 3D factory floor",
+  });
+  await expect(host.getByRole("status")).toContainText(
+    "1 detailed models ready",
+    {
+      timeout: 30000,
+    },
+  );
+  const point = await itemPoint(page, canvas);
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + 20, point.y + 12);
+  await expect(host.getByTestId("dragged")).toHaveText("asset:1");
+  await page.evaluate(() => window.floorNvidiaHarness.setTheme("floor", true));
+  await expect(canvas).toHaveAttribute("data-factory-theme", "dark");
+  await expect(host.getByTestId("dragged")).toHaveText("none");
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  await page.mouse.up();
+  await expect(host.getByTestId("moves")).toHaveText("0");
+});
+
+test("a theme change releases an active floor pan", async ({ page }) => {
+  await fixture(page);
+  const { canvas } = await mount(page, "floor", assets[0]);
+  await canvas.evaluate((node) => {
+    node.addEventListener("pointerdown", (event) => {
+      (node as HTMLElement).dataset.testPointer = String(event.pointerId);
+    });
+  });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Factory floor canvas missing");
+  await page.mouse.move(box.x + 15, box.y + 15);
+  await expect(canvas).toHaveAttribute("data-grab-target", "floor");
+  await page.mouse.down();
+  await page.mouse.move(box.x + 30, box.y + 30);
+  await expect(canvas).toHaveAttribute("data-grab-state", "floor");
+  await expect
+    .poll(() =>
+      canvas.evaluate((node) =>
+        node.hasPointerCapture(
+          Number((node as HTMLElement).dataset.testPointer),
+        ),
+      ),
+    )
+    .toBe(true);
+  await page.evaluate(() => window.floorNvidiaHarness.setTheme("floor", true));
+  await expect(canvas).toHaveAttribute("data-factory-theme", "dark");
+  await expect(canvas).toHaveAttribute("data-grab-state", "idle");
+  expect(
+    await canvas.evaluate((node) =>
+      node.hasPointerCapture(Number((node as HTMLElement).dataset.testPointer)),
+    ),
+  ).toBe(false);
+  await page.mouse.up();
+});
+
+test("a theme change releases touch gestures", async ({ page }) => {
+  await fixture(page);
+  const { canvas } = await mount(page, "floor", assets[0]);
+  await canvas.evaluate((node) => {
+    const ids: number[] = [];
+    node.addEventListener("pointerdown", (event) => {
+      ids.push(event.pointerId);
+      (node as HTMLElement).dataset.testPointers = JSON.stringify(ids);
+    });
+  });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Factory floor canvas missing");
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+  const first = { x: box.x + 30, y: box.y + 30, id: 1 };
+  const second = { x: box.x + 90, y: box.y + 30, id: 2 };
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [first],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [first, second],
+  });
+  await expect
+    .poll(() =>
+      canvas.evaluate(
+        (node) =>
+          JSON.parse((node as HTMLElement).dataset.testPointers ?? "[]").length,
+      ),
+    )
+    .toBe(2);
+  await expect
+    .poll(() =>
+      canvas.evaluate((node) =>
+        JSON.parse((node as HTMLElement).dataset.testPointers ?? "[]").some(
+          (id: number) => node.hasPointerCapture(id),
+        ),
+      ),
+    )
+    .toBe(true);
+  await page.evaluate(() => window.floorNvidiaHarness.setTheme("floor", true));
+  await expect(canvas).toHaveAttribute("data-factory-theme", "dark");
+  expect(
+    await canvas.evaluate((node) =>
+      JSON.parse((node as HTMLElement).dataset.testPointers ?? "[]").every(
+        (id: number) => !node.hasPointerCapture(id),
+      ),
+    ),
+  ).toBe(true);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await cdp.detach();
 });
 
 test("a second viewer keeps its NVIDIA model after the first is unmounted", async ({

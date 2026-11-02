@@ -128,7 +128,7 @@ describe("factory scene graphics preparation", () => {
     expect(await Promise.all(pending)).toEqual([true, true, true]);
     expect(activated[1] - activated[0]).toBeGreaterThanOrEqual(32);
     expect(activated[2] - activated[1]).toBeGreaterThanOrEqual(32);
-    expect(activated[2] - start).toBeLessThanOrEqual(120);
+    expect(activated[2] - start).toBeLessThanOrEqual(180);
   });
 
   it("reuses a reference's prepared resources only within its viewer", async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FloorPlan } from "./FactoryFloorPlan";
 import {
   constrainFloorPosition,
@@ -15,6 +15,7 @@ import {
   createWorkshop,
   createEquipmentProxy,
   isBenchHardwareLayout,
+  setWorkshopTheme,
 } from "./FactoryEnvironment";
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
 import {
@@ -167,6 +168,7 @@ export default function FactoryFloorScene({
   appearances.current = connectionAppearances;
   const latestLayout = useRef(layout);
   latestLayout.current = layout;
+  const currentTheme = useRef(dark);
   const host = useRef<HTMLDivElement>(null),
     choose = useRef(onSelect),
     selection = useRef(selected),
@@ -180,6 +182,7 @@ export default function FactoryFloorScene({
     stepExplore: (forward: number, sideways: number) => void;
     lookExplore: (yaw: number, pitch: number) => void;
     pauseRotation: () => void;
+    theme: (dark: boolean) => void;
     connections: () => void;
     statuses: (items: Layout["placements"]) => void;
     positions: (items: Layout["placements"]) => void;
@@ -235,6 +238,7 @@ export default function FactoryFloorScene({
     function mountScene() {
       const element = host.current;
       if (!element) return;
+      const initialDark = currentTheme.current;
       setFailed(false);
       setReady(false);
       setLoaded(0);
@@ -256,7 +260,7 @@ export default function FactoryFloorScene({
         dirty = true,
         frame = 0;
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(dark ? "#182532" : "#dce3e6");
+      scene.background = new THREE.Color(initialDark ? "#182532" : "#dce3e6");
       const gl = renderer.getContext(),
         debug = gl.getExtension("WEBGL_debug_renderer_info");
       const software = debug
@@ -272,7 +276,7 @@ export default function FactoryFloorScene({
       );
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = dark ? 0.95 : 1.05;
+      renderer.toneMappingExposure = initialDark ? 0.95 : 1.05;
       const renderedNvidia = new Set<string>();
       renderer.domElement.dataset.floorNvidiaModels = "[]";
       renderer.domElement.dataset.floorReferenceFailures = "0";
@@ -309,6 +313,7 @@ export default function FactoryFloorScene({
         "With Rotate off, press and hold the left mouse button on empty floor, then drag to pan left/right or up/down. Release to stop; hovering does not move the view. Enable Rotate, then click empty floor to start mouse-controlled rotation. Click again to stop. Press and hold equipment to grab it. Grabbing or leaving the floor stops rotation. Release to drop. Right-drag or Shift-drag also rotates; scroll or pinch zooms. Hold Space while dragging to pan over equipment. Arrow keys move selected equipment; Escape cancels an item grab or clears selection.";
       renderer.domElement.setAttribute("aria-description", overviewDescription);
       renderer.domElement.dataset.viewMode = "overview";
+      renderer.domElement.dataset.factoryTheme = initialDark ? "dark" : "light";
       renderer.domElement.dataset.floorNodeCount = String(
         layout.placements.length,
       );
@@ -395,7 +400,7 @@ export default function FactoryFloorScene({
       const interior = new THREE.Group();
       interior.visible = false;
       const interiorMaterial = new THREE.MeshStandardMaterial({
-        color: dark ? 0x344451 : 0xdce1e2,
+        color: initialDark ? 0x344451 : 0xdce1e2,
         roughness: 0.86,
         metalness: 0.05,
         side: THREE.DoubleSide,
@@ -472,16 +477,12 @@ export default function FactoryFloorScene({
       stripParts.forEach((geometry) => geometry.dispose());
       if (!beamGeometry || !stripGeometry)
         throw new Error("Unable to prepare factory interior");
-      interior.add(
-        new THREE.Mesh(
-          beamGeometry,
-          new THREE.MeshStandardMaterial({
-            color: dark ? 0x71808a : 0x9aa8ac,
-            roughness: 0.48,
-            metalness: 0.45,
-          }),
-        ),
-      );
+      const beamMaterial = new THREE.MeshStandardMaterial({
+        color: initialDark ? 0x71808a : 0x9aa8ac,
+        roughness: 0.48,
+        metalness: 0.45,
+      });
+      interior.add(new THREE.Mesh(beamGeometry, beamMaterial));
       interior.add(
         new THREE.Mesh(
           stripGeometry,
@@ -545,7 +546,8 @@ export default function FactoryFloorScene({
         ? "efficient-pbr"
         : "high-pbr";
       renderer.domElement.dataset.shadowResolution = String(shadowSize);
-      scene.add(createWorkshop(layout, dark));
+      const workshop = createWorkshop(layout, initialDark);
+      scene.add(workshop);
       for (const area of flowAreas) {
         const color = factoryAreaColors[area.kind];
         if (area.door) {
@@ -1001,12 +1003,27 @@ export default function FactoryFloorScene({
         size();
         dirty = true;
       };
+      let appliedTheme = initialDark;
       runtime.current = {
         reset: fit,
         setExplore: setExploreMode,
         stepExplore,
         lookExplore,
         pauseRotation,
+        theme: (dark) => {
+          if (dark === appliedTheme) return;
+          // Match a viewer restart's cancellation of an active grab while
+          // preserving the camera, selected item and graphics context.
+          blur();
+          appliedTheme = dark;
+          scene.background = new THREE.Color(dark ? "#182532" : "#dce3e6");
+          renderer.toneMappingExposure = dark ? 0.95 : 1.05;
+          interiorMaterial.color.setHex(dark ? 0x344451 : 0xdce1e2);
+          beamMaterial.color.setHex(dark ? 0x71808a : 0x9aa8ac);
+          setWorkshopTheme(workshop, dark);
+          renderer.domElement.dataset.factoryTheme = dark ? "dark" : "light";
+          dirty = true;
+        },
         connections: updateConnections,
         zones: (zones) => {
           for (const [index, area] of zones.entries()) {
@@ -1051,6 +1068,7 @@ export default function FactoryFloorScene({
           dirty = true;
         },
       };
+      runtime.current.theme(currentTheme.current);
       runtime.current.focus(selection.current);
       const observer = new ResizeObserver(size);
       observer.observe(element);
@@ -1423,8 +1441,19 @@ export default function FactoryFloorScene({
         if (tracked || e.type === "pointercancel") cancel();
       };
       const blur = () => {
+        const capturedExplorePointer = explorePointer?.id;
         explorePointer = undefined;
+        if (
+          capturedExplorePointer !== undefined &&
+          renderer.domElement.hasPointerCapture(capturedExplorePointer)
+        )
+          renderer.domElement.releasePointerCapture(capturedExplorePointer);
+        const capturedPointers = [...pointers];
         pointers.clear();
+        for (const pointerId of capturedPointers) {
+          if (renderer.domElement.hasPointerCapture(pointerId))
+            renderer.domElement.releasePointerCapture(pointerId);
+        }
         panModifier = false;
         cancel();
         controls.disconnect();
@@ -1655,18 +1684,22 @@ export default function FactoryFloorScene({
       cancelAnimationFrame(secondFrame);
       cleanup?.();
     };
-  }, [key, dark, failed]);
+  }, [key, failed]);
+  useLayoutEffect(() => {
+    currentTheme.current = dark;
+    runtime.current?.theme(dark);
+  }, [dark]);
   useEffect(() => {
     runtime.current?.focus(selected);
-  }, [selected, key, dark]);
+  }, [selected, key]);
   useEffect(() => {
     runtime.current?.statuses(layout.placements);
     runtime.current?.positions(layout.placements);
     runtime.current?.zones(layout.zones);
-  }, [layout, key, dark]);
+  }, [layout, key]);
   useEffect(() => {
     runtime.current?.connections();
-  }, [connectionAppearances, key, dark]);
+  }, [connectionAppearances, key]);
   useEffect(() => {
     runtime.current?.reset();
   }, [reset, zone]);
