@@ -230,8 +230,9 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
   await expect(
     page.getByText("Assignment updated", { exact: true }),
   ).toBeVisible();
+  await page.getByLabel("Update type").selectOption("finding");
   await page
-    .getByLabel("Add a review note")
+    .getByLabel("Record investigation update")
     .fill("Synthetic service inspection; physical cause is not established.");
   let releaseNote!: () => void;
   const noteReceipt = new Promise<void>((resolve) => {
@@ -243,8 +244,10 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
     await route.fulfill({ response });
   });
   try {
-    await page.getByRole("button", { name: "Save note", exact: true }).click();
-    await expect(page.getByLabel("Add a review note")).toBeDisabled();
+    await page
+      .getByRole("button", { name: "Save update", exact: true })
+      .click();
+    await expect(page.getByLabel("Record investigation update")).toBeDisabled();
     await expect(page.getByLabel("Assign technician")).toBeDisabled();
     await expect(
       page.getByRole("button", { name: "Record downtime", exact: true }),
@@ -264,9 +267,26 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
       })
       .first(),
   ).toBeVisible();
-  await expect(page.getByLabel("Add a review note")).toHaveValue("");
-  await expect(page.getByLabel("Add a review note")).toBeEnabled();
+  await expect(page.getByLabel("Record investigation update")).toHaveValue("");
+  await expect(page.getByLabel("Record investigation update")).toBeEnabled();
   await page.unroute("**/api/trpc/alerts.addNote**");
+  await page.getByLabel("Update type").selectOption("next_step");
+  await page
+    .getByLabel("Record investigation update")
+    .fill("Inspect the service assembly on the next shift.");
+  await page.getByRole("button", { name: "Save update", exact: true }).click();
+  await expect(
+    page.getByText("Inspect the service assembly on the next shift."),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText("Inspect the service assembly on the next shift."),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Synthetic service inspection; physical cause is not established.",
+    ),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Record downtime", exact: true })
     .click();

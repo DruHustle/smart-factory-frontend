@@ -243,43 +243,6 @@ function LegacyHome() {
         ))}
       </div>
       <div className="overview-main-grid grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.35fr)]">
-        <div className="order-2 min-w-0 xl:order-1">
-          {floor.isLoading ? (
-            <div className="flex h-[28rem] items-center justify-center rounded-lg border bg-card">
-              <EmptyState title="Loading the complete factory floor…" />
-            </div>
-          ) : floor.error || !floor.data ? (
-            <EmptyState
-              error
-              title="Factory floor unavailable"
-              description={floor.error?.message}
-              action={
-                <Button variant="outline" onClick={() => void floor.refetch()}>
-                  Retry factory floor
-                </Button>
-              }
-            />
-          ) : !items.length ? (
-            <EmptyState
-              title="No registered factory items"
-              description="Connect assets, gateways and devices through Assets & devices to populate this floor."
-              action={
-                <Button asChild>
-                  <Link href="/inventory">Connect first item</Link>
-                </Button>
-              }
-            />
-          ) : (
-            <FactoryFloor
-              items={items}
-              links={[...floor.data.links, ...fxLinks]}
-              selected={selected?.ref ?? null}
-              onSelect={(ref) => update({ source: ref })}
-              returnTo={location}
-              demo={demo}
-            />
-          )}
-        </div>
         <aside
           aria-label="Factory status"
           className="overview-status order-1 min-w-0 xl:order-2"
@@ -360,6 +323,43 @@ function LegacyHome() {
             </CardContent>
           </Card>
         </aside>
+        <div className="order-2 min-w-0 xl:order-1">
+          {floor.isLoading ? (
+            <div className="flex h-[28rem] items-center justify-center rounded-lg border bg-card">
+              <EmptyState title="Loading the complete factory floor…" />
+            </div>
+          ) : floor.error || !floor.data ? (
+            <EmptyState
+              error
+              title="Factory floor unavailable"
+              description={floor.error?.message}
+              action={
+                <Button variant="outline" onClick={() => void floor.refetch()}>
+                  Retry factory floor
+                </Button>
+              }
+            />
+          ) : !items.length ? (
+            <EmptyState
+              title="No registered factory items"
+              description="Connect assets, gateways and devices through Assets & devices to populate this floor."
+              action={
+                <Button asChild>
+                  <Link href="/inventory">Connect first item</Link>
+                </Button>
+              }
+            />
+          ) : (
+            <FactoryFloor
+              items={items}
+              links={[...floor.data.links, ...fxLinks]}
+              selected={selected?.ref ?? null}
+              onSelect={(ref) => update({ source: ref })}
+              returnTo={location}
+              demo={demo}
+            />
+          )}
+        </div>
       </div>
       <div className="overview-bottom-grid grid min-w-0 items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,2.15fr)_minmax(14rem,1fr)_minmax(13rem,.9fr)]">
         <div className="overview-telemetry min-w-0 lg:col-span-2 xl:col-span-1">

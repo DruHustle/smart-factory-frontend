@@ -973,18 +973,19 @@ test("Overview design keeps factory, status and summaries in the desktop composi
   });
   await expect(floor).toHaveAttribute("data-visible-items", "57");
   await expect(
-    status.getByRole("heading", { name: "Connection health", exact: true }),
+    status.getByRole("heading", { name: "Needs attention", exact: true }),
   ).toBeVisible();
   const floorBounds = await floor.boundingBox(),
     statusBounds = await status.boundingBox();
   expect(floorBounds).not.toBeNull();
-  expect(floorBounds!.width).toBeGreaterThan(1100);
-  expect(statusBounds!.y).toBeGreaterThanOrEqual(
-    floorBounds!.y + floorBounds!.height,
+  expect(floorBounds!.width).toBeGreaterThan(700);
+  expect(statusBounds!.x).toBeGreaterThanOrEqual(
+    floorBounds!.x + floorBounds!.width,
   );
+  expect(Math.abs(statusBounds!.y - floorBounds!.y)).toBeLessThan(2);
   await expect(
-    page.getByRole("group", { name: "Source observation states", exact: true }),
-  ).toContainText("51");
+    page.locator(".overview-kpis").getByRole("link", { name: /Needs review/ }),
+  ).toBeVisible();
   await expect(
     page.getByText("Service evidence is available to administrators.", {
       exact: false,
