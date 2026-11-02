@@ -21,7 +21,6 @@ import { createStudioEnvironment } from "../equipment/studioEnvironment";
 import { FactoryModelPresentation } from "./factory-model-presentation";
 import {
   FactoryScenePreparation,
-  createFactorySprite,
   disposeFactoryScene,
   deferFactorySceneDisposal,
   releaseFactorySceneRenderer,
@@ -81,33 +80,6 @@ function referenceModel(slug: string) {
   }
   return models.get(slug)!;
 }
-function label(text: string, color: string, size = 3.4) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 72;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "rgba(248,250,252,.94)";
-  ctx.beginPath();
-  ctx.roundRect(0, 0, 512, 72, 12);
-  ctx.fill();
-  ctx.font = "500 24px sans-serif";
-  ctx.fillStyle = color;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text.length > 32 ? text.slice(0, 29) + "…" : text, 256, 36, 490);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = createFactorySprite(
-    new THREE.SpriteMaterial({
-      map: texture,
-      depthTest: false,
-      transparent: true,
-    }),
-  );
-  sprite.scale.set(size, (size * 72) / 512, 1);
-  return sprite;
-}
-
 function areaSign(text: string, color: string, width: number) {
   const canvas = document.createElement("canvas");
   canvas.width = 512;
@@ -194,7 +166,6 @@ export default function FactoryFloorScene({
     connections: () => void;
     statuses: (items: Layout["placements"]) => void;
     positions: (items: Layout["placements"]) => void;
-    zones: (zones: Layout["zones"]) => void;
   } | null>(null);
   const cameraMemory = useRef<{
     width: number;
@@ -704,34 +675,18 @@ export default function FactoryFloorScene({
       });
       abortSteps.push(() => stagedModels.dispose());
       let remainingReferences = 0;
-      const labels = new Map<string, THREE.Sprite>();
       const retired: THREE.Object3D[] = [];
       abortRoots.push(() => retired);
-      const zoneLabels = new Map<
-        number,
-        { sprite: THREE.Sprite; count: number }
-      >();
-      layout.zones.forEach((area, index) => {
-        const name = label(
-          `${area.name} · ${area.count}`,
-          "#284d64",
-          Math.min(area.width - 1, 6),
-        );
-        name.position.set(area.x + area.width / 2, 1.45, area.z + 0.6);
-        scene.add(name);
-        zoneLabels.set(index, { sprite: name, count: area.count });
-      });
-      const setZoneLabelsVisible = (visible: boolean) => {
-        for (const { sprite } of zoneLabels.values()) sprite.visible = visible;
-        renderer.domElement.dataset.floorZoneLabelsTotal = String(
-          zoneLabels.size,
-        );
-        renderer.domElement.dataset.floorZoneLabelsVisible = String(
-          visible ? zoneLabels.size : 0,
-        );
-        dirty = true;
+      // Names are available in the selected-item panel; floating sprites would
+      // cover equipment and make the floor harder to inspect.
+      const reportFloatingLabels = () => {
+        let count = 0;
+        scene.traverseVisible((object) => {
+          if (object instanceof THREE.Sprite) count++;
+        });
+        renderer.domElement.dataset.floorFloatingLabels = String(count);
       };
-      setZoneLabelsVisible(true);
+      reportFloatingLabels();
       for (const p of layout.placements) {
         const group = new THREE.Group();
         group.position.set(p.x, 0, p.z);
@@ -765,15 +720,6 @@ export default function FactoryFloorScene({
         group.userData.connectionSize = proxySize.toArray();
         body.userData.floorItemRef = p.item.ref;
         group.add(body);
-        const name = label(p.item.name, "#203c4b");
-        name.position.set(
-          0,
-          benchBoard ? 1.12 : p.dimensions ? p.dimensions.height + 0.8 : 3.05,
-          0,
-        );
-        name.visible = p.item.ref === selection.current;
-        labels.set(p.item.ref, name);
-        group.add(name);
         const marker = new THREE.Mesh(
           new THREE.CylinderGeometry(0.13, 0.13, 0.1, 16),
           new THREE.MeshBasicMaterial({
@@ -877,7 +823,6 @@ export default function FactoryFloorScene({
                         height,
                         p.dimensions?.depth ?? size.z * scale,
                       ];
-                      name.position.y = height + 0.8;
                       marker.position.set(
                         -Math.min(
                           (p.dimensions?.width ?? size.x * scale) / 2,
@@ -968,7 +913,7 @@ export default function FactoryFloorScene({
         camera.updateMatrixWorld(true);
         let halfWidth = 0,
           halfHeight = 0;
-        // Fit the projected bounds, including the outermost equipment labels.
+        // Fit the projected bounds of the equipment and floor.
         // A width/depth heuristic clips corners after an isometric rotation.
         // A small hardware bench has no warehouse walls or zone labels. The
         // factory's two-metre margin doubled its footprint and hid board detail.
@@ -1037,7 +982,7 @@ export default function FactoryFloorScene({
           setExploreNotice("");
           controls.enabled = true;
           interior.visible = false;
-          setZoneLabelsVisible(true);
+          reportFloatingLabels();
           preparation.setCamera(camera);
           renderer.domElement.dataset.viewMode = "overview";
           renderer.domElement.setAttribute(
@@ -1060,7 +1005,7 @@ export default function FactoryFloorScene({
         setExploreNotice("");
         controls.enabled = false;
         interior.visible = true;
-        setZoneLabelsVisible(false);
+        reportFloatingLabels();
         preparation.setCamera(exploreCamera);
         renderer.domElement.dataset.viewMode = "explore";
         renderer.domElement.dataset.interaction = "explore";
@@ -1155,25 +1100,6 @@ export default function FactoryFloorScene({
           dirty = true;
         },
         connections: updateConnections,
-        zones: (zones) => {
-          for (const [index, area] of zones.entries()) {
-            const prior = zoneLabels.get(index);
-            if (!prior || prior.count === area.count) continue;
-            const next = label(
-              `${area.name} · ${area.count}`,
-              "#284d64",
-              Math.min(area.width - 1, 6),
-            );
-            next.position.copy(prior.sprite.position);
-            next.visible = !exploringRef.current;
-            scene.remove(prior.sprite);
-            disposeFactoryScene([prior.sprite]);
-            scene.add(next);
-            zoneLabels.set(index, { sprite: next, count: area.count });
-            setZoneLabelsVisible(!exploringRef.current);
-            dirty = true;
-          }
-        },
         positions: (placements) => {
           for (const p of placements) {
             const object = objects.get(p.item.ref);
@@ -1194,7 +1120,7 @@ export default function FactoryFloorScene({
         },
         focus: (ref) => {
           for (const [id, halo] of indicators) halo.visible = id === ref;
-          for (const [id, itemLabel] of labels) itemLabel.visible = id === ref;
+          reportFloatingLabels();
           dirty = true;
         },
       };
@@ -1859,7 +1785,6 @@ export default function FactoryFloorScene({
   useEffect(() => {
     runtime.current?.statuses(layout.placements);
     runtime.current?.positions(layout.placements);
-    runtime.current?.zones(layout.zones);
   }, [layout, key]);
   useEffect(() => {
     runtime.current?.connections();
