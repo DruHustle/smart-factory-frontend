@@ -35,22 +35,28 @@ class CleanupPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError): module.cleanup_plan(self.images,self.containers,self.current,self.rollback)
 
     def test_release_fetch_follows_only_exact_frontend_alias(self):
+        for path in ("/release.json", "/api/runtime/contract"):
+            source = module.UI_ORIGIN + path
+            target = module.UI_CANONICAL_ALIAS + path
+            response = MagicMock(status=200)
+            response.__enter__.return_value = response
+            response.read.return_value = '{"source":"ok"}'
+            opener = Mock()
+            opener.open.side_effect = [module.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO()), response]
+            with patch.object(module.urllib.request, "build_opener", return_value=opener):
+                self.assertEqual(module.fetch(module.UI_ORIGIN, path), {"source": "ok"})
+            self.assertEqual([call.args[0] for call in opener.open.call_args_list], [source, target])
         source = module.UI_ORIGIN + "/release.json"
         target = module.UI_CANONICAL_ALIAS + "/release.json"
-        response = MagicMock(status=200)
-        response.__enter__.return_value = response
-        response.read.return_value = '{"source":"ok"}'
-        opener = Mock()
-        opener.open.side_effect = [module.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO()), response]
-        with patch.object(module.urllib.request, "build_opener", return_value=opener):
-            self.assertEqual(module.fetch(module.UI_ORIGIN, "/release.json"), {"source": "ok"})
-        self.assertEqual([call.args[0] for call in opener.open.call_args_list], [source, target])
-        for location in ("https://example.com/release.json", target + "?changed=1"):
+        for origin, code, location in ((module.UI_ORIGIN, 307, "https://example.com/release.json"),
+                                       (module.UI_ORIGIN, 307, target + "?changed=1"),
+                                       (module.UI_ORIGIN, 302, target),
+                                       ("https://api.example.com", 307, target)):
             opener = Mock()
-            opener.open.side_effect = module.urllib.error.HTTPError(source, 307, "redirect", {"Location": location}, io.BytesIO())
+            opener.open.side_effect = module.urllib.error.HTTPError(origin + "/release.json", code, "redirect", {"Location": location}, io.BytesIO())
             with patch.object(module.urllib.request, "build_opener", return_value=opener):
                 with self.assertRaises(module.urllib.error.HTTPError):
-                    module.fetch(module.UI_ORIGIN, "/release.json")
+                    module.fetch(origin, "/release.json")
             self.assertEqual(opener.open.call_count, 1)
         opener = Mock()
         opener.open.side_effect = [module.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO()),
