@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { promotionCompatibility } from "../shared/runtime-contract";
 import { migrationManifest } from "../server/runtimeContract";
+import { frontendFetch } from "./frontend-fetch";
 const origin = new URL(process.env.API_ORIGIN ?? "");
 if (
   origin.protocol !== "https:" ||
@@ -11,7 +12,7 @@ if (
   origin.hash
 )
   throw Error("API_ORIGIN must be a plain HTTPS origin");
-const response = await fetch(new URL("/api/runtime/contract", origin), {
+const response = await frontendFetch(new URL("/api/runtime/contract", origin), {
   redirect: "error",
   signal: AbortSignal.timeout(10000),
   cache: "no-store",

@@ -138,9 +138,9 @@ def get_json(url):
     try:
         response = open_once(url)
     except urllib.error.HTTPError as error:
-        # Vercel's existing production domain redirects these two public GETs
+        # Vercel's existing production domain redirects these public GETs
         # to its verified alias. Never follow arbitrary or chained redirects.
-        paths = ("/api/runtime/contract", "/release.json")
+        paths = ("/api/runtime/contract", "/release.json", "/health/ready")
         target = next((UI_CANONICAL_ALIAS + path for path in paths if url == UI + path), None)
         if error.code != 307 or target is None or error.headers.get("Location") != target:
             error.close()

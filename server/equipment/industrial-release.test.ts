@@ -29,6 +29,36 @@ describe("production bundled asset qualification", () => {
     ).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(30);
   });
+  it("verifies every asset through the exact production alias and still rejects altered bytes", async () => {
+    const production = new URL("https://smart-factory-iot-app.vercel.app");
+    let corrupt = false;
+    const fetcher = vi.fn<typeof fetch>(async (url, options) => {
+      const requested = new URL(String(url));
+      if (requested.origin === production.origin) {
+        expect(options?.redirect).toBe("manual");
+        return new Response(null, {
+          status: 307,
+          headers: {
+            location:
+              "https://smart-factory-ui.vercel.app" +
+              requested.pathname +
+              requested.search,
+          },
+        });
+      }
+      expect(requested.origin).toBe("https://smart-factory-ui.vercel.app");
+      expect(options).toMatchObject({ redirect: "error", credentials: "omit" });
+      const bytes = content(url);
+      if (corrupt) bytes[bytes.length - 1] ^= 1;
+      return new Response(bytes);
+    });
+    expect(await verifyIndustrialRelease(production, fetcher)).toHaveLength(30);
+    expect(fetcher).toHaveBeenCalledTimes(60);
+    corrupt = true;
+    await expect(verifyIndustrialRelease(production, fetcher)).rejects.toThrow(
+      /Deployed asset/,
+    );
+  });
   for (const mode of [
     "missing",
     "html-fallback",

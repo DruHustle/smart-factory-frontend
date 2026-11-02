@@ -1,7 +1,9 @@
 import copy
 import importlib.util
+import io
 import pathlib
 import unittest
+from unittest.mock import MagicMock, Mock, patch
 
 spec = importlib.util.spec_from_file_location("image_cleanup", pathlib.Path(__file__).resolve().parents[2] / "deploy/oracle/cleanup-images.py")
 module = importlib.util.module_from_spec(spec)
@@ -31,3 +33,29 @@ class CleanupPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError): module.cleanup_plan(self.images,self.containers,self.current,self.rollback)
         self.images[1]=image(2,False)
         with self.assertRaises(ValueError): module.cleanup_plan(self.images,self.containers,self.current,self.rollback)
+
+    def test_release_fetch_follows_only_exact_frontend_alias(self):
+        source = module.UI_ORIGIN + "/release.json"
+        target = module.UI_CANONICAL_ALIAS + "/release.json"
+        response = MagicMock(status=200)
+        response.__enter__.return_value = response
+        response.read.return_value = '{"source":"ok"}'
+        opener = Mock()
+        opener.open.side_effect = [module.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO()), response]
+        with patch.object(module.urllib.request, "build_opener", return_value=opener):
+            self.assertEqual(module.fetch(module.UI_ORIGIN, "/release.json"), {"source": "ok"})
+        self.assertEqual([call.args[0] for call in opener.open.call_args_list], [source, target])
+        for location in ("https://example.com/release.json", target + "?changed=1"):
+            opener = Mock()
+            opener.open.side_effect = module.urllib.error.HTTPError(source, 307, "redirect", {"Location": location}, io.BytesIO())
+            with patch.object(module.urllib.request, "build_opener", return_value=opener):
+                with self.assertRaises(module.urllib.error.HTTPError):
+                    module.fetch(module.UI_ORIGIN, "/release.json")
+            self.assertEqual(opener.open.call_count, 1)
+        opener = Mock()
+        opener.open.side_effect = [module.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO()),
+                                   module.urllib.error.HTTPError(target, 307, "redirect", {"Location": "https://example.com"}, io.BytesIO())]
+        with patch.object(module.urllib.request, "build_opener", return_value=opener):
+            with self.assertRaises(module.urllib.error.HTTPError):
+                module.fetch(module.UI_ORIGIN, "/release.json")
+        self.assertEqual(opener.open.call_count, 2)

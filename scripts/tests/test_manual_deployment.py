@@ -40,7 +40,7 @@ class WorkspaceCliTests(unittest.TestCase):
             return cli.main(list(arguments))
 
     def test_status_follows_only_the_verified_alias_for_public_endpoints(self):
-        for path in ("/release.json", "/api/runtime/contract"):
+        for path in ("/release.json", "/api/runtime/contract", "/health/ready"):
             source, target = cli.UI + path, cli.UI_CANONICAL_ALIAS + path
             redirect = cli.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO())
             response = MagicMock(status=200)

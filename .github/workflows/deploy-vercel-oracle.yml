@@ -15,7 +15,7 @@ on:
       request_id:
         description: Optional manual deployment receipt ID (32 lowercase hexadecimal characters)
         required: false
-        default: ''
+        default: ""
         type: string
 
 permissions:
@@ -80,7 +80,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VITE_API_URL: /api
-          VITE_ENABLE_DEMO_ACCOUNTS: 'true'
+          VITE_ENABLE_DEMO_ACCOUNTS: "true"
           RELEASE_SHA: ${{ steps.source.outputs.sha }}
           GH_TOKEN: ${{ github.token }}
           RUNTIME_EVIDENCE_FILE: ${{ runner.temp }}/qualified-api-runtime.json
@@ -96,6 +96,7 @@ jobs:
           pnpm dlx vercel@62.2.0 build --prod --token="$VERCEL_TOKEN"
           # Recheck both dependencies and current main after the potentially long build.
           node --import tsx scripts/verify-runtime.mts
+          node --import tsx scripts/check-frontend-http.mts
           current=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
           [[ "$RELEASE_SHA" == "$current" ]] || { echo 'A newer main exists; refusing to promote this artifact.'; exit 1; }
           pnpm dlx vercel@62.2.0 deploy --prebuilt --archive=tgz --prod --yes --token="$VERCEL_TOKEN" --meta "githubCommitSha=$RELEASE_SHA" --meta githubCommitRef=main > "$RUNNER_TEMP/vercel-deployment-url.txt"
@@ -104,8 +105,7 @@ jobs:
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
           echo "Production deployment: $deployment_url" >> "$GITHUB_STEP_SUMMARY"
           echo "Source revision: $RELEASE_SHA" >> "$GITHUB_STEP_SUMMARY"
-          curl --fail --silent --show-error --retry 3 --retry-delay 5 https://smart-factory-iot-app.vercel.app/health/ready
-          curl --fail --silent --show-error --output /dev/null https://smart-factory-iot-app.vercel.app/
+          node --import tsx scripts/check-frontend-http.mts
           RELEASE_ORIGIN=https://smart-factory-iot-app.vercel.app node --import tsx scripts/verify-release.mts
           API_ORIGIN=https://smart-factory-iot-app.vercel.app RUNTIME_EVIDENCE_FILE="$RUNNER_TEMP/deployed-api-runtime.json" node --import tsx scripts/verify-runtime.mts
       - name: Retain the API contract used for promotion

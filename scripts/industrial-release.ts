@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { bundledAssets } from "../shared/bundled-assets";
+import { frontendFetch } from "./frontend-fetch";
 
 const publicRoot = resolve(import.meta.dirname, "../client/public");
 const digest = (bytes: Uint8Array) =>
@@ -41,14 +42,18 @@ export async function verifyIndustrialRelease(
       const model = Object.values(asset.models).find((m) => m.url === path);
       if (model && (model.sha256 !== sha256 || model.bytes !== expected.length))
         throw new Error("Release checkout and asset catalogue disagree");
-      const response = await fetcher(new URL(path, origin), {
-        method: "GET",
-        redirect: "error",
-        credentials: "omit",
-        cache: "no-store",
-        headers: { accept: "*/*", "cache-control": "no-cache" },
-        signal: AbortSignal.timeout(20000),
-      });
+      const response = await frontendFetch(
+        new URL(path, origin),
+        {
+          method: "GET",
+          redirect: "error",
+          credentials: "omit",
+          cache: "no-store",
+          headers: { accept: "*/*", "cache-control": "no-cache" },
+          signal: AbortSignal.timeout(20000),
+        },
+        fetcher,
+      );
       if (response.status !== 200 || response.redirected || !response.body) {
         await response.body?.cancel();
         throw new Error(

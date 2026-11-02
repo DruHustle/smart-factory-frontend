@@ -1,5 +1,6 @@
 import { verifyIndustrialRelease } from "./industrial-release";
 import { releaseIdentityCompatibility } from "../shared/runtime-contract";
+import { frontendFetch } from "./frontend-fetch";
 
 const origin = new URL(process.env.RELEASE_ORIGIN ?? "");
 if (
@@ -14,7 +15,7 @@ if (
 const expected = process.env.RELEASE_SHA ?? "";
 if (!/^[a-f0-9]{40}$/.test(expected))
   throw Error("RELEASE_SHA must be a full immutable source revision");
-const response = await fetch(
+const response = await frontendFetch(
   new URL(`/release.json?revision=${expected}`, origin),
   {
     redirect: "error",

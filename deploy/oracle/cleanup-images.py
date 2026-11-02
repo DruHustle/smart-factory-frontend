@@ -9,10 +9,13 @@ import datetime
 import json
 import re
 import subprocess
+import urllib.error
 import urllib.request
 
 IMAGE = re.compile(r"sha256:[a-f0-9]{64}\Z")
 SOURCE = re.compile(r"[a-f0-9]{40}\Z")
+UI_ORIGIN = "https://smart-factory-iot-app.vercel.app"
+UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
 
 def run(*args):
     return subprocess.check_output(["docker", *args], text=True).strip()
@@ -44,8 +47,29 @@ def cleanup_plan(images, containers, current, rollback):
     protected = {current, rollback, *(row["Image"] for row in containers)}
     return [{"id": row["Id"], "source": row["Config"]["Labels"]["org.opencontainers.image.revision"], "tags": row.get("RepoTags") or []} for row in images if managed(row) and row["Id"] not in protected]
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args):
+        return None
+
 def fetch(origin, path):
-    with urllib.request.urlopen(origin.rstrip("/") + path, timeout=15) as response:
+    url = origin.rstrip("/") + path
+    opener = urllib.request.build_opener(NoRedirect())
+    try:
+        response = opener.open(url, timeout=15)
+    except urllib.error.HTTPError as error:
+        target = UI_CANONICAL_ALIAS + path if origin.rstrip("/") == UI_ORIGIN and path in ("/api/runtime/contract", "/release.json") else None
+        if error.code != 307 or target is None or error.headers.get("Location") != target:
+            error.close()
+            raise
+        error.close()
+        try:
+            response = opener.open(target, timeout=15)
+        except urllib.error.HTTPError as chained_error:
+            chained_error.close()
+            raise
+    with response:
+        if response.status != 200:
+            raise ValueError("Release endpoint did not return HTTP 200")
         return json.load(response)
 
 def main():
@@ -55,7 +79,7 @@ def main():
     parser.add_argument("--api-source", required=True)
     parser.add_argument("--frontend-source", required=True)
     parser.add_argument("--api-origin", default="http://127.0.0.1:10000")
-    parser.add_argument("--frontend-origin", default="https://smart-factory-iot-app.vercel.app")
+    parser.add_argument("--frontend-origin", default=UI_ORIGIN)
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
     if not SOURCE.fullmatch(args.api_source) or not SOURCE.fullmatch(args.frontend_source):
