@@ -242,7 +242,9 @@ jobs:
   visual-workspaces:
     name: Visual navigation and overview
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # The complete serial CAD and browser suites can exceed 15 minutes on
+    # slower runners; individual browser test timeouts remain unchanged.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with: { persist-credentials: false }

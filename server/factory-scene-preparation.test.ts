@@ -109,6 +109,86 @@ describe("factory scene graphics preparation", () => {
     expect(rendered[1].at - rendered[0].at).toBeGreaterThanOrEqual(32);
   });
 
+  it("prepares successive models promptly while allowing a draw between attachments", async () => {
+    const activated: number[] = [];
+    const preparation = new FactoryScenePreparation(
+      { compileAsync: vi.fn(async (object: THREE.Object3D) => object) },
+      new THREE.Camera(),
+      new THREE.Scene(),
+      Promise.resolve(),
+    );
+    const start = Date.now();
+    const pending = Array.from({ length: 3 }, () =>
+      preparation.enqueue(() => ({
+        object: new THREE.Group(),
+        activate: () => activated.push(Date.now()),
+      })),
+    );
+    await vi.runAllTimersAsync();
+    expect(await Promise.all(pending)).toEqual([true, true, true]);
+    expect(activated[1] - activated[0]).toBeGreaterThanOrEqual(32);
+    expect(activated[2] - activated[1]).toBeGreaterThanOrEqual(32);
+    expect(activated[2] - start).toBeLessThanOrEqual(120);
+  });
+
+  it("reuses a reference's prepared resources only within its viewer", async () => {
+    const activated: number[] = [];
+    const compileAsync = vi.fn(async (object: THREE.Object3D) => object);
+    const preparation = new FactoryScenePreparation(
+      { compileAsync },
+      new THREE.Camera(),
+      new THREE.Scene(),
+      Promise.resolve(),
+    );
+    const build = () => ({
+      object: new THREE.Group(),
+      activate: () => activated.push(Date.now()),
+    });
+    const first = preparation.enqueue(build, "conveyor");
+    const duplicate = preparation.enqueue(build, "conveyor");
+    const other = preparation.enqueue(build, "robot");
+    await vi.runAllTimersAsync();
+    expect(await Promise.all([first, duplicate, other])).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    expect(compileAsync).toHaveBeenCalledTimes(2);
+    expect(activated[1] - activated[0]).toBeGreaterThanOrEqual(16);
+    const anotherViewer = new FactoryScenePreparation(
+      { compileAsync },
+      new THREE.Camera(),
+      new THREE.Scene(),
+      Promise.resolve(),
+    );
+    const otherViewerModel = anotherViewer.enqueue(build, "conveyor");
+    await vi.runAllTimersAsync();
+    expect(await otherViewerModel).toBe(true);
+    expect(compileAsync).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries a reference when its earlier shader preparation failed", async () => {
+    const compileAsync = vi
+      .fn()
+      .mockRejectedValueOnce(Error("Shader unavailable"))
+      .mockImplementation(async (object: THREE.Object3D) => object);
+    const preparation = new FactoryScenePreparation(
+      { compileAsync },
+      new THREE.Camera(),
+      new THREE.Scene(),
+      Promise.resolve(),
+    );
+    const activate = vi.fn();
+    const build = () => ({ object: new THREE.Group(), activate });
+    const failed = preparation.enqueue(build, "conveyor").catch(() => false);
+    const retried = preparation.enqueue(build, "conveyor");
+    await vi.runAllTimersAsync();
+    expect(await failed).toBe(false);
+    expect(await retried).toBe(true);
+    expect(compileAsync).toHaveBeenCalledTimes(2);
+    expect(activate).toHaveBeenCalledOnce();
+  });
+
   it.each(["environment", "compile"])(
     "cannot attach or build queued models after disposal during %s",
     async (phase) => {

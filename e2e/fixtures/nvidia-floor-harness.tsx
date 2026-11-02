@@ -7,7 +7,15 @@ import { layoutFactory } from "../../shared/factory-floor";
 import type { InventoryItem } from "../../shared/inventory";
 
 const roots = new Map<string, Root>();
-function Floor({ name, itemType }: { name: string; itemType: string }) {
+function Floor({
+  name,
+  itemType,
+  count,
+}: {
+  name: string;
+  itemType: string;
+  count: number;
+}) {
   const [selected, setSelected] = useState<string | null>(null);
   const item: InventoryItem = {
     ref: "asset:1",
@@ -31,10 +39,18 @@ function Floor({ name, itemType }: { name: string; itemType: string }) {
     equipmentId: null,
     firmware: null,
   };
-  const layout = layoutFactory([item]);
-  // Put the single synthetic item at the camera target for direct picking.
-  layout.placements[0].x = 0;
-  layout.placements[0].z = 0;
+  const items = Array.from({ length: count }, (_, index) => ({
+    ...item,
+    ref: `asset:${index + 1}`,
+    id: String(index + 1),
+    identifier: `synthetic-${index + 1}`,
+  }));
+  const layout = layoutFactory(items);
+  // Put synthetic items around the camera target for direct picking.
+  layout.placements.forEach((placement, index) => {
+    placement.x = (index - (count - 1) / 2) * 3;
+    placement.z = 0;
+  });
   return (
     <>
       <div data-testid="selected">{selected ?? "none"}</div>
@@ -56,20 +72,25 @@ function Floor({ name, itemType }: { name: string; itemType: string }) {
 declare global {
   interface Window {
     floorNvidiaHarness: {
-      mount: (id: string, name: string, itemType: string) => void;
+      mount: (
+        id: string,
+        name: string,
+        itemType: string,
+        count?: number,
+      ) => void;
       unmount: (id: string) => void;
     };
   }
 }
 window.floorNvidiaHarness = {
-  mount(id, name, itemType) {
+  mount(id, name, itemType, count = 1) {
     if (roots.has(id)) throw new Error("Fixture already mounted");
     const host = document.createElement("section");
     host.id = id;
     document.body.append(host);
     const root = createRoot(host);
     roots.set(id, root);
-    root.render(<Floor name={name} itemType={itemType} />);
+    root.render(<Floor name={name} itemType={itemType} count={count} />);
   },
   unmount(id) {
     const root = roots.get(id);

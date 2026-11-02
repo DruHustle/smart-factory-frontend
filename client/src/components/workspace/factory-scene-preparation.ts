@@ -7,6 +7,7 @@ export class FactoryScenePreparation {
   private stopped = false;
   private tail: Promise<unknown> = Promise.resolve();
   private waits = new Set<() => void>();
+  private compiledReferences = new Set<string>();
 
   constructor(
     private renderer: Pick<THREE.WebGLRenderer, "compileAsync">,
@@ -37,27 +38,33 @@ export class FactoryScenePreparation {
     });
   }
 
-  enqueue(build: () => PreparedObject): Promise<boolean> {
+  enqueue(
+    build: () => PreparedObject,
+    referenceKey?: string,
+  ): Promise<boolean> {
     const task = this.tail.then(async () => {
       await this.presentationTurn();
       if (this.stopped) return false;
       await this.environment;
       if (this.stopped) return false;
       const prepared = build();
-      // Target lights/environment must match the eventual visible scene, even
-      // when this object is still detached and its labelled proxy is visible.
-      await this.renderer.compileAsync(
-        prepared.object,
-        this.camera,
-        this.scene,
-      );
-      if (this.stopped) return false;
-      await this.presentationTurn();
-      if (this.stopped) return false;
+      if (!referenceKey || !this.compiledReferences.has(referenceKey)) {
+        // Instances of the same reference share this viewer's geometries and
+        // materials. Compile their first instance against the target scene;
+        // later instances can reuse the same programs, geometry and materials.
+        await this.renderer.compileAsync(
+          prepared.object,
+          this.camera,
+          this.scene,
+        );
+        if (this.stopped) return false;
+        if (referenceKey) this.compiledReferences.add(referenceKey);
+        await this.presentationTurn();
+        if (this.stopped) return false;
+      }
       prepared.activate();
-      // compileAsync prepares programs, not geometry buffers. Give the draw
-      // loop a presentation turn before attaching the next detailed reference.
-      await this.presentationTurn();
+      // The next task begins with a presentation turn, allowing this object
+      // to draw before more geometry is prepared without waiting twice.
       return !this.stopped;
     });
     // One failed reference retains its proxy without starving later models.

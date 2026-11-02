@@ -20,7 +20,8 @@ async function fixture(page: Page) {
   // Vite's document root is client/, while this test-only module is in e2e/.
   // /@fs serves the real workspace file and pathToFileURL escapes spaces.
   const modulePath =
-    "/@fs/" + pathToFileURL(resolve("e2e/fixtures/nvidia-floor-harness.tsx")).pathname;
+    "/@fs/" +
+    pathToFileURL(resolve("e2e/fixtures/nvidia-floor-harness.tsx")).pathname;
   await page.route("**/__nvidia-floor-fixture", (route) =>
     route.fulfill({
       contentType: "text/html",
@@ -139,6 +140,58 @@ test("failed model delivery retains a selectable proxy and reports the simplifie
   await expect(canvas).toHaveAttribute("data-floor-nvidia-models", "[]");
   await expect(host.getByRole("status")).toContainText("1 simplified");
   await pickItem(page, canvas, host);
+});
+
+test("two instances of one NVIDIA model render and remain independently selectable", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await fixture(page);
+  await page.evaluate(
+    (asset) =>
+      window.floorNvidiaHarness.mount("floor", asset.name, asset.type, 2),
+    assets[0],
+  );
+  const host = page.locator("#floor");
+  const canvas = host.getByRole("img", {
+    name: "Interactive 3D factory floor",
+    exact: true,
+  });
+  await expect(host.getByRole("status")).toContainText(
+    "2 detailed models ready",
+    {
+      timeout: 30000,
+    },
+  );
+  await expect(canvas).toHaveAttribute(
+    "data-floor-nvidia-models",
+    JSON.stringify([assets[0].slug]),
+  );
+  await expect(canvas).toHaveAttribute("data-floor-reference-failures", "0");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Factory floor canvas missing");
+  const points = new Map<string, { x: number; y: number }>();
+  for (let dy = -100; dy <= 100 && points.size < 2; dy += 12) {
+    for (let dx = -220; dx <= 220 && points.size < 2; dx += 12) {
+      const point = {
+        x: box.x + box.width / 2 + dx,
+        y: box.y + box.height / 2 + dy,
+      };
+      await page.mouse.move(point.x, point.y);
+      const target = await canvas.getAttribute("data-grab-target");
+      if (target === "asset:1" || target === "asset:2")
+        points.set(target, point);
+    }
+  }
+  expect([...points.keys()].sort()).toEqual(["asset:1", "asset:2"]);
+  for (const id of ["asset:1", "asset:2"]) {
+    const point = points.get(id)!;
+    await page.mouse.click(point.x, point.y);
+    await expect(host.getByTestId("selected")).toHaveText(id);
+  }
+  await host.screenshot({
+    path: testInfo.outputPath("repeated-conveyors.png"),
+  });
 });
 
 test("a second viewer keeps its NVIDIA model after the first is unmounted", async ({

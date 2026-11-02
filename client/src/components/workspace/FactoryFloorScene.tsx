@@ -791,7 +791,7 @@ export default function FactoryFloorScene({
                     dirty = true;
                   },
                 };
-              });
+              }, p.model ?? undefined);
             })
             .catch(() => {
               // Keep the selectable proxy and tell the user the detail is unavailable.
