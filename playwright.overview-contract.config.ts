@@ -11,6 +11,7 @@ export default defineConfig({
     "factory-connections-theme.spec.ts",
     "factory-diagrams.spec.ts",
     "floor-stage.spec.ts",
+    "model-batch.spec.ts",
   ],
   outputDir: "test-results/overview-contract",
   workers: 1,

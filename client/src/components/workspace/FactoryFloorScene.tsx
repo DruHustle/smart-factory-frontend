@@ -18,6 +18,7 @@ import {
   setWorkshopTheme,
 } from "./FactoryEnvironment";
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
+import { FactoryModelPresentation } from "./factory-model-presentation";
 import {
   FactoryScenePreparation,
   createFactorySprite,
@@ -693,7 +694,16 @@ export default function FactoryFloorScene({
           string,
           THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>
         >();
-      let updateConnections = () => {};
+      let updateConnections = (_publish = true) => {};
+      let publishConnections = () => {};
+      const stagedModels = new FactoryModelPresentation<{
+        apply: () => void;
+        publish: () => void;
+      }>(() => {
+        dirty = true;
+      });
+      abortSteps.push(() => stagedModels.dispose());
+      let remainingReferences = 0;
       const labels = new Map<string, THREE.Sprite>();
       const retired: THREE.Object3D[] = [];
       abortRoots.push(() => retired);
@@ -812,6 +822,15 @@ export default function FactoryFloorScene({
           !["raspberry-pi-5", "esp32-wrover-dht11"].includes(p.model) &&
           (p.model !== "raspberry-pi-4b" || p.item.equipmentId)
         ) {
+          remainingReferences++;
+          let settled = false;
+          const settleReference = () => {
+            if (settled) return;
+            settled = true;
+            remainingReferences--;
+            if (software && remainingReferences === 0)
+              stagedModels.requestFinalFrame();
+          };
           void referenceModel(p.model)
             .then((model) => {
               if (disposed) return;
@@ -851,44 +870,52 @@ export default function FactoryFloorScene({
                 return {
                   object: normalized,
                   activate: () => {
-                    group.userData.modelHeight = height;
-                    group.userData.connectionSize = [
-                      p.dimensions?.width ?? size.x * scale,
-                      height,
-                      p.dimensions?.depth ?? size.z * scale,
-                    ];
-                    name.position.y = height + 0.8;
-                    marker.position.set(
-                      -Math.min(
-                        (p.dimensions?.width ?? size.x * scale) / 2,
-                        0.64,
-                      ),
-                      height + 0.32,
-                      0,
-                    );
-                    group.remove(body);
-                    retired.push(body);
-                    group.add(normalized);
-                    pendingReferences.delete(normalized);
-                    const nvidia = floorNvidiaAsset(p.model!);
-                    if (nvidia) {
-                      renderedNvidia.add(nvidia);
-                      renderer.domElement.dataset.floorNvidiaModels =
-                        JSON.stringify([...renderedNvidia].sort());
+                    const apply = () => {
+                      group.userData.modelHeight = height;
+                      group.userData.connectionSize = [
+                        p.dimensions?.width ?? size.x * scale,
+                        height,
+                        p.dimensions?.depth ?? size.z * scale,
+                      ];
+                      name.position.y = height + 0.8;
+                      marker.position.set(
+                        -Math.min(
+                          (p.dimensions?.width ?? size.x * scale) / 2,
+                          0.64,
+                        ),
+                        height + 0.32,
+                        0,
+                      );
+                      group.remove(body);
+                      retired.push(body);
+                      group.add(normalized);
+                    };
+                    const publish = () => {
+                      pendingReferences.delete(normalized);
+                      const nvidia = floorNvidiaAsset(p.model!);
+                      if (nvidia) {
+                        renderedNvidia.add(nvidia);
+                        renderer.domElement.dataset.floorNvidiaModels =
+                          JSON.stringify([...renderedNvidia].sort());
+                      }
+                      renderer.domElement.dataset.referenceMaterialCount =
+                        String(viewerMaterials.size);
+                      setLoaded((n) => n + 1);
+                    };
+                    if (software) {
+                      stagedModels.add({ apply, publish });
+                    } else {
+                      apply();
+                      try {
+                        updateConnections();
+                      } catch {
+                        if (!disposed) failScene();
+                        return;
+                      }
+                      publish();
+                      dirty = true;
                     }
-                    renderer.domElement.dataset.referenceMaterialCount = String(
-                      viewerMaterials.size,
-                    );
-                    try {
-                      updateConnections();
-                    } catch {
-                      // The model is already attached. A failed scene update
-                      // needs the accessible fallback, not a missing-model claim.
-                      if (!disposed) failScene();
-                      return;
-                    }
-                    setLoaded((n) => n + 1);
-                    dirty = true;
+                    settleReference();
                   },
                 };
               }, p.model ?? undefined);
@@ -896,6 +923,7 @@ export default function FactoryFloorScene({
             .catch(() => {
               // Keep the selectable proxy and tell the user the detail is unavailable.
               if (!disposed) {
+                settleReference();
                 renderer.domElement.dataset.floorReferenceFailures = String(
                   ++referenceFailures,
                 );
@@ -906,11 +934,7 @@ export default function FactoryFloorScene({
       }
       const connectionLayer = new FactoryConnectionLayer(software);
       scene.add(connectionLayer.root);
-      updateConnections = () => {
-        connectionLayer.update(links, objects, appearances.current, {
-          width: layout.width,
-          depth: layout.depth,
-        });
+      publishConnections = () => {
         renderer.domElement.dataset.connectionTrayTrunks = String(
           connectionLayer.trayMetrics.trunks,
         );
@@ -924,6 +948,13 @@ export default function FactoryFloorScene({
         renderer.domElement.dataset.connectionCount = String(
           connectionLayer.summary.length,
         );
+      };
+      updateConnections = (publish = true) => {
+        connectionLayer.update(links, objects, appearances.current, {
+          width: layout.width,
+          depth: layout.depth,
+        });
+        if (publish) publishConnections();
         renderer.shadowMap.needsUpdate = true;
         dirty = true;
       };
@@ -1727,11 +1758,16 @@ export default function FactoryFloorScene({
           if (document.hidden || !scenePrepared) return;
           if (!exploringRef.current) controls.update();
           if (dirty) {
+            const models = software ? stagedModels.take() : [];
+            for (const model of models) model.apply();
+            if (models.length) updateConnections(false);
             renderer.render(
               scene,
               exploringRef.current ? exploreCamera : camera,
             );
             dirty = false;
+            if (models.length) publishConnections();
+            for (const model of models) model.publish();
             if (!firstFramePresented) {
               firstFramePresented = true;
               setReady(true);
@@ -1764,6 +1800,7 @@ export default function FactoryFloorScene({
           zoom: camera.zoom,
         };
         disposed = true;
+        stagedModels.dispose();
         preparation.dispose();
         // The viewer is being removed, so rebuilding routes is unnecessary
         // and must not interrupt resource cleanup if a driver has failed.

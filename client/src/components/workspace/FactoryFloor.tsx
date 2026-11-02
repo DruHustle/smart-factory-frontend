@@ -304,6 +304,7 @@ export function FactoryFloor({
       className={`overview-floor min-w-0 overflow-hidden rounded-lg border bg-card ${fullscreen.expanded ? "floor-expanded" : ""}`}
       role={fullscreen.expanded ? "dialog" : undefined}
       aria-modal={fullscreen.expanded || undefined}
+      tabIndex={-1}
       data-measured={measured}
       aria-label="Factory floor overview"
     >

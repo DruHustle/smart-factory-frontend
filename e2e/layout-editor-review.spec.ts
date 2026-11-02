@@ -1363,6 +1363,46 @@ for (const missedEnter of [false, true]) {
 }
 
 for (const fallback of [false, true]) {
+  test(`fullscreen hands off a loading floor automatically (${fallback ? "page fallback" : "native"})`, async ({
+    page,
+  }) => {
+    if (fallback)
+      await page.addInitScript(() => {
+        Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+          configurable: true,
+          value: undefined,
+        });
+      });
+    const held = gate();
+    await page.route(
+      "**/src/components/workspace/FactoryFloorScene.tsx*",
+      async (route) => {
+        await held.promise;
+        await route.continue();
+      },
+    );
+    await fixture(page);
+    await expect(page.locator("[data-floor-preview='loading']")).toBeVisible();
+    await page
+      .getByRole("button", { name: "Enter fullscreen", exact: true })
+      .click();
+    const panel = page.getByRole("dialog", {
+      name: "Factory floor overview",
+      exact: true,
+    });
+    await expect(panel).toBeFocused();
+    held.release();
+    await expect(
+      panel.getByRole("img", {
+        name: "Interactive 3D factory floor",
+        exact: true,
+      }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect(panel.getByRole("button", { name: "Show 3D" })).toHaveCount(0);
+  });
+}
+
+for (const fallback of [false, true]) {
   test(`fullscreen enlarges the live floor and exits safely (${fallback ? "page fallback" : "native"})`, async ({
     page,
   }) => {

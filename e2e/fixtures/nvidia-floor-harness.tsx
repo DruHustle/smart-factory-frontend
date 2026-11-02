@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "../../client/src/index.css";
 import FactoryFloorScene from "../../client/src/components/workspace/FactoryFloorScene";
+import { FactoryModelPresentation } from "../../client/src/components/workspace/factory-model-presentation";
 import { FactoryConnectionLayer } from "../../client/src/components/workspace/factory-connections";
 import { layoutFactory } from "../../shared/factory-floor";
 import type { InventoryItem } from "../../shared/inventory";
@@ -111,10 +112,54 @@ declare global {
       setTheme: (id: string, dark: boolean) => void;
       themeReady: (id: string) => boolean;
       failConnections: () => void;
+      probeBatch: () => void;
+      failNextRender: () => void;
+      batchProbe: {
+        staged: number;
+        lastFinalPending: number;
+        disposedPending: number;
+      };
     };
   }
 }
+const batchProbe = { staged: 0, lastFinalPending: -1, disposedPending: -1 };
+let failRender = false;
 window.floorNvidiaHarness = {
+  batchProbe,
+  failNextRender() {
+    failRender = true;
+  },
+  probeBatch() {
+    const proto = FactoryModelPresentation.prototype;
+    const add = proto.add,
+      final = proto.requestFinalFrame,
+      dispose = proto.dispose;
+    const clear = WebGL2RenderingContext.prototype.clear;
+    WebGL2RenderingContext.prototype.clear = function (mask) {
+      if (failRender) {
+        failRender = false;
+        throw Error("Synthetic frame failure");
+      }
+      return clear.call(this, mask);
+    };
+    proto.add = function (item) {
+      Object.assign(this, { maxDelayMs: 60_000 });
+      add.call(this, item);
+      batchProbe.staged++;
+    };
+    proto.requestFinalFrame = function () {
+      batchProbe.lastFinalPending = (
+        this as unknown as { items: unknown[] }
+      ).items.length;
+      final.call(this);
+    };
+    proto.dispose = function () {
+      batchProbe.disposedPending = (
+        this as unknown as { items: unknown[] }
+      ).items.length;
+      dispose.call(this);
+    };
+  },
   mount(id, name, itemType, count = 1, movable = false, second) {
     if (roots.has(id)) throw new Error("Fixture already mounted");
     const host = document.createElement("section");

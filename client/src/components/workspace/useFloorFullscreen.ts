@@ -58,9 +58,15 @@ export function useFloorFullscreen() {
         setExpanded(false);
         return;
       }
-      element
-        .querySelector<HTMLElement>(".overview-floor-viewport [tabindex='0']")
-        ?.focus({ preventScroll: true });
+      // Focusing the temporary floor plan counts as active keyboard use and
+      // deliberately holds the 3D handoff. Focus the labelled dialog instead
+      // while it loads; once 3D is visible, keep the usual canvas focus.
+      const target = element.querySelector("[data-floor-preview]")
+        ? element
+        : (element.querySelector<HTMLElement>(
+            ".overview-floor-viewport [tabindex='0']",
+          ) ?? element);
+      target.focus({ preventScroll: true });
     } finally {
       setPending(false);
     }
