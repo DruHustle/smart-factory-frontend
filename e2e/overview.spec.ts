@@ -282,14 +282,19 @@ for (const width of [390, 1440])
             const statusBox = await page
               .getByRole("complementary", { name: "Factory status" })
               .boundingBox();
+            const floorPanelBox = await page
+              .locator(".overview-main-grid > div")
+              .boundingBox();
             expect(floorBox).not.toBeNull();
             expect(mainBox).not.toBeNull();
             expect(statusBox).not.toBeNull();
-            expect(floorBox!.width).toBeGreaterThanOrEqual(mainBox!.width - 2);
+            expect(floorPanelBox).not.toBeNull();
+            expect(floorBox!.width).toBeGreaterThan(mainBox!.width * 0.7);
             expect(floorBox!.height).toBeGreaterThanOrEqual(432);
-            expect(statusBox!.y).toBeGreaterThanOrEqual(
-              floorBox!.y + floorBox!.height,
+            expect(statusBox!.x).toBeGreaterThanOrEqual(
+              floorBox!.x + floorBox!.width,
             );
+            expect(Math.abs(statusBox!.y - floorPanelBox!.y)).toBeLessThan(2);
           }
           await expect(
             page.getByRole("img", {
