@@ -329,7 +329,9 @@ export function FactoryFloor({
       data-measured={measured}
       aria-label="Factory floor overview"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 ${fullscreen.expanded ? "py-0" : "py-3"}`}
+      >
         <div>
           <div className="flex items-center gap-1">
             <h2 className="flex items-center gap-2 text-base font-semibold">
@@ -449,7 +451,7 @@ export function FactoryFloor({
           </div>
         </div>
       </div>
-      <div className="border-b px-4 py-2">
+      <div className={`border-b px-4 ${fullscreen.expanded ? "py-0" : "py-2"}`}>
         <div
           className="grid grid-cols-4 gap-1 rounded-md border p-1 sm:inline-flex"
           role="group"

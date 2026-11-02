@@ -54,6 +54,118 @@ test.describe("unified item workspace", () => {
     process.env.WORKSPACE_E2E !== "true",
     "Requires isolated workspace fixtures",
   );
+  test("inventory loads creation forms on demand and retains an asset draft", async ({
+    page,
+  }) => {
+    let releaseAsset!: () => void;
+    const assetGate = new Promise<void>((resolve) => {
+      releaseAsset = resolve;
+    });
+    let assetLoads = 0;
+    let deviceLoads = 0;
+    let createRequests = 0;
+    page.on("request", (request) => {
+      const url = request.url();
+      if (url.includes("/src/components/CreateDeviceDialog.tsx")) deviceLoads++;
+      if (request.method() === "POST" && /(?:assets|devices)\.create/.test(url))
+        createRequests++;
+    });
+    await page.route(
+      "**/src/components/CreateAssetDialog.tsx*",
+      async (route) => {
+        assetLoads++;
+        await assetGate;
+        await route.continue();
+      },
+    );
+    try {
+      await login(page, "engineer");
+      await inventory(page, "");
+      expect(assetLoads).toBe(0);
+      expect(deviceLoads).toBe(0);
+
+      await page.getByRole("button", { name: "Add item", exact: true }).click();
+      await page.getByRole("button", { name: /AAS-backed asset/ }).click();
+      const pending = page.getByRole("dialog", { name: "Create Asset" });
+      await expect(pending.getByRole("status")).toHaveText("Loading setup…");
+      await expect.poll(() => assetLoads).toBe(1);
+      await pending.getByRole("button", { name: "Close", exact: true }).click();
+      await expect(pending).toHaveCount(0);
+      const loaded = page.waitForResponse((response) =>
+        response.url().includes("/src/components/CreateAssetDialog.tsx"),
+      );
+      releaseAsset();
+      await loaded;
+
+      await page.getByRole("button", { name: "Add item", exact: true }).click();
+      await page.getByRole("button", { name: /AAS-backed asset/ }).click();
+      const asset = page.getByRole("dialog", { name: "Create Asset" });
+      await asset
+        .getByLabel("Asset name", { exact: true })
+        .fill("Unsubmitted draft");
+      await asset.getByRole("button", { name: "Close", exact: true }).click();
+      await page.getByRole("button", { name: "Add item", exact: true }).click();
+      await page.getByRole("button", { name: /AAS-backed asset/ }).click();
+      await expect(asset.getByLabel("Asset name", { exact: true })).toHaveValue(
+        "Unsubmitted draft",
+      );
+      await asset.getByRole("button", { name: "Close", exact: true }).click();
+
+      await page.getByRole("button", { name: "Add item", exact: true }).click();
+      await page
+        .getByRole("button", { name: /IoT device A standalone/ })
+        .click();
+      await expect(page.getByLabel("Device ID", { exact: true })).toBeVisible();
+      expect(deviceLoads).toBe(1);
+      await page
+        .getByRole("dialog", { name: "Register connectivity device" })
+        .getByRole("button", { name: "Close", exact: true })
+        .click();
+      expect(createRequests).toBe(0);
+    } finally {
+      releaseAsset();
+    }
+  });
+  test("inventory recovers when an optional creation form cannot load", async ({
+    page,
+  }) => {
+    let creates = 0;
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        /(?:assets|devices)\.create/.test(request.url())
+      )
+        creates++;
+    });
+    const assetModule = "**/src/components/CreateAssetDialog.tsx*";
+    await page.route(assetModule, (route) => route.abort());
+    await login(page, "engineer");
+    await inventory(page, "");
+    await page.getByRole("button", { name: "Add item", exact: true }).click();
+    await page.getByRole("button", { name: /AAS-backed asset/ }).click();
+    const failed = page.getByRole("dialog", { name: "Create Asset" });
+    await expect(failed.getByRole("alert")).toHaveText(
+      "Setup could not be loaded. Reload the page to try again.",
+    );
+    await failed.getByRole("button", { name: "Close setup" }).click();
+    await expect(failed).toHaveCount(0);
+    await expect(
+      page.getByRole("status", { name: "Inventory results" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Add item", exact: true }).click();
+    await page.getByRole("button", { name: /AAS-backed asset/ }).click();
+    await expect(failed.getByRole("alert")).toBeVisible();
+    await page.unroute(assetModule);
+    await failed.getByRole("button", { name: "Reload page" }).click();
+    await expect(
+      page.getByRole("status", { name: "Inventory results" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Add item", exact: true }).click();
+    await page.getByRole("button", { name: /AAS-backed asset/ }).click();
+    await expect(page.getByLabel("Asset name", { exact: true })).toBeVisible();
+    expect(creates).toBe(0);
+  });
   test("mobile inventory search text fits and finds names and identifiers", async ({
     page,
   }, testInfo) => {

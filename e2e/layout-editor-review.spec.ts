@@ -1515,10 +1515,11 @@ test("detailed equipment retains physical materials in the fullscreen factory", 
   // Close focus uses the same live scene, without moving or saving any equipment.
   const before = (await readDrafts(page))[0].document.placements;
   const bounds = (await canvas.boundingBox())!;
-  // Find a real model using the public hover hit target, then double-click it.
+  // Find a real visible model using the public hover hit target, then double-click it.
+  // The narrow actual geometry can lie between widely spaced screen samples.
   let found = false;
-  for (let y = 0.25; y < 0.8 && !found; y += 0.12)
-    for (let x = 0.25; x < 0.8; x += 0.08) {
+  for (let y = 0.25; y < 0.8 && !found; y += 0.04)
+    for (let x = 0.25; x < 0.8; x += 0.04) {
       // Re-enter for each pick so navigation does not move the model while scanning.
       await page.mouse.move(bounds.x - 10, bounds.y - 10);
       await page.mouse.move(

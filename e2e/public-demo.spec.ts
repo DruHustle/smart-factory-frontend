@@ -5,7 +5,7 @@ for (const role of ["Admin", "Engineer", "Operator", "Viewer"]) {
   }) => {
     await page.goto("/#/login");
     await page
-      .getByRole("button", { name: `Demo ${role}`, exact: true })
+      .getByRole("button", { name: role, exact: true })
       .click();
     await page.getByRole("button", { name: /^sign in$/i }).click();
     await expect(

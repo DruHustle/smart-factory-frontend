@@ -20,7 +20,7 @@ async function login(page: Page, persona: Persona) {
   await page.goto("/#/login");
   if (persona.demo) {
     await page
-      .getByRole("button", { name: `Demo ${persona.role}`, exact: true })
+      .getByRole("button", { name: persona.role, exact: true })
       .click();
   } else {
     await page

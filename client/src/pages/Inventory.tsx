@@ -14,12 +14,21 @@ import {
 } from "@shared/measurements";
 import { Measurement } from "@/components/workspace/Primitives";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
-import { useEffect, useRef, useState } from "react";
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Link } from "wouter";
 import { useWorkspaceLocation as useHashLocation } from "@/lib/hashLocation";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
 import { safeLocalStorage } from "@/lib/storage";
+import { loadWithTimeout } from "@/lib/lazy-resource";
 import {
   PageHeader,
   SectionNav,
@@ -53,10 +62,86 @@ import {
   Box,
   Cable,
 } from "lucide-react";
-import CreateDeviceDialog from "@/components/CreateDeviceDialog";
-import { CreateAssetDialog } from "@/components/CreateAssetDialog";
 import type { InventoryItem } from "@shared/inventory";
 import { itemHref } from "@shared/inventory";
+
+// Creating an item is optional; do not load its forms and validation libraries
+// while someone is simply opening the inventory.
+const CreateDeviceDialog = lazy(() =>
+  loadWithTimeout(() => import("@/components/CreateDeviceDialog")),
+);
+const CreateAssetDialog = lazy(() =>
+  loadWithTimeout(() =>
+    import("@/components/CreateAssetDialog").then(({ CreateAssetDialog }) => ({
+      default: CreateAssetDialog,
+    })),
+  ),
+);
+
+class CreateDialogBoundary extends Component<
+  {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    label: string;
+    children: ReactNode;
+  },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <Dialog open={this.props.open} onOpenChange={this.props.onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{this.props.label}</DialogTitle>
+            <DialogDescription role="alert">
+              Setup could not be loaded. Reload the page to try again.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => this.props.onOpenChange(false)}
+            >
+              Close setup
+            </Button>
+            <Button onClick={() => window.location.reload()}>
+              Reload page
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+}
+
+function LoadingCreateDialog({
+  open,
+  onOpenChange,
+  label,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  label: string;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{label}</DialogTitle>
+          <DialogDescription role="status">Loading setup…</DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const views = [
   { id: "all", label: "All items" },
   { id: "assets", label: "Assets" },
@@ -84,6 +169,9 @@ function LegacyInventory() {
     null,
   );
   const [assetOpen, setAssetOpen] = useState(false);
+  // Keep the asset form mounted after its first opening: its existing draft
+  // survives close/reopen, including while a new chunk is loading.
+  const [assetRequested, setAssetRequested] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [draft, setDraft] = useState({
     zone: "",
@@ -694,7 +782,10 @@ function LegacyInventory() {
               [
                 "AAS-backed asset",
                 "Create an engineering record or import an AASX package.",
-                () => setAssetOpen(true),
+                () => {
+                  setAssetRequested(true);
+                  setAssetOpen(true);
+                },
               ],
               [
                 "3D equipment",
@@ -722,19 +813,59 @@ function LegacyInventory() {
           </div>
         </DialogContent>
       </Dialog>
-      <CreateDeviceDialog
-        key={deviceType ?? "closed"}
-        initialType={deviceType ?? "sensor"}
-        open={!!deviceType}
-        onOpenChange={(v) => {
-          if (!v) setDeviceType(null);
-        }}
-        onCreated={(d) => {
-          void utils.inventory.invalidate();
-          navigate(itemHref(`device:${d.id}`, "overview", location));
-        }}
-      />
-      <CreateAssetDialog open={assetOpen} onOpenChange={setAssetOpen} />
+      {deviceType && (
+        <CreateDialogBoundary
+          open
+          label="Register connectivity device"
+          onOpenChange={(open) => {
+            if (!open) setDeviceType(null);
+          }}
+        >
+          <Suspense
+            fallback={
+              <LoadingCreateDialog
+                open
+                label="Register connectivity device"
+                onOpenChange={(open) => {
+                  if (!open) setDeviceType(null);
+                }}
+              />
+            }
+          >
+            <CreateDeviceDialog
+              key={deviceType}
+              initialType={deviceType}
+              open
+              onOpenChange={(open) => {
+                if (!open) setDeviceType(null);
+              }}
+              onCreated={(device) => {
+                void utils.inventory.invalidate();
+                navigate(itemHref(`device:${device.id}`, "overview", location));
+              }}
+            />
+          </Suspense>
+        </CreateDialogBoundary>
+      )}
+      {assetRequested && (
+        <CreateDialogBoundary
+          open={assetOpen}
+          label="Create Asset"
+          onOpenChange={setAssetOpen}
+        >
+          <Suspense
+            fallback={
+              <LoadingCreateDialog
+                open={assetOpen}
+                label="Create Asset"
+                onOpenChange={setAssetOpen}
+              />
+            }
+          >
+            <CreateAssetDialog open={assetOpen} onOpenChange={setAssetOpen} />
+          </Suspense>
+        </CreateDialogBoundary>
+      )}
     </div>
   );
 }
