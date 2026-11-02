@@ -1,0 +1,159 @@
+name: Diagnostic only - sidebar same-runner comparison
+
+# This is an isolated comparison, never a required release check or deployment.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/sidebar-ab-diagnostic.yml'
+      - 'scripts/qualification/sidebar-ab-instrument.py'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Diagnostic only - baseline and candidate sidebar timing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out diagnostic instrumentation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: diagnostic
+          persist-credentials: false
+      - name: Check out exact baseline
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 8a0a22af0f1cdd168b48c01fb4443a7e00d67c93
+          path: baseline
+          persist-credentials: false
+      - name: Check out exact candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: e79bf737664862f82ea31bb634cca6de804159a0
+          path: candidate
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Verify exact sources and unchanged test fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C baseline rev-parse HEAD)" = 8a0a22af0f1cdd168b48c01fb4443a7e00d67c93
+          test "$(git -C candidate rev-parse HEAD)" = e79bf737664862f82ea31bb634cca6de804159a0
+          for file in package.json pnpm-lock.yaml playwright.navigation.config.ts \
+              e2e/navigation.spec.ts e2e/experience-helpers.ts \
+              scripts/public-demo/e2e.sh docker-compose.e2e.yml \
+              scripts/security/seed-test-accounts.ts scripts/workspace/seed.ts \
+              scripts/showcase/seed.ts scripts/showcase/verify.ts; do
+            cmp "baseline/$file" "candidate/$file"
+          done
+          grep -Fq 'timeout: 60000' baseline/playwright.navigation.config.ts
+          grep -Fq 'retries: 0' baseline/playwright.navigation.config.ts
+      - name: Install baseline dependencies
+        working-directory: baseline
+        run: pnpm install --frozen-lockfile
+      - name: Install candidate dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile
+      - name: Install the pinned browser once
+        working-directory: baseline
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Verify browser versions and instrument ephemeral test copies
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline_version="$(cd baseline && pnpm exec playwright --version)"
+          candidate_version="$(cd candidate && pnpm exec playwright --version)"
+          test "$baseline_version" = "$candidate_version"
+          python3 diagnostic/scripts/qualification/sidebar-ab-instrument.py baseline
+          python3 diagnostic/scripts/qualification/sidebar-ab-instrument.py candidate
+          # Instrumentation must be identical; the application sources remain at
+          # the two committed revisions, and the required test config is unchanged.
+          cmp baseline/e2e/navigation.spec.ts candidate/e2e/navigation.spec.ts
+          test "$(git -C baseline status --porcelain --untracked-files=no | wc -l | tr -d ' ')" = 1
+          test "$(git -C candidate status --porcelain --untracked-files=no | wc -l | tr -d ' ')" = 1
+      - name: Run unchanged shared-demo Viewer dark case on the same runner
+        shell: bash
+        env:
+          DOTENV_CONFIG_PATH: /dev/null
+          TEST_GREP: 'shared demo Viewer: aligned desktop, collapsed and mobile navigation \(dark\)'
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]]
+          umask 077
+          out="$RUNNER_TEMP/sidebar-ab-results"
+          private="$RUNNER_TEMP/sidebar-ab-private"
+          mkdir -p "$out" "$private"
+          printf 'case\texit\tcleanup\n' > "$private/status.tsv"
+          # ABBA reduces the ordering bias from the shared dependency/browser cache.
+          for sample in baseline-1 candidate-1 candidate-2 baseline-2; do
+            repo="${sample%-*}"
+            project="sf-side-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${sample}"
+            events="$out/${sample}.jsonl"
+            : > "$events"
+            # The public-demo harness creates and tears down only this unique
+            # Compose project and uses dynamically allocated database/Redis ports.
+            set +e
+            (
+              cd "$GITHUB_WORKSPACE/$repo"
+              SIDEBAR_DIAGNOSTIC_FILE="$events" \
+              PUBLIC_DEMO_COMPOSE_PROJECT="$project" \
+              PUBLIC_DEMO_E2E_PORT=3126 E2E_DATABASE_PORT=0 E2E_REDIS_PORT=0 \
+              pnpm e2e:public-demo --config=playwright.navigation.config.ts \
+                --grep "$TEST_GREP"
+            ) > "$private/${sample}.log" 2>&1
+            test_exit=$?
+            set -e
+            # Retry cleanup only for the unique disposable project. Never prune
+            # global containers, networks, volumes, images, or other projects.
+            cleanup=0
+            (
+              cd "$GITHUB_WORKSPACE/$repo"
+              E2E_DATABASE_PORT=0 E2E_REDIS_PORT=0 \
+                docker compose --env-file /dev/null -p "$project" \
+                -f docker-compose.e2e.yml down --volumes --remove-orphans
+            ) > "$private/${sample}-cleanup.log" 2>&1 || cleanup=1
+            for kind in container network volume; do
+              if [ "$kind" = container ]; then
+                remaining="$(docker container ls -aq --filter "label=com.docker.compose.project=$project")" || cleanup=1
+              else
+                remaining="$(docker "$kind" ls -q --filter "label=com.docker.compose.project=$project")" || cleanup=1
+              fi
+              test -z "$remaining" || cleanup=1
+            done
+            # No timing events means the exact selected test did not begin.
+            test -s "$events" || test_exit=125
+            printf '%s\t%s\t%s\n' "$sample" "$test_exit" "$cleanup" >> "$private/status.tsv"
+          done
+          python3 - "$private/status.tsv" "$out/summary.json" <<'PY'
+          import json, pathlib, sys
+          rows = pathlib.Path(sys.argv[1]).read_text().splitlines()[1:]
+          samples = []
+          for row in rows:
+              name, code, cleanup = row.split('\t')
+              samples.append({'case': name, 'exitCode': int(code), 'cleanupFailed': bool(int(cleanup))})
+          summary = {'kind': 'diagnostic-only', 'testTimeoutMs': 60000,
+                     'retries': 0, 'order': 'ABBA', 'samples': samples}
+          pathlib.Path(sys.argv[2]).write_text(json.dumps(summary, indent=2) + '\n')
+          print(json.dumps(summary))
+          if len(samples) != 4 or any(x['exitCode'] or x['cleanupFailed'] for x in samples):
+              raise SystemExit(1)
+          PY
+      - name: Retain numeric and category timings only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sidebar-ab-diagnostic-numeric
+          path: |
+            ${{ runner.temp }}/sidebar-ab-results/*.json
+            ${{ runner.temp }}/sidebar-ab-results/*.jsonl
+          if-no-files-found: warn
+          retention-days: 7
