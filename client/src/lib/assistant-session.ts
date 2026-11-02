@@ -5,6 +5,7 @@ import type { DemoAssistantContext } from "@shared/demo-assistant";
 export type TurnContext = { assetId: string; name: string } | null;
 export type AssistantTurn = {
   id: string;
+  contextRevision: number;
   question: string;
   submittedAt: string;
   context: TurnContext;
@@ -26,6 +27,7 @@ export type AssistantSession = {
   draft: string;
   selectedAssetId: string;
   selectedAssetName: string | null;
+  contextRevision: number;
   selection: AssistantSelection;
   turns: AssistantTurn[];
   selectedTurnId: string | null;
@@ -99,6 +101,7 @@ export function useAssistantSession(owner: string) {
       draft: "",
       selectedAssetId: "automatic",
       selectedAssetName: null,
+      contextRevision: 0,
       selection: { provider: "auto" },
       turns: [],
       selectedTurnId: null,

@@ -426,10 +426,14 @@ test("asset links update the next question while retaining drafts and previous a
   await ask(page);
   const prior = await page.getByRole("article").first().innerText();
   await input(page).fill("Keep this unsent inspection question");
-  const requests: string[] = [];
+  const requests: Array<{
+    selectedAssetId?: string;
+    history: Array<{ role: string; content: string }>;
+  }> = [];
   await page.route("**/api/trpc/assistant.ask*", async (route) => {
     const body = route.request().postDataJSON();
-    requests.push((body.json ?? body["0"].json).selectedAssetId);
+    const { selectedAssetId, history } = body.json ?? body["0"].json;
+    requests.push({ selectedAssetId, history });
     await route.continue();
   });
   await page.goto("/#/inventory/" + encodeURIComponent(other.ref));
@@ -439,10 +443,18 @@ test("asset links update the next question while retaining drafts and previous a
   expect(await page.getByRole("article").first().innerText()).toBe(prior);
   expect(requests).toEqual([]);
   await ask(page, "What stored evidence is available for this asset?");
-  expect(requests).toEqual([other.identifier]);
+  expect(requests).toEqual([
+    { selectedAssetId: other.identifier, history: [] },
+  ]);
   const second = page.getByRole("article").nth(1);
   await expect(second).toContainText(`Context: ${other.name}`);
   const secondSnapshot = await second.innerText();
+  await ask(page, "What should I inspect next?");
+  expect(requests[1].selectedAssetId).toBe(other.identifier);
+  expect(requests[1].history).toHaveLength(2);
+  expect(requests[1].history[0].content).toBe(
+    "What stored evidence is available for this asset?",
+  );
   await input(page).fill("Another unsent question");
   // Change only the hash query while Assistant remains mounted.
   await page.goto("/#/assistant?asset=" + encodeURIComponent(showcase.assetId));
@@ -453,7 +465,12 @@ test("asset links update the next question while retaining drafts and previous a
   await expect(context).toContainText("Showcase pump 01");
   await page.goto("/#/assistant");
   await expect(context).toContainText("Showcase pump 01");
-  expect(requests).toEqual([other.identifier]);
+  expect(requests).toHaveLength(2);
+  await ask(page, "What is recorded for this pump?");
+  expect(requests[2]).toEqual({
+    selectedAssetId: showcase.assetId,
+    history: [],
+  });
 });
 
 test("compact Assistant suggestions submit the full question and retain source access at 390px", async ({

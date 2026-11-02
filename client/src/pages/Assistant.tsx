@@ -38,6 +38,11 @@ import {
   type AssistantTurn,
   type TurnContext,
 } from "@/lib/assistant-session";
+import {
+  assistantHistory,
+  mayAdoptInferredContext,
+  selectAssistantContext,
+} from "@/lib/assistant-history";
 import { PageHeader } from "@/components/workspace/Primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -219,11 +224,7 @@ export default function Assistant() {
     // An explicit item link changes the next question's context. Earlier turns
     // keep their captured evidence, and navigation never submits the draft.
     runningRequest.current?.cancel();
-    setSession((s) => ({
-      ...s,
-      selectedAssetId: requested,
-      selectedAssetName: null,
-    }));
+    setSession((s) => selectAssistantContext(s, requested, null));
   }, [owner, location]);
   const inspect = (id: string, n?: number) => {
     inspectorOpener.current =
@@ -297,7 +298,7 @@ export default function Assistant() {
               : t,
           ),
           draft: s.draft === draftAtSubmission ? "" : s.draft,
-          ...(s.selectedAssetId === "automatic" &&
+          ...(mayAdoptInferredContext(s, turn) &&
           result.presentation?.format === "operational" &&
           result.presentation.context
             ? {
@@ -356,16 +357,7 @@ export default function Assistant() {
       question = raw.trim();
     setAttempted(true);
     if (raw.length > 500 || question.length < 1) return;
-    const history = current.turns
-      .filter((t) => t.status === "complete" && t.result)
-      .slice(-6)
-      .flatMap((t) => [
-        { role: "user" as const, content: t.question.slice(0, 1200) },
-        {
-          role: "assistant" as const,
-          content: t.result!.answer.slice(0, 1200),
-        },
-      ]);
+    const history = assistantHistory(current.turns, current.contextRevision);
     const selectedDemoItem = factoryDemo
       ? sandbox?.items.find(
           (item) => item.identifier === current.selectedAssetId,
@@ -384,6 +376,7 @@ export default function Assistant() {
           };
     const turn: AssistantTurn = {
       id: crypto.randomUUID(),
+      contextRevision: current.contextRevision,
       question,
       submittedAt: new Date().toISOString(),
       context,
@@ -856,11 +849,7 @@ export default function Assistant() {
                   value={session.selectedAssetId}
                   label={selectedContext?.name ?? "Equipment context"}
                   onChange={(assetId, name) =>
-                    setSession((s) => ({
-                      ...s,
-                      selectedAssetId: assetId,
-                      selectedAssetName: name,
-                    }))
+                    setSession((s) => selectAssistantContext(s, assetId, name))
                   }
                 />
                 <span
