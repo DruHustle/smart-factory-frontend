@@ -524,9 +524,8 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
             if position==0: fallback_runtime=transition_runtime
             verify_authored_workspaces(authored_workspaces,viewer)
             if position==0:
-                for reference in reference_evidence:
-                    path='/api/equipment/reference/'+reference['slug']+'/model?revision='+urllib.parse.quote(reference['revision'])
-                    assert http(viewer,path)[0]==404, 'Fallback should reject unknown stateless references while installed packages remain readable.'
+                assert verify_packaged_references(viewer,plain)==reference_evidence, 'The deployed fallback lost its authored references.'
+                assert http(viewer,'/api/equipment/reference/unknown-qualification-model/model?revision=unknown')[0]==404, 'Fallback accepted an unknown stateless reference.'
             assert trpc(viewer,'auth.me',query=True)['id']==viewer_id
             assert http(engineer,'/api/trpc/assets.list')[0]==401
             assert sql('SELECT count(*) FROM sensor_readings WHERE "assetId" IS NULL')=='2'
@@ -540,7 +539,7 @@ with socket.create_connection(('broker',1883),timeout=10) as sock:
         assert fallback_runtime is not None and len(industrial_fixture['reports'])==3
         rollback_evidence={'qualifiedPriorImage':rollback_image,'restoredCandidateImage':current_image,'revokedAccountStayedRejected':True,'activeViewerPreserved':True,'telemetryIdentitiesPreserved':True,'schemaCompatible':True,
             'runtime':fallback_runtime,'industrialObservationsPreserved':True,'industrialObservationCount':3,'industrialFallbackIngestionVerified':True,
-            'authoredInstalledModelsPreserved':True,'authoredInstalledModelCount':len(authored_workspaces),'unknownStatelessReferencesRejected':True}
+            'authoredInstalledModelsPreserved':True,'authoredInstalledModelCount':len(authored_workspaces),'fallbackStatelessReferencesVerified':True,'unknownStatelessReferencesRejected':True}
         print('PASS: rollback and roll-forward preserve sessions, revocation, schema and all three industrial observations; the fallback also ingests new MQTT observations without dropping quality or exact 64-bit values.')
     # The explicit public-demo installer must not change private inventory or queue email.
     sql("INSERT INTO users(\"openId\",email,name,role) VALUES('demo-bundle-owner','admin@dev.local','Synthetic demo owner','admin')")
