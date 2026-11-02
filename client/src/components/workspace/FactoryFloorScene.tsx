@@ -39,6 +39,7 @@ import {
 import {
   optimizeFactoryReference,
   instantiateFactoryReference,
+  viewerReferenceGeometries,
   createSurfaceGrain,
   createContactShadow,
   factoryModelSize,
@@ -1637,6 +1638,7 @@ export default function FactoryFloorScene({
         void deferFactorySceneDisposal(
           roots(),
           {
+            priorityGeometries: viewerReferenceGeometries(viewerMaterials),
             materials: materials(),
             textures: textures(),
             geometries: [contactGeometry],

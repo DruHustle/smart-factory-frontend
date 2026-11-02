@@ -7,7 +7,10 @@ import {
   releaseFactorySceneRenderer,
   disposeFactoryScene,
 } from "../client/src/components/workspace/factory-scene-preparation";
-import { instantiateFactoryReference } from "../client/src/components/workspace/factory-graphics";
+import {
+  instantiateFactoryReference,
+  viewerReferenceGeometries,
+} from "../client/src/components/workspace/factory-graphics";
 
 function deferred() {
   let resolve!: () => void;
@@ -163,6 +166,68 @@ describe("factory scene graphics preparation", () => {
 });
 
 describe("deferred factory viewer disposal", () => {
+  it("prioritizes actual owned reference disposal in bounded batches without touching shared sources or another viewer", async () => {
+    const source = new THREE.Group(),
+      sourceMaterial = new THREE.MeshBasicMaterial();
+    for (let i = 0; i < 40; i++)
+      source.add(new THREE.Mesh(new THREE.BoxGeometry(), sourceMaterial));
+    const materials = new Map<THREE.Material, THREE.Material>(),
+      closed = instantiateFactoryReference(source, materials, new Map()),
+      active = instantiateFactoryReference(source, new Map(), new Map()),
+      closedGeometries = closed.children.map(
+        (node) => (node as THREE.Mesh).geometry,
+      ),
+      disposed = closedGeometries.map((geometry) =>
+        vi.spyOn(geometry, "dispose"),
+      ),
+      activeDispose = vi.spyOn(
+        (active.children[0] as THREE.Mesh).geometry,
+        "dispose",
+      ),
+      sourceDispose = vi.spyOn(
+        (source.children[0] as THREE.Mesh).geometry,
+        "dispose",
+      ),
+      oldMaterial = [...materials.values()][0],
+      materialDispose = vi.spyOn(oldMaterial, "dispose"),
+      tasks: Array<() => void> = [],
+      finish = vi.fn();
+    function* priority() {
+      yield* viewerReferenceGeometries(materials);
+      yield closedGeometries[0];
+    }
+    const result = deferFactorySceneDisposal(
+      [closed],
+      {
+        priorityGeometries: priority(),
+        geometries: [closedGeometries[0]],
+        materials: materials.values(),
+      },
+      finish,
+      (run) => tasks.push(run),
+    );
+    expect(disposed.every((dispose) => dispose.mock.calls.length === 0)).toBe(
+      true,
+    );
+    tasks.shift()!();
+    const firstBatchDisposed = disposed.filter(
+      (dispose) => dispose.mock.calls.length > 0,
+    ).length;
+    expect(firstBatchDisposed).toBeGreaterThan(0);
+    expect(firstBatchDisposed).toBeLessThan(40);
+    expect(materialDispose).not.toHaveBeenCalled();
+    expect(activeDispose).not.toHaveBeenCalled();
+    expect(sourceDispose).not.toHaveBeenCalled();
+    while (tasks.length) tasks.shift()!();
+    await result;
+    for (const dispose of disposed) expect(dispose).toHaveBeenCalledOnce();
+    expect(materialDispose).toHaveBeenCalledOnce();
+    expect(activeDispose).not.toHaveBeenCalled();
+    expect(sourceDispose).not.toHaveBeenCalled();
+    expect(finish).toHaveBeenCalledOnce();
+    disposeFactoryScene([active]);
+  });
+
   it("preserves shared Sprite geometry across label replacement and viewer teardown", async () => {
     const oldTexture = new THREE.Texture(),
       closingTexture = new THREE.Texture(),

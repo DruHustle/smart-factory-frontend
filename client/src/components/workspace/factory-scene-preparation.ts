@@ -73,6 +73,7 @@ export class FactoryScenePreparation {
 }
 
 type SceneDisposalExtras = {
+  priorityGeometries?: Iterable<THREE.BufferGeometry>;
   materials?: Iterable<THREE.Material>;
   textures?: Iterable<THREE.Texture>;
   geometries?: Iterable<THREE.BufferGeometry>;
@@ -133,9 +134,23 @@ function* sceneDisposalSteps(
     materials = new Set<THREE.Material>(),
     textures = new Set<THREE.Texture>(),
     shadows = new Set<THREE.DirectionalLightShadow>(),
+    disposedGeometries = new Set<THREE.BufferGeometry>(),
     visited = new Set<THREE.Object3D>();
+  // Release the stopped viewer's renderer listeners early. These are owned
+  // clones, and each driver call remains a separately budgeted step.
+  for (const geometry of safeValues(extra.priorityGeometries ?? [], failure)) {
+    if (!disposedGeometries.has(geometry)) {
+      disposedGeometries.add(geometry);
+      try {
+        geometry.dispose();
+      } catch {
+        failure();
+      }
+    }
+    yield;
+  }
   for (const geometry of safeValues(extra.geometries ?? [], failure)) {
-    geometries.add(geometry);
+    if (!disposedGeometries.has(geometry)) geometries.add(geometry);
     yield;
   }
   for (const material of safeValues(extra.materials ?? [], failure)) {
@@ -179,7 +194,8 @@ function* sceneDisposalSteps(
           (!object.userData.sharedReferenceGeometry ||
             object.userData.viewerOwnedReferenceGeometry)
         )
-          geometries.add(object.geometry as THREE.BufferGeometry);
+          if (!disposedGeometries.has(object.geometry as THREE.BufferGeometry))
+            geometries.add(object.geometry as THREE.BufferGeometry);
         for (const material of Array.isArray(object.material)
           ? object.material
           : [object.material])

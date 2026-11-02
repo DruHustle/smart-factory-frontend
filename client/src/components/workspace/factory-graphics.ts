@@ -109,6 +109,13 @@ const viewerGeometryPools = new WeakMap<
   Map<THREE.BufferGeometry, THREE.BufferGeometry>
 >();
 
+/** Only clones belonging to this viewer, never cached source geometry. */
+export function viewerReferenceGeometries(
+  materials: Map<THREE.Material, THREE.Material>,
+): Iterable<THREE.BufferGeometry> {
+  return viewerGeometryPools.get(materials)?.values() ?? [];
+}
+
 /** Reuse owned resources within a viewer; keep cached public sources CPU-only. */
 export function instantiateFactoryReference(
   source: THREE.Group,
