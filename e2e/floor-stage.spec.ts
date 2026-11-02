@@ -488,6 +488,56 @@ test("a late 3D setup failure disposes partial graphics resources", async ({
   );
 });
 
+test("a failed first draw keeps the plan and releases the context", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (
+      kind: string,
+      ...args: unknown[]
+    ) {
+      const result = original.call(this, kind as "2d", ...args);
+      if (kind === "webgl2")
+        (
+          window as typeof window & {
+            capturedGL: WebGL2RenderingContext | null;
+          }
+        ).capturedGL = result as unknown as WebGL2RenderingContext | null;
+      return result;
+    } as typeof original;
+    const clear = WebGL2RenderingContext.prototype.clear;
+    let failed = false;
+    WebGL2RenderingContext.prototype.clear = function (mask: number) {
+      if (!failed) {
+        failed = true;
+        throw Error("Synthetic draw failure");
+      }
+      return clear.call(this, mask);
+    };
+  });
+  await fixture(page);
+  const stage = page.locator("#stage");
+  await expect(stage.getByRole("status")).toContainText(
+    "3D unavailable on this device",
+    { timeout: 30000 },
+  );
+  await expect(
+    stage.getByRole("img", { name: "Accessible factory floor plan" }),
+  ).toBeVisible();
+  await page.waitForFunction(
+    () =>
+      (
+        window as typeof window & { capturedGL: WebGL2RenderingContext | null }
+      ).capturedGL?.isContextLost(),
+    null,
+    { timeout: 30000 },
+  );
+  await expect(
+    stage.getByRole("img", { name: "Interactive 3D factory floor" }),
+  ).toHaveCount(0);
+});
+
 test("actual 3D context loss returns focus to the floor plan", async ({
   page,
 }) => {
