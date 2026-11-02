@@ -26,6 +26,7 @@ async function workspaceFixture(
     olderApi?: boolean;
     viewer?: boolean;
     actions?: boolean;
+    actionsError?: boolean;
   } = { floor: "normal" },
 ) {
   let signedIn = true;
@@ -113,6 +114,18 @@ async function workspaceFixture(
     const responses = procedures.map((procedure, index) => {
       const input = (batch ? inputs[String(index)]?.json : inputs.json) ?? {};
       requests.push({ procedure, input });
+      if (control.actionsError && procedure === "alerts.actionQueue")
+        return {
+          error: superjson.serialize({
+            message: "Actions unavailable",
+            code: -32603,
+            data: {
+              code: "INTERNAL_SERVER_ERROR",
+              httpStatus: 500,
+              path: procedure,
+            },
+          }),
+        };
       if (
         control.summary === "error" &&
         ["analytics.getOverview", "notifications.summary"].includes(procedure)
@@ -1655,4 +1668,26 @@ test("Overview links outstanding actions to their incident", async ({
   await expect(
     page.getByRole("link", { name: /Inspect compressor/ }),
   ).toBeVisible();
+});
+
+test("Overview offers a retry when follow-up actions are unavailable", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page, false, {
+    floor: "normal",
+    actionsError: true,
+  });
+  await page.goto("/#/");
+  const error = page
+    .getByRole("status")
+    .filter({ hasText: "Follow-up actions unavailable" });
+  await expect(error).toBeVisible();
+  await error.getByRole("button", { name: "Retry" }).click();
+  await expect
+    .poll(
+      () =>
+        requests.filter((request) => request.procedure === "alerts.actionQueue")
+          .length,
+    )
+    .toBeGreaterThanOrEqual(2);
 });

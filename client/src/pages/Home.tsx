@@ -80,6 +80,7 @@ function LegacyHome() {
     {
       ...options,
       enabled: actionsSupported,
+      retry: false,
       placeholderData: (previous) => previous,
     },
   );
@@ -421,7 +422,13 @@ function LegacyHome() {
             </details>
           ) : actionsSupported && actions.error ? (
             <p role="status" className="mt-3 text-xs text-muted-foreground">
-              Follow-up actions unavailable.
+              Follow-up actions unavailable.{" "}
+              <button
+                className="underline"
+                onClick={() => void actions.refetch()}
+              >
+                Retry
+              </button>
             </p>
           ) : null}
         </aside>
