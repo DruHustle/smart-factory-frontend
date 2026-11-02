@@ -24,9 +24,9 @@ def specs(suites, ancestors=()):
         yield from specs(suite.get("suites", []), names)
 
 
-def results(variant):
+def results(sample):
     try:
-        report = json.loads((private_dir / f"{variant}-report.json").read_text())
+        report = json.loads((private_dir / f"{sample}-report.json").read_text())
     except (OSError, ValueError):
         return []
     found = []
@@ -52,30 +52,30 @@ def results(variant):
 
 
 lines = status_file.read_text().splitlines()
-if not lines or lines[0] != "variant\texit\tcleanup":
+if not lines or lines[0] != "sample\tvariant\texit\tcleanup":
     raise SystemExit("Invalid diagnostic status header")
 samples = []
 for line in lines[1:]:
     fields = line.split("\t")
-    if len(fields) != 3 or fields[0] not in {"baseline", "candidate"}:
+    if len(fields) != 4 or fields[0] not in {"baseline-1", "candidate-1", "candidate-2", "baseline-2"}:
         raise SystemExit("Invalid diagnostic sample")
-    variant, exit_text, cleanup_text = fields
-    if not re.fullmatch(r"[0-9]{1,3}", exit_text) or cleanup_text not in {"0", "1"}:
+    sample, variant, exit_text, cleanup_text = fields
+    if variant != sample.rsplit("-", 1)[0] or not re.fullmatch(r"[0-9]{1,3}", exit_text) or cleanup_text not in {"0", "1"}:
         raise SystemExit("Invalid diagnostic exit category")
-    tests = results(variant)
+    tests = results(sample)
     observed = [(test["width"], test["theme"]) for test in tests]
     passed = (len(observed) == 4 and set(observed) == expected_cases
               and all(test["status"] == "passed" and test["timeoutMs"] == 60000
                       and test["durationMs"] <= 60000 and test["retry"] == 0 for test in tests))
-    samples.append({"variant": variant, "exitCode": int(exit_text),
+    samples.append({"sample": sample, "variant": variant, "exitCode": int(exit_text),
                     "cleanupFailed": cleanup_text == "1", "tests": tests,
                     "originalChecksPassed": passed})
 
-summary = {"kind": "diagnostic-only", "sameHostedRunner": True, "order": "AB",
+summary = {"kind": "diagnostic-only", "sameHostedRunner": True, "order": "ABBA",
            "testTimeoutMs": 60000, "modelReadinessTimeoutMs": 30000,
            "retries": 0, "samples": samples}
 output.write_text(json.dumps(summary, indent=2) + "\n")
 print(json.dumps(summary))
-if ([sample["variant"] for sample in samples] != ["baseline", "candidate"] or
+if ([sample["sample"] for sample in samples] != ["baseline-1", "candidate-1", "candidate-2", "baseline-2"] or
         any(sample["exitCode"] or sample["cleanupFailed"] or not sample["originalChecksPassed"] for sample in samples)):
     raise SystemExit(1)

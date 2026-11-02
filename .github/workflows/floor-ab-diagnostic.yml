@@ -16,7 +16,7 @@ jobs:
   compare:
     name: Diagnostic only - baseline and candidate whole-factory cases
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 50
     steps:
       - name: Check out diagnostic scripts
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -81,7 +81,7 @@ jobs:
             git -C "$repo" diff --quiet HEAD -- client server shared e2e playwright.experience.config.ts
           done
           cmp baseline/e2e/overview.spec.ts candidate/e2e/overview.spec.ts
-      - name: Run the four unchanged whole-factory cases in AB order
+      - name: Run the four unchanged whole-factory cases in ABBA order
         shell: bash
         env:
           DOTENV_CONFIG_PATH: /dev/null
@@ -93,18 +93,19 @@ jobs:
           private="$RUNNER_TEMP/floor-ab-private"
           out="$RUNNER_TEMP/floor-ab-results"
           mkdir -p "$private" "$out"
-          printf 'variant\texit\tcleanup\n' > "$private/status.tsv"
-          for variant in baseline candidate; do
-            project="sf-floor-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${variant}"
+          printf 'sample\tvariant\texit\tcleanup\n' > "$private/status.tsv"
+          for sample in baseline-1 candidate-1 candidate-2 baseline-2; do
+            variant="${sample%-*}"
+            project="sf-floor-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${sample}"
             set +e
             (
               cd "$GITHUB_WORKSPACE/$variant"
-              PLAYWRIGHT_JSON_OUTPUT_FILE="$private/${variant}-report.json" \
+              PLAYWRIGHT_JSON_OUTPUT_FILE="$private/${sample}-report.json" \
               EXPERIENCE_DIAGNOSTIC_PROJECT="$project" \
               EXPERIENCE_E2E_PORT=3123 E2E_DATABASE_PORT=55450 E2E_REDIS_PORT=56400 \
-              OVERVIEW_EVIDENCE_DIR="$private/${variant}-visual" \
+              OVERVIEW_EVIDENCE_DIR="$private/${sample}-visual" \
               pnpm e2e:experience --grep "$FLOOR_GREP" --reporter=json
-            ) > "$private/${variant}.log" 2>&1
+            ) > "$private/${sample}.log" 2>&1
             test_exit=$?
             set -e
             cleanup=0
@@ -113,7 +114,7 @@ jobs:
               E2E_DATABASE_PORT=0 E2E_REDIS_PORT=0 \
                 docker compose --env-file /dev/null -p "$project" \
                 -f docker-compose.e2e.yml down --volumes --remove-orphans
-            ) > "$private/${variant}-cleanup.log" 2>&1 || cleanup=1
+            ) > "$private/${sample}-cleanup.log" 2>&1 || cleanup=1
             for type in container network volume; do
               if [ "$type" = container ]; then
                 remaining="$(docker container ls -aq --filter "label=com.docker.compose.project=$project")" || cleanup=1
@@ -122,7 +123,9 @@ jobs:
               fi
               test -z "$remaining" || cleanup=1
             done
-            printf '%s\t%s\t%s\n' "$variant" "$test_exit" "$cleanup" >> "$private/status.tsv"
+            printf '%s\t%s\t%s\t%s\n' "$sample" "$variant" "$test_exit" "$cleanup" >> "$private/status.tsv"
+            # A failed cleanup could contaminate the next fixture or occupy its ports.
+            if [ "$cleanup" -ne 0 ]; then break; fi
           done
           # The reporter accepts only fixed categories and numeric values. Raw
           # logs, JSON reports, screenshots, video and traces stay on the runner.
