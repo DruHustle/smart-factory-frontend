@@ -17,7 +17,10 @@ import type { InventoryItem } from "../shared/inventory";
 async function workspaceFixture(
   page: Page,
   restricted = false,
-  control: { floor: "normal" | "empty" | "error" } = { floor: "normal" },
+  control: {
+    floor: "normal" | "empty" | "error";
+    telemetry?: "unverified" | "verified";
+  } = { floor: "normal" },
 ) {
   let signedIn = true;
   const requests: { procedure: string; input: any }[] = [];
@@ -148,6 +151,109 @@ async function workspaceFixture(
         case "notifications.summary":
           value = { unread: 0 };
           break;
+        case "security.availability":
+          value = { enabled: false };
+          break;
+        case "inventory.item": {
+          const gateway = input.ref === "device:6";
+          value = {
+            ref: input.ref,
+            kind: "device",
+            id: gateway ? "6" : "13",
+            name: gateway ? "Pi gateway" : "WROVER sensor",
+            identifier: gateway ? "pi-edge-01" : "esp32-wrover-01",
+            itemType: gateway ? "gateway" : "edge_device",
+            location: "Bench",
+            zone: "Bench",
+            configured: true,
+            isDemo: demo,
+            route: gateway ? "Gateway uplink" : "Via gateway: pi-edge-01",
+            status: "unknown",
+            lastObserved: null,
+            sampleAt: gateway ? null : Date.now(),
+            mode: "unknown",
+            quality: "unknown",
+            freshnessMs: null,
+            lifecycle: null,
+            aas: false,
+            equipmentId: null,
+            firmware: null,
+            values: gateway ? {} : { temperature: 20.7 },
+            measurements: gateway
+              ? {}
+              : {
+                  temperature: {
+                    sourceValue: 20.7,
+                    sourceUnit: null,
+                    canonicalValue: null,
+                    canonicalUnit: null,
+                    conversionVersion: null,
+                    quality: "unknown",
+                  },
+                },
+            evidence: gateway
+              ? null
+              : { eligible: false, reason: "not_commissioned" },
+          };
+          break;
+        }
+        case "devices.getById":
+          value = {
+            id: Number(input.id),
+            deviceId: Number(input.id) === 6 ? "pi-edge-01" : "esp32-wrover-01",
+            name: Number(input.id) === 6 ? "Pi gateway" : "WROVER sensor",
+            type: Number(input.id) === 6 ? "gateway" : "edge_device",
+            status: "offline",
+            observedStatus: "unknown",
+            isDemo: demo,
+            metadata: { gatewayId: "pi-edge-01" },
+            lastSeen: null,
+          };
+          break;
+        case "devices.heartbeatHistory":
+          value = {
+            items: [
+              {
+                receivedAt: new Date(),
+                eligible: false,
+                reason: "route_not_commissioned",
+              },
+            ],
+            returned: 1,
+            hasMore: false,
+            detailLimit: 100,
+          };
+          break;
+        case "assets.getAllForDevice":
+        case "readings.getForDevice":
+        case "thresholds.getForDevice":
+          value = [];
+          break;
+        case "readings.getLatest":
+          value =
+            !demo && input.scope === "unknown" && control.telemetry
+              ? {
+                  deviceId: 13,
+                  timestamp: Date.now(),
+                  createdAt: new Date(),
+                  temperature: 20.7,
+                  measurements: {
+                    temperature: {
+                      sourceValue: 20.7,
+                      sourceUnit: null,
+                      canonicalValue: null,
+                      canonicalUnit: null,
+                      conversionVersion: null,
+                      quality: "unknown",
+                    },
+                  },
+                  integration: {
+                    mode: "unknown",
+                    evidence: { eligible: false, reason: "not_commissioned" },
+                  },
+                }
+              : null;
+          break;
         case "system.infrastructure":
           value = demoInfrastructure();
           break;
@@ -275,6 +381,25 @@ async function workspaceFixture(
           break;
         }
         case "devices.monitor": {
+          if (control.telemetry) {
+            value = {
+              items: [
+                {
+                  id: 13,
+                  name: demo ? "Demo sensor" : "WROVER sensor",
+                  deviceId: demo ? "demo-sensor" : "esp32-wrover-01",
+                  type: "edge_device",
+                  observedStatus: "unknown",
+                  status: "offline",
+                  location: "Bench",
+                  metadata: { gatewayId: "pi-edge-01" },
+                },
+              ],
+              total: 1,
+              hasMore: false,
+            };
+            break;
+          }
           const gateways = items.filter((item) => item.itemType === "gateway");
           const pageSize = Number(input.pageSize ?? 6),
             current = Number(input.page ?? 0);
@@ -292,9 +417,49 @@ async function workspaceFixture(
           };
           break;
         }
+        case "readings.getLatestBatch": {
+          const isUnknown = input.scope === "unknown";
+          const hasReading =
+            !demo &&
+            control.telemetry &&
+            (isUnknown ||
+              (control.telemetry === "verified" &&
+                input.scope === "operational"));
+          value = hasReading
+            ? [
+                {
+                  deviceId: 13,
+                  timestamp: Date.now(),
+                  createdAt: new Date(),
+                  temperature: isUnknown ? 20.7 : 22,
+                  humidity: 44,
+                  measurements: {
+                    temperature: {
+                      sourceValue: isUnknown ? 20.7 : 22,
+                      sourceUnit: null,
+                      canonicalValue: null,
+                      canonicalUnit: null,
+                      conversionVersion: null,
+                      quality: "unknown",
+                    },
+                  },
+                  integration: {
+                    mode: isUnknown ? "unknown" : "live",
+                    evidence: {
+                      eligible: !isUnknown,
+                      reason: isUnknown ? "not_commissioned" : null,
+                      validForMs: 120000,
+                    },
+                  },
+                },
+              ]
+            : [];
+          break;
+        }
         case "devices.getConnectedAssets":
-          value =
-            Number(input.id) <= 10
+          value = control.telemetry
+            ? []
+            : Number(input.id) <= 10
               ? [
                   {
                     id: Number(input.id) - 5,
@@ -306,8 +471,9 @@ async function workspaceFixture(
               : [];
           break;
         case "devices.getConnectedDevices":
-          value =
-            Number(input.id) === 6
+          value = control.telemetry
+            ? []
+            : Number(input.id) === 6
               ? [{ id: 13, name: `${mode} system 13`, type: "sensor" }]
               : [];
           break;
@@ -418,7 +584,9 @@ for (const width of [390, 1440]) {
       "title",
       "Live data requires an approved individual account",
     );
-    await expect(page.getByText("Demo factory · simulated", { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText("Demo factory · simulated", { exact: true }),
+    ).toHaveCount(0);
     await page
       .getByRole("button", { name: "About demo and live data", exact: true })
       .click();
@@ -770,7 +938,9 @@ test("Overview design keeps factory, status and summaries in the desktop composi
     statusBounds = await status.boundingBox();
   expect(floorBounds).not.toBeNull();
   expect(floorBounds!.width).toBeGreaterThan(1100);
-  expect(statusBounds!.y).toBeGreaterThanOrEqual(floorBounds!.y + floorBounds!.height);
+  expect(statusBounds!.y).toBeGreaterThanOrEqual(
+    floorBounds!.y + floorBounds!.height,
+  );
   await expect(
     page.getByRole("group", { name: "Source observation states", exact: true }),
   ).toContainText("51");
@@ -1065,4 +1235,143 @@ test("direct overview grabs move equipment and its links without moving the view
   await expect(
     page.locator('[data-floor-ref="asset:1"] > g[transform]').first(),
   ).toHaveAttribute("transform", moved!);
+});
+
+test("Monitoring shows a received unverified sample without asserting live status", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page, false, {
+    floor: "normal",
+    telemetry: "unverified",
+  });
+  await page.goto("/#/monitoring");
+  const row = page.locator("article").filter({ hasText: "WROVER sensor" });
+  await expect(row).toContainText("20.7");
+  await expect(row).toContainText("unit unverified");
+  await expect(row).toContainText(
+    "Unverified reading · not used for live status",
+  );
+  await expect(row).toContainText("unknown");
+  await expect(row).not.toContainText("Receiving");
+  await expect
+    .poll(() =>
+      requests.some(
+        (r) =>
+          r.procedure === "readings.getLatestBatch" &&
+          r.input.scope === "unknown",
+      ),
+    )
+    .toBe(true);
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
+  await page.getByLabel("Evidence scope").selectOption("unknown");
+  await expect(row).toContainText(
+    "Unverified reading · not used for live status",
+  );
+});
+
+test("Monitoring keeps operational readings ahead of unverified samples", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page, false, {
+    floor: "normal",
+    telemetry: "verified",
+  });
+  await page.goto("/#/monitoring");
+  const row = page.locator("article").filter({ hasText: "WROVER sensor" });
+  await expect(row).toContainText("22");
+  await expect(row).not.toContainText("Unverified reading");
+  expect(
+    requests.filter(
+      (r) =>
+        r.procedure === "readings.getLatestBatch" &&
+        r.input.scope === "unknown",
+    ),
+  ).toHaveLength(0);
+});
+
+test("Demo monitoring never requests private unverified observations", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page, true, {
+    floor: "normal",
+    telemetry: "unverified",
+  });
+  await page.goto("/#/monitoring");
+  const row = page.locator("article").filter({ hasText: "Demo sensor" });
+  await expect(row).toContainText("No observations in this evidence scope");
+  await expect(row).not.toContainText("20.7");
+  expect(
+    requests.filter(
+      (r) =>
+        r.procedure === "readings.getLatestBatch" &&
+        r.input.scope === "unknown",
+    ),
+  ).toHaveLength(0);
+});
+
+test("WROVER details show received unverified data instead of a false offline claim", async ({
+  page,
+}) => {
+  await workspaceFixture(page, false, {
+    floor: "normal",
+    telemetry: "unverified",
+  });
+  await page.goto("/#/devices/13");
+  await expect(
+    page.getByRole("heading", { name: "WROVER sensor" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Unverified reading · not used for live status"),
+  ).toBeVisible();
+  await expect(page.getByText("20.7", { exact: false }).first()).toBeVisible();
+  await expect(page.getByText("WROVER offline", { exact: true })).toHaveCount(
+    0,
+  );
+});
+
+test("Gateway details show an unverified received heartbeat", async ({
+  page,
+}) => {
+  await workspaceFixture(page, false, {
+    floor: "normal",
+    telemetry: "unverified",
+  });
+  await page.goto("/#/devices/6");
+  await expect(
+    page.getByText("Gateway heartbeat", { exact: true }).locator(".."),
+  ).toContainText("unverified");
+});
+
+test("WROVER connectivity does not call unknown status offline", async ({
+  page,
+}) => {
+  await workspaceFixture(page, false, {
+    floor: "normal",
+    telemetry: "unverified",
+  });
+  await page.goto("/#/inventory/device%3A13/connectivity");
+  await expect(page.getByText("WROVER status unverified")).toBeVisible();
+  await expect(page.getByText("WROVER offline", { exact: true })).toHaveCount(
+    0,
+  );
+});
+
+test("WROVER telemetry shows unverified source values outside verified trends", async ({
+  page,
+}) => {
+  await workspaceFixture(page, false, {
+    floor: "normal",
+    telemetry: "unverified",
+  });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  const sample = page
+    .locator("section")
+    .filter({ hasText: "Unverified reading · not used for live status" });
+  await expect(sample).toContainText("20.7");
+  await expect(sample).toContainText("unit unverified");
+  await expect(sample).toContainText("Historical");
+  await page.getByLabel("Evidence scope").selectOption("simulated");
+  await expect(sample).toHaveCount(0);
+  await page.getByLabel("Evidence scope").selectOption("unknown");
+  await expect(sample).toContainText("20.7");
 });

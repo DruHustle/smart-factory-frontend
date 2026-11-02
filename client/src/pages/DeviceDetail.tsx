@@ -55,15 +55,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { canViewEngineering, hasMinimumRole } from "@/lib/access";
 import { getConnectivityRecordId } from "@/lib/device-display";
-
-type DeviceStatus = "online" | "offline" | "maintenance" | "error";
-
-const statusColors: Record<DeviceStatus, string> = {
-  online: "bg-success text-success-foreground",
-  offline: "bg-muted text-muted-foreground",
-  maintenance: "bg-warning text-warning-foreground",
-  error: "bg-destructive text-destructive-foreground",
-};
+import { SampleTime, StatusBadge } from "@/components/workspace/Primitives";
 
 const metricColors = {
   temperature: "var(--series-temperature)",
@@ -206,6 +198,17 @@ export default function DeviceDetail({
       refetchIntervalInBackground: false,
     },
   );
+  const { data: gatewayHistory } = trpc.devices.heartbeatHistory.useQuery(
+    { id: deviceId },
+    {
+      enabled:
+        device?.type === "gateway" &&
+        user?.access?.workspaceView === "live" &&
+        !user?.access?.demoOnly,
+      refetchInterval: documentActive ? 30000 : false,
+      refetchIntervalInBackground: false,
+    },
+  );
   const {
     data: connectedDevices = [],
     isLoading: connectedDevicesLoading,
@@ -280,8 +283,10 @@ export default function DeviceDetail({
     latestSampleAt !== null && Date.now() - latestSampleAt.getTime() <= 120_000;
   const wroverHealth = !isWrover
     ? null
-    : device?.status !== "online" || !wroverSampleFresh
-      ? "offline"
+    : device?.observedStatus !== "live" || !wroverSampleFresh
+      ? device?.observedStatus === "offline"
+        ? "offline"
+        : "unverified"
       : wroverSensorReadError || !wroverGatewayId
         ? "degraded"
         : "healthy";
@@ -362,8 +367,6 @@ export default function DeviceDetail({
     );
   }
 
-  const status = device.status as DeviceStatus;
-
   return (
     <div className="space-y-6">
       {!embedded && <SecuritySummary kind="device" id={device.id} />}
@@ -385,7 +388,7 @@ export default function DeviceDetail({
                   <h1 className="break-words text-2xl font-bold tracking-tight">
                     {device.name}
                   </h1>
-                  <Badge className={statusColors[status]}>{status}</Badge>
+                  <StatusBadge status={device.observedStatus} />
                 </div>
                 <p className="break-words text-sm text-muted-foreground sm:text-base">
                   {getConnectivityRecordId(device)} • {device.zone ?? "No zone"}{" "}
@@ -461,6 +464,16 @@ export default function DeviceDetail({
         </div>
       )}
 
+      {isWrover && wroverHealth === "unverified" && (
+        <div role="status" className="rounded-lg border bg-card p-4">
+          <p className="font-semibold">WROVER status unverified</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            No verified current observation. Review the device commissioning and
+            connection.
+          </p>
+        </div>
+      )}
+
       {isWrover && wroverHealth === "offline" && (
         <div
           role="alert"
@@ -480,6 +493,26 @@ export default function DeviceDetail({
           </div>
         </div>
       )}
+
+      {device.type === "gateway" &&
+        gatewayHistory?.items[0] &&
+        (() => {
+          const heartbeat = gatewayHistory.items[0] as {
+            receivedAt?: string | Date;
+            eligible?: boolean;
+            status?: string;
+          };
+          const receivedAt =
+            heartbeat.receivedAt instanceof Date
+              ? heartbeat.receivedAt.toISOString()
+              : heartbeat.receivedAt;
+          return (
+            <p className="rounded-lg border bg-card p-3 text-sm" role="status">
+              Gateway heartbeat received <SampleTime value={receivedAt} /> ·{" "}
+              {heartbeat.eligible ? "verified" : "unverified"}
+            </p>
+          );
+        })()}
 
       {device.type === "gateway" && (!embedded || section === "connected") && (
         <Card>
@@ -640,11 +673,7 @@ export default function DeviceDetail({
                               Sensor read error
                             </Badge>
                           )}
-                          <Badge
-                            className={`${statusColors[child.status as DeviceStatus]} capitalize`}
-                          >
-                            {child.status}
-                          </Badge>
+                          <StatusBadge status={child.observedStatus} />
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>

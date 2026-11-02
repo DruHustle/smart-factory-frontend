@@ -89,11 +89,54 @@ export default function Monitoring() {
       refetchIntervalInBackground: false,
     },
   );
-  const latest = useMemo(
-    () => new Map(readings.data?.map((r) => [r.deviceId, r])),
-    [readings.data],
+  const showUnverified =
+    user?.access?.workspaceView === "live" &&
+    !user?.access?.demoOnly &&
+    scope === "operational";
+  const missingIds = useMemo(() => {
+    if (!showUnverified || !readings.isSuccess) return [];
+    const known = new Set(readings.data?.map((r) => r.deviceId));
+    return ids.filter((id) => !known.has(id));
+  }, [showUnverified, readings.isSuccess, readings.data, ids.join(",")]);
+  const unverified = trpc.readings.getLatestBatch.useQuery(
+    { deviceIds: missingIds, scope: "unknown" },
+    {
+      enabled: missingIds.length > 0,
+      refetchInterval: active && !paused ? 30_000 : false,
+      refetchIntervalInBackground: false,
+    },
   );
-  const refresh = () => Promise.all([sources.refetch(), readings.refetch()]);
+  const latest = useMemo(() => {
+    const result = new Map(readings.data?.map((r) => [r.deviceId, r]));
+    if (showUnverified)
+      for (const reading of unverified.data ?? [])
+        if (
+          missingIds.includes(reading.deviceId) &&
+          !result.has(reading.deviceId)
+        )
+          result.set(reading.deviceId, reading);
+    return result;
+  }, [readings.data, unverified.data, missingIds, showUnverified]);
+  const isUnverified = (id: number) => {
+    const reading = latest.get(id);
+    const evidence = reading?.integration?.evidence as
+      | { eligible?: boolean }
+      | undefined;
+    const mode = reading?.integration?.mode;
+    return (
+      user?.access?.workspaceView === "live" &&
+      !user?.access?.demoOnly &&
+      mode !== "simulated" &&
+      mode !== "replay" &&
+      evidence?.eligible === false
+    );
+  };
+  const refresh = () =>
+    Promise.all([
+      sources.refetch(),
+      readings.refetch(),
+      ...(missingIds.length ? [unverified.refetch()] : []),
+    ]);
   const renderValues = (id: number) => {
     const r = latest.get(id);
     if (readings.error)
@@ -101,9 +144,12 @@ export default function Monitoring() {
     if (!r)
       return (
         <p className="text-sm text-muted-foreground">
-          {readings.isFetching
+          {readings.isFetching ||
+          (missingIds.includes(id) && unverified.isFetching)
             ? "Loading readings…"
-            : "No observations in this evidence scope"}
+            : missingIds.includes(id) && unverified.error
+              ? "Unverified readings unavailable"
+              : "No observations in this evidence scope"}
         </p>
       );
     const evidence = r.integration?.evidence as { reason?: string } | undefined,
@@ -119,24 +165,31 @@ export default function Monitoring() {
         </p>
       );
     return (
-      <div className="flex flex-wrap gap-x-5 gap-y-2">
-        {available.length ? (
-          available.map((m) => (
-            <div key={m}>
-              <p className="text-xs capitalize text-muted-foreground">{m}</p>
-              <ReceiptChange at={r.timestamp} eligible={currentSample(r)}>
-                <Measurement
-                  value={measurementValue(r, m)}
-                  unit={measurementUnit(r, m)}
-                />
-              </ReceiptChange>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No scalar measurements in this sample
+      <div className="space-y-2">
+        {isUnverified(id) && (
+          <p className="text-xs text-muted-foreground">
+            Unverified reading · not used for live status
           </p>
         )}
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          {available.length ? (
+            available.map((m) => (
+              <div key={m}>
+                <p className="text-xs capitalize text-muted-foreground">{m}</p>
+                <ReceiptChange at={r.timestamp} eligible={currentSample(r)}>
+                  <Measurement
+                    value={measurementValue(r, m)}
+                    unit={measurementUnit(r, m)}
+                  />
+                </ReceiptChange>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No scalar measurements in this sample
+            </p>
+          )}
+        </div>
       </div>
     );
   };
@@ -176,7 +229,11 @@ export default function Monitoring() {
             <Button
               variant="outline"
               aria-label="Refresh monitoring"
-              disabled={sources.isFetching || readings.isFetching}
+              disabled={
+                sources.isFetching ||
+                readings.isFetching ||
+                unverified.isFetching
+              }
               onClick={() => void refresh()}
             >
               <RefreshCw className="size-4" />
@@ -382,6 +439,11 @@ export default function Monitoring() {
               <>
                 <div className="rounded-lg border bg-card p-4">
                   <h2 className="font-semibold">{selected.name}</h2>
+                  {isUnverified(selected.id) && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Unverified reading · not used for live status
+                    </p>
+                  )}
                   <p className="mt-1 text-sm text-muted-foreground">
                     {selected.location ?? selected.deviceId}
                   </p>

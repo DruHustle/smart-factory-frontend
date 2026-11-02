@@ -7,6 +7,7 @@ import { EmptyState, SampleTime } from "./Primitives";
 import type { InventoryItem } from "@shared/inventory";
 import { useWorkspaceLocation } from "@/lib/hashLocation";
 import { metrics, type Metric } from "@shared/measurements";
+import { ObservationValues } from "./ObservationValues";
 export function ItemActivity({ item }: { item: InventoryItem }) {
   const device = trpc.devices.getById.useQuery(
     { id: Number(item.id) },
@@ -108,6 +109,31 @@ export function ItemTelemetry({ item }: { item: InventoryItem }) {
     to - from <= 93 * 86400000;
   return (
     <div className="space-y-3">
+      {item.sampleAt &&
+        item.evidence?.eligible === false &&
+        user?.access?.workspaceView === "live" &&
+        !user?.access?.demoOnly &&
+        item.mode !== "simulated" &&
+        item.mode !== "replay" &&
+        (scope === item.mode ||
+          scope === "all" ||
+          (scope === "operational" && item.mode === "unknown")) && (
+          <section className="space-y-2 rounded-lg border bg-card p-4">
+            <p className="text-sm font-medium">
+              Unverified reading · not used for live status
+            </p>
+            <ObservationValues
+              reading={{
+                ...item.values,
+                measurements: item.measurements,
+                integration: { sourceQuality: item.quality },
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              <SampleTime value={item.sampleAt} historical />
+            </p>
+          </section>
+        )}
       <label className="flex items-center gap-3 text-sm">
         Evidence scope
         <select

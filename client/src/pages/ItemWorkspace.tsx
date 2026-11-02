@@ -329,6 +329,26 @@ function ItemOverview({
   engineering: boolean;
   returnTo: string;
 }) {
+  const { user } = useAuth();
+  const heartbeat = trpc.devices.heartbeatHistory.useQuery(
+    { id: Number(i.id) },
+    {
+      enabled:
+        i.kind === "device" &&
+        i.itemType === "gateway" &&
+        user?.access?.workspaceView === "live" &&
+        !user?.access?.demoOnly,
+      refetchInterval: 30000,
+      refetchIntervalInBackground: false,
+    },
+  );
+  const latestHeartbeat = heartbeat.data?.items[0] as
+    | { receivedAt?: string | Date; eligible?: boolean }
+    | undefined;
+  const heartbeatAt =
+    latestHeartbeat?.receivedAt instanceof Date
+      ? latestHeartbeat.receivedAt.toISOString()
+      : latestHeartbeat?.receivedAt;
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <section className="space-y-4 rounded-lg border bg-card p-5">
@@ -361,6 +381,16 @@ function ItemOverview({
       </section>
       <section className="space-y-4 rounded-lg border bg-card p-5">
         <h2 className="font-semibold">Observed evidence</h2>
+        {i.sampleAt &&
+          i.evidence?.eligible === false &&
+          i.mode !== "simulated" &&
+          i.mode !== "replay" &&
+          user?.access?.workspaceView === "live" &&
+          !user?.access?.demoOnly && (
+            <p className="text-xs text-muted-foreground">
+              Unverified reading · not used for live status
+            </p>
+          )}
         <ObservationValues
           reading={{
             ...i.values,
@@ -379,6 +409,15 @@ function ItemOverview({
               <SampleTime value={i.lastObserved} />
             </dd>
           </div>
+          {latestHeartbeat && (
+            <div>
+              <dt className="text-muted-foreground">Gateway heartbeat</dt>
+              <dd>
+                Received <SampleTime value={heartbeatAt} /> ·{" "}
+                {latestHeartbeat.eligible ? "verified" : "unverified"}
+              </dd>
+            </div>
+          )}
           <div>
             <dt className="text-muted-foreground">Telemetry</dt>
             <dd>
