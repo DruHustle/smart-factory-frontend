@@ -980,13 +980,17 @@ test("Overview design keeps factory, status and summaries in the desktop composi
     status.getByRole("heading", { name: "Needs attention", exact: true }),
   ).toBeVisible();
   const floorBounds = await floor.boundingBox(),
+    floorPanelBounds = await page
+      .locator(".overview-main-grid > div")
+      .boundingBox(),
     statusBounds = await status.boundingBox();
   expect(floorBounds).not.toBeNull();
+  expect(floorPanelBounds).not.toBeNull();
   expect(floorBounds!.width).toBeGreaterThan(700);
   expect(statusBounds!.x).toBeGreaterThanOrEqual(
     floorBounds!.x + floorBounds!.width,
   );
-  expect(Math.abs(statusBounds!.y - floorBounds!.y)).toBeLessThan(2);
+  expect(Math.abs(statusBounds!.y - floorPanelBounds!.y)).toBeLessThan(2);
   await expect(
     page.locator(".overview-kpis").getByRole("link", { name: /Needs review/ }),
   ).toBeVisible();
