@@ -19,7 +19,10 @@ import {
 import { createStudioEnvironment } from "../equipment/studioEnvironment";
 import {
   FactoryScenePreparation,
+  createFactorySprite,
   disposeFactoryScene,
+  deferFactorySceneDisposal,
+  releaseFactorySceneRenderer,
 } from "./factory-scene-preparation";
 import { floorItemAtRay } from "./floor-picking";
 import {
@@ -91,7 +94,7 @@ function label(text: string, color: string, size = 3.4) {
   ctx.fillText(text.length > 32 ? text.slice(0, 29) + "…" : text, 256, 36, 490);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(
+  const sprite = createFactorySprite(
     new THREE.SpriteMaterial({
       map: texture,
       depthTest: false,
@@ -1614,21 +1617,35 @@ export default function FactoryFloorScene({
         renderer.domElement.removeEventListener("pointerdown", down, true);
         renderer.domElement.removeEventListener("pointerup", up, true);
         renderer.domElement.removeEventListener("webglcontextlost", lost);
-        // Disposing GPU resources preserves the cached CPU references for reuse.
-        connectionLayer.dispose();
-        disposeFactoryScene([scene, ...retired, ...pendingReferences], {
-          materials: [contactMaterial, ...viewerMaterials.values()],
-          textures: [
-            metalGrain,
-            ...viewerTextures.values(),
-            ...(studio ? [studio] : []),
-          ],
-          geometries: [contactGeometry],
-        });
-        pendingReferences.clear();
-        renderer.dispose();
-        renderer.forceContextLoss();
+        // Stop this viewer immediately, then release its owned GPU resources in
+        // yielding batches so a new route (or another viewer) can paint first.
         renderer.domElement.remove();
+        function* roots() {
+          yield scene;
+          yield* retired;
+          yield* pendingReferences;
+        }
+        function* materials() {
+          yield contactMaterial;
+          yield* viewerMaterials.values();
+        }
+        function* textures() {
+          yield metalGrain;
+          yield* viewerTextures.values();
+          if (studio) yield studio;
+        }
+        void deferFactorySceneDisposal(
+          roots(),
+          {
+            materials: materials(),
+            textures: textures(),
+            geometries: [contactGeometry],
+          },
+          () => {
+            pendingReferences.clear();
+            releaseFactorySceneRenderer(renderer);
+          },
+        );
       };
     }
     return () => {
