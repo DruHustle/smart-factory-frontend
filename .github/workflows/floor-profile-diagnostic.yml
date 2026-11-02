@@ -1,0 +1,119 @@
+name: Diagnostic only - hosted factory floor profiling
+
+# Instrumented runtime: never a deployment or an exact-revision release gate.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/floor-profile-diagnostic.yml'
+      - 'scripts/qualification/floor-profile-prepare.py'
+      - 'scripts/qualification/floor-profile-browser.ts'
+      - 'scripts/qualification/floor-profile-report.py'
+      - 'scripts/qualification/floor-ab-prepare.py'
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    name: Diagnostic only - instrumented 0ff factory cases
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out diagnostic tools
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: diagnostic
+          persist-credentials: false
+      - name: Check out the exact candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 0ffb7ce8ecfc0c17ac4070442f9ca489a3abaac5
+          path: candidate
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Verify revision and original test limits
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = 0ffb7ce8ecfc0c17ac4070442f9ca489a3abaac5
+          test -z "$(git -C candidate status --porcelain --untracked-files=no)"
+          grep -Fq 'timeout: 60000' candidate/playwright.experience.config.ts
+          grep -Fq 'retries: 0' candidate/playwright.experience.config.ts
+          grep -Fq '{ timeout: 30000 }' candidate/e2e/overview.spec.ts
+      - name: Install dependencies and browser
+        working-directory: candidate
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Instrument fingerprint-checked temporary source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 diagnostic/scripts/qualification/floor-profile-prepare.py candidate \
+            diagnostic/scripts/qualification/floor-profile-browser.ts
+          python3 diagnostic/scripts/qualification/floor-ab-prepare.py candidate
+          modified=$'client/src/components/workspace/FactoryFloorScene.tsx\nclient/src/components/workspace/factory-scene-preparation.ts\ne2e/overview.spec.ts\nscripts/experience/e2e.sh'
+          test "$(git -C candidate diff --name-only)" = "$modified"
+          test "$(git -C candidate ls-files --others --exclude-standard)" = client/src/components/workspace/factory-profile-diagnostic.ts
+          git -C candidate diff --quiet HEAD -- playwright.experience.config.ts
+      - name: Run original factory cases with diagnostic timing
+        shell: bash
+        env:
+          DOTENV_CONFIG_PATH: /dev/null
+          FLOOR_GREP: 'Overview graphics whole factory (390|1440)px (light|dark)'
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]]
+          umask 077
+          private="$RUNNER_TEMP/floor-profile-private"
+          out="$RUNNER_TEMP/floor-profile-results"
+          mkdir -p "$private" "$out"
+          : > "$private/events.jsonl"
+          project="sf-profile-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          set +e
+          (
+            cd "$GITHUB_WORKSPACE/candidate"
+            FLOOR_PROFILE_EVENTS="$private/events.jsonl" \
+            PLAYWRIGHT_JSON_OUTPUT_FILE="$private/report.json" \
+            EXPERIENCE_DIAGNOSTIC_PROJECT="$project" \
+            EXPERIENCE_E2E_PORT=3123 E2E_DATABASE_PORT=55450 E2E_REDIS_PORT=56400 \
+            OVERVIEW_EVIDENCE_DIR="$private/visual" \
+            pnpm e2e:experience --grep "$FLOOR_GREP" --reporter=json
+          ) > "$private/test.log" 2>&1
+          test_exit=$?
+          set -e
+          cleanup=0
+          (
+            cd "$GITHUB_WORKSPACE/candidate"
+            E2E_DATABASE_PORT=0 E2E_REDIS_PORT=0 \
+              docker compose --env-file /dev/null -p "$project" \
+              -f docker-compose.e2e.yml down --volumes --remove-orphans
+          ) > "$private/cleanup.log" 2>&1 || cleanup=1
+          for type in container network volume; do
+            if [ "$type" = container ]; then
+              remaining="$(docker container ls -aq --filter "label=com.docker.compose.project=$project")" || cleanup=1
+            else
+              remaining="$(docker "$type" ls -q --filter "label=com.docker.compose.project=$project")" || cleanup=1
+            fi
+            test -z "$remaining" || cleanup=1
+          done
+          printf '%s\t%s\n' "$test_exit" "$cleanup" > "$private/status.tsv"
+          # Raw events, reports, logs, screenshots, video and traces remain private.
+          python3 diagnostic/scripts/qualification/floor-profile-report.py \
+            "$private/events.jsonl" "$private/report.json" "$private/status.tsv" "$out/summary.json"
+      - name: Retain sanitized numeric and category summary only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: floor-profile-diagnostic-numeric
+          path: ${{ runner.temp }}/floor-profile-results/summary.json
+          if-no-files-found: warn
+          retention-days: 7
