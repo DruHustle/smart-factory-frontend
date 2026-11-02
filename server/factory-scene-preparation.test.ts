@@ -182,6 +182,8 @@ describe("factory scene graphics preparation", () => {
     ]);
     expect(compileAsync).toHaveBeenCalledTimes(2);
     expect(activated[1] - activated[0]).toBeGreaterThanOrEqual(16);
+    // A completed presentation turn serves both adjacent activations.
+    expect(activated[1] - activated[0]).toBeLessThanOrEqual(32);
     const anotherViewer = new FactoryScenePreparation(
       { compileAsync },
       new THREE.Camera(),
@@ -192,6 +194,69 @@ describe("factory scene graphics preparation", () => {
     await vi.runAllTimersAsync();
     expect(await otherViewerModel).toBe(true);
     expect(compileAsync).toHaveBeenCalledTimes(3);
+  });
+
+  it("shares one presentation turn between queued cached references", async () => {
+    const events: string[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+      setTimeout(() => {
+        events.push("frame");
+        callback(performance.now());
+      }, 16),
+    );
+    const preparation = new FactoryScenePreparation(
+      { compileAsync: vi.fn(async (object: THREE.Object3D) => object) },
+      new THREE.Camera(),
+      new THREE.Scene(),
+      Promise.resolve(),
+    );
+    const pending = [1, 2, 3].map((index) =>
+      preparation.enqueue(() => {
+        events.push(`build ${index}`);
+        return {
+          object: new THREE.Group(),
+          activate: () => events.push(`activate ${index}`),
+        };
+      }, "same"),
+    );
+    await vi.runAllTimersAsync();
+    expect(await Promise.all(pending)).toEqual([true, true, true]);
+    expect(events).toEqual([
+      "frame",
+      "build 1",
+      "frame",
+      "activate 1",
+      "frame",
+      "build 2",
+      "activate 2",
+      "frame",
+      "build 3",
+      "activate 3",
+      "frame",
+    ]);
+  });
+
+  it("settles queued work without another attachment when disposed during a trailing frame", async () => {
+    const activate = vi.fn();
+    const buildSecond = vi.fn(() => ({ object: new THREE.Group(), activate }));
+    const preparation = new FactoryScenePreparation(
+      { compileAsync: vi.fn(async (object: THREE.Object3D) => object) },
+      new THREE.Camera(),
+      new THREE.Scene(),
+      Promise.resolve(),
+    );
+    const first = preparation.enqueue(
+      () => ({ object: new THREE.Group(), activate }),
+      "same",
+    );
+    const second = preparation.enqueue(buildSecond, "same");
+    await vi.advanceTimersByTimeAsync(40);
+    expect(activate).toHaveBeenCalledOnce();
+    expect(buildSecond).not.toHaveBeenCalled();
+    preparation.dispose();
+    await vi.runAllTimersAsync();
+    expect(await Promise.all([first, second])).toEqual([false, false]);
+    expect(buildSecond).not.toHaveBeenCalled();
   });
 
   it("retries a reference when its earlier shader preparation failed", async () => {
@@ -214,6 +279,71 @@ describe("factory scene graphics preparation", () => {
     expect(await retried).toBe(true);
     expect(compileAsync).toHaveBeenCalledTimes(2);
     expect(activate).toHaveBeenCalledOnce();
+  });
+
+  it("yields before a new idle burst and after a failed queued task", async () => {
+    const starts: { name: string; at: number }[] = [];
+    const preparation = new FactoryScenePreparation(
+      { compileAsync: vi.fn(async (object: THREE.Object3D) => object) },
+      new THREE.Camera(),
+      new THREE.Scene(),
+      Promise.resolve(),
+    );
+    const build =
+      (name: string, fail = false) =>
+      () => {
+        starts.push({ name, at: Date.now() });
+        if (fail) throw Error("Synthetic preparation failure");
+        return { object: new THREE.Group(), activate: () => {} };
+      };
+    const first = preparation.enqueue(build("first"), "same");
+    const broken = preparation
+      .enqueue(build("broken", true), "same")
+      .catch(() => false);
+    const third = preparation.enqueue(build("third"), "same");
+    await vi.runAllTimersAsync();
+    expect(await Promise.all([first, broken, third])).toEqual([
+      true,
+      false,
+      true,
+    ]);
+    expect(starts[2].at - starts[1].at).toBeGreaterThanOrEqual(16);
+    const idleStart = Date.now();
+    const next = preparation.enqueue(build("after idle"), "same");
+    await vi.runAllTimersAsync();
+    expect(await next).toBe(true);
+    expect(starts[3].at - idleStart).toBeGreaterThanOrEqual(16);
+  });
+
+  it("does not reuse an old turn if a new burst's frame request fails", async () => {
+    const preparation = new FactoryScenePreparation(
+      { compileAsync: vi.fn(async (object: THREE.Object3D) => object) },
+      new THREE.Camera(),
+      new THREE.Scene(),
+      Promise.resolve(),
+    );
+    const build = () => ({ object: new THREE.Group(), activate: () => {} });
+    const initial = preparation.enqueue(build, "same");
+    await vi.runAllTimersAsync();
+    expect(await initial).toBe(true);
+    let failed = false;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      if (!failed) {
+        failed = true;
+        throw Error("Synthetic frame failure");
+      }
+      return setTimeout(() => callback(performance.now()), 16);
+    });
+    const start = Date.now();
+    const broken = preparation.enqueue(build, "same").catch(() => false);
+    let nextBuiltAt = 0;
+    const next = preparation.enqueue(() => {
+      nextBuiltAt = Date.now();
+      return build();
+    }, "same");
+    await vi.runAllTimersAsync();
+    expect(await Promise.all([broken, next])).toEqual([false, true]);
+    expect(nextBuiltAt - start).toBeGreaterThanOrEqual(16);
   });
 
   it.each(["environment", "compile"])(
