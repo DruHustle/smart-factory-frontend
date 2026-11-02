@@ -367,6 +367,8 @@ jobs:
         with: { version: 10.34.5 }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with: { node-version: 22, cache: pnpm }
+      - name: Verify diagnostic output privacy
+        run: node --test scripts/qualification/hosted-inventory-reporter.test.cjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - name: Measure one unchanged synthetic inventory journey
