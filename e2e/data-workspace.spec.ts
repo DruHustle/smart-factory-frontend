@@ -579,6 +579,10 @@ async function workspaceFixture(
               .map((item) => ({
                 id: Number(item.id),
                 name: item.name,
+                deviceId: item.identifier,
+                type: "gateway",
+                isDemo: demo,
+                status: "offline",
                 observedStatus: "unknown",
                 lastSeen: null,
               })),
@@ -659,6 +663,147 @@ async function workspaceFixture(
   });
   return requests;
 }
+
+test("Data workspace stays consistent across two open tabs in both directions", async ({
+  page,
+  context,
+}) => {
+  const other = await context.newPage();
+  const requests = await workspaceFixture(page);
+  const otherRequests = await workspaceFixture(other);
+  const errors: string[] = [];
+  for (const tab of [page, other])
+    tab.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/#/monitoring?selected=6");
+  await other.goto("/#/");
+  const selector = (tab: Page) =>
+    tab.getByRole("combobox", { name: "Data workspace", exact: true });
+  await expect(selector(page)).toHaveValue("live");
+  await expect(
+    page.getByText("Live system 06", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(selector(other)).toHaveValue("live");
+
+  let reconciliations = 0;
+  page.on("request", (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame())
+      reconciliations++;
+  });
+  await selector(other).selectOption("demo");
+  await expect(selector(page)).toHaveValue("demo");
+  await expect(selector(other)).toHaveValue("demo");
+  expect(new URL(page.url()).hash).toBe("#/");
+  expect(reconciliations).toBe(1);
+
+  // Reopen the same workspace that exhibited the production defect. The old
+  // Live rows and selected source must not survive its cache/auth reset.
+  await page.goto("/#/monitoring");
+  await expect(
+    page.getByText("Demo system 06", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("Live system 06", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("button", { name: "Refresh monitoring", exact: true }),
+  ).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Refresh monitoring", exact: true })
+    .click();
+  await expect(selector(page)).toHaveValue("demo");
+  await expect(
+    page.getByText("Demo system 06", { exact: true }).first(),
+  ).toBeVisible();
+
+  reconciliations = 0;
+  await selector(other).selectOption("live");
+  await expect(selector(page)).toHaveValue("live");
+  await expect(selector(other)).toHaveValue("live");
+  expect(new URL(page.url()).hash).toBe("#/");
+  expect(reconciliations).toBe(1);
+  await page.goto("/#/monitoring");
+  await expect(
+    page.getByText("Live system 06", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("Demo system 06", { exact: true })).toHaveCount(
+    0,
+  );
+  expect(
+    requests.filter((request) => request.procedure === "auth.me").length,
+  ).toBeGreaterThanOrEqual(3);
+  expect(
+    otherRequests.filter((request) => request.procedure === "auth.me").length,
+  ).toBeGreaterThanOrEqual(3);
+  expect(errors).toEqual([]);
+});
+
+test("Data workspace request guard reconciles a tab that missed notifications and focus", async ({
+  page,
+  context,
+}) => {
+  // Model a suspended/restricted tab that did not receive either notification
+  // mechanism or a focus callback. Its next real UI query must detect the
+  // cookie change without relying on any of those events.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    });
+    const addWindowListener = window.addEventListener.bind(window);
+    window.addEventListener = ((type: string, ...args: any[]) => {
+      if (["storage", "focus", "pageshow"].includes(type)) return;
+      (addWindowListener as any)(type, ...args);
+    }) as typeof window.addEventListener;
+    const addDocumentListener = document.addEventListener.bind(document);
+    document.addEventListener = ((type: string, ...args: any[]) => {
+      if (type === "visibilitychange") return;
+      (addDocumentListener as any)(type, ...args);
+    }) as typeof document.addEventListener;
+  });
+  const other = await context.newPage();
+  const requests = await workspaceFixture(page);
+  await workspaceFixture(other);
+  await page.goto("/#/monitoring");
+  const selector = page.getByRole("combobox", {
+    name: "Data workspace",
+    exact: true,
+  });
+  await expect(selector).toHaveValue("live");
+  await expect(
+    page.getByText("Live system 06", { exact: true }).first(),
+  ).toBeVisible();
+  // Avoid the 30-second poll racing this deliberate missed-event fixture.
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await other.goto("/#/");
+  await other
+    .getByRole("combobox", { name: "Data workspace", exact: true })
+    .selectOption("demo");
+  await expect(
+    other.getByRole("combobox", { name: "Data workspace", exact: true }),
+  ).toHaveValue("demo");
+  await expect(selector).toHaveValue("live");
+  const previousReads = requests.filter(
+    (request) => request.procedure === "devices.monitor",
+  ).length;
+
+  await page
+    .getByRole("button", { name: "Refresh monitoring", exact: true })
+    .click();
+  await expect(selector).toHaveValue("demo");
+  expect(new URL(page.url()).hash).toBe("#/");
+  // The stale Monitoring document must not send another inventory request in
+  // the new cookie scope. The replacement document starts at Overview.
+  expect(
+    requests.filter((request) => request.procedure === "devices.monitor"),
+  ).toHaveLength(previousReads);
+  await page.goto("/#/monitoring");
+  await expect(
+    page.getByText("Demo system 06", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("Live system 06", { exact: true })).toHaveCount(
+    0,
+  );
+});
 
 for (const width of [390, 1440]) {
   test(`Overview graphics data modes: individual switches both ways and persists at ${width}px`, async ({
@@ -1310,8 +1455,8 @@ for (const width of [390, 1440]) {
   });
 }
 
-for (const width of [375, 390, 430, 768, 1440]) {
-  test(`Overview KPI cards fill their final row without an empty mobile cell at ${width}px`, async ({
+for (const width of [320, 375, 390, 430, 768, 1440]) {
+  test(`Overview keeps compact controls and complete KPI rows at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 960 });
@@ -1328,6 +1473,110 @@ for (const width of [375, 390, 430, 768, 1440]) {
     expect(
       Math.abs(last!.x + last!.width - grid!.x - grid!.width),
     ).toBeLessThan(2);
+    const cardRows = await cards.evaluateAll((elements) => [
+      ...new Set(
+        elements.map((element) =>
+          Math.round(element.getBoundingClientRect().y),
+        ),
+      ),
+    ]);
+    expect(cardRows).toHaveLength(width < 360 ? 3 : width < 1280 ? 2 : 1);
+    if (width >= 360 && width < 768)
+      expect(grid!.height).toBeLessThanOrEqual(184);
+    expect(
+      await cards.evaluateAll((elements) =>
+        elements.every((element) => element.scrollWidth <= element.clientWidth),
+      ),
+    ).toBe(true);
+    if (width < 768) {
+      const controls = [
+        page.getByLabel("Active factory", { exact: true }),
+        page.getByLabel("Overview time range", { exact: true }),
+        page.getByRole("button", { name: "Refresh overview", exact: true }),
+      ];
+      const boxes = await Promise.all(
+        controls.map((control) => control.boundingBox()),
+      );
+      for (const box of boxes) {
+        expect(box).toBeTruthy();
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+        expect(box!.width).toBeGreaterThanOrEqual(44);
+        expect(Math.abs(box!.y - boxes[0]!.y)).toBeLessThan(2);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      }
+      for (const select of controls.slice(0, 2)) {
+        expect(
+          await select.evaluate(
+            (element) => getComputedStyle(element).fontSize,
+          ),
+        ).toBe("16px");
+      }
+      const emptyAttention = page.locator(".overview-attention-empty");
+      await expect(emptyAttention).toContainText("No open process incidents.");
+      expect((await emptyAttention.boundingBox())!.height).toBeLessThanOrEqual(
+        100,
+      );
+      expect(
+        (await emptyAttention
+          .getByRole("link", { name: "View alerts" })
+          .boundingBox())!.height,
+      ).toBeGreaterThanOrEqual(44);
+      const operations = page.getByTestId("ot-operations");
+      const metrics = operations.locator(".operations-metrics > button");
+      await expect(metrics).toHaveCount(4);
+      const metricRows = await metrics.evaluateAll((elements) => [
+        ...new Set(
+          elements.map((element) =>
+            Math.round(element.getBoundingClientRect().y),
+          ),
+        ),
+      ]);
+      expect(metricRows).toHaveLength(width < 360 ? 4 : 2);
+      await expect(operations).toContainText(
+        "Production boundary and shifts are not configured.",
+      );
+      const setupDetails = operations.locator("details").filter({
+        has: page.locator("summary", { hasText: "Setup details" }),
+      });
+      await expect(setupDetails).not.toHaveAttribute("open");
+      await setupDetails.locator("summary").focus();
+      await setupDetails.locator("summary").press("Enter");
+      await expect(setupDetails).toContainText("UTC defaults are provisional.");
+      await expect(setupDetails).toHaveAttribute("open", "");
+      const configure = operations.getByRole("button", {
+        name: "Configure operations",
+        exact: true,
+      });
+      expect((await configure.boundingBox())!.height).toBeGreaterThanOrEqual(
+        44,
+      );
+      await configure.click();
+      await expect(
+        operations.getByRole("button", { name: "Settings", exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
+    }
+    if (width === 390) {
+      const actions = page.getByRole("button", {
+        name: "Factory actions",
+        exact: true,
+      });
+      await actions.focus();
+      await actions.press("Enter");
+      await page
+        .getByRole("menuitem", { name: "Create factory", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", {
+        name: "Create a factory",
+        exact: true,
+      });
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByLabel("Factory name", { exact: true }),
+      ).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(dialog).not.toBeVisible();
+      await expect(actions).toBeFocused();
+    }
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -1647,6 +1896,7 @@ test("Overview requests severity priority and puts attention before the floor on
 test("Overview reports unavailable summaries instead of false zero counts", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
   await workspaceFixture(page, false, { floor: "normal", summary: "error" });
   await page.goto("/#/");
   const cards = page.locator(".overview-kpis");
@@ -1659,6 +1909,13 @@ test("Overview reports unavailable summaries instead of false zero counts", asyn
   await expect(
     cards.getByRole("link", { name: /^Unread notifications\s+Unavailable$/ }),
   ).toBeVisible();
+  expect(
+    await cards
+      .locator(".overview-kpi")
+      .evaluateAll((elements) =>
+        elements.every((element) => element.scrollWidth <= element.clientWidth),
+      ),
+  ).toBe(true);
 });
 
 test("Overview does not claim priority ordering with an older API", async ({

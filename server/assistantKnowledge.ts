@@ -7,6 +7,7 @@ import {
   metrics,
   measurementValue,
   measurementUnit,
+  sampleValidity,
 } from "../shared/measurements";
 import {
   demoDataEnabled,
@@ -480,6 +481,8 @@ async function buildLiveContext(
               reading.integration?.sourceQuality ?? "unknown",
             ),
             eligibility: reading.integration?.evidence ?? null,
+            sourceContinuity: reading.sourceContinuity ?? null,
+            validity: sampleValidity(reading),
             measurements: metrics
               .filter((m) => reading[m] != null || reading.measurements?.[m])
               .map((m) => ({
@@ -996,7 +999,7 @@ export async function answerFactoryQuestion(
       contextAt: new Date().toISOString(),
     };
   }
-  if (terms.length === 0)
+  if (terms.length === 0 && !options.investigationEvidence)
     return {
       answer:
         "Please include an asset, device, incident, workflow, or system feature in your question.",
@@ -1017,9 +1020,12 @@ export async function answerFactoryQuestion(
       options.factoryId,
     ),
   ]);
-  const explanation =
-    freshnessGuideAnswer(plan, sections) ??
-    (plan.concept ? conceptAnswer(plan, sections) : null);
+  // An explicit source/window has already been authorized and loaded. A topic
+  // word such as "gateway" must not replace that investigation with a glossary.
+  const explanation = options.investigationEvidence
+    ? null
+    : (freshnessGuideAnswer(plan, sections) ??
+      (plan.concept ? conceptAnswer(plan, sections) : null));
   if (explanation)
     return {
       answer: explanation.answer,

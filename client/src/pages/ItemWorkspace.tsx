@@ -1,4 +1,3 @@
-import { currentSample } from "@shared/measurements";
 import { LinkedModelPreview } from "@/components/workspace/OverviewGraphics";
 import { ObservationValues } from "@/components/workspace/ObservationValues";
 import DeviceActions from "@/components/workspace/DeviceActions";
@@ -230,8 +229,7 @@ export default function ItemWorkspace() {
         </Badge>
         <span>{i.route}</span>
         <span>
-          Sample:{" "}
-          <SampleTime value={i.sampleAt} historical={!currentSample(i)} />
+          Sample reported: <SampleTime value={i.sampleAt} />
         </span>
         {i.lifecycle && (
           <span className="capitalize">Lifecycle: {i.lifecycle}</span>
@@ -458,8 +456,8 @@ function ItemOverview({
           <div>
             <dt className="text-muted-foreground">Telemetry</dt>
             <dd>
-              <SampleTime value={i.sampleAt} historical={!currentSample(i)} /> ·{" "}
-              {i.quality} quality
+              Sample reported <SampleTime value={i.sampleAt} /> · {i.quality}{" "}
+              quality
             </dd>
           </div>
         </dl>

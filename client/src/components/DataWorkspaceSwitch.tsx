@@ -8,6 +8,10 @@ import {
 } from "@shared/data-workspace";
 import { Button } from "@/components/ui/button";
 import {
+  announceDataWorkspaceChange,
+  dataWorkspaceIsCurrent,
+} from "@/lib/data-workspace-sync";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -37,7 +41,7 @@ export function DataWorkspaceSwitch() {
         }
         className="h-9 w-40 shrink-0 rounded-md border border-input bg-card px-2 text-xs"
         onChange={(e) => {
-          if (!canSwitch) return;
+          if (!canSwitch || !dataWorkspaceIsCurrent()) return;
           const workspace = e.target.value;
           if (workspace !== "demo" && workspace !== "live") return;
           setSwitching(true);
@@ -49,14 +53,7 @@ export function DataWorkspaceSwitch() {
             );
             return;
           }
-          // Replace stale item/3D filters before one full reload. Scheduling a
-          // navigation and a reload together could cancel either operation and
-          // leave authentication, cached queries and the selected view at odds.
-          const overview = new URL(window.location.href);
-          overview.search = "";
-          overview.hash = "/";
-          window.history.replaceState(null, "", overview);
-          window.location.reload();
+          announceDataWorkspaceChange();
         }}
       >
         {canSwitch && user?.access?.workspaceView === "configured" && (

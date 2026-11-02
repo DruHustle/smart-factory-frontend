@@ -14,6 +14,7 @@ import {
   canonicalUnits,
   metrics,
   convertMeasurement,
+  sampleValidity,
   type Metric,
 } from "../shared/measurements";
 import type { AssistantRuntime } from "./assistantKnowledge";
@@ -155,7 +156,12 @@ export async function buildAssistantPresentation(
           receivedAt: observed.receivedAt,
           source: asset.latestObservation!.sourceDeviceId,
           quality: measurement.quality,
-          freshness: "unknown",
+          freshness: sampleValidity({
+            timestamp: occurred,
+            mode: observed.mode,
+            evidence: observed.eligibility,
+            sourceContinuity: observed.sourceContinuity,
+          }).state,
         },
         sourceNumbers: sourceNumber ? [sourceNumber] : [],
       };
@@ -224,20 +230,6 @@ export async function buildAssistantPresentation(
             });
             result.trend.sourceNumbers.push(sources.length);
           }
-          const evidence = observed.eligibility as {
-            eligible?: boolean;
-            validForMs?: number;
-          } | null;
-          const age = Date.now() - occurred,
-            validFor = evidence?.validForMs;
-          result.trend.latest.freshness =
-            validFor && Number.isFinite(validFor) && age >= 0
-              ? evidence?.eligible &&
-                observed.mode === "live" &&
-                age <= validFor
-                ? "current"
-                : "stale"
-              : "unknown";
         }
       } catch {}
     }

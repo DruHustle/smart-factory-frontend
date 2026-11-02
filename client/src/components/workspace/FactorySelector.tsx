@@ -1,7 +1,13 @@
-import { useState } from "react";
-import { Factory, Plus } from "lucide-react";
+import { useRef, useState } from "react";
+import { Factory, MoreHorizontal, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -12,8 +18,11 @@ import {
 import { useFactoryDirectory } from "@/lib/named-factory";
 import { namedFactoryDraft } from "@shared/named-factory";
 
-export function FactorySelector() {
+export function FactorySelector({ compact = false }: { compact?: boolean }) {
   const directory = useFactoryDirectory();
+  const mobileActions = useRef<HTMLButtonElement>(null),
+    createAction = useRef<HTMLButtonElement>(null),
+    openedFromMenu = useRef(false);
   const [open, setOpen] = useState(false),
     [name, setName] = useState(""),
     [width, setWidth] = useState(30),
@@ -21,10 +30,36 @@ export function FactorySelector() {
     [busy, setBusy] = useState(false),
     [addingBench, setAddingBench] = useState(false),
     [error, setError] = useState("");
+  const canAddBench =
+    directory.demo &&
+    directory.canEdit &&
+    directory.state &&
+    !directory.piBench;
+  const addPiBench = async () => {
+    if (addingBench) return;
+    setAddingBench(true);
+    try {
+      await directory.addPiBench();
+      toast.success("Pi bench ready in this browser demo.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The Pi bench could not be added.",
+      );
+    } finally {
+      setAddingBench(false);
+    }
+  };
   return (
-    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
-      <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
-        <Factory className="size-4 shrink-0 text-info" aria-hidden />
+    <div
+      className={`factory-selector flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto ${compact ? "factory-selector-compact" : ""}`}
+    >
+      <div className="factory-selector-field flex w-full min-w-0 items-center gap-2 sm:w-auto">
+        <Factory
+          className="factory-selector-icon size-4 shrink-0 text-info"
+          aria-hidden
+        />
         <select
           aria-label="Active factory"
           value={directory.id ?? ""}
@@ -46,9 +81,10 @@ export function FactorySelector() {
         </select>
         {directory.canEdit && (
           <Button
+            ref={createAction}
             variant="outline"
             size="icon"
-            className="size-9 shrink-0"
+            className="factory-selector-inline-action size-9 shrink-0"
             aria-label="Create factory"
             title="Create factory"
             onClick={() => setOpen(true)}
@@ -57,36 +93,70 @@ export function FactorySelector() {
           </Button>
         )}
       </div>
-      {directory.demo &&
-        directory.canEdit &&
-        directory.state &&
-        !directory.piBench && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={addingBench}
-            onClick={async () => {
-              if (addingBench) return;
-              setAddingBench(true);
-              try {
-                await directory.addPiBench();
-                toast.success("Pi bench ready in this browser demo.");
-              } catch (error) {
-                toast.error(
-                  error instanceof Error
-                    ? error.message
-                    : "The Pi bench could not be added.",
-                );
-              } finally {
-                setAddingBench(false);
-              }
+      {canAddBench && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="factory-selector-inline-action"
+          disabled={addingBench}
+          onClick={() => void addPiBench()}
+        >
+          {addingBench ? "Adding Pi bench…" : "Add Pi bench"}
+        </Button>
+      )}
+      {compact && directory.canEdit && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              ref={mobileActions}
+              className="factory-selector-mobile-actions hidden"
+              variant="outline"
+              size="icon"
+              aria-label="Factory actions"
+            >
+              <MoreHorizontal className="size-4" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            onCloseAutoFocus={(event) => {
+              if (open) event.preventDefault();
             }}
           >
-            {addingBench ? "Adding Pi bench…" : "Add Pi bench"}
-          </Button>
-        )}
+            <DropdownMenuItem
+              className="min-h-11"
+              onSelect={() => {
+                openedFromMenu.current = true;
+                setOpen(true);
+              }}
+            >
+              <Plus className="size-4" aria-hidden />
+              Create factory
+            </DropdownMenuItem>
+            {canAddBench && (
+              <DropdownMenuItem
+                className="min-h-11"
+                disabled={addingBench}
+                onSelect={() => void addPiBench()}
+              >
+                {addingBench ? "Adding Pi bench…" : "Add Pi bench"}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent
+          onCloseAutoFocus={(event) => {
+            if (!openedFromMenu.current) return;
+            event.preventDefault();
+            openedFromMenu.current = false;
+            const target = mobileActions.current?.getClientRects().length
+              ? mobileActions.current
+              : createAction.current;
+            target?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Create a factory</DialogTitle>
             <DialogDescription>

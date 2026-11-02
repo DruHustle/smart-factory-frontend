@@ -415,10 +415,7 @@ export default function Monitoring() {
                   <div>{renderValues(d.id)}</div>
                   <div className="space-y-1 text-xs lg:col-span-3">
                     <p>
-                      <SampleTime
-                        value={r?.timestamp}
-                        historical={!r || !currentSample(r)}
-                      />
+                      Sample reported <SampleTime value={r?.timestamp} />
                     </p>
                     <ObservationValidity reading={r} />
                     <p className="capitalize text-muted-foreground">
@@ -460,10 +457,7 @@ export default function Monitoring() {
                         Sample acquisition
                       </dt>
                       <dd>
-                        <SampleTime
-                          value={selectedReading?.timestamp}
-                          historical
-                        />
+                        <SampleTime value={selectedReading?.timestamp} />
                       </dd>
                     </div>
                     <div>

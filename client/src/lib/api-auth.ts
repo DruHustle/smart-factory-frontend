@@ -11,6 +11,7 @@ import type { User } from "../../../drizzle/schema";
 import type { AppRouter } from "../../../server/routers";
 import { userFacingApiError } from "./errors";
 import type { AccountCapabilities } from "@shared/access-policy";
+import { fetchInDataWorkspace } from "./data-workspace-sync";
 export type PublicUser = Omit<User, "password" | "authVersion"> & {
   access?: AccountCapabilities;
 };
@@ -36,12 +37,7 @@ const trpcAuthClient = createTRPCProxyClient<AppRouter>({
     httpBatchLink({
       url: getTRPCUrl(),
       transformer: superjson,
-      fetch(input, init) {
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          credentials: "include",
-        });
-      },
+      fetch: fetchInDataWorkspace,
     }),
   ],
 });

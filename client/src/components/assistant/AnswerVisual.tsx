@@ -69,9 +69,13 @@ export function AnswerVisual({
             {trend.latest.quality} ·{" "}
             {trend.latest.freshness === "current"
               ? "Within the source freshness policy"
-              : trend.latest.freshness === "stale"
-                ? "Historical / stale observation"
-                : "Current freshness not established"}
+              : trend.latest.freshness === "held"
+                ? "Valid held value · on-change acquisition; keepalives do not update the sample time"
+                : trend.latest.freshness === "stale"
+                  ? "Sample validity expired"
+                  : trend.latest.freshness === "unverified"
+                    ? "Current validity unverified · review source continuity and commissioning"
+                    : "Current freshness not established"}
           </p>
           {trend.snapshot ? (
             <ObservationTrend

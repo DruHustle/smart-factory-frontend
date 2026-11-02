@@ -112,4 +112,44 @@ describe("investigation handoff", () => {
       ),
     ).toEqual([]);
   });
+  it("retains visible earlier turns while excluding them from a new source's request", () => {
+    const first = {
+      owner: "source-handoff",
+      generation: 1,
+      draft: "",
+      selectedAssetId: "automatic",
+      selectedAssetName: null,
+      contextRevision: 1,
+      selection: { provider: "auto" },
+      investigation: {
+        deviceId: 1,
+        metric: "temperature",
+        startTime: context.startTime,
+        endTime: context.endTime,
+      },
+      turns: [
+        {
+          id: "old",
+          contextRevision: 1,
+          question: "Source one",
+          submittedAt: "",
+          context: null,
+          request: { question: "Source one", history: [] },
+          status: "complete",
+          result: { answer: "Source one answer", sources: [], contextAt: "" },
+        },
+      ],
+      selectedTurnId: "old",
+      scrollTop: 0,
+      followLatest: true,
+    } as AssistantSession;
+    const second = selectAssistantInvestigation(first, {
+      ...first.investigation,
+      deviceId: 5,
+    });
+    expect(second.investigation?.deviceId).toBe(5);
+    expect(second.contextRevision).toBe(2);
+    expect(second.turns).toHaveLength(1);
+    expect(assistantHistory(second.turns, second.contextRevision)).toEqual([]);
+  });
 });

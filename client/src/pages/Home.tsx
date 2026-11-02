@@ -199,6 +199,11 @@ function LegacyHome() {
       href: "/notifications?view=unread",
     },
   ];
+  const attentionEmpty =
+    incidentPrioritySupported &&
+    !incidents.isLoading &&
+    !incidents.error &&
+    incidents.data?.length === 0;
   return (
     <div
       className="factory-overview space-y-3"
@@ -207,13 +212,13 @@ function LegacyHome() {
       <PageHeader
         title="Overview"
         action={
-          <>
-            <FactorySelector />
+          <div className="overview-controls flex flex-wrap items-center gap-2">
+            <FactorySelector compact />
             <select
               aria-label="Overview time range"
               value={rangeMs === 86400000 ? "24h" : "1h"}
               onChange={(e) => update({ range: e.target.value })}
-              className="workspace-control h-9 w-auto text-xs"
+              className="overview-range workspace-control h-9 w-auto text-xs"
             >
               <option value="1h">Last 60 min</option>
               <option value="24h">Last 24 hours</option>
@@ -221,7 +226,7 @@ function LegacyHome() {
             <Button
               variant="outline"
               size="icon"
-              className="size-9"
+              className="overview-refresh size-9"
               aria-label="Refresh overview"
               onClick={refresh}
               disabled={busy}
@@ -230,7 +235,7 @@ function LegacyHome() {
                 className={`size-4 ${busy ? "motion-safe:animate-spin" : ""}`}
               />
             </Button>
-          </>
+          </div>
         }
       />
       <div className="overview-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
@@ -242,16 +247,16 @@ function LegacyHome() {
             className="overview-kpi flex min-w-0 items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
           >
             <kpi.icon
-              className="size-7 shrink-0 text-info"
+              className="overview-kpi-icon size-7 shrink-0 text-info"
               strokeWidth={1.5}
               aria-hidden
             />
             <span className="min-w-0">
-              <span className="block text-[11px] text-muted-foreground">
+              <span className="overview-kpi-label block text-[11px] text-muted-foreground">
                 {kpi.title}
               </span>
               <strong
-                className={`mt-1 block font-semibold tabular-nums ${String(kpi.value).length > 8 ? "text-sm" : "text-2xl"}`}
+                className={`overview-kpi-value mt-1 block font-semibold tabular-nums ${String(kpi.value).length > 8 ? "overview-kpi-text text-sm" : "text-2xl"}`}
               >
                 {kpi.value}
               </strong>
@@ -264,7 +269,9 @@ function LegacyHome() {
           aria-label="Factory status"
           className="overview-status order-1 min-w-0 xl:order-2"
         >
-          <Card className="overview-panel min-w-0">
+          <Card
+            className={`overview-panel min-w-0 ${attentionEmpty ? "overview-attention-empty" : ""}`}
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock3 className="size-4 text-info" aria-hidden />
@@ -283,7 +290,7 @@ function LegacyHome() {
                   Loading incidents…
                 </p>
               ) : !incidents.data?.length ? (
-                <p className="py-3 text-xs text-muted-foreground">
+                <p className="overview-attention-message py-3 text-xs text-muted-foreground">
                   No open process incidents.
                 </p>
               ) : (
@@ -337,7 +344,7 @@ function LegacyHome() {
               )}
               <Link
                 href="/alerts?status=open"
-                className="mt-auto inline-flex min-h-8 items-center justify-end gap-1 pt-2 text-xs underline"
+                className="overview-alerts-link mt-auto inline-flex min-h-8 items-center justify-end gap-1 pt-2 text-xs underline"
               >
                 View alerts <ArrowRight className="size-3" aria-hidden />
               </Link>

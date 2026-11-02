@@ -174,7 +174,11 @@ export function IncidentInvestigation({
         {conditionSupported && e.conditionEvidence?.occurredAt && (
           <p className="text-xs text-muted-foreground">
             Last verified source state: {e.sourceCondition} ·{" "}
-            {new Date(e.conditionEvidence.occurredAt).toLocaleString()}.
+            <Measurement
+              value={e.conditionEvidence.value}
+              unit={e.conditionEvidence.unit}
+            />{" "}
+            · {new Date(e.conditionEvidence.occurredAt).toLocaleString()}.
             {e.conditionValidUntil
               ? ` Validity ends ${new Date(e.conditionValidUntil).toLocaleString()}.`
               : ""}
@@ -207,7 +211,9 @@ export function IncidentInvestigation({
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">
-                Latest observed value
+                {e.type === "threshold_exceeded"
+                  ? "Last breach value"
+                  : "Recorded incident value"}
               </dt>
               <dd className="mt-1 font-semibold">
                 <Measurement value={e.value} unit={evidence?.unit ?? null} />
@@ -215,7 +221,7 @@ export function IncidentInvestigation({
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">
-                Configured threshold
+                Threshold recorded with incident
               </dt>
               <dd className="mt-1 font-semibold">
                 <Measurement
@@ -226,7 +232,9 @@ export function IncidentInvestigation({
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">
-                Last observation
+                {e.type === "threshold_exceeded"
+                  ? "Last breach observation"
+                  : "Last incident observation"}
               </dt>
               <dd className="mt-1">
                 <SampleTime
@@ -460,14 +468,17 @@ export function IncidentInvestigation({
             </label>
           )}
           <div className="flex flex-wrap gap-2">
-            {canRespond && e.status === "active" && (
-              <Button
-                disabled={busy}
-                onClick={() => ack.mutate({ id, status: "acknowledged" })}
-              >
-                Acknowledge
-              </Button>
-            )}
+            {canRespond &&
+              (conditionSupported
+                ? !e.acknowledged
+                : e.status === "active") && (
+                <Button
+                  disabled={busy}
+                  onClick={() => ack.mutate({ id, status: "acknowledged" })}
+                >
+                  Acknowledge
+                </Button>
+              )}
             {canManage && e.status !== "resolved" && (
               <>
                 {!e.downtimeStartedAt && (

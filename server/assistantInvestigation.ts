@@ -15,7 +15,7 @@ import { snapshot as factorySnapshot } from "./factories";
 import { observationTrend } from "./trends";
 import { operationsSummary } from "./operations/store";
 import { inventoryItemsByRefs } from "./inventory";
-import { itemHref } from "../shared/inventory";
+import { observationHref } from "../shared/inventory";
 
 export type InvestigationEvidence = {
   request: InvestigationContext;
@@ -254,7 +254,13 @@ export async function loadInvestigationEvidence(
   if (assetId) params.set("asset", assetId);
   if (factoryId) params.set("factory", factoryId);
   const trendHref = deviceId
-    ? itemHref(`device:${deviceId}`, "telemetry") + "?" + params
+    ? observationHref({
+        ref: `device:${deviceId}`,
+        kind: "device",
+        itemType: device!.type,
+      }) +
+      "?" +
+      params
     : "/analytics?" + params;
   const window =
     new Date(from).toISOString() + " – " + new Date(to).toISOString();

@@ -1003,15 +1003,38 @@ export function OperationsPanel({
         </label>
       )}
       {!data.configured && (
-        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
-          <strong>Production boundary and shifts are not configured.</strong>
-          <p className="mt-1 text-muted-foreground">
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-2 text-xs sm:p-3 sm:text-sm">
+          <div className="flex items-center justify-between gap-2 sm:block">
+            <strong>Production boundary and shifts are not configured.</strong>
+            {canEngineer && (
+              <Button
+                className="min-h-11 shrink-0 sm:hidden"
+                size="sm"
+                variant="outline"
+                aria-label="Configure operations"
+                onClick={() => setTab("settings")}
+              >
+                Configure
+              </Button>
+            )}
+          </div>
+          <details className="sm:hidden">
+            <summary className="min-h-11 cursor-pointer py-3">
+              Setup details
+            </summary>
+            <p className="pb-1 text-muted-foreground">
+              Set the site timezone, shift starts and measurement boundary
+              before recording production or handover. UTC defaults are
+              provisional.
+            </p>
+          </details>
+          <p className="mt-1 hidden text-muted-foreground sm:block">
             Set the site timezone, shift starts and measurement boundary before
             recording production or handover. UTC defaults are provisional.
           </p>
           {canEngineer && (
             <Button
-              className="mt-2"
+              className="mt-2 hidden sm:inline-flex"
               size="sm"
               variant="outline"
               onClick={() => setTab("settings")}
@@ -1057,18 +1080,20 @@ export function OperationsPanel({
             Analysis window: {date(analysis.startTime, data.shift.timeZone)} –{" "}
             {date(analysis.endTime, data.shift.timeZone)}
           </p>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="operations-metrics grid gap-2 min-[360px]:grid-cols-2 xl:grid-cols-4">
             {entries.map((entry) => (
               <button
                 key={entry.label}
-                className="min-w-0 rounded-lg border p-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+                className="min-w-0 rounded-lg border p-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring sm:p-3"
                 onClick={() => setTab("records")}
               >
                 <span className="block text-xs text-muted-foreground">
                   {entry.label}
                 </span>
-                <strong className="my-1 block text-xl">{entry.value}</strong>
-                <span className="block text-xs text-muted-foreground">
+                <strong className="my-1 block text-lg sm:text-xl">
+                  {entry.value}
+                </strong>
+                <span className="block text-[11px] leading-4 text-muted-foreground sm:text-xs">
                   {entry.detail}
                 </span>
               </button>

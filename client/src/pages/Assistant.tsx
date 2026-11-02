@@ -84,6 +84,20 @@ function time(value: string) {
 function prose(value: string) {
   return value.replace(/^\s*#{1,3}\s*(?:answer|response)\s*(?:\r?\n)+/i, "");
 }
+function turnContextLabel(turn: AssistantTurn) {
+  const investigation = turn.request.investigation;
+  if (!investigation)
+    return turn.context ? `Context: ${turn.context.name}` : "Automatic context";
+  const source =
+    turn.result?.investigation?.name ??
+    (investigation.deviceId
+      ? `Source device ${investigation.deviceId}`
+      : (turn.context?.name ??
+        (investigation.incidentId
+          ? `Incident ${investigation.incidentId}`
+          : "Selected scenario")));
+  return `Investigation: ${source} · ${investigation.metric ?? "source signal"} · ${investigation.scope ?? "workspace evidence"}`;
+}
 export default function Assistant() {
   const { user } = useAuth(),
     wide = useMediaQuery("(min-width:1280px)"),
@@ -132,6 +146,14 @@ export default function Assistant() {
     {
       enabled: session.selectedAssetId !== "automatic" && !localSelected,
       staleTime: 60000,
+    },
+  );
+  const investigationDevice = trpc.devices.getById.useQuery(
+    { id: session.investigation?.deviceId ?? 0 },
+    {
+      enabled: !!session.investigation?.deviceId,
+      staleTime: 60000,
+      retry: false,
     },
   );
   const selectedContext: TurnContext =
@@ -555,6 +577,11 @@ export default function Assistant() {
                   {session.investigation?.incidentId
                     ? `Incident ${session.investigation.incidentId} · `
                     : ""}
+                  {session.investigation?.deviceId
+                    ? `${investigationDevice.data?.id === session.investigation.deviceId ? investigationDevice.data.name : "Source device"} (device ${session.investigation.deviceId}) · `
+                    : session.investigation?.assetId
+                      ? `${selectedContext?.name ?? session.investigation.assetId} · `
+                      : ""}
                   {session.investigation?.metric ?? "Source signal"} ·{" "}
                   {session.investigation?.scope ?? "Workspace evidence"}
                 </p>
@@ -717,16 +744,21 @@ export default function Assistant() {
                       aria-label={`Question ${index + 1}: ${turn.question}`}
                       className="min-w-0 space-y-4"
                     >
+                      {index > 0 &&
+                        session.turns[index - 1].contextRevision !==
+                          turn.contextRevision && (
+                          <p className="border-t pt-3 text-xs text-muted-foreground">
+                            Investigation context changed. Earlier answers
+                            retain their original source and window.
+                          </p>
+                        )}
                       <div className="flex justify-end gap-2">
                         <div className="max-w-[90%] space-y-1">
                           <p className="whitespace-pre-wrap break-words rounded-lg bg-primary/10 px-3 py-2 text-sm leading-6">
                             {turn.question}
                           </p>
                           <p className="text-right text-xs text-muted-foreground">
-                            {turn.context
-                              ? `Context: ${turn.context.name}`
-                              : "Automatic context"}{" "}
-                            ·{" "}
+                            {turnContextLabel(turn)} ·{" "}
                             <time dateTime={turn.submittedAt}>
                               {time(turn.submittedAt)}
                             </time>

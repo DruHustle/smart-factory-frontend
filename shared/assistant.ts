@@ -103,7 +103,13 @@ export const assistantPresentation = z
             receivedAt: z.string().datetime(),
             source: z.string().max(255),
             quality: z.string().max(24),
-            freshness: z.enum(["current", "stale", "unknown"]),
+            freshness: z.enum([
+              "current",
+              "held",
+              "stale",
+              "unverified",
+              "unknown",
+            ]),
           })
           .strict(),
         threshold: z

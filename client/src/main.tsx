@@ -16,6 +16,11 @@ import {
 } from "@/lib/session-expiry";
 import { userFacingApiError } from "@/lib/errors";
 import { capturePasswordResetToken } from "@/lib/password-recovery-link";
+import {
+  fetchInDataWorkspace,
+  installDataWorkspaceSync,
+} from "@/lib/data-workspace-sync";
+import { clearAssistantSession } from "@/lib/assistant-session";
 import App from "./App";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { RuntimeBoundary } from "./components/RuntimeBoundary";
@@ -53,6 +58,20 @@ const queryClient = new QueryClient({
   mutationCache: new MutationCache({ onError: handleProtectedRequestError }),
 });
 
+const stopWorkspaceSync = installDataWorkspaceSync(() => {
+  // The cookie is shared across tabs; the user/access payload and query cache
+  // are document-local. Freeze requests before resetting both with one reload.
+  void queryClient.cancelQueries();
+  queryClient.clear();
+  clearAssistantSession();
+  const overview = new URL(window.location.href);
+  overview.search = "";
+  overview.hash = "/";
+  window.history.replaceState(null, "", overview);
+  window.location.reload();
+});
+if (import.meta.hot) import.meta.hot.dispose(stopWorkspaceSync);
+
 const getTRPCUrl = () =>
   `${resolveApiBase(import.meta.env.VITE_API_URL, import.meta.env.PROD)}/trpc`;
 
@@ -66,22 +85,12 @@ const trpcClient = trpc.createClient({
       true: httpLink({
         url: getTRPCUrl(),
         transformer: superjson,
-        fetch(input, init) {
-          return globalThis.fetch(input, {
-            ...(init ?? {}),
-            credentials: "include",
-          });
-        },
+        fetch: fetchInDataWorkspace,
       }),
       false: httpBatchLink({
         url: getTRPCUrl(),
         transformer: superjson,
-        fetch(input, init) {
-          return globalThis.fetch(input, {
-            ...(init ?? {}),
-            credentials: "include",
-          });
-        },
+        fetch: fetchInDataWorkspace,
       }),
     }),
   ],

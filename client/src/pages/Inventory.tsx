@@ -3,7 +3,6 @@ import { FactoryWorkspace } from "@/components/workspace/FactoryWorkspace";
 import { useFactorySelection } from "@/lib/factory-selection";
 import { inventoryFilters } from "@/lib/list-filters";
 import { inventoryLocation } from "@/lib/inventory-location";
-import { currentSample } from "@shared/measurements";
 import { EquipmentSymbol } from "@/components/workspace/VisualEvidence";
 import { loadEquipmentRenderer } from "@/components/equipment/loadRenderer";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -524,10 +523,7 @@ function LegacyInventory() {
                           </td>
                           <td className="p-3 text-xs">
                             <ItemMeasurements item={item} />
-                            <SampleTime
-                              value={item.sampleAt}
-                              historical={!currentSample(item)}
-                            />
+                            Sample reported <SampleTime value={item.sampleAt} />
                             <p className="mt-1 capitalize">{item.mode}</p>
                           </td>
                           <td className="p-3">
@@ -617,11 +613,8 @@ function LegacyInventory() {
                       </div>
                       <ItemMeasurements item={item} />
                       <p className="text-xs">
-                        <SampleTime
-                          value={item.sampleAt}
-                          historical={!currentSample(item)}
-                        />{" "}
-                        · <span className="capitalize">{item.mode}</span>
+                        Sample reported <SampleTime value={item.sampleAt} /> ·{" "}
+                        <span className="capitalize">{item.mode}</span>
                       </p>
                       <Capabilities item={item} />
                     </article>

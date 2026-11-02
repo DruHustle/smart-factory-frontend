@@ -142,7 +142,7 @@ export function ItemTelemetry({ item }: { item: InventoryItem }) {
               }}
             />
             <p className="text-xs text-muted-foreground">
-              <SampleTime value={item.sampleAt} historical />
+              Sample reported <SampleTime value={item.sampleAt} />
             </p>
           </section>
         )}
