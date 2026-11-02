@@ -176,7 +176,9 @@ export default function ItemWorkspace() {
         description={`${i.itemType} · ${i.zone || i.location || "Location unspecified"}`}
         action={
           <>
-            <StatusBadge status={i.status} />
+            <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              Source status <StatusBadge status={i.status} />
+            </span>
             {i.kind !== "device" && (
               <Button asChild size="sm" variant="outline">
                 <Link
@@ -360,6 +362,14 @@ function ItemOverview({
           <dd>
             {[i.zone, i.location].filter(Boolean).join(" · ") || "Unspecified"}
           </dd>
+          {i.kind !== "device" && (
+            <>
+              <dt className="text-muted-foreground">Operating state</dt>
+              <dd>Unknown</dd>
+              <dt className="text-muted-foreground">Asset condition</dt>
+              <dd>Unknown</dd>
+            </>
+          )}
           <dt className="text-muted-foreground">AAS</dt>
           <dd>
             {i.aas

@@ -24,6 +24,7 @@ async function workspaceFixture(
     summary?: "populated" | "error";
     attention?: boolean;
     olderApi?: boolean;
+    viewer?: boolean;
   } = { floor: "normal" },
 ) {
   let signedIn = true;
@@ -146,14 +147,14 @@ async function workspaceFixture(
                 id: 90001,
                 name: restricted ? "Demo Engineer" : "Fixture engineer",
                 email: restricted ? "tech@dev.local" : "engineer@example.test",
-                role: "engineer",
+                role: control.viewer ? "viewer" : "engineer",
                 openId: restricted ? "demo-engineer" : "individual-engineer",
                 access: {
                   demoOnly: demo,
                   canSwitchData: !restricted,
                   workspaceView: demo ? "demo" : "live",
-                  canOperate: !demo,
-                  canEngineer: !demo,
+                  canOperate: !demo && !control.viewer,
+                  canEngineer: !demo && !control.viewer,
                   canAdminister: false,
                 },
               }
@@ -186,7 +187,15 @@ async function workspaceFixture(
         case "security.availability":
           value = { enabled: false };
           break;
+        case "assets.getConnections":
+        case "connectivity.assetTags":
+          value = [];
+          break;
         case "inventory.item": {
+          if (input.ref === "asset:1") {
+            value = { ...items[0], status: "offline", equipmentId: null };
+            break;
+          }
           const gateway = input.ref === "device:6";
           value = {
             ref: input.ref,
@@ -1554,4 +1563,23 @@ test("Overview does not claim priority ordering with an older API", async ({
     "#/alerts?status=open",
   );
   expect(requests.some((r) => r.procedure === "alerts.list")).toBe(false);
+});
+
+test("An offline source does not declare the asset stopped or unhealthy", async ({
+  page,
+}) => {
+  await workspaceFixture(page, false, { floor: "normal", viewer: true });
+  await page.goto("/#/inventory/asset%3A1/overview");
+  await expect(
+    page.getByText("Source status", { exact: false }).first(),
+  ).toContainText(/offline/i);
+  const details = page
+    .getByRole("heading", { name: "Item details" })
+    .locator("..");
+  await expect(
+    details.locator("dt", { hasText: "Operating state" }).locator("+ dd"),
+  ).toHaveText("Unknown");
+  await expect(
+    details.locator("dt", { hasText: "Asset condition" }).locator("+ dd"),
+  ).toHaveText("Unknown");
 });
