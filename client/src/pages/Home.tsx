@@ -9,7 +9,9 @@ import {
   Boxes,
   Radio,
   AlertTriangle,
-  Network,
+  WifiOff,
+  CircleHelp,
+  Bell,
   Clock3,
   Gauge,
   ChevronRight,
@@ -61,6 +63,10 @@ function LegacyHome() {
   };
   const floor = trpc.factory.floor.useQuery({ zone: "" }, options);
   const overview = trpc.analytics.getOverview.useQuery(undefined, options);
+  const notifications = trpc.notifications.summary.useQuery(undefined, {
+    ...options,
+    enabled: !!user,
+  });
   const incidents = trpc.alerts.list.useQuery(
     { openOnly: true, limit: 2 },
     options,
@@ -118,12 +124,14 @@ function LegacyHome() {
     }),
   );
   const coverage = network.data?.coverage;
-  const busy = floor.isFetching || overview.isFetching;
+  const busy =
+    floor.isFetching || overview.isFetching || notifications.isFetching;
   const refresh = () => {
     setAnchor(Date.now());
     void Promise.all([
       floor.refetch(),
       overview.refetch(),
+      notifications.refetch(),
       incidents.refetch(),
       network.refetch(),
     ]);
@@ -136,10 +144,30 @@ function LegacyHome() {
       href: "/inventory",
     },
     {
-      title: "Devices & gateways",
-      value: overview.error ? "Unavailable" : (stats?.devices.total ?? "…"),
+      title: "Online",
+      value: overview.error ? "Unavailable" : (stats?.devices.online ?? "…"),
       icon: Radio,
+      href: "/monitoring?status=live",
+    },
+    {
+      title: "Offline",
+      value: overview.error ? "Unavailable" : (stats?.devices.offline ?? "…"),
+      icon: WifiOff,
+      href: "/monitoring?status=offline",
+    },
+    {
+      title: "Needs review",
+      value: overview.error
+        ? "Unavailable"
+        : stats
+          ? stats.devices.stale +
+            stats.devices.unknown +
+            stats.devices.maintenance +
+            stats.devices.error
+          : "…",
+      icon: CircleHelp,
       href: "/monitoring",
+      description: "Unknown, stale, maintenance or error status",
     },
     {
       title: "Open incidents",
@@ -148,22 +176,12 @@ function LegacyHome() {
       href: "/alerts?status=open",
     },
     {
-      title: "FX connections",
-      value: network.error ? "Unavailable" : connections.length,
-      icon: Network,
-      href: "/network",
-    },
-    {
-      title: demo ? "Demo clocks locked" : "Reported clocks locked",
-      value: network.error
+      title: "Unread notifications",
+      value: notifications.error
         ? "Unavailable"
-        : network.data?.stale
-          ? "Stale evidence"
-          : ports.length
-            ? `${ports.filter((p) => p.syncState === "locked").length}/${ports.length}`
-            : "No collector",
-      icon: Clock3,
-      href: "/network?tab=timing",
+        : (notifications.data?.unread ?? "…"),
+      icon: Bell,
+      href: "/notifications?view=unread",
     },
   ];
   return (
@@ -200,12 +218,13 @@ function LegacyHome() {
           </>
         }
       />
-      <div className="overview-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="overview-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {kpis.map((kpi) => (
           <Link
             key={kpi.title}
             href={kpi.href}
-            className="overview-kpi flex min-w-0 items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors last:col-span-2 sm:last:col-span-1 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
+            title={kpi.description}
+            className="overview-kpi flex min-w-0 items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
           >
             <kpi.icon
               className="size-7 shrink-0 text-info"

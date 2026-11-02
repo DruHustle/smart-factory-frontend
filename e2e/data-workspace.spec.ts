@@ -20,6 +20,7 @@ async function workspaceFixture(
   control: {
     floor: "normal" | "empty" | "error";
     telemetry?: "unverified" | "verified";
+    summary?: "populated" | "error";
   } = { floor: "normal" },
 ) {
   let signedIn = true;
@@ -105,6 +106,21 @@ async function workspaceFixture(
     const responses = procedures.map((procedure, index) => {
       const input = (batch ? inputs[String(index)]?.json : inputs.json) ?? {};
       requests.push({ procedure, input });
+      if (
+        control.summary === "error" &&
+        ["analytics.getOverview", "notifications.summary"].includes(procedure)
+      )
+        return {
+          error: superjson.serialize({
+            message: "Summary unavailable",
+            code: -32603,
+            data: {
+              code: "INTERNAL_SERVER_ERROR",
+              httpStatus: 500,
+              path: procedure,
+            },
+          }),
+        };
       if (procedure === "factory.floor" && control.floor === "error")
         return {
           error: superjson.serialize({
@@ -149,7 +165,18 @@ async function workspaceFixture(
           value = { enabled: true, requiresApproval: true };
           break;
         case "notifications.summary":
-          value = { unread: 0 };
+          value = { unread: control.summary === "populated" ? 3 : 0 };
+          break;
+        case "notifications.page":
+          value = {
+            items: [],
+            total: 0,
+            page: 0,
+            returned: 0,
+            hasMore: false,
+            truncated: false,
+            summary: { unread: 3, attention: 0, accepted: 0, available: 3 },
+          };
           break;
         case "security.availability":
           value = { enabled: false };
@@ -264,15 +291,15 @@ async function workspaceFixture(
           value = {
             devices: {
               total: 51,
-              online: 0,
-              stale: 0,
-              offline: 0,
-              unknown: 51,
-              maintenance: 0,
-              error: 0,
+              online: control.summary === "populated" ? 7 : 0,
+              stale: control.summary === "populated" ? 2 : 0,
+              offline: control.summary === "populated" ? 4 : 0,
+              unknown: control.summary === "populated" ? 36 : 51,
+              maintenance: control.summary === "populated" ? 1 : 0,
+              error: control.summary === "populated" ? 1 : 0,
             },
             alerts: {
-              open: 0,
+              open: control.summary === "populated" ? 5 : 0,
               critical: 0,
               warning: 0,
               info: 0,
@@ -1143,18 +1170,16 @@ for (const width of [375, 390, 430, 768, 1440]) {
     await workspaceFixture(page);
     await page.goto("/#/");
     const cards = page.locator(".overview-kpi");
-    await expect(cards).toHaveCount(5);
+    await expect(cards).toHaveCount(6);
     const grid = await page.locator(".overview-kpis").boundingBox();
     const last = await cards.last().boundingBox();
     expect(grid).toBeTruthy();
     expect(last).toBeTruthy();
-    if (width < 640) {
-      expect(Math.abs(last!.width - grid!.width)).toBeLessThan(2);
-      expect(Math.abs(last!.x - grid!.x)).toBeLessThan(2);
-    } else {
-      const first = await cards.first().boundingBox();
-      expect(Math.abs(last!.width - first!.width)).toBeLessThan(2);
-    }
+    const first = await cards.first().boundingBox();
+    expect(Math.abs(last!.width - first!.width)).toBeLessThan(2);
+    expect(
+      Math.abs(last!.x + last!.width - grid!.x - grid!.width),
+    ).toBeLessThan(2);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -1374,4 +1399,82 @@ test("WROVER telemetry shows unverified source values outside verified trends", 
   await expect(sample).toHaveCount(0);
   await page.getByLabel("Evidence scope").selectOption("unknown");
   await expect(sample).toContainText("20.7");
+});
+
+test("Overview prioritizes connectivity, review, incidents and unread notifications", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page, false, {
+    floor: "normal",
+    summary: "populated",
+    telemetry: "unverified",
+  });
+  await page.goto("/#/");
+  const cards = page.locator(".overview-kpis");
+  const online = cards.getByRole("link", { name: /^Online\s+7$/ });
+  const offline = cards.getByRole("link", { name: /^Offline\s+4$/ });
+  const review = cards.getByRole("link", { name: /^Needs review\s+40$/ });
+  const incidents = cards.getByRole("link", { name: /^Open incidents\s+5$/ });
+  const notices = cards.getByRole("link", {
+    name: /^Unread notifications\s+3$/,
+  });
+  await expect(online).toHaveAttribute("href", "#/monitoring?status=live");
+  await expect(offline).toHaveAttribute("href", "#/monitoring?status=offline");
+  await expect(review).toHaveAttribute(
+    "title",
+    "Unknown, stale, maintenance or error status",
+  );
+  await expect(incidents).toHaveAttribute("href", "#/alerts?status=open");
+  await expect(notices).toHaveAttribute("href", "#/notifications?view=unread");
+  await online.click();
+  await expect
+    .poll(() =>
+      requests.some(
+        (r) => r.procedure === "devices.monitor" && r.input.status === "live",
+      ),
+    )
+    .toBe(true);
+  await page.goto("/#/");
+  await page
+    .locator(".overview-kpis")
+    .getByRole("link", { name: /^Offline\s+4$/ })
+    .click();
+  await expect
+    .poll(() =>
+      requests.some(
+        (r) =>
+          r.procedure === "devices.monitor" && r.input.status === "offline",
+      ),
+    )
+    .toBe(true);
+  await page.goto("/#/");
+  await page
+    .locator(".overview-kpis")
+    .getByRole("link", { name: /^Unread notifications\s+3$/ })
+    .click();
+  await expect
+    .poll(() =>
+      requests.some(
+        (r) =>
+          r.procedure === "notifications.page" && r.input.view === "unread",
+      ),
+    )
+    .toBe(true);
+});
+
+test("Overview reports unavailable summaries instead of false zero counts", async ({
+  page,
+}) => {
+  await workspaceFixture(page, false, { floor: "normal", summary: "error" });
+  await page.goto("/#/");
+  const cards = page.locator(".overview-kpis");
+  await expect(
+    cards.getByRole("link", { name: /^Online\s+Unavailable$/ }),
+  ).toBeVisible();
+  await expect(
+    cards.getByRole("link", { name: /^Offline\s+Unavailable$/ }),
+  ).toBeVisible();
+  await expect(
+    cards.getByRole("link", { name: /^Unread notifications\s+Unavailable$/ }),
+  ).toBeVisible();
 });
