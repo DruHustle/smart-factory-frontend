@@ -609,13 +609,35 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         "Reviewed the recorded source evidence; awaiting inspection.",
         a.id,
       );
+      await addIncidentNote(
+        incident.id,
+        "Inspect the pump seal",
+        a.id,
+        "next_step",
+      );
+      await addIncidentNote(
+        incident.id,
+        "Seal inspected; no leak observed",
+        a.id,
+        "outcome",
+      );
       const history = await incidentHistory(incident.id);
       expect(history.items.map((r) => r.kind)).toEqual([
+        "note",
+        "note",
         "note",
         "acknowledged",
         "assigned",
       ]);
-      expect(history.items[0].detail.text).toContain("awaiting inspection");
+      expect(history.items[0].detail).toMatchObject({
+        category: "outcome",
+        text: "Seal inspected; no leak observed",
+      });
+      expect(history.items[1].detail).toMatchObject({
+        category: "next_step",
+        text: "Inspect the pump seal",
+      });
+      expect(history.items[2].detail.text).toContain("awaiting inspection");
       await db.execute(
         sql`insert into notification_inbox("userId","alertId",kind,title,body) select ${a.id},${incident.id},'incident',case when n=0 then 'older update needle' else 'Synthetic update' end,'Isolated review notification' from generate_series(0,100) n`,
       );

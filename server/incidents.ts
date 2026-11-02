@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { getDb, getAlertById } from "./db";
 import { TRPCError } from "@trpc/server";
+import type { IncidentNoteCategory } from "../shared/incidentNotes";
 export async function incidentHistory(id: number, after = 0) {
   if (!(await getAlertById(id)))
     throw new TRPCError({ code: "NOT_FOUND", message: "Incident unavailable" });
@@ -14,7 +15,11 @@ export async function incidentHistory(id: number, after = 0) {
     items: page as unknown as {
       id: number;
       kind: string;
-      detail: { text?: string; assignedToId?: number | null };
+      detail: {
+        text?: string;
+        assignedToId?: number | null;
+        category?: IncidentNoteCategory;
+      };
       createdAt: Date;
       actorId: number | null;
       actorName: string | null;
@@ -28,6 +33,7 @@ export async function addIncidentNote(
   id: number,
   text: string,
   actorId: number,
+  category: IncidentNoteCategory = "note",
 ) {
   if (!(await getAlertById(id)))
     throw new TRPCError({ code: "NOT_FOUND", message: "Incident unavailable" });
@@ -44,7 +50,7 @@ export async function addIncidentNote(
           "This investigation has reached its note limit. Export the recorded history for a continued review.",
       });
     const [row] = await tx.execute(
-      sql`insert into incident_activity(alert_id,kind,actor_id,detail) values(${id},'note',${actorId},${JSON.stringify({ text })}::jsonb) returning id`,
+      sql`insert into incident_activity(alert_id,kind,actor_id,detail) values(${id},'note',${actorId},${JSON.stringify({ text, category })}::jsonb) returning id`,
     );
     return { id: Number(row.id) };
   });

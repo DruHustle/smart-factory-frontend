@@ -15,6 +15,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { observationHref, itemHref } from "@shared/inventory";
+import {
+  incidentNoteCategories,
+  incidentNoteLabel,
+  incidentNoteLabels,
+  type IncidentNoteCategory,
+} from "@shared/incidentNotes";
 export function IncidentInvestigation({
   id,
   returnTo,
@@ -29,6 +35,7 @@ export function IncidentInvestigation({
     utils = trpc.useUtils(),
     [confirm, setConfirm] = useState<"downtime" | "resolve" | null>(null),
     [note, setNote] = useState(""),
+    [noteCategory, setNoteCategory] = useState<IncidentNoteCategory>("note"),
     [cursor, setCursor] = useState(0);
   const event = trpc.alerts.getById.useQuery(
       { id },
@@ -50,6 +57,7 @@ export function IncidentInvestigation({
     success = async (message: string) => {
       toast.success(message);
       setConfirm(null);
+      setCursor(0);
       await refresh();
     },
     failure = (e: { message: string }) => toast.error(e.message);
@@ -73,7 +81,7 @@ export function IncidentInvestigation({
       onSuccess: async () => {
         setNote("");
         setCursor(0);
-        await success("Review note recorded");
+        await success("Investigation update recorded");
       },
       onError: failure,
     });
@@ -128,15 +136,23 @@ export function IncidentInvestigation({
             variant="secondary"
             className="workflow-change capitalize"
           >
-            {e.status}
+            Review: {e.status}
           </Badge>
           {e.occurrences > 1 && (
             <Badge variant="outline">{e.occurrences} observations</Badge>
           )}
         </div>
+        <p className="text-xs text-muted-foreground">
+          Review status does not establish the current physical condition. Check
+          source evidence.
+        </p>
       </div>
       <div
-        className={compact ? "space-y-[var(--workspace-gap)] p-4" : "grid gap-6 p-4 lg:grid-cols-2"}
+        className={
+          compact
+            ? "space-y-[var(--workspace-gap)] p-4"
+            : "grid gap-6 p-4 lg:grid-cols-2"
+        }
       >
         <div className="space-y-[var(--workspace-gap)]">
           <dl className="grid grid-cols-2 gap-4 text-sm">
@@ -292,7 +308,9 @@ export function IncidentInvestigation({
                 className="relative before:absolute before:-left-[1.35rem] before:top-1.5 before:size-2.5 before:rounded-full before:bg-info"
               >
                 <p className="font-medium capitalize">
-                  {a.kind.replaceAll("_", " ")}
+                  {a.kind === "note"
+                    ? incidentNoteLabel(a.detail.category)
+                    : a.kind.replaceAll("_", " ")}
                 </p>
                 {a.detail.text && (
                   <p className="mt-1 whitespace-pre-wrap break-words">
@@ -417,15 +435,35 @@ export function IncidentInvestigation({
               className="space-y-2 border-t pt-4"
               onSubmit={(ev) => {
                 ev.preventDefault();
-                addNote.mutate({ id, text: note });
+                addNote.mutate({ id, text: note, category: noteCategory });
               }}
             >
               <label
                 className="block text-sm font-medium"
                 htmlFor={`incident-note-${id}`}
               >
-                Add a review note
+                Record investigation update
               </label>
+              <select
+                aria-label="Update type"
+                className="h-10 w-full rounded-md border border-input bg-card px-2 text-sm"
+                disabled={busy}
+                value={noteCategory}
+                onChange={(ev) =>
+                  setNoteCategory(ev.target.value as IncidentNoteCategory)
+                }
+              >
+                {incidentNoteCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {incidentNoteLabels[category]}
+                  </option>
+                ))}
+              </select>
+              {noteCategory === "next_step" && (
+                <p className="text-xs text-muted-foreground">
+                  This records a review note; assign responsibility separately.
+                </p>
+              )}
               <textarea
                 id={`incident-note-${id}`}
                 disabled={busy}
@@ -440,7 +478,7 @@ export function IncidentInvestigation({
                 variant="outline"
                 disabled={busy || !note.trim()}
               >
-                Save note
+                Save update
               </Button>
             </form>
           ) : (
@@ -467,7 +505,7 @@ export function IncidentInvestigation({
             <DialogDescription>
               {confirm === "downtime"
                 ? "Record a downtime start only after confirming that this equipment is actually unavailable for its intended work."
-                : "Confirm that the incident has been investigated. Resolution closes any explicitly recorded downtime."}
+                : "Confirm that the incident has been investigated. Resolution closes any explicitly recorded downtime; it does not verify the current physical condition."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2">

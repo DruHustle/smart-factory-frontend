@@ -1,3 +1,4 @@
+import { incidentNoteCategories } from "../shared/incidentNotes";
 import { isPlannedAsset } from "./planned-assets";
 import { factoriesRouter } from "./factories";
 import { deleteAssetInventoryRecord } from "./inventory-deletion";
@@ -1545,6 +1546,7 @@ export const appRouter = router({
       .input(
         z.object({
           id: z.number().int().positive(),
+          category: z.enum(incidentNoteCategories).default("note"),
           text: z
             .string()
             .trim()
@@ -1557,7 +1559,7 @@ export const appRouter = router({
         }),
       )
       .mutation(({ input, ctx }) =>
-        addIncidentNote(input.id, input.text, ctx.user.id),
+        addIncidentNote(input.id, input.text, ctx.user.id, input.category),
       ),
     page: viewerProcedure
       .input(
