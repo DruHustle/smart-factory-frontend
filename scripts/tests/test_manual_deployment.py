@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 SOURCE = Path(__file__).resolve().parents[1] / "manual-deployment/cli.py"
 spec = importlib.util.spec_from_file_location("manual_cli", SOURCE)
@@ -38,6 +38,44 @@ class WorkspaceCliTests(unittest.TestCase):
     def run_main(self, *arguments):
         with patch.object(cli, "source_root", return_value=cli.ROOT), patch.object(cli, "repositories", return_value=self.sources), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             return cli.main(list(arguments))
+
+    def test_status_follows_only_the_verified_alias_for_public_endpoints(self):
+        for path in ("/release.json", "/api/runtime/contract"):
+            source, target = cli.UI + path, cli.UI_CANONICAL_ALIAS + path
+            redirect = cli.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO())
+            response = MagicMock(status=200)
+            response.__enter__.return_value = response
+            response.read.return_value = b'{"ok":true}'
+            opener = Mock()
+            opener.open.side_effect = [redirect, response]
+            with patch.object(cli.urllib.request, "build_opener", return_value=opener):
+                self.assertEqual(cli.get_json(source), {"ok": True})
+            self.assertEqual([call.args[0].full_url for call in opener.open.call_args_list], [source, target])
+
+        for source, code, location in (
+            (cli.UI + "/release.json", 307, "https://example.com/release.json"),
+            (cli.UI + "/release.json", 307, cli.UI_CANONICAL_ALIAS + "/other"),
+            (cli.UI + "/release.json", 302, cli.UI_CANONICAL_ALIAS + "/release.json"),
+            (cli.API + "/release.json", 307, cli.UI_CANONICAL_ALIAS + "/release.json"),
+        ):
+            opener = Mock()
+            opener.open.side_effect = cli.urllib.error.HTTPError(source, code, "redirect", {"Location": location}, io.BytesIO())
+            with patch.object(cli.urllib.request, "build_opener", return_value=opener):
+                with self.assertRaises(cli.urllib.error.HTTPError):
+                    cli.get_json(source)
+            self.assertEqual(opener.open.call_count, 1)
+
+        source = cli.UI + "/release.json"
+        target = cli.UI_CANONICAL_ALIAS + "/release.json"
+        opener = Mock()
+        opener.open.side_effect = [
+            cli.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO()),
+            cli.urllib.error.HTTPError(target, 307, "redirect", {"Location": "https://example.com/"}, io.BytesIO()),
+        ]
+        with patch.object(cli.urllib.request, "build_opener", return_value=opener):
+            with self.assertRaises(cli.urllib.error.HTTPError):
+                cli.get_json(source)
+        self.assertEqual(opener.open.call_count, 2)
 
     def test_all_offline_plans_never_import_engines_or_touch_network(self):
         for operation in ("package", "prepare", "backend", "frontend", "edge", "all", "status", "verify", "recover"):

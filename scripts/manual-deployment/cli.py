@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 import uuid
 
@@ -32,6 +33,7 @@ EVIDENCE = ROOT / "local-tools/deployment-evidence"
 REPOSITORY = "DruHustle/smart-factory-frontend"
 API = "https://api.152-70-22-84.sslip.io"
 UI = "https://smart-factory-iot-app.vercel.app"
+UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
 COMPONENTS = ("frontend", "backend", "edge")
 SHA = re.compile(r"[a-f0-9]{40}\Z")
 
@@ -130,8 +132,26 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def get_json(url):
-    request = urllib.request.Request(url, headers={"Cache-Control": "no-store"})
-    with urllib.request.build_opener(NoRedirect()).open(request, timeout=15) as response:
+    opener = urllib.request.build_opener(NoRedirect())
+    def open_once(target):
+        return opener.open(urllib.request.Request(target, headers={"Cache-Control": "no-store"}), timeout=15)
+    try:
+        response = open_once(url)
+    except urllib.error.HTTPError as error:
+        # Vercel's existing production domain redirects these two public GETs
+        # to its verified alias. Never follow arbitrary or chained redirects.
+        paths = ("/api/runtime/contract", "/release.json")
+        target = next((UI_CANONICAL_ALIAS + path for path in paths if url == UI + path), None)
+        if error.code != 307 or target is None or error.headers.get("Location") != target:
+            error.close()
+            raise
+        error.close()
+        try:
+            response = open_once(target)
+        except urllib.error.HTTPError as chained_error:
+            chained_error.close()
+            raise
+    with response:
         require(response.status == 200, "Expected HTTP 200 from the configured release endpoint.")
         data = response.read(1024 * 1024 + 1)
         require(len(data) <= 1024 * 1024, "Release response exceeds the allowed size.")

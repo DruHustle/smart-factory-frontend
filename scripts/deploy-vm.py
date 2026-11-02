@@ -42,6 +42,7 @@ HOST = "ubuntu@152.70.22.84"
 DEPLOY = Path("/opt/smart-factory-backend")
 API_ORIGIN = "https://api.152-70-22-84.sslip.io"
 UI_ORIGIN = "https://smart-factory-iot-app.vercel.app"
+UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
 PROJECT = "smart-factory-backend"
 FILE_NAMES = ("compose.yaml", ".env", ".env.api", ".env.worker")
 MEMBERS = {"candidate.tar.gz", "rollback.tar.gz", "archive.sha256", "image.json",
@@ -317,8 +318,20 @@ class _NoRuntimeRedirect(urllib.request.HTTPRedirectHandler):
 
 def _runtime_http(url, want_json=False):
     try:
-        request = urllib.request.Request(url, headers={"Cache-Control": "no-store"})
-        with urllib.request.build_opener(_NoRuntimeRedirect()).open(request, timeout=10) as response:
+        opener = urllib.request.build_opener(_NoRuntimeRedirect())
+        def open_once(target):
+            return opener.open(urllib.request.Request(target, headers={"Cache-Control": "no-store"}), timeout=10)
+        try:
+            response = open_once(url)
+        except urllib.error.HTTPError as error:
+            # Only the verified Vercel alias for the public release snapshot
+            # may redirect; do not follow arbitrary or chained redirects.
+            target = UI_CANONICAL_ALIAS + "/release.json" if url == UI_ORIGIN + "/release.json" else None
+            if error.code != 307 or target is None or error.headers.get("Location") != target:
+                raise
+            error.close()
+            response = open_once(target)
+        with response:
             if response.status != 200:
                 return None if want_json else False
             if not want_json:
@@ -327,6 +340,9 @@ def _runtime_http(url, want_json=False):
             if len(body) > 1024 * 1024:
                 return None
             return json.loads(body)
+    except urllib.error.HTTPError as error:
+        error.close()
+        return None if want_json else False
     except (OSError, urllib.error.URLError, ValueError):
         return None if want_json else False
 

@@ -14,7 +14,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 import warnings
 import zipfile
 
@@ -237,6 +237,37 @@ class BundleTests(unittest.TestCase):
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_public_snapshot_accepts_only_the_verified_alias_without_chains(self):
+        source = vm.UI_ORIGIN + "/release.json"
+        target = vm.UI_CANONICAL_ALIAS + "/release.json"
+        response = MagicMock(status=200)
+        response.__enter__.return_value = response
+        response.read.return_value = b'{"ok":true}'
+        opener = Mock()
+        opener.open.side_effect = [
+            vm.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO()), response,
+        ]
+        with patch.object(vm.urllib.request, "build_opener", return_value=opener):
+            self.assertEqual(vm._runtime_http(source, True), {"ok": True})
+        self.assertEqual([call.args[0].full_url for call in opener.open.call_args_list], [source, target])
+
+        for first, location in ((source, "https://example.com/release.json"),
+                                (vm.API_ORIGIN + "/release.json", target)):
+            opener = Mock()
+            opener.open.side_effect = vm.urllib.error.HTTPError(first, 307, "redirect", {"Location": location}, io.BytesIO())
+            with patch.object(vm.urllib.request, "build_opener", return_value=opener):
+                self.assertIsNone(vm._runtime_http(first, True))
+            self.assertEqual(opener.open.call_count, 1)
+
+        opener = Mock()
+        opener.open.side_effect = [
+            vm.urllib.error.HTTPError(source, 307, "redirect", {"Location": target}, io.BytesIO()),
+            vm.urllib.error.HTTPError(target, 307, "redirect", {"Location": "https://example.com/"}, io.BytesIO()),
+        ]
+        with patch.object(vm.urllib.request, "build_opener", return_value=opener):
+            self.assertIsNone(vm._runtime_http(source, True))
+        self.assertEqual(opener.open.call_count, 2)
+
     def test_environment_patch_preserves_literal_secret_bytes_and_crlf(self):
         original = b'# retained\r\nSMTP_PASSWORD=pa$$word"#\\more\r\nBACKEND_IMAGE=old:tag\r\nPRIVATE_TOKEN=never-print-me'
         result = vm.patch_env_bytes(original, {"BACKEND_IMAGE": "factory-qualified:candidate-abc"})
