@@ -79,6 +79,13 @@ class ControllerPolicyTests(unittest.TestCase):
         state, _ = controller.decide(item, "api", {}, 1000)
         self.assertEqual(controller.decide(item, "api", state, 900)[1], "observing")
 
+    def test_clock_correction_cannot_erase_cooldown(self):
+        item = container()
+        state, _ = controller.decide(item, "api", {"recoveries": [1100]}, 900)
+        state, _ = controller.decide(item, "api", state, 960)
+        state, _ = controller.decide(item, "api", state, 1020)
+        self.assertEqual(controller.decide(item, "api", state, 1080)[1], "cooldown")
+
     def test_gap_in_observation_restarts_wait(self):
         item = container()
         state, _ = controller.decide(item, "api", {}, 1000)

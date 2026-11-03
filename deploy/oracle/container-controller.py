@@ -61,8 +61,9 @@ def identity(container, service):
 
 
 def decide(container, service, previous, now):
+    # A backwards clock correction must not erase attempts and bypass cooldown.
     history = [value for value in previous.get("recoveries", [])
-               if isinstance(value, (float, int)) and 0 <= now - value < WINDOW_SECONDS]
+               if isinstance(value, (float, int)) and now - value < WINDOW_SECONDS]
     result = {"recoveries": history}
     if not identity(container, service):
         return result, "not-eligible"
