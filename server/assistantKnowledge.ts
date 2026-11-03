@@ -444,12 +444,9 @@ async function buildLiveContext(
     ].slice(0, MAX_DEVICES_IN_CONTEXT);
     const [latestReadings, alertStats] = await Promise.all([
       db.getLatestAssetReadings(relevantAssets.map((asset) => asset.assetId)),
-      db.getAlertStats(
-        factory
-          ? undefined
-          : [...visibleDeviceByPk.keys()],
-        factory ? factoryId : undefined,
-      ),
+      factory
+        ? db.getAlertStats(undefined, factoryId)
+        : db.getAlertStats([...visibleDeviceByPk.keys()]),
     ]);
     const readingsByAsset = new Map(
       latestReadings.map((reading) => [reading.assetId, reading]),
