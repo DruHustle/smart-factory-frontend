@@ -1,3 +1,5 @@
+import { getWroverQos, requestWroverQos } from "./mqttQosStore";
+import { mqttQosLevel } from "../shared/mqtt-qos";
 import { incidentNoteCategories } from "../shared/incidentNotes";
 import { investigationContext } from "../shared/assistant-investigation";
 import { loadInvestigationEvidence } from "./assistantInvestigation";
@@ -802,6 +804,15 @@ export const appRouter = router({
         return { deleted: true };
       }),
     getStats: viewerProcedure.query(() => db.getDeviceStats()),
+    wroverQos: engineerProcedure
+      .input(z.object({ id: z.number().int().positive() }).strict())
+      .query(({ input }) => getWroverQos(input.id)),
+    requestWroverQos: engineerProcedure
+      .input(z.object({ id: z.number().int().positive(), expectedRevision: z.number().int().min(0).max(0xffffffff), uplink: mqttQosLevel, downlink: mqttQosLevel }).strict())
+      .mutation(async ({ input, ctx }) => {
+        const token = await sdk.createSessionToken(ctx.user, { expiresInMs: 60_000, sessionId: ctx.session?.sessionId });
+        return requestWroverQos(input, ctx.user.id, token);
+      }),
     pulseIndicator: operatorProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {

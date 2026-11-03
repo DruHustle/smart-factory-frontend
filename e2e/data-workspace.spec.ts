@@ -44,6 +44,7 @@ async function workspaceFixture(
 ) {
   let signedIn = true;
   let siteTimezone = "UTC";
+  let requestedQos: any = null;
   const requests: { procedure: string; input: any }[] = [];
   await page.route("**/api/runtime/contract", (route) =>
     route.fulfill({
@@ -372,6 +373,14 @@ async function workspaceFixture(
             html: "<!doctype html><html><body><h1>Device report fixture</h1><p>Operational observations</p></body></html>",
             filename: "device-report.html",
           };
+          break;
+        case "devices.wroverQos":
+          value = requestedQos;
+          break;
+        case "devices.requestWroverQos":
+          requestedQos = { revision: input.expectedRevision + 1, uplink: input.uplink, downlink: input.downlink,
+            commandId: "4ce07676-9ed8-4c70-b679-7fea17a82a16", requestedAt: new Date().toISOString(), status: "published" };
+          value = { ...requestedQos, applied: false };
           break;
         case "devices.pulseIndicator":
           value = {
@@ -2138,6 +2147,24 @@ test("device workspace opens its operational report for the last 24 hours", asyn
   expect(report.input.endTime - report.input.startTime).toBe(
     24 * 60 * 60 * 1000,
   );
+});
+
+test("viewers cannot see WROVER QoS controls", async ({ page }) => {
+  await workspaceFixture(page, false, { floor: "normal", wroverHealthy: true, viewer: true });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  await expect(page.getByLabel("WROVER uplink QoS")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send QoS" })).toHaveCount(0);
+});
+
+test("engineer requests WROVER uplink and downlink QoS without claiming application", async ({ page }) => {
+  const requests = await workspaceFixture(page, false, { floor: "normal", wroverHealthy: true });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  await page.getByLabel("WROVER uplink QoS").selectOption("2");
+  await page.getByLabel("WROVER downlink QoS").selectOption("0");
+  await page.getByRole("button", { name: "Send QoS" }).click();
+  await expect(page.getByText("QoS request sent")).toBeVisible();
+  await expect(page.getByText("Requested setting; device confirmation is pending.")).toBeVisible();
+  expect(requests.filter((request) => request.procedure === "devices.requestWroverQos").map((request) => request.input)).toEqual([{ id: 13, expectedRevision: 0, uplink: 2, downlink: 0 }]);
 });
 
 test("commissioned WROVER control sends the bounded output request without claiming confirmation", async ({ page }) => {

@@ -191,6 +191,14 @@ describe("role based access control", () => {
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
+  it("restricts WROVER QoS reads and writes to engineers", async () => {
+    for (const role of ["viewer", "operator"] as const) {
+      const caller = appRouter.createCaller(contextFor(role));
+      await expect(caller.devices.wroverQos({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(caller.devices.requestWroverQos({ id: 1, expectedRevision: 0, uplink: 1, downlink: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    }
+  });
+
   it("allows operators to invoke the commissioned LED control while viewers remain blocked", async () => {
     const viewer = appRouter.createCaller(contextFor("viewer"));
     await expect(
