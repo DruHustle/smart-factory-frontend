@@ -279,10 +279,13 @@ jobs:
         run: '"$RUNNER_TEMP/smart-factory-cad/bin/python" scripts/engineering/verify-browser-exports.py test-results/cad-exports'
       - name: Verify layout editing under delayed account responses and draft capacity
         run: pnpm exec playwright test --config=playwright.layout-review.config.ts
-      - name: Verify graphical navigation, source scope, typography and model preview
-        run: pnpm e2e:experience --grep 'Overview graphics' --output=test-results/overview-graphics
+      - name: Verify graphical navigation and operational reports
+        run: pnpm e2e:experience --grep 'Overview graphics|operational reports print' --output=test-results/overview-graphics
         env:
           OVERVIEW_EVIDENCE_DIR: test-results/visual-first
+          REPORT_EVIDENCE_DIR: ${{ runner.temp }}/operational-report-pdfs
+      - name: Inspect printed operational report contents
+        run: '"$RUNNER_TEMP/smart-factory-cad/bin/python" scripts/engineering/verify-report-pdfs.py "$RUNNER_TEMP/operational-report-pdfs"'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
