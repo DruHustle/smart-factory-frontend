@@ -31,6 +31,8 @@ async function workspaceFixture(
     buttonCount?: number;
     wroverHealthy?: boolean;
     summary?: "populated" | "error";
+    notificationsError?: boolean;
+    notificationUnread?: number;
     attention?: boolean;
     olderApi?: boolean;
     viewer?: boolean;
@@ -158,8 +160,11 @@ async function workspaceFixture(
           }),
         };
       if (
-        control.summary === "error" &&
-        ["analytics.getOverview", "notifications.summary"].includes(procedure)
+        (control.summary === "error" &&
+          ["analytics.getOverview", "notifications.summary"].includes(
+            procedure,
+          )) ||
+        (control.notificationsError && procedure === "notifications.summary")
       )
         return {
           error: superjson.serialize({
@@ -216,7 +221,11 @@ async function workspaceFixture(
           value = { enabled: true, requiresApproval: true };
           break;
         case "notifications.summary":
-          value = { unread: control.summary === "populated" ? 3 : 0 };
+          value = {
+            unread:
+              control.notificationUnread ??
+              (control.summary === "populated" ? 3 : 0),
+          };
           break;
         case "notifications.page":
           value = {
@@ -779,7 +788,8 @@ test("Overview selects direct device observations and keeps the assistant on the
   const input = requests
     .filter((r) => r.procedure === "readings.trend")
     .at(-1)!.input;
-  expect(input.assetIds).toBeUndefined();
+  // SuperJSON's wire placeholder for an absent optional field can be null.
+  expect(input.assetIds ?? null).toBeNull();
   expect(input.scope).toBe("operational");
   await expect(
     chart.getByRole("link", { name: "Ask about this window", exact: true }),
@@ -795,8 +805,8 @@ test("Overview selects direct device observations and keeps the assistant on the
     .toEqual(["live-source-1"]);
   expect(
     requests.filter((r) => r.procedure === "readings.trend").at(-1)?.input
-      .deviceId,
-  ).toBeUndefined();
+      .deviceId ?? null,
+  ).toBeNull();
   await expect(
     chart.getByRole("link", { name: "Ask about this window", exact: true }),
   ).toHaveAttribute("href", /asset=live-source-1&metric=temperature/);
@@ -1089,14 +1099,30 @@ for (const width of [390, 1440]) {
       )?.value,
     ).toBe("live");
     await expect
-      .poll(
-        () => requests.filter((r) => r.procedure === "readings.trend").length,
+      .poll(() =>
+        [
+          ...new Set(
+            requests
+              .filter((r) => r.procedure === "readings.trend")
+              .map((r) => r.input.scope),
+          ),
+        ].sort(),
       )
-      .toBeGreaterThan(0);
+      .toEqual(["operational", "simulated"]);
     for (const request of requests.filter(
       (r) => r.procedure === "readings.trend",
-    ))
-      expect(request.input.assetIds).toHaveLength(6);
+    )) {
+      const prefix = request.input.scope === "simulated" ? "demo" : "live";
+      // This fixture has five assets and one static, unobserved 3D model.
+      expect(request.input.assetIds).toEqual([
+        `${prefix}-source-1`,
+        `${prefix}-source-2`,
+        `${prefix}-source-3`,
+        `${prefix}-source-4`,
+        `${prefix}-source-5`,
+      ]);
+      expect(request.input.deviceId ?? null).toBeNull();
+    }
     expect(
       requests.filter((r) => /equipment\.(get|workspace)/.test(r.procedure)),
     ).toEqual([]);
@@ -1479,7 +1505,8 @@ test("Overview gives the floor full width when no attention is needed and restri
     mainBounds = await page.locator(".overview-main-grid").boundingBox();
   expect(floorBounds).not.toBeNull();
   expect(mainBounds).not.toBeNull();
-  expect(Math.abs(floorBounds!.width - mainBounds!.width)).toBeLessThan(2);
+  // The viewport fills its floor card inside the two one-pixel side borders.
+  expect(Math.abs(floorBounds!.width - mainBounds!.width)).toBeLessThanOrEqual(2);
   await expect(
     page.locator(".overview-kpis").getByRole("link", { name: /Needs review/ }),
   ).toBeVisible();
@@ -2163,6 +2190,49 @@ test("Overview groups connectivity and review, with incidents in the strip and u
       ),
     )
     .toBe(true);
+});
+
+test("The notification badge reports a failed cached refetch and recovers the current unread count", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const control: NonNullable<Parameters<typeof workspaceFixture>[2]> = {
+    floor: "normal",
+    summary: "populated",
+  };
+  await workspaceFixture(page, false, control);
+  await page.goto("/#/");
+  const bell = page.locator("header").getByRole("link", {
+    name: /Notifications and history/,
+  });
+  await expect(bell).toHaveAttribute(
+    "aria-label",
+    "Notifications and history, 3 unread",
+  );
+  await expect(bell.getByText("3", { exact: true })).toBeVisible();
+
+  control.notificationsError = true;
+  await page.clock.fastForward(30001);
+  // Advance retry backoff as well as the polling interval; the prior successful
+  // result stays cached, which a first-load error cannot exercise.
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(1000);
+      return bell.getAttribute("aria-label");
+    })
+    .toBe("Notifications and history, unread count unavailable");
+  await expect(bell.getByText("3", { exact: true })).toHaveCount(0);
+  await expect(bell.getByText("?", { exact: true })).toBeVisible();
+
+  control.notificationsError = false;
+  control.notificationUnread = 120;
+  await page.clock.fastForward(30001);
+  await expect(bell).toHaveAttribute(
+    "aria-label",
+    "Notifications and history, 120 unread",
+  );
+  await expect(bell.getByText("99+", { exact: true })).toBeVisible();
+  await expect(bell.getByText("?", { exact: true })).toHaveCount(0);
 });
 
 test("Overview requests severity priority and puts attention before the floor on mobile", async ({

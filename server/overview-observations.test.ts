@@ -38,8 +38,101 @@ const sensor = item({
   values: { temperature: 21.5 },
   sampleAt: 1000,
 });
+const measuredEquipment = item({
+  ref: "equipment:00000000-0000-4000-8000-000000000001",
+  kind: "equipment",
+  id: "00000000-0000-4000-8000-000000000001",
+  identifier: "local-pump-01",
+  name: "Independent pump",
+  itemType: "3D equipment",
+  mode: "live",
+  sampleAt: 1000,
+  evidence: { eligible: true, validForMs: 30000 },
+  measurements: {
+    temperature: {
+      sourceValue: 21.5,
+      sourceUnit: "°C",
+      canonicalValue: 21.5,
+      canonicalUnit: "°C",
+      conversionVersion: "sf-units-v1",
+      quality: "good",
+    },
+  },
+});
 
 describe("overview observation source routing", () => {
+  it("routes observed standalone equipment through its internal asset identity", () => {
+    const result = selectOverviewObservationSource(
+      [item({}), sensor, measuredEquipment],
+      "temperature",
+      null,
+      3000,
+    );
+    expect(result.value).toBe(measuredEquipment.ref);
+    expect(result.label).toBe("Independent pump");
+    expect(result.input).toEqual({ assetIds: ["local-pump-01"] });
+    expect(result.source?.evidence?.eligible).toBe(true);
+  });
+
+  it("retains explicitly selected equipment when changing to an unobserved metric", () => {
+    const result = selectOverviewObservationSource(
+      [measuredEquipment, sensor],
+      "pressure",
+      measuredEquipment.ref,
+      3000,
+    );
+    expect(result.selection).toBe(measuredEquipment.ref);
+    expect(result.input).toEqual({ assetIds: ["local-pump-01"] });
+  });
+
+  it("includes observed standalone equipment in asset aggregation without admitting static models", () => {
+    const result = selectOverviewObservationSource(
+      [
+        item({}),
+        measuredEquipment,
+        item({
+          kind: "equipment",
+          ref: "equipment:static",
+          identifier: "static-model",
+        }),
+      ],
+      "temperature",
+      ALL_ASSET_OBSERVATIONS,
+      3000,
+    );
+    expect(result.input).toEqual({ assetIds: ["robot-01", "local-pump-01"] });
+    expect(result.sources.map((source) => source.ref)).toEqual([
+      "asset:1",
+      measuredEquipment.ref,
+    ]);
+  });
+
+  it("does not promote unverified equipment above an eligible device observation", () => {
+    const unverifiedEquipment = item({
+      ...measuredEquipment,
+      sampleAt: 2000,
+      sourceContinuity: {
+        offline: true,
+        interruptedAt: 2000,
+        commissioningRevision: null,
+      },
+    });
+    const verifiedSensor = item({
+      ...sensor,
+      mode: "live",
+      evidence: measuredEquipment.evidence,
+      measurements: measuredEquipment.measurements,
+    });
+    expect(
+      selectOverviewObservationSource(
+        [unverifiedEquipment, verifiedSensor],
+        "temperature",
+        null,
+        3000,
+      ).input,
+    ).toEqual({ deviceId: 1 });
+  });
+
   it("shows direct device readings when the only registered asset has no measurements", () => {
     const result = selectOverviewObservationSource(
       [item({}), sensor],

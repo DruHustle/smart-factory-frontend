@@ -517,17 +517,25 @@ function DashboardLayoutContent({
               <Link
                 href="/notifications"
                 className="relative"
-                aria-label={`Notifications and history${inbox.data ? `, ${inbox.data.unread} unread` : inbox.error ? ", unread count unavailable" : ""}`}
+                aria-label={`Notifications and history${inbox.error ? ", unread count unavailable" : inbox.data ? `, ${inbox.data.unread} unread` : ""}`}
+                title={inbox.error ? "Unread count unavailable" : undefined}
               >
                 <Bell className="h-5 w-5" />
-                {inbox.data && inbox.data.unread > 0 && (
+                {inbox.error ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-semibold leading-4 text-muted-foreground"
+                  >
+                    ?
+                  </span>
+                ) : inbox.data && inbox.data.unread > 0 ? (
                   <span
                     aria-hidden="true"
                     className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-primary-foreground"
                   >
                     {inbox.data.unread > 99 ? "99+" : inbox.data.unread}
                   </span>
-                )}
+                ) : null}
               </Link>
             </Button>
           </div>

@@ -1,17 +1,31 @@
 import type { InventoryItem } from "@shared/inventory";
 import {
   canonicalUnits,
+  metrics,
   sampleValidity,
   type Metric,
 } from "@shared/measurements";
 
 export const ALL_ASSET_OBSERVATIONS = "all-assets";
 
-/** Device observations need their device ID; a 3D model is not a telemetry source. */
+const hasMetricObservation = (item: InventoryItem, metric: Metric) => {
+  const measurement = item.measurements?.[metric];
+  return (
+    Number.isFinite(item.values?.[metric]) ||
+    (measurement != null &&
+      (Number.isFinite(measurement.canonicalValue) ||
+        Number.isFinite(measurement.sourceValue)))
+  );
+};
+
+/** Standalone equipment can hold observations through its internal asset identity.
+ * A static model alone is not evidence; devices use their own numeric identity. */
 export function overviewObservationSources(items: InventoryItem[]) {
   return items.filter(
     (item) =>
       item.kind === "asset" ||
+      (item.kind === "equipment" &&
+        metrics.some((metric) => hasMetricObservation(item, metric))) ||
       (item.kind === "device" &&
         item.itemType !== "gateway" &&
         Number.isSafeInteger(Number(item.id)) &&
@@ -30,7 +44,7 @@ export function selectOverviewObservationSource(
   const assetIds = [
     ...new Set(
       sources
-        .filter((item) => item.kind === "asset")
+        .filter((item) => item.kind !== "device")
         .map((item) => item.identifier),
     ),
   ];
@@ -55,15 +69,7 @@ export function selectOverviewObservationSource(
         : 0;
   };
   const measured = sources
-    .filter((item) => {
-      const measurement = item.measurements?.[metric];
-      return (
-        Number.isFinite(item.values?.[metric]) ||
-        (measurement != null &&
-          (Number.isFinite(measurement.canonicalValue) ||
-            Number.isFinite(measurement.sourceValue)))
-      );
-    })
+    .filter((item) => hasMetricObservation(item, metric))
     .sort((a, b) => {
       const timestamp = (item: InventoryItem) => {
         const value = item.sampleAt ?? Date.parse(item.lastObserved ?? "");
