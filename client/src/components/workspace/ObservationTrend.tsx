@@ -489,11 +489,9 @@ export function ObservationTrend({
                   {data.buckets.map((b) => (
                     <tr className="border-t" key={b.timestamp}>
                       <td className="py-2">
-                        {dashboard
-                          ? new Date(b.timestamp).toLocaleString(undefined, {
-                              timeZone,
-                            })
-                          : new Date(b.timestamp).toISOString()}
+                        {new Date(b.timestamp).toLocaleString(undefined, {
+                          timeZone,
+                        })}
                       </td>
                       <td>
                         {b.value == null

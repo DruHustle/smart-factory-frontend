@@ -892,6 +892,26 @@ test("engineers can change the shared factory timezone without commissioning shi
   const telemetry = page.getByRole("region", { name: "WROVER sensor observations" });
   await telemetry.getByText("Accessible bucket table").click();
   await expect(telemetry.getByRole("columnheader", { name: "Time (Europe/Berlin)" })).toBeVisible();
+  const telemetryWindow = requests
+    .filter(
+      (request) =>
+        request.procedure === "readings.trend" && request.input.deviceId === 13,
+    )
+    .at(-1)?.input;
+  expect(telemetryWindow).toBeTruthy();
+  const expectedTimes = await page.evaluate(
+    (startTime: number) =>
+      [0, 29].map((bucket) =>
+        new Date(startTime + bucket * 60000).toLocaleString(undefined, {
+          timeZone: "Europe/Berlin",
+        }),
+      ),
+    telemetryWindow.startTime,
+  );
+  const timestamps = telemetry.locator("tbody tr > td:first-child");
+  await expect(timestamps).toHaveCount(30);
+  await expect(timestamps.first()).toHaveText(expectedTimes[0]);
+  await expect(timestamps.last()).toHaveText(expectedTimes[1]);
   await page.goto("/#/");
   await page.setViewportSize({ width: 320, height: 900 });
   await page.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" }).click();
