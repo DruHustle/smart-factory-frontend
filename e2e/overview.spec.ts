@@ -206,10 +206,17 @@ for (const width of [390, 1440])
           hasTouch: width < 768,
           isMobile: width < 768,
           colorScheme: theme,
-          recordVideo: {
-            dir: `${directory}/raw-video`,
-            size: { width, height: 960 },
-          },
+          // CI retains screenshots and structured evidence but does not upload
+          // videos. Avoid encoding an unused full-resolution video on its CPU
+          // renderer; local review continues to record it as before.
+          ...(process.env.CI
+            ? {}
+            : {
+                recordVideo: {
+                  dir: `${directory}/raw-video`,
+                  size: { width, height: 960 },
+                },
+              }),
         });
         const page = await context.newPage(),
           video = page.video();
