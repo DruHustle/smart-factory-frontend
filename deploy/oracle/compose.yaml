@@ -8,6 +8,11 @@ x-runtime: &runtime
   stop_grace_period: 60s
   security_opt: ["no-new-privileges:true"]
   cap_drop: [ALL]
+  # Oracle public-IP hairpin traffic is unavailable from this Docker network.
+  # Keep the public hostname for certificate verification while routing both
+  # the API's HTTPS and the MQTT listener through the same local host gateway.
+  extra_hosts:
+    - "api.152-70-22-84.sslip.io:host-gateway"
   logging:
     driver: json-file
     options: { max-size: "10m", max-file: "3" }

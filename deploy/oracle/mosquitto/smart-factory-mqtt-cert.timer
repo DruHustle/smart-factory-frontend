@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Smart Factory MQTT TLS certificate for renewal
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
