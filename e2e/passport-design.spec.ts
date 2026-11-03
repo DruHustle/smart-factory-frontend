@@ -323,6 +323,18 @@ test("editable demo passport updates the QR without serializing other workspace 
     page.getByRole("button", { name: "Download AAS JSON", exact: true }),
   ).toBeHidden();
   await expect(page.getByTestId("passport-qr")).toBeVisible();
+  expect(
+    await page
+      .locator("#demo-passport-print")
+      .evaluate((node) => getComputedStyle(node).padding),
+  ).toBe("0px");
+  if (process.env.PASSPORT_PDF_DIR) {
+    mkdirSync(process.env.PASSPORT_PDF_DIR, { recursive: true, mode: 0o700 });
+    await page.pdf({
+      path: join(process.env.PASSPORT_PDF_DIR, "sandbox-passport.pdf"),
+      printBackground: true,
+    });
+  }
 });
 
 test("private preview never adds a QR or unchecked fields, published snapshot stays allowlisted", async ({
