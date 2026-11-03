@@ -36,14 +36,29 @@ test("an operator assigns an alert and the technician receives and can manage it
       await sql`insert into alerts("deviceId",type,severity,message,"errorCode") values(${device.id},'system_error','warning',${title},'SF-ASSIGN-TEST') returning id`;
     id = Number(alert.id);
     await login(page, "operator");
+    await page.goto("/#/notifications");
+    await page.getByLabel("Search notifications").fill(title);
+    const incoming = page
+      .getByRole("listitem")
+      .filter({ hasText: title })
+      .first();
+    await expect(incoming).toContainText("Inbox only");
+    await incoming
+      .getByRole("button", { name: "Assign technician or engineer" })
+      .click();
+    const assignment = page.getByRole("dialog", {
+      name: "Assign technician or engineer",
+    });
+    await assignment
+      .getByLabel("Technician or engineer")
+      .selectOption({ label: "Local security engineer" });
+    await assignment.getByRole("button", { name: "Save assignment" }).click();
+    await expect(assignment).toBeHidden();
     await page.goto(`/#/alerts/${id}`);
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
-    await page
-      .getByLabel("Assign technician or engineer")
-      .selectOption({ label: "Local security engineer" });
-    await expect(
-      page.getByText("Assignment updated", { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByLabel("Assign technician or engineer")).toHaveValue(
+      /\d+/,
+    );
     await login(page, "engineer");
     await page.goto("/#/notifications");
     await page.getByLabel("Search notifications").fill(title);

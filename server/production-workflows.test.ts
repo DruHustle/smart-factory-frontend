@@ -189,6 +189,71 @@ suite("telemetry attribution, incident ownership and retry integrity", () => {
     await db.resolveAlert(incident.id, technician.id, false);
   });
 
+  it("delivers live alert notices to eligible operators as inbox-only, once per escalation", async () => {
+    const database = (await db.getDb())!;
+    const operators = await Promise.all([
+      db.createUser({
+        openId: `operator-${suffix}`,
+        email: `operator-${suffix}@test.local`,
+        role: "operator",
+        name: "Active operator",
+      }),
+      db.createUser({
+        openId: `disabled-${suffix}`,
+        email: `disabled-${suffix}@test.local`,
+        role: "operator",
+        name: "Disabled operator",
+      }),
+      db.createUser({
+        openId: `demo-${suffix}`,
+        email: `demo-${suffix}@test.local`,
+        role: "operator",
+        name: "Demo operator",
+      }),
+    ]);
+    const [active, disabled, demo] = operators.map((u) => u!);
+    await database
+      .update(schema.users)
+      .set({ disabledAt: new Date() })
+      .where(eq(schema.users.id, disabled.id));
+    const incident = await db.createAlert({
+      deviceId: gateway.id,
+      type: "system_error",
+      severity: "warning",
+      message: "Operator notification fixture",
+    });
+    try {
+      await db.updateAlert(incident.id, { severity: "critical" });
+      await db.updateAlert(incident.id, {
+        severity: "critical",
+        message: "Repeated critical observation",
+      });
+      const notices = await database
+        .select()
+        .from(schema.notificationInbox)
+        .where(eq(schema.notificationInbox.alertId, incident.id));
+      expect(
+        notices
+          .filter((n) => n.userId === active.id)
+          .map((n) => [n.kind, n.emailStatus])
+          .sort(),
+      ).toEqual([
+        ["escalation", "inbox_only"],
+        ["incident", "inbox_only"],
+      ]);
+      expect(
+        notices.some((n) => n.userId === disabled.id || n.userId === demo.id),
+      ).toBe(false);
+    } finally {
+      await database
+        .delete(schema.alerts)
+        .where(eq(schema.alerts.id, incident.id));
+      await database
+        .delete(schema.users)
+        .where(inArray(schema.users.id, [active.id, disabled.id, demo.id]));
+    }
+  });
+
   it("lists only eligible technicians and rejects assignment across the live/demo boundary", async () => {
     const { withVisibility } = await import("./demoData");
     const database = (await db.getDb())!;
