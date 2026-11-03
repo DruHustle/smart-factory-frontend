@@ -24,6 +24,10 @@ prep_spec.loader.exec_module(prepare)
 
 class WorkspaceCliTests(unittest.TestCase):
     def setUp(self):
+        cli.configure_origins()
+        cli.configure_ssh_target()
+        self.addCleanup(cli.configure_origins)
+        self.addCleanup(cli.configure_ssh_target)
         self.tmp = tempfile.TemporaryDirectory(prefix="manual-cli-test-", dir=cli.EVIDENCE if cli.EVIDENCE.is_dir() else None)
         self.addCleanup(self.tmp.cleanup)
         self.path = Path(self.tmp.name)
@@ -38,6 +42,63 @@ class WorkspaceCliTests(unittest.TestCase):
     def run_main(self, *arguments):
         with patch.object(cli, "source_root", return_value=cli.ROOT), patch.object(cli, "repositories", return_value=self.sources), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             return cli.main(list(arguments))
+
+    def test_invalid_origins_stop_before_workspace_or_network_access(self):
+        for value in ("http://factory.onesa.eu", "https://factory.onesa.eu/path", "https://secret@factory.onesa.eu",
+                      "https://factory.onesa.eu,https://other.example", "https://factory.onesa.eu?", "https://factory.invalid"):
+            with self.subTest(value=value), patch.object(cli, "source_root") as source, \
+                 patch.object(cli, "get_json") as network, contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(cli.main(["status", "--ui-origin", value]), 1)
+                source.assert_not_called()
+                network.assert_not_called()
+
+    def test_invalid_ssh_target_stops_before_workspace_or_network_access(self):
+        for target in ("ubuntu@192.0.2.10", "factory-owner@onesa-oracle", "onesa-oracle"):
+            cli.configure_ssh_target(target)
+            self.assertEqual(cli.SSH_TARGET, target)
+        for target in ("", "ssh://owner@host", "owner@host:22", "one@@host", "-oProxyCommand=command",
+                       "host other", "host\nother", "$(command)", "../host", "host;command"):
+            with self.subTest(target=target), patch.object(cli, "source_root") as source, \
+                 patch.object(cli, "get_json") as network, contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(cli.main(["status", "--ssh-target=" + target]), 1)
+                source.assert_not_called()
+                network.assert_not_called()
+
+    def test_custom_origins_appear_in_the_offline_plan_without_the_legacy_alias(self):
+        output = io.StringIO()
+        with patch.object(cli, "source_root", return_value=cli.ROOT), patch.object(cli, "repositories", return_value=self.sources), \
+             patch.object(cli, "get_json") as network, contextlib.redirect_stdout(output):
+            self.assertEqual(cli.main(["status", "--ssh-target", "onesa-oracle", "--api-origin", "https://api.onesa.eu/", "--ui-origin", "https://factory.onesa.eu/"]), 0)
+        self.assertEqual(json.loads(output.getvalue())["target"]["frontend"], "https://factory.onesa.eu")
+        self.assertEqual(json.loads(output.getvalue())["target"]["api"], "https://api.onesa.eu")
+        self.assertEqual(json.loads(output.getvalue())["target"]["vm"], "onesa-oracle")
+        self.assertEqual(cli.UI_CANONICAL_ALIAS, "")
+        network.assert_not_called()
+
+    def test_backend_and_saved_status_forward_selected_target_and_origins(self):
+        cli.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        cli.configure_ssh_target("factory-owner@onesa-oracle")
+        args = cli.parser().parse_args(["backend", "--manifest", "release.json", "--bundle", "release.zip"])
+        session = cli.Session(args, self.sources)
+        with patch.object(session, "manifest"), patch.object(session, "run") as run:
+            session.backend()
+            session.status()
+        self.assertEqual(run.call_count, 2)
+        for call in run.call_args_list:
+            self.assertEqual(call.args[0][-6:], cli.deployment_arguments())
+
+    def test_execution_request_and_result_record_the_selected_ssh_target(self):
+        cli.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        cli.configure_ssh_target("factory-owner@onesa-oracle")
+        args = cli.parser().parse_args(["status", "--execute", "--release-dir", str(self.path / "target-receipts")])
+        session = cli.Session(args, self.sources)
+        with contextlib.redirect_stdout(io.StringIO()):
+            session.begin()
+            session.finish("SUCCEEDED")
+        for name in ("request.json", "result.json"):
+            value = json.loads((session.output / name).read_text())
+            self.assertEqual(value["target"], {"api": "https://api.onesa.eu", "frontend": "https://factory.onesa.eu",
+                                               "vm": "factory-owner@onesa-oracle"})
 
     def test_status_follows_only_the_verified_alias_for_public_endpoints(self):
         for path in ("/release.json", "/api/runtime/contract", "/health/ready"):
@@ -209,6 +270,8 @@ class WorkspaceCliTests(unittest.TestCase):
         dispatch = next(call.args[0] for call in run.call_args_list if call.args[1] == "dispatch-frontend")
         self.assertIn("expected_sha=" + "a" * 40, dispatch)
         self.assertIn("request_id=" + request, dispatch)
+        self.assertIn("expected_api_origin=" + cli.API, dispatch)
+        self.assertIn("expected_ui_origin=" + cli.UI, dispatch)
         receipt = json.loads((session.output / "frontend-run.json").read_text())
         self.assertEqual(receipt["id"], "10")
 

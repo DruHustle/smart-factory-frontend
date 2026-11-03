@@ -127,6 +127,21 @@ describe("password recovery delivery policy and worker envelope", () => {
     expect(passwordResetPolicy()).toEqual({ delivery: "administrator" });
   });
 
+  it("uses the explicit canonical reset origin during a multiple-origin cutover", () => {
+    vi.stubEnv("EMAIL_PROVIDER", "resend");
+    vi.stubEnv("EMAIL_DELIVERY_CONFIGURED", "true");
+    vi.stubEnv(
+      "ALLOWED_ORIGIN",
+      "https://smart-factory-iot-app.vercel.app,https://factory.onesa.eu",
+    );
+    vi.stubEnv("PASSWORD_RESET_ORIGIN", "https://factory.onesa.eu");
+    vi.stubEnv("BACKEND_DEPLOYMENT_MODE", "render-bundle");
+    expect(passwordResetPolicy()).toEqual({ delivery: "email" });
+    // Hosting on Kubernetes does not invent a new packaged-service topology.
+    vi.stubEnv("BACKEND_DEPLOYMENT_MODE", "kubernetes");
+    expect(passwordResetPolicy()).toEqual({ delivery: "administrator" });
+  });
+
   it.each([
     "http://localhost:5173",
     "http://127.0.0.1:5173",

@@ -20,10 +20,31 @@ packaging. Frontend qualification pins must match backend and edge commits.
 
 For qualification: native ARM64 Docker with the containerd image store, Buildx,
 Compose, 12 GiB free local space and the repository's documented dependencies.
-For deployment: existing trusted SSH host/key/agent and noninteractive sudo;
+For deployment: the existing `~/.ssh/id_ed25519` identity, an owner-provided
+SSH destination with a trusted known-host entry, and noninteractive sudo;
 GitHub CLI authentication for frontend dispatch; Vercel credentials stay in the
 existing GitHub production environment. Do not put secrets in CLI arguments.
 No new environment file is sourced by these launchers.
+
+The maintained tools accept `--ssh-target`, `--api-origin` and `--ui-origin`,
+with optional `SMART_FACTORY_SSH_TARGET`, `SMART_FACTORY_API_ORIGIN` and
+`SMART_FACTORY_UI_ORIGIN` environment defaults. Without overrides, they retain
+`ubuntu@152.70.22.84`, the existing Oracle API and the Vercel UI. Setting an API
+origin alone does not change the SSH destination. Supply one owner-provided
+`user@host` or SSH alias; use a reviewed alias for a custom port or IPv6.
+Inline ports, URLs, shell options and whitespace are rejected. Strict host-key
+checking and the existing identity remain mandatory. These tools require a
+prepared healthy ARM64 deployment; they do not provision or discover a VM.
+
+Use the same selected SSH target and origins for backend deployment, status and
+recovery. Local/server receipts bind them to the retained job; older receipts
+without target fields belong to the original live defaults. The offline plan
+shows the selected VM and execution requests/results retain it. Frontend
+dispatch binds the origins to the GitHub production variables of the same names
+before any promotion.
+For the `factory.onesa.eu` transition, follow the domain and mail preparation
+in [the Oracle runbook](../../deploy/oracle/README.md). Supplying an origin
+does not create its DNS, certificate or provider configuration.
 
 ```bash
 SF_ROOT='/Users/andrewgotora/Software Development/GitHub/smart-factory'

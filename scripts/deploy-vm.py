@@ -31,6 +31,7 @@ import tarfile
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 import zipfile
@@ -38,11 +39,15 @@ import zipfile
 # Release preparation supplies this only after exact-source native ARM64 qualification.
 RELEASE_MANIFEST = None
 M = None
-HOST = "ubuntu@152.70.22.84"
+DEFAULT_SSH_TARGET = "ubuntu@152.70.22.84"
+HOST = DEFAULT_SSH_TARGET
 DEPLOY = Path("/opt/smart-factory-backend")
-API_ORIGIN = "https://api.152-70-22-84.sslip.io"
-UI_ORIGIN = "https://smart-factory-iot-app.vercel.app"
-UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
+DEFAULT_API_ORIGIN = "https://api.152-70-22-84.sslip.io"
+DEFAULT_UI_ORIGIN = "https://smart-factory-iot-app.vercel.app"
+DEFAULT_UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
+API_ORIGIN = DEFAULT_API_ORIGIN
+UI_ORIGIN = DEFAULT_UI_ORIGIN
+UI_CANONICAL_ALIAS = DEFAULT_UI_CANONICAL_ALIAS
 PROJECT = "smart-factory-backend"
 FILE_NAMES = ("compose.yaml", ".env", ".env.api", ".env.worker")
 MEMBERS = {"candidate.tar.gz", "rollback.tar.gz", "archive.sha256", "image.json",
@@ -65,6 +70,92 @@ TERMINAL_STATUSES = {"BACKEND_DEPLOYED", "ROLLED_BACK", "STOPPED_BEFORE_CHANGES"
 def require(ok, message):
     if not ok:
         raise RuntimeError(message)
+
+
+def https_origin(value, label):
+    """Accept one HTTPS DNS origin; never silently discard a path or credentials."""
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        host, port = parsed.hostname or "", parsed.port
+        origin = "https://" + host + (":" + str(port) if port not in (None, 443) else "")
+        valid = (parsed.scheme == "https" and parsed.username is None and parsed.password is None
+                 and value in (origin, origin + "/")
+                 and len(host) <= 253 and not host.endswith(".invalid")
+                 and all(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", part) for part in host.split("."))
+                 and (port is None or 1 <= port <= 65535))
+    except (TypeError, ValueError):
+        valid = False
+    require(valid, label + " must be a plain HTTPS origin without credentials, path, query or fragment.")
+    return origin
+
+
+def configure_origins(api=DEFAULT_API_ORIGIN, ui=DEFAULT_UI_ORIGIN):
+    global API_ORIGIN, UI_ORIGIN, UI_CANONICAL_ALIAS
+    api = https_origin(api, "API origin")
+    ui = https_origin(ui, "UI origin")
+    API_ORIGIN, UI_ORIGIN = api, ui
+    # The verified legacy redirect must never become an alias for a new domain.
+    UI_CANONICAL_ALIAS = DEFAULT_UI_CANONICAL_ALIAS if ui == DEFAULT_UI_ORIGIN else ""
+
+
+def configure_ssh_target(value=DEFAULT_SSH_TARGET):
+    global HOST
+    require(isinstance(value, str) and re.fullmatch(
+        r"(?:[A-Za-z_][A-Za-z0-9_.-]{0,63}@)?[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,251}[A-Za-z0-9])?", value),
+        "SSH target must be one user@host or an explicit SSH alias, without a URL, port, whitespace or options.")
+    HOST = value
+
+
+def deployment_origins():
+    return {"api": API_ORIGIN, "ui": UI_ORIGIN}
+
+
+def deployment_target():
+    return {"origins": deployment_origins(), "sshTarget": HOST}
+
+
+def origin_arguments():
+    return ["--api-origin", API_ORIGIN, "--ui-origin", UI_ORIGIN]
+
+
+def deployment_arguments():
+    return ["--ssh-target", HOST, *origin_arguments()]
+
+
+def assert_receipt_target(receipt):
+    # Receipts written before origins were configurable belong to the live defaults.
+    recorded = receipt.get("origins", {"api": DEFAULT_API_ORIGIN, "ui": DEFAULT_UI_ORIGIN})
+    require(recorded == deployment_origins(),
+            "The retained job targets different origins; reconnect with its original API and UI origins.")
+    require(receipt.get("sshTarget", DEFAULT_SSH_TARGET) == HOST,
+            "The retained job targets a different SSH target; reconnect with its original --ssh-target.")
+
+
+def require_api_allowlist(api):
+    # Runtime splits, trims and filters, but compares each remaining origin exactly.
+    raw = api.get("ALLOWED_ORIGIN")
+    require(isinstance(raw, str) and raw.strip(), "The effective API ALLOWED_ORIGIN must be nonempty.")
+    allowed = [value.strip() for value in raw.split(",") if value.strip()]
+    require(allowed, "The effective API ALLOWED_ORIGIN must be nonempty.")
+    for value in allowed:
+        require(https_origin(value, "ALLOWED_ORIGIN entry") == value,
+                "Each ALLOWED_ORIGIN entry must be an exact canonical origin without a trailing slash.")
+    require(UI_ORIGIN in allowed,
+            "The selected UI origin must be present exactly in the effective API ALLOWED_ORIGIN.")
+    return allowed
+
+
+def require_worker_origin(worker):
+    value = worker.get("DASHBOARD_API_ORIGIN")
+    require(isinstance(value, str) and value, "The effective worker DASHBOARD_API_ORIGIN must be configured.")
+    require(https_origin(value, "Worker DASHBOARD_API_ORIGIN") == API_ORIGIN,
+            "The effective worker DASHBOARD_API_ORIGIN differs from the selected API origin; review the on-host Compose and .env overrides.")
+
+
+def require_effective_origins(image, configuration):
+    environments = {role: effective_environment(image, configuration["services"][role]) for role in ("api", "worker")}
+    require_api_allowlist(environments["api"])
+    require_worker_origin(environments["worker"])
 
 
 def digest_stream(stream):
@@ -326,7 +417,7 @@ def _runtime_http(url, want_json=False):
         except urllib.error.HTTPError as error:
             # Only the verified Vercel alias for the public release snapshot
             # may redirect; do not follow arbitrary or chained redirects.
-            target = UI_CANONICAL_ALIAS + "/release.json" if url == UI_ORIGIN + "/release.json" else None
+            target = UI_CANONICAL_ALIAS + "/release.json" if UI_CANONICAL_ALIAS and url == UI_ORIGIN + "/release.json" else None
             if error.code != 307 or target is None or error.headers.get("Location") != target:
                 raise
             error.close()
@@ -715,6 +806,7 @@ def frontend_snapshot():
 
 
 def mail_configuration_plan(api, worker):
+    allowed = require_api_allowlist(api)
     summary = mail_summary(api, worker)
     for key in ("serviceTokenPresentOnBoth", "serviceTokensMatch", "serviceTokenLengthValid", "apiWorkerModeEnabled"):
         require(summary.get(key) is True, "Existing worker/service-token configuration failed: " + key)
@@ -729,8 +821,13 @@ def mail_configuration_plan(api, worker):
         configured = all(summary.get(key) is True for key in ("apiKeyPresent", "apiKeyPrefixValid", "senderPresent")) and policy
     else:
         configured = summary.get("enabled") is True and summary.get("senderPresent") is True and policy
+    multiple_origins = len(allowed) > 1 or csv_count(worker.get("ALLOWED_ORIGIN")) > 1
+    if multiple_origins:
+        require(all(environment.get("PASSWORD_RESET_ORIGIN") for environment in (api, worker)),
+                "Multiple ALLOWED_ORIGIN values require an explicit PASSWORD_RESET_ORIGIN on both API and worker.")
     for environment in (api, worker):
-        require(not environment.get("PASSWORD_RESET_ORIGIN") or environment["PASSWORD_RESET_ORIGIN"] == UI_ORIGIN,
+        reset_origin = environment.get("PASSWORD_RESET_ORIGIN")
+        require(not reset_origin or https_origin(reset_origin, "PASSWORD_RESET_ORIGIN") == UI_ORIGIN,
                 "An existing password-reset origin differs; review it before deployment.")
     api_updates = {"EMAIL_DELIVERY_CONFIGURED": "true" if configured else "false"}
     worker_updates = {}
@@ -776,6 +873,7 @@ def snapshot_current():
         environments[role] = environment_map(items[role].get("Config", {}).get("Env", []))
         require(environments[role] == effective_environment(image, configuration["services"][role]),
                 "On-disk and running environment values differ; inspect pending changes first.")
+    require_effective_origins(image, configuration)
     runtime = public_json(API_ORIGIN + "/api/runtime/contract")
     local_runtime = public_json("http://127.0.0.1:10000/api/runtime/contract")
     require(runtime_matches(runtime, M["baseline"], True) and runtime_matches(local_runtime, M["baseline"], True),
@@ -794,7 +892,7 @@ def safe_snapshot(snapshot):
 
 def remote_check():
     snapshot = snapshot_current()
-    return {"status": "PREFLIGHT_PASSED", "manifestSha256": manifest_digest(),
+    return {"status": "PREFLIGHT_PASSED", "manifestSha256": manifest_digest(), **deployment_target(),
             "baselineSources": M["baseline"]["sources"], "candidateSources": M["candidate"]["sources"],
             "fallbackSources": M["rollback"]["sources"], "frontendSource": snapshot["frontendBefore"]["source"],
             "mailConfigurationPresence": snapshot["mail"], "changed": False,
@@ -965,7 +1063,7 @@ class RuntimeChecks:
 
 def update_progress(directory, phase, detail):
     write_json_private(directory / "progress.json", {"status": "RUNNING", "phase": phase,
-        "detail": detail, "updatedAt": now_iso(), "serverDirectory": str(directory)}, replace=True)
+        "detail": detail, "updatedAt": now_iso(), "serverDirectory": str(directory), **deployment_target()}, replace=True)
 
 
 def assert_worker_stopped():
@@ -1090,6 +1188,8 @@ class Deployment:
         require(without_extensions(planned_configuration) == without_extensions(expected_configuration),
                 "The release would change more than its image and approved non-secret recovery metadata.")
         candidate = inspect_image(self.state["candidateImageId"])
+        require_effective_origins(candidate, planned_configuration)
+        require_effective_origins(inspect_image(self.state["rollbackImageId"]), snapshot["configuration"])
         for role in ("api", "worker"):
             planned_environment = effective_environment(candidate, planned_configuration["services"][role])
             current = snapshot["environments"][role]
@@ -1100,10 +1200,10 @@ class Deployment:
             for key, value in zip(("SOURCE_REVISION", "BACKEND_SOURCE_REVISION", "EDGE_SOURCE_REVISION"), sources(M["candidate"])):
                 require(planned_environment.get(key) == value, "Configuration overrides a qualified source revision.")
         self.planned_configuration = planned_configuration
-        self.state.update(manifestSha256=manifest_digest(), directory=str(self.directory), preparedAt=now_iso(),
+        self.state.update(**deployment_target(), manifestSha256=manifest_digest(), directory=str(self.directory), preparedAt=now_iso(),
                           currentImageProtectedTag=preserved_tag, expectedResetPolicy=snapshot["mail"]["expectedResetPolicy"])
         write_json_private(self.directory / "state.json", self.state)
-        write_json_private(self.directory / "plan.json", {"createdAt": now_iso(),
+        write_json_private(self.directory / "plan.json", {"createdAt": now_iso(), **deployment_target(),
             "candidateImageId": self.state["candidateImageId"], "rollbackImageId": self.state["rollbackImageId"],
             "changedKeys": {".env": ["BACKEND_IMAGE"], ".env.api": list(api_updates), ".env.worker": list(worker_updates)},
             "plannedFileHashes": {name: hash_bytes(data) for name, data in self.planned.items()},
@@ -1194,7 +1294,7 @@ class Deployment:
 
     def result(self, status, evidence, image_id):
         return {"status": status, "completedAt": now_iso(), "serverDirectory": str(self.directory),
-                "manifestSha256": manifest_digest(), "activeImageId": image_id,
+                "manifestSha256": manifest_digest(), **deployment_target(), "activeImageId": image_id,
                 "candidateImageId": self.state["candidateImageId"], "rollbackImageId": self.state["rollbackImageId"],
                 "preservedImageId": self.state["currentImageId"], "runtime": evidence["runtime"],
                 "workerReceipt": evidence["receipt"], "containers": evidence["containers"],
@@ -1212,7 +1312,7 @@ def execute_deployment(deployment):
         failure = safe_error(error)
         if not deployment.mutation_started:
             return {"status": "STOPPED_BEFORE_CHANGES", "error": failure, "completedAt": now_iso(),
-                    "serverDirectory": str(deployment.directory)}
+                    "serverDirectory": str(deployment.directory), **deployment_target()}
         try:
             report = deployment.rollback()
             report["deploymentError"] = failure
@@ -1220,7 +1320,7 @@ def execute_deployment(deployment):
         except Exception as recovery_error:
             return {"status": "NEEDS_REVIEW", "deploymentError": failure,
                     "recoveryError": safe_error(recovery_error), "completedAt": now_iso(),
-                    "serverDirectory": str(deployment.directory)}
+                    "serverDirectory": str(deployment.directory), **deployment_target()}
 
 
 def safe_error(error):
@@ -1240,6 +1340,17 @@ def validate_directory(value):
     return directory
 
 
+def validate_remote_directory(value):
+    # The server enforces Path.home() containment; the client must not assume ubuntu.
+    require(isinstance(value, str), "The server returned an unexpected release directory.")
+    path = PurePosixPath(value)
+    require(path.root == "/" and str(path) == value
+            and path.parent.name == "smart-factory-releases"
+            and all(re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*", part) and part not in (".", "..") for part in path.parts[1:-1])
+            and re.fullmatch(r"[a-f0-9]{7}-\d{8}T\d{6}Z-[a-f0-9]{8}", path.name),
+            "The server returned an unexpected release directory.")
+
+
 def remote_allocate():
     os.umask(0o077)
     parent = Path.home() / "smart-factory-releases"
@@ -1248,7 +1359,7 @@ def remote_allocate():
     name = M["candidate"]["sources"]["frontend"][:7] + "-" + datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     directory = parent / name
     directory.mkdir(mode=0o700)
-    return {"status": "STAGED", "directory": str(directory), "manifestSha256": manifest_digest()}
+    return {"status": "STAGED", "directory": str(directory), "manifestSha256": manifest_digest(), **deployment_target()}
 
 
 def process_start_identity(pid):
@@ -1262,10 +1373,11 @@ def process_start_identity(pid):
 
 def remote_status(directory):
     if not (directory / "request.json").exists():
-        return {"status": "STAGED", "serverDirectory": str(directory),
+        return {"status": "STAGED", "serverDirectory": str(directory), **deployment_target(),
                 "detail": "Files may be uploaded; no deployment job has been requested."}
     request = read_private_json(directory / "request.json")
     require(request.get("manifestSha256") == manifest_digest(), "The retained job belongs to a different release manifest.")
+    assert_receipt_target(request)
     if (directory / "result.json").exists():
         return read_private_json(directory / "result.json")
     progress = read_private_json(directory / "progress.json")
@@ -1292,18 +1404,19 @@ def remote_start(directory, helper_sha):
                 "The staged deployment helper differs from the requested file.")
         staged = validate_manifest(read_private_json(directory / "release-manifest.json"))
         require(staged == M, "The staged manifest differs from the requested release.")
-        write_json_private(directory / "request.json", {"createdAt": now_iso(), "manifestSha256": manifest_digest(), "helperSha256": helper_sha})
+        write_json_private(directory / "request.json", {"createdAt": now_iso(), "manifestSha256": manifest_digest(),
+                           "helperSha256": helper_sha, **deployment_target()})
         update_progress(directory, "STARTING", "Starting the detached deployment; service changes follow full validation.")
         try:
             descriptor = os.open(str(directory / "private-output.log"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(descriptor, "wb") as output:
                 process = subprocess.Popen([sys.executable, str(directory / "deploy-vm.py"), "--manifest",
-                    str(directory / "release-manifest.json"), "--remote-mode", "run", "--directory", str(directory)],
+                    str(directory / "release-manifest.json"), "--remote-mode", "run", "--directory", str(directory), *deployment_arguments()],
                     stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, cwd=directory,
                     close_fds=True, start_new_session=True)
             write_json_private(directory / "process.json", {"pid": process.pid, "startIdentity": process_start_identity(process.pid), "startedAt": now_iso()})
         except OSError:
-            report = {"status": "STOPPED_BEFORE_CHANGES", "error": "The detached process could not start.", "serverDirectory": str(directory), "completedAt": now_iso()}
+            report = {"status": "STOPPED_BEFORE_CHANGES", "error": "The detached process could not start.", "serverDirectory": str(directory), "completedAt": now_iso(), **deployment_target()}
             write_json_private(directory / "result.json", report)
             return report
     return remote_status(directory)
@@ -1312,9 +1425,10 @@ def remote_start(directory, helper_sha):
 def remote_run(directory):
     os.umask(0o077)
     with release_lock(directory, blocking=True):
+        request = read_private_json(directory / "request.json")
+        assert_receipt_target(request)
         if (directory / "result.json").exists():
             return read_private_json(directory / "result.json")
-        request = read_private_json(directory / "request.json")
         require(request.get("manifestSha256") == manifest_digest()
                 and request.get("helperSha256") == digest_file(Path(__file__).resolve()),
                 "The helper or manifest changed after the deployment request.")
@@ -1337,7 +1451,7 @@ def ssh_options():
 
 
 def remote_call(mode, directory=None, helper_sha=None):
-    arguments = ["python3", "-", "--remote-mode", mode]
+    arguments = ["python3", "-", "--remote-mode", mode, *deployment_arguments()]
     if directory is not None:
         arguments += ["--directory", directory]
     if helper_sha is not None:
@@ -1392,6 +1506,7 @@ def run_client(args):
         require(state_path.exists(), "No local deployment receipt exists; supply --state for an existing run.")
         receipt = read_private_json(state_path)
         require(receipt.get("manifestSha256") == manifest_digest(), "The local receipt belongs to a different release.")
+        assert_receipt_target(receipt)
         return monitor(receipt["directory"], follow=not args.once)
     print("Verifying exact ARM64 candidate, fallback, tests, archive checksums and vulnerability audit...", flush=True)
     bundle = find_bundle(args.bundle)
@@ -1403,6 +1518,7 @@ def run_client(args):
     receipt = read_private_json(state_path) if state_path.exists() else None
     if receipt:
         require(receipt.get("manifestSha256") == manifest_digest(), "The local receipt belongs to a different release.")
+        assert_receipt_target(receipt)
         current = remote_call("status", receipt["directory"])
         if current.get("status") != "STAGED":
             return monitor(receipt["directory"], current)
@@ -1410,12 +1526,14 @@ def run_client(args):
         # This is still read-only and catches host/configuration drift before uploading images.
         remote_call("check")
         receipt = remote_call("allocate")
-        require(receipt.get("manifestSha256") == manifest_digest()
-                and re.fullmatch(r"/home/ubuntu/smart-factory-releases/[a-f0-9]{7}-\d{8}T\d{6}Z-[a-f0-9]{8}", str(receipt.get("directory", ""))),
-                "The server returned an unexpected release directory.")
+        assert_receipt_target(receipt)
+        require(receipt.get("manifestSha256") == manifest_digest(), "The server returned a different release manifest.")
+        validate_remote_directory(receipt.get("directory"))
         state_path.parent.mkdir(parents=True, exist_ok=True)
-        write_json_private(state_path, {"directory": receipt["directory"], "manifestSha256": manifest_digest(), "createdAt": now_iso()})
+        write_json_private(state_path, {"directory": receipt["directory"], "manifestSha256": manifest_digest(),
+                           **deployment_target(), "createdAt": now_iso()})
     directory = receipt["directory"]
+    validate_remote_directory(directory)
     print("Uploading the verified images and deployment helper. Receipt: " + str(state_path), flush=True)
     with tempfile.TemporaryDirectory(prefix="smart-factory-manifest-") as temporary:
         manifest_path = Path(temporary) / "release-manifest.json"
@@ -1437,12 +1555,20 @@ def main(argv=None):
     parser.add_argument("--bundle", help="Exact qualified ARM64 ZIP from the completed qualification.")
     parser.add_argument("--manifest", help="Reviewed release manifest, if it is not embedded in this file.")
     parser.add_argument("--state", help="Private local receipt path for reconnecting to the same release.")
+    parser.add_argument("--ssh-target", default=os.environ.get("SMART_FACTORY_SSH_TARGET", DEFAULT_SSH_TARGET),
+                        help="Explicit user@host or owner-configured SSH alias; preserved in the deployment receipt.")
+    parser.add_argument("--api-origin", default=os.environ.get("SMART_FACTORY_API_ORIGIN", DEFAULT_API_ORIGIN),
+                        help="Canonical public HTTPS API origin; preserved in the deployment receipt.")
+    parser.add_argument("--ui-origin", default=os.environ.get("SMART_FACTORY_UI_ORIGIN", DEFAULT_UI_ORIGIN),
+                        help="Canonical HTTPS frontend and password-reset origin; preserved in the deployment receipt.")
     parser.add_argument("--remote-mode", choices=("check", "allocate", "start", "run", "status"), help=argparse.SUPPRESS)
     parser.add_argument("--directory", help=argparse.SUPPRESS)
     parser.add_argument("--helper-sha", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     try:
         require(sys.version_info >= (3, 9), "Python 3.9 or newer is required.")
+        configure_ssh_target(args.ssh_target)
+        configure_origins(args.api_origin, args.ui_origin)
         if args.manifest:
             path = Path(args.manifest).expanduser()
             require(path.is_file() and not path.is_symlink() and path.stat().st_size < 1024 * 1024,

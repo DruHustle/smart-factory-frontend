@@ -8,6 +8,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shlex
 import stat
 import subprocess
 import sys
@@ -23,6 +24,9 @@ spec = importlib.util.spec_from_file_location("manual_vm_test_subject", SOURCE)
 vm = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = vm
 spec.loader.exec_module(vm)
+env_spec = importlib.util.spec_from_file_location("oracle_env_test_subject", SOURCE.with_name("prepare-oracle-env.py"))
+oracle_env = importlib.util.module_from_spec(env_spec)
+env_spec.loader.exec_module(oracle_env)
 
 CAPABILITIES = ["password-reset-v1", "account-requests-v1", "account-role-approval-v1",
                 "industrial-connectivity-v1", "published-passports-v1"]
@@ -237,6 +241,75 @@ class BundleTests(unittest.TestCase):
 
 
 class ConfigurationTests(unittest.TestCase):
+    def setUp(self):
+        vm.configure_origins()
+        vm.configure_ssh_target()
+        self.addCleanup(vm.configure_origins)
+        self.addCleanup(vm.configure_ssh_target)
+
+    def test_custom_origins_are_validated_and_do_not_inherit_the_legacy_alias(self):
+        vm.configure_origins("https://api.onesa.eu/", "https://factory.onesa.eu/")
+        self.assertEqual(vm.deployment_origins(), {"api": "https://api.onesa.eu", "ui": "https://factory.onesa.eu"})
+        self.assertEqual(vm.UI_CANONICAL_ALIAS, "")
+        source = vm.UI_ORIGIN + "/release.json"
+        opener = Mock()
+        opener.open.side_effect = vm.urllib.error.HTTPError(source, 307, "redirect",
+            {"Location": vm.DEFAULT_UI_CANONICAL_ALIAS + "/release.json"}, io.BytesIO())
+        with patch.object(vm.urllib.request, "build_opener", return_value=opener):
+            self.assertIsNone(vm._runtime_http(source, True))
+        self.assertEqual(opener.open.call_count, 1)
+
+    def test_invalid_origins_stop_before_manifest_loading_or_remote_work(self):
+        for value in ("http://factory.onesa.eu", "https://user:secret@factory.onesa.eu", "https://factory.onesa.eu/path",
+                      "https://@factory.onesa.eu", "https://factory.onesa.eu:",
+                      "https://factory.onesa.eu/#", "https://factory.onesa.eu?", "https://factory.onesa.eu,https://other.example",
+                      "https://factory.onesa.eu:0", "https://factory.onesa.eu:70000", "https://factory.invalid", "https://factory.onesa.eu\n"):
+            with self.subTest(value=value), patch.object(vm, "validate_manifest") as manifest, \
+                 patch.object(vm, "run_client") as run, contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(vm.main(["--api-origin", value]), 1)
+                manifest.assert_not_called()
+                run.assert_not_called()
+
+    def test_receipts_bind_origins_and_legacy_receipts_keep_the_old_target(self):
+        vm.assert_receipt_target({})
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        with self.assertRaisesRegex(RuntimeError, "different origins"):
+            vm.assert_receipt_target({})
+        vm.assert_receipt_target({"origins": vm.deployment_origins()})
+        with self.assertRaisesRegex(RuntimeError, "different origins"):
+            vm.assert_receipt_target({"origins": {"api": vm.API_ORIGIN, "ui": vm.DEFAULT_UI_ORIGIN}})
+
+    def test_explicit_ssh_target_is_one_destination_and_invalid_values_stop_before_manifest_loading(self):
+        for target in ("ubuntu@192.0.2.10", "factory-owner@onesa-oracle", "onesa-oracle"):
+            vm.configure_ssh_target(target)
+            self.assertEqual(vm.HOST, target)
+        for target in ("", "ssh://owner@host", "owner@host:22", "one@@host", "-oProxyCommand=command",
+                       "host other", "host\nother", "$(command)", "../host", "host;command"):
+            with self.subTest(target=target), patch.object(vm, "validate_manifest") as manifest, \
+                 patch.object(vm, "run_client") as run, contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(vm.main(["--ssh-target=" + target]), 1)
+                manifest.assert_not_called()
+                run.assert_not_called()
+
+    def test_legacy_receipts_remain_bound_to_the_original_ssh_target(self):
+        vm.assert_receipt_target({})
+        vm.configure_ssh_target("onesa-oracle")
+        with self.assertRaisesRegex(RuntimeError, "different SSH target"):
+            vm.assert_receipt_target({})
+        vm.assert_receipt_target(vm.deployment_target())
+        with self.assertRaisesRegex(RuntimeError, "different SSH target"):
+            vm.assert_receipt_target({**vm.deployment_target(), "sshTarget": "other-oracle"})
+
+    def test_remote_release_directory_accepts_owner_homes_without_accepting_unsafe_paths(self):
+        suffix = "/smart-factory-releases/aaaaaaa-20261103T120000Z-12345678"
+        for home in ("/home/ubuntu", "/home/factory-owner", "/root", "/srv/owners/factory"):
+            vm.validate_remote_directory(home + suffix)
+        for value in (None, "relative" + suffix, "/home/../root" + suffix, "/home/$(command)" + suffix,
+                      "/home/space name" + suffix, "/home//owner" + suffix, "//home/owner" + suffix,
+                      "/home/owner" + suffix + "/extra", "/home/owner" + suffix + ";command"):
+            with self.subTest(value=value), self.assertRaisesRegex(RuntimeError, "unexpected release directory"):
+                vm.validate_remote_directory(value)
+
     def test_public_snapshot_accepts_only_the_verified_alias_without_chains(self):
         source = vm.UI_ORIGIN + "/release.json"
         target = vm.UI_CANONICAL_ALIAS + "/release.json"
@@ -308,7 +381,8 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(vm.without_extensions(value), {"services": {"api": {"environment": {"x-secret": "retained"}}}})
 
     def mail(self):
-        api = {"DASHBOARD_SERVICE_TOKEN": "s" * 40, "BACKEND_DEPLOYMENT_MODE": "render-bundle", "EMAIL_PROVIDER": "smtp"}
+        api = {"DASHBOARD_SERVICE_TOKEN": "s" * 40, "BACKEND_DEPLOYMENT_MODE": "render-bundle",
+               "EMAIL_PROVIDER": "smtp", "ALLOWED_ORIGIN": vm.UI_ORIGIN}
         worker = {"DASHBOARD_SERVICE_TOKEN": "s" * 40, "EMAIL_PROVIDER": "smtp", "SMTP_USERNAME": "synthetic",
                   "SMTP_PASSWORD": "synthetic-secret", "SMTP_FROM": "synthetic@example.test", "SMTP_ALLOWED_RECIPIENTS": "person@example.test"}
         return api, worker
@@ -328,6 +402,115 @@ class ConfigurationTests(unittest.TestCase):
         api, worker = self.mail()
         worker.pop("SMTP_ALLOWED_RECIPIENTS")
         self.assertEqual(vm.mail_configuration_plan(api, worker)[0]["EMAIL_DELIVERY_CONFIGURED"], "false")
+
+    def test_cutover_allowlist_requires_one_explicit_reset_origin_on_both_processes(self):
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        api, worker = self.mail()
+        api["ALLOWED_ORIGIN"] = vm.DEFAULT_UI_ORIGIN + "," + vm.UI_ORIGIN
+        with self.assertRaisesRegex(RuntimeError, "explicit PASSWORD_RESET_ORIGIN"):
+            vm.mail_configuration_plan(api, worker)
+        api["PASSWORD_RESET_ORIGIN"] = vm.UI_ORIGIN
+        with self.assertRaisesRegex(RuntimeError, "both API and worker"):
+            vm.mail_configuration_plan(api, worker)
+        worker["PASSWORD_RESET_ORIGIN"] = vm.UI_ORIGIN
+        updates, worker_updates, summary = vm.mail_configuration_plan(api, worker)
+        self.assertEqual(updates, {"EMAIL_DELIVERY_CONFIGURED": "true"})
+        self.assertEqual(worker_updates, {})
+        self.assertEqual(summary["expectedResetPolicy"], "email")
+        api["ALLOWED_ORIGIN"] = vm.DEFAULT_UI_ORIGIN
+        with self.assertRaisesRegex(RuntimeError, "selected UI origin"):
+            vm.mail_configuration_plan(api, worker)
+
+    def test_mail_plan_requires_the_exact_nonempty_api_browser_allowlist(self):
+        for value in (None, "", " ", ",, ", vm.UI_ORIGIN + "/", "https://other.example"):
+            api, worker = self.mail()
+            if value is None:
+                api.pop("ALLOWED_ORIGIN")
+            else:
+                api["ALLOWED_ORIGIN"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(RuntimeError, "ALLOWED_ORIGIN"):
+                vm.mail_configuration_plan(api, worker)
+        api, worker = self.mail()
+        api["ALLOWED_ORIGIN"] = " , " + vm.UI_ORIGIN + ", "
+        self.assertEqual(vm.mail_configuration_plan(api, worker)[0]["EMAIL_DELIVERY_CONFIGURED"], "true")
+
+    def test_effective_worker_callback_uses_resolved_compose_precedence(self):
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        image = {"Config": {"Env": ["ALLOWED_ORIGIN=" + vm.UI_ORIGIN, "DASHBOARD_API_ORIGIN=" + vm.API_ORIGIN]}}
+        configuration = {"services": {"api": {"environment": {}}, "worker": {"environment": {}}}}
+        vm.require_effective_origins(image, configuration)
+        for value in (None, "", vm.DEFAULT_API_ORIGIN, vm.API_ORIGIN + "/api", "https://secret@" + "api.onesa.eu"):
+            configuration["services"]["worker"]["environment"]["DASHBOARD_API_ORIGIN"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(RuntimeError, "DASHBOARD_API_ORIGIN"):
+                vm.require_effective_origins(image, configuration)
+        configuration["services"]["worker"]["environment"]["DASHBOARD_API_ORIGIN"] = vm.API_ORIGIN
+        vm.require_effective_origins(image, configuration)
+
+    def test_real_snapshot_rejects_effective_origin_drift_before_public_checks_or_service_changes(self):
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        previous_manifest = vm.M
+        self.addCleanup(setattr, vm, "M", previous_manifest)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest, _, _ = bundle_fixture(root)
+            vm.M = vm.validate_manifest(manifest)
+            deploy = root / "deployment"
+            deploy.mkdir()
+            for name in vm.FILE_NAMES:
+                (deploy / name).write_bytes(b"private fixture\n")
+                (deploy / name).chmod(0o600)
+            original = {name: (deploy / name).read_bytes() for name in vm.FILE_NAMES}
+            image = {"Id": "installed-id", "Os": "linux", "Architecture": "arm64",
+                     "Config": {"Labels": dict(zip(vm.LABELS, vm.sources(vm.M["baseline"]))),
+                                "Env": ["ALLOWED_ORIGIN=" + vm.UI_ORIGIN, "DASHBOARD_API_ORIGIN=" + vm.API_ORIGIN]}}
+            for role, key, value in (("api", "ALLOWED_ORIGIN", None), ("api", "ALLOWED_ORIGIN", ""),
+                                     ("api", "ALLOWED_ORIGIN", vm.UI_ORIGIN + "/"),
+                                     ("worker", "DASHBOARD_API_ORIGIN", vm.DEFAULT_API_ORIGIN)):
+                configuration = {"services": {name: {"image": "installed-id", "environment": {}} for name in ("api", "worker")}}
+                configuration["services"][role]["environment"][key] = value
+                containers = {name: {"Id": name + "-id", "Image": "installed-id",
+                                     "State": {"Health": {"Status": "healthy"}},
+                                     "Config": {"Env": [k + "=" + v for k, v in vm.effective_environment(image, configuration["services"][name]).items()]}}
+                              for name in ("api", "worker")}
+                with self.subTest(role=role, value=value), contextlib.ExitStack() as stack:
+                    stack.enter_context(patch.object(vm, "DEPLOY", deploy))
+                    stack.enter_context(patch.object(vm.os, "uname", return_value=Mock(machine="aarch64")))
+                    stack.enter_context(patch.object(vm.shutil, "disk_usage", return_value=Mock(free=8 * 1024**3)))
+                    docker = stack.enter_context(patch.object(vm, "docker", return_value=subprocess.CompletedProcess([], 0, '"unix:///var/run/docker.sock"')))
+                    compose = stack.enter_context(patch.object(vm, "compose", return_value=subprocess.CompletedProcess([], 0, "2.30.0")))
+                    stack.enter_context(patch.object(vm, "deployment_container", side_effect=lambda name, **kw: containers[name]))
+                    stack.enter_context(patch.object(vm, "assert_no_other_worker"))
+                    stack.enter_context(patch.object(vm, "inspect_image", return_value=image))
+                    stack.enter_context(patch.object(vm, "compose_configuration", return_value=configuration))
+                    public = stack.enter_context(patch.object(vm, "public_json"))
+                    frontend = stack.enter_context(patch.object(vm, "frontend_snapshot"))
+                    with self.assertRaisesRegex(RuntimeError, key):
+                        vm.snapshot_current()
+                    public.assert_not_called()
+                    frontend.assert_not_called()
+                    docker.assert_called_once_with("context", "inspect", "--format", "{{json .Endpoints.docker.Host}}")
+                    compose.assert_called_once_with("version", "--short")
+                    self.assertEqual({name: (deploy / name).read_bytes() for name in vm.FILE_NAMES}, original)
+
+    def test_resend_configuration_stays_on_worker_and_requires_a_recipient_policy(self):
+        api, worker = self.mail()
+        api["EMAIL_PROVIDER"] = "resend"
+        worker = {"DASHBOARD_SERVICE_TOKEN": "s" * 40, "EMAIL_PROVIDER": "resend",
+                  "RESEND_API_KEY": "re_synthetic", "RESEND_FROM": "Factory <factory@onesa.eu>",
+                  "RESEND_ALLOWED_RECIPIENT_DOMAINS": "onesa.eu"}
+        updates, _, summary = vm.mail_configuration_plan(api, worker)
+        self.assertEqual(updates["EMAIL_DELIVERY_CONFIGURED"], "true")
+        self.assertNotIn("RESEND_API_KEY", updates)
+        self.assertFalse(summary["mailDeliveryTested"])
+        worker.pop("RESEND_ALLOWED_RECIPIENT_DOMAINS")
+        self.assertEqual(vm.mail_configuration_plan(api, worker)[0]["EMAIL_DELIVERY_CONFIGURED"], "false")
+
+    def test_reset_origin_path_or_list_is_not_silently_normalized(self):
+        for value in (vm.UI_ORIGIN + "/#/reset-password", vm.UI_ORIGIN + ",https://factory.onesa.eu"):
+            api, worker = self.mail()
+            worker["PASSWORD_RESET_ORIGIN"] = value
+            with self.assertRaisesRegex(RuntimeError, "plain HTTPS origin"):
+                vm.mail_configuration_plan(api, worker)
 
     def test_reset_origin_provider_or_service_token_drift_requires_review(self):
         for change in ({"PASSWORD_RESET_ORIGIN": "https://different.example"}, {"EMAIL_PROVIDER": "resend"}, {"DASHBOARD_SERVICE_TOKEN": "t" * 40}):
@@ -461,8 +644,86 @@ class LifecycleTests(unittest.TestCase):
             self.assertEqual(command.call_count, 1)
 
 
+class EnvironmentPreparationTests(unittest.TestCase):
+    def snapshot(self):
+        shared = {"DATABASE_URL": "postgres://synthetic@db.example/factory", "INGESTION_API_TOKEN": "synthetic-ingest",
+                  "DASHBOARD_SERVICE_TOKEN": "s" * 40, "EMAIL_PROVIDER": "resend"}
+        api = {**shared, "ALLOWED_ORIGIN": vm.DEFAULT_UI_ORIGIN, "DATABASE_CA_CERT": "first-line\nsecond-line"}
+        worker = {**shared, "MqttClientId": "existing-singleton", "RESEND_API_KEY": "re_literal$#\\secret",
+                  "RESEND_FROM": "Factory <factory@onesa.eu>", "RESEND_ALLOWED_RECIPIENT_DOMAINS": "onesa.eu"}
+        return {role: {"variables": [{"key": key, "value": value} for key, value in values.items()]}
+                for role, values in (("api", api), ("worker", worker))}
+
+    def test_default_preparation_retains_credentials_and_existing_origin_policy(self):
+        snapshot = self.snapshot()
+        original = copy.deepcopy(snapshot)
+        result = oracle_env.prepare_environments(snapshot)
+        self.assertEqual(snapshot, original)
+        self.assertEqual(result["worker"]["DASHBOARD_API_ORIGIN"], vm.DEFAULT_API_ORIGIN)
+        self.assertNotIn("PASSWORD_RESET_ORIGIN", result["api"])
+        self.assertEqual(result["api"]["ALLOWED_ORIGIN"], vm.DEFAULT_UI_ORIGIN)
+        self.assertEqual(result["worker"]["RESEND_API_KEY"], "re_literal$#\\secret")
+        self.assertNotIn("RESEND_API_KEY", result["api"])
+
+    def test_explicit_cutover_sets_both_reset_origins_and_retains_the_old_allowed_frontend(self):
+        result = oracle_env.prepare_environments(self.snapshot(), "https://api.onesa.eu", "https://factory.onesa.eu")
+        self.assertEqual(result["worker"]["DASHBOARD_API_ORIGIN"], "https://api.onesa.eu")
+        self.assertEqual(result["api"]["ALLOWED_ORIGIN"], vm.DEFAULT_UI_ORIGIN + ",https://factory.onesa.eu")
+        for role in ("api", "worker"):
+            self.assertEqual(result[role]["PASSWORD_RESET_ORIGIN"], "https://factory.onesa.eu")
+            self.assertEqual(result[role]["DASHBOARD_SERVICE_TOKEN"], "s" * 40)
+        self.assertEqual(result["worker"]["MqttClientId"], "existing-singleton")
+
+    def test_multiple_origins_need_an_explicit_reset_target(self):
+        snapshot = self.snapshot()
+        snapshot["api"]["variables"].append({"key": "ALLOWED_ORIGIN", "value": vm.DEFAULT_UI_ORIGIN + ",https://factory.onesa.eu"})
+        with self.assertRaisesRegex(ValueError, "Multiple ALLOWED_ORIGIN"):
+            oracle_env.prepare_environments(snapshot)
+
+    def test_prepared_files_remain_private_without_printing_credential_values(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            snapshot = root / "snapshot.json"
+            snapshot.write_text(json.dumps(self.snapshot()))
+            target = root / "prepared"
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                oracle_env.main([str(snapshot), str(target), "--api-origin", "https://api.onesa.eu", "--ui-origin", "https://factory.onesa.eu"])
+            self.assertNotIn("re_literal", output.getvalue())
+            for role in ("api", "worker"):
+                self.assertEqual(stat.S_IMODE((target / (".env." + role)).stat().st_mode), 0o600)
+            self.assertIn(b"RESEND_API_KEY=re_literal$#\\secret\n", (target / ".env.worker").read_bytes())
+            self.assertIn(b"DATABASE_CA_CERT=first-line\\nsecond-line\n", (target / ".env.api").read_bytes())
+
+    def test_invalid_second_role_or_symlink_does_not_partially_overwrite_outputs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            snapshot = root / "snapshot.json"
+            target = root / "prepared"
+            target.mkdir()
+            (target / ".env.api").write_text("retained-api")
+            values = self.snapshot()
+            values["worker"]["variables"].append({"key": "RESEND_API_KEY", "value": "invalid\nsecret"})
+            snapshot.write_text(json.dumps(values))
+            with self.assertRaisesRegex(ValueError, "Unexpected multiline"):
+                oracle_env.main([str(snapshot), str(target)])
+            self.assertEqual((target / ".env.api").read_text(), "retained-api")
+            snapshot.write_text(json.dumps(self.snapshot()))
+            protected = root / "protected"
+            protected.write_text("retained-target")
+            (target / ".env.worker").symlink_to(protected)
+            with self.assertRaisesRegex(ValueError, "regular environment output"):
+                oracle_env.main([str(snapshot), str(target)])
+            self.assertEqual((target / ".env.api").read_text(), "retained-api")
+            self.assertEqual(protected.read_text(), "retained-target")
+
+
 class DetachedAndTransportTests(unittest.TestCase):
     def setUp(self):
+        vm.configure_origins()
+        vm.configure_ssh_target()
+        self.addCleanup(vm.configure_origins)
+        self.addCleanup(vm.configure_ssh_target)
         self.temporary = tempfile.TemporaryDirectory()
         self.directory = Path(self.temporary.name) / "release"
         self.directory.mkdir(mode=0o700)
@@ -473,6 +734,8 @@ class DetachedAndTransportTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def test_detached_start_is_idempotent_and_keeps_private_records(self):
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        vm.configure_ssh_target("factory-owner@onesa-oracle")
         helper = self.directory / "deploy-vm.py"
         helper.write_text("# synthetic helper")
         vm.write_json_private(self.directory / "release-manifest.json", vm.M)
@@ -485,6 +748,11 @@ class DetachedAndTransportTests(unittest.TestCase):
         self.assertTrue(popen.call_args.kwargs["start_new_session"])
         self.assertTrue(popen.call_args.kwargs["close_fds"])
         self.assertEqual(popen.call_args.kwargs["stdin"], subprocess.DEVNULL)
+        self.assertEqual(popen.call_args.args[0][-6:], vm.deployment_arguments())
+        self.assertEqual(vm.read_private_json(self.directory / "request.json")["origins"], vm.deployment_origins())
+        self.assertEqual(vm.read_private_json(self.directory / "request.json")["sshTarget"], vm.HOST)
+        self.assertEqual(first["sshTarget"], vm.HOST)
+        self.assertEqual(second["sshTarget"], vm.HOST)
         self.assertEqual(stat.S_IMODE((self.directory / "request.json").stat().st_mode), 0o600)
         self.assertEqual(stat.S_IMODE((self.directory / "private-output.log").stat().st_mode), 0o600)
 
@@ -495,6 +763,77 @@ class DetachedAndTransportTests(unittest.TestCase):
         with patch.object(vm, "process_start_identity", return_value="new"):
             self.assertEqual(vm.remote_status(self.directory)["status"], "NEEDS_REVIEW")
 
+    def test_ssh_passes_selected_target_and_origins_to_the_remote_helper(self):
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        vm.configure_ssh_target("factory-owner@onesa-oracle")
+        with patch.object(vm, "ssh_options", return_value=[]), \
+             patch.object(vm, "run_command", return_value=subprocess.CompletedProcess([], 0, '{}', '')) as run:
+            vm.remote_call("check")
+        arguments = shlex.split(run.call_args.args[0][-1])
+        self.assertEqual(arguments[-6:], vm.deployment_arguments())
+        self.assertEqual(run.call_args.args[0][-2], vm.HOST)
+
+    def test_origin_drift_prevents_detached_execution_and_reconnect(self):
+        vm.write_json_private(self.directory / "request.json", {"manifestSha256": vm.manifest_digest(),
+                              "origins": {"api": "https://api.onesa.eu", "ui": "https://factory.onesa.eu"}})
+        with patch.object(vm, "execute_deployment") as execute:
+            with self.assertRaisesRegex(RuntimeError, "different origins"):
+                vm.remote_run(self.directory)
+            with self.assertRaisesRegex(RuntimeError, "different origins"):
+                vm.remote_status(self.directory)
+            execute.assert_not_called()
+
+    def test_target_drift_blocks_detached_restart_and_local_status_even_after_completion(self):
+        request = {"manifestSha256": vm.manifest_digest(), **vm.deployment_target()}
+        vm.write_json_private(self.directory / "request.json", request)
+        vm.write_json_private(self.directory / "result.json", {"status": "BACKEND_DEPLOYED", **vm.deployment_target()})
+        state = self.directory / "local-receipt.json"
+        vm.write_json_private(state, {**request, "directory": str(self.directory)})
+        vm.configure_ssh_target("onesa-oracle")
+        args = argparse.Namespace(state=str(state), status=True, once=True, bundle=None, deploy=False)
+        with patch.object(vm, "execute_deployment") as execute, patch.object(vm.subprocess, "Popen") as popen, \
+             patch.object(vm, "monitor") as monitor:
+            for action in (lambda: vm.remote_run(self.directory), lambda: vm.remote_status(self.directory),
+                           lambda: vm.remote_start(self.directory, "0" * 64), lambda: vm.run_client(args)):
+                with self.subTest(action=action), self.assertRaisesRegex(RuntimeError, "different SSH target"):
+                    action()
+            execute.assert_not_called()
+            popen.assert_not_called()
+            monitor.assert_not_called()
+
+    def test_client_uploads_to_selected_owner_and_saves_that_same_reconnect_target(self):
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        vm.configure_ssh_target("factory-owner@onesa-oracle")
+        directory = "/home/factory-owner/smart-factory-releases/aaaaaaa-20261103T120000Z-12345678"
+        state = self.directory / "receipt.json"
+        args = argparse.Namespace(state=str(state), status=False, once=False, bundle="bundle.zip", deploy=True)
+        staged = {"status": "STAGED", "directory": directory, "manifestSha256": vm.manifest_digest(), **vm.deployment_target()}
+        home = self.directory / "ssh-home"
+        (home / ".ssh").mkdir(parents=True)
+        (home / ".ssh/id_ed25519").write_text("synthetic")
+        with patch.object(vm, "find_bundle", return_value=self.directory / "qualified-arm64-bundle.zip"), \
+             patch.object(vm, "remote_call", side_effect=[{"status": "PREFLIGHT_PASSED"}, staged, {"status": "RUNNING"}]) as remote, \
+             patch.object(vm.Path, "home", return_value=home), patch.object(vm.shutil, "which", return_value="/usr/bin/tool"), \
+             patch.object(vm, "run_command") as run, patch.object(vm, "monitor", return_value=0), \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(vm.run_client(args), 0)
+        self.assertEqual([call.args[0] for call in remote.call_args_list], ["check", "allocate", "start"])
+        self.assertEqual(run.call_count, 3)
+        destinations = []
+        for call in run.call_args_list:
+            command = call.args[0]
+            self.assertEqual(command[0], "scp")
+            self.assertIn("StrictHostKeyChecking=yes", command)
+            self.assertIn("IdentitiesOnly=yes", command)
+            self.assertIn(str(home / ".ssh/id_ed25519"), command)
+            destinations.append(command[-1])
+        self.assertEqual(destinations, [vm.HOST + ":" + directory + "/" + name
+                         for name in ("deploy-vm.py", "release-manifest.json", "qualified-arm64-bundle.zip")])
+        receipt = vm.read_private_json(state)
+        self.assertEqual(receipt["sshTarget"], vm.HOST)
+        self.assertEqual(receipt["origins"], vm.deployment_origins())
+        self.assertEqual(receipt["directory"], directory)
+
     def test_strict_ssh_never_accepts_new_host_keys_or_password_prompt(self):
         home = self.directory / "home"
         (home / ".ssh").mkdir(parents=True)
@@ -504,6 +843,9 @@ class DetachedAndTransportTests(unittest.TestCase):
         self.assertIn("StrictHostKeyChecking=yes", options)
         self.assertIn("BatchMode=yes", options)
         self.assertIn("PasswordAuthentication=no", options)
+        self.assertIn("IdentitiesOnly=yes", options)
+        self.assertIn("PreferredAuthentications=publickey", options)
+        self.assertEqual(options[-2:], ["-i", str(home / ".ssh/id_ed25519")])
         self.assertNotIn("StrictHostKeyChecking=no", options)
 
     def test_command_failure_and_nonruntime_errors_do_not_echo_secret_content(self):

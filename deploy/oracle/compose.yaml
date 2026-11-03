@@ -12,7 +12,7 @@ x-runtime: &runtime
   # Keep the public hostname for certificate verification while routing both
   # the API's HTTPS and the MQTT listener through the same local host gateway.
   extra_hosts:
-    - "api.152-70-22-84.sslip.io:host-gateway"
+    - "${SMART_FACTORY_API_HOST:-api.152-70-22-84.sslip.io}:host-gateway"
   logging:
     driver: json-file
     options: { max-size: "10m", max-file: "3" }
@@ -46,7 +46,7 @@ services:
     environment:
       RENDER_SERVICE_ROLE: worker
       PORT: "10000"
-      DASHBOARD_API_ORIGIN: https://api.152-70-22-84.sslip.io
+      DASHBOARD_API_ORIGIN: ${SMART_FACTORY_API_ORIGIN:-https://api.152-70-22-84.sslip.io}
     mem_limit: 1024m
     ports: ["127.0.0.1:10001:10000"]
     depends_on:
