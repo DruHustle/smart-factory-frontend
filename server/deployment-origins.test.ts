@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -191,5 +198,77 @@ describe("manual workflow origin binding", () => {
     expect(
       check({ EXPECTED_API_ORIGIN: "", EXPECTED_UI_ORIGIN: "" }).status,
     ).toBe(0);
+  });
+});
+
+describe("deployment topology validator", () => {
+  const workflowPath = ".github/workflows/deploy-vercel-oracle.yml";
+  const workflow = readFileSync(join(root, workflowPath), "utf8");
+  const proxyVerification = workflow
+    .split("\n")
+    .find((line) => line.includes('API_ORIGIN="$RELEASE_ORIGIN"'))!;
+  const promotion = workflow
+    .split("\n")
+    .find((line) => line.includes("vercel@62.2.0 deploy --prebuilt"))!;
+
+  function validateWorkflow(candidate = workflow) {
+    const cwd = temporary();
+    for (const name of [
+      ".github/workflows/release.yml",
+      "vercel.json",
+      "deploy/render/Dockerfile",
+      "deploy/render/supervisord.conf",
+      "deploy/render/entrypoint.py",
+      "deploy/oracle/compose.yaml",
+      "deploy/oracle/README.md",
+      "scripts/verify-runtime.mts",
+    ]) {
+      const destination = join(cwd, name);
+      mkdirSync(dirname(destination), { recursive: true });
+      copyFileSync(join(root, name), destination);
+    }
+    writeFileSync(join(cwd, workflowPath), candidate);
+    return spawnSync(
+      process.execPath,
+      [join(root, "scripts/check-deployment.mjs")],
+      { cwd, encoding: "utf8", timeout: 10_000 },
+    );
+  }
+
+  it("accepts the real workflow's selected UI verification after promotion", () => {
+    expect(proxyVerification).toBeTruthy();
+    expect(promotion).toBeTruthy();
+    const result = validateWorkflow();
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it.each([
+    "",
+    'API_ORIGIN="$API_ORIGIN"',
+    "API_ORIGIN=https://smart-factory-iot-app.vercel.app",
+    "API_ORIGIN=https://unrelated.example",
+  ])("rejects an absent or rebound promoted-UI origin: %s", (assignment) => {
+    const result = validateWorkflow(
+      workflow.replace(
+        proxyVerification,
+        proxyVerification.replace('API_ORIGIN="$RELEASE_ORIGIN"', assignment),
+      ),
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "The promoted UI origin must proxy the qualified API",
+    );
+  });
+
+  it("rejects proxy verification moved before artifact promotion", () => {
+    const result = validateWorkflow(
+      workflow
+        .replace(proxyVerification + "\n", "")
+        .replace(promotion, proxyVerification + "\n" + promotion),
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "The promoted UI origin must proxy the qualified API",
+    );
   });
 });

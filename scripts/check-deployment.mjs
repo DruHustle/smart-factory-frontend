@@ -23,7 +23,7 @@ requireText(workflow,/EXPECTED_API_SOURCE: \$\{\{ steps\.source\.outputs\.sha \}
 requireText(verifier,/source: process\.env\.EXPECTED_API_SOURCE/,'The runtime verifier must enforce the expected API source');
 requireText(verifier,/deploy\/qualification-sources\.json/,'Promotion must load the qualified immutable companion sources');
 requireText(workflow,/deploy --prebuilt[\s\S]*scripts\/verify-release\.mts/,'The deployed frontend must attest the approved revision after promotion');
-requireText(workflow,/API_ORIGIN=https:\/\/smart-factory-iot-app\.vercel\.app.*scripts\/verify-runtime\.mts/,'The promoted UI origin must proxy the qualified API');
+requireText(workflow.slice(promotion),/^\s+API_ORIGIN="\$RELEASE_ORIGIN"\s+RUNTIME_EVIDENCE_FILE="\$RUNNER_TEMP\/deployed-api-runtime\.json"\s+node --import tsx scripts\/verify-runtime\.mts\s*$/m,'The promoted UI origin must proxy the qualified API');
 const vercel=JSON.parse(vercelText),origin='https://api.152-70-22-84.sslip.io';
 if(vercel.git?.deploymentEnabled?.main!==false)failures.push('Independent Vercel main deploys must stay disabled');
 if(vercel.headers?.find(x=>x.source==='/release.json')?.headers?.find(x=>x.key==='Cache-Control')?.value!=='no-store')failures.push('Release identity must not be cached');
