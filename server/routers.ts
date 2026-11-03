@@ -851,6 +851,8 @@ export const appRouter = router({
           });
         }
         const commandId = randomUUID();
+        const qosPolicy = await getWroverQos(input.id);
+        const qos = qosPolicy?.status === "applied" && qosPolicy.gatewayPolicyCurrent ? qosPolicy.downlink : 1;
         const userToken = await sdk.createSessionToken(ctx.user, {
           expiresInMs: 60_000,
           sessionId: ctx.session?.sessionId,
@@ -860,6 +862,7 @@ export const appRouter = router({
             gatewayDeviceId,
             targetDeviceId: device.deviceId,
             commandId,
+            qos,
             expiresAt: Date.now() + 10_000,
           },
           userToken,

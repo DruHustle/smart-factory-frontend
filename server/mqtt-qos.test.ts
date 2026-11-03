@@ -22,6 +22,7 @@ describe("MQTT delivery evidence", () => {
   });
   it("uses the downlink setting for cloud and device commands", () => {
     expect(mqttQosLinkStatus(desired, "cloudToGateway", { publisher: report(3, 1), subscriber: report(3, 1) }, now, maxAge).status).toBe("applied");
+    expect(mqttQosLinkStatus(desired, "cloudToGateway", { publisher: report(3, 1), subscriber: report(3, 2) }, now, maxAge).status).toBe("applied");
     expect(mqttQosLinkStatus(desired, "gatewayToDevice", { publisher: report(3, 0), subscriber: report(3, 1) }, now, maxAge).effective).toBe(0);
   });
   it("rejects invalid levels and unknown fields", () => {

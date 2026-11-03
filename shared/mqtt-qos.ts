@@ -53,6 +53,6 @@ export function mqttQosLinkStatus(
   const publisher = current(evidence.publisher);
   const subscriber = current(evidence.subscriber);
   const effective = publisher === null || subscriber === null ? null : Math.min(publisher, subscriber) as MqttQosLevel;
-  const status = effective === null ? "pending" : publisher === requested && subscriber === requested ? "applied" : "mismatch";
+  const status = effective === null ? "pending" : publisher === requested && subscriber! >= requested ? "applied" : "mismatch";
   return { requested, publisher, subscriber, effective, status };
 }

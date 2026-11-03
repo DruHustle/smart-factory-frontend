@@ -259,6 +259,7 @@ export async function publishWroverIndicator(input: {
   targetDeviceId: string;
   commandId: string;
   expiresAt: number;
+  qos?: 0 | 1 | 2;
 }, userToken: string) {
   const baseUrl = getProvisioningUrl();
   if (!baseUrl) throw new Error("WROVER indicator control requires the private .NET DeviceService");
@@ -268,7 +269,7 @@ export async function publishWroverIndicator(input: {
     headers: { "content-type": "application/json", accept: "application/json", authorization: `Bearer ${userToken}` },
     body: JSON.stringify({ schemaVersion: 1, gatewayDeviceId: input.gatewayDeviceId,
       targetDeviceId: input.targetDeviceId, pin: 18, value: 1, holdMs: 2_000,
-      commandId: input.commandId, expiresAt: input.expiresAt }),
+      commandId: input.commandId, expiresAt: input.expiresAt, qos: input.qos ?? 1 }),
     redirect: "error",
     signal: AbortSignal.timeout(10_000),
   });
@@ -278,7 +279,7 @@ export async function publishWroverIndicator(input: {
   if (!result || typeof result !== "object" || !("published" in result) || result.published !== true) {
     throw new Error("DeviceService returned an invalid WROVER indicator acknowledgement");
   }
-  return { published: true as const, commandId: input.commandId, physicalStateConfirmed: false as const };
+  return { published: true as const, commandId: input.commandId, qos: input.qos ?? 1, physicalStateConfirmed: false as const };
 }
 
 /** Publish a time-limited device QoS request; publication alone is not application. */

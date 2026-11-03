@@ -18,7 +18,7 @@ describe("QoS receipt service boundary", () => {
     server = app.listen(0, "127.0.0.1");
     await new Promise<void>(resolve => server!.once("listening", resolve));
     const port = (server.address() as { port: number }).port;
-    const body = { action: "configure_mqtt_qos", deviceId: "wrover", gatewayDeviceId: "pi", commandId: "4ce07676-9ed8-4c70-b679-7fea17a82a16", status: "applied", timestamp: Date.now(), revision: 1, uplinkQos: 2, downlinkQos: 1, transportRetained: false, transportRetainVerified: true };
+    const body = { action: "configure_mqtt_qos", deviceId: "wrover", gatewayDeviceId: "pi", commandId: "4ce07676-9ed8-4c70-b679-7fea17a82a16", status: "applied", timestamp: Date.now(), revision: 1, requestedRevision: 1, uplinkQos: 2, downlinkQos: 1, transportRetained: false, transportRetainVerified: true };
     const send = (token: string, data: unknown) => fetch(`http://127.0.0.1:${port}/api/internal/mqtt-qos-ack`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify(data) });
     expect((await send("bad-token", body)).status).toBe(401);
     expect((await send("fixture-token-for-testing-only-long-enough", { ...body, transportRetained: true })).status).toBe(400);

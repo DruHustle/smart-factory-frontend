@@ -33,10 +33,11 @@ export function WroverControls({ deviceId }: { deviceId: number }) {
     },
   );
   const pulse = trpc.devices.pulseIndicator.useMutation({
-    onSuccess: () =>
+    onSuccess: (result) =>
       toast.success("GPIO18 command sent", {
-        description:
-          "The broker accepted the command; the device has not confirmed the output state.",
+        description: result.qos === 0
+          ? "Sent at QoS 0; delivery and the output state are unconfirmed."
+          : "The broker accepted the command; the device has not confirmed the output state.",
       }),
     onError: (error) =>
       toast.error("GPIO18 command failed", { description: error.message }),
@@ -131,7 +132,7 @@ export function WroverControls({ deviceId }: { deviceId: number }) {
             {requestQos.isPending ? "Sending…" : "Send QoS"}
           </Button>
           <p className="w-full text-xs text-muted-foreground" role="status">
-            {qos.isError ? "QoS settings unavailable." : qos.data?.status === "failed" ? "Last request failed; device state is unconfirmed." : qos.data?.status === "rejected" ? "The WROVER rejected the request." : qos.data?.status === "applied" ? "WROVER confirmed; other links may differ." : qos.data ? "Requested setting; device confirmation is pending." : "Device QoS has not been confirmed."}
+            {qos.isError ? "QoS settings unavailable." : qos.data && !qos.data.gatewayPolicyCurrent ? "Gateway setting changed; review QoS." : qos.data?.status === "failed" ? "Last request failed; device state is unconfirmed." : qos.data?.status === "rejected" ? "The gateway or WROVER rejected the request." : qos.data?.status === "applied" ? (qos.data.cloudUplink === "ready" ? "WROVER confirmed · cloud subscription ready." : "WROVER confirmed · cloud subscription unconfirmed.") : qos.data ? "Requested setting; device confirmation is pending." : "Device QoS has not been confirmed."}
           </p>
         </div>
       )}
