@@ -118,7 +118,7 @@ export function WroverControls({ deviceId }: { deviceId: number }) {
       </div>
       {canEngineer && (
         <div className="flex flex-wrap items-end gap-3" aria-label="WROVER MQTT quality of service">
-          <div className="text-sm font-semibold">WROVER ↔ gateway QoS</div>
+          <div className="text-sm font-semibold">WROVER MQTT QoS</div>
           {([ ["Uplink", uplinkQos, setUplinkQos], ["Downlink", downlinkQos, setDownlinkQos] ] as const).map(([label, value, setValue]) => (
             <label key={label} className="flex flex-col gap-1 text-xs text-muted-foreground">
               {label}
@@ -131,7 +131,7 @@ export function WroverControls({ deviceId }: { deviceId: number }) {
             {requestQos.isPending ? "Sending…" : "Send QoS"}
           </Button>
           <p className="w-full text-xs text-muted-foreground" role="status">
-            {qos.isError ? "QoS settings unavailable." : qos.data?.status === "failed" ? "Last request failed; device state is unconfirmed." : qos.data?.status === "rejected" ? "The WROVER rejected the request." : qos.data?.status === "applied" ? "WROVER confirmed the requested settings." : qos.data ? "Requested setting; device confirmation is pending." : "Device QoS has not been confirmed."}
+            {qos.isError ? "QoS settings unavailable." : qos.data?.status === "failed" ? "Last request failed; device state is unconfirmed." : qos.data?.status === "rejected" ? "The WROVER rejected the request." : qos.data?.status === "applied" ? "WROVER confirmed; other links may differ." : qos.data ? "Requested setting; device confirmation is pending." : "Device QoS has not been confirmed."}
           </p>
         </div>
       )}
