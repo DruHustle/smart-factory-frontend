@@ -139,6 +139,29 @@ def main():
         stop(worker);worker=None
         node=launch_node();worker=launch_worker()
         eventually(lambda:pending()==0,'outbox delivery after worker and receiver restart')
+        # Exercise the real QoS acknowledgement path from the broker through
+        # the .NET worker and its authenticated Node bridge into the dashboard.
+        # The fixture is a registered synthetic child and no equipment is used.
+        qos_device_id = int(sql('select id from devices where "deviceId"=\'sensor.temp:01\'', 'smart_factory_trusted_e2e'))
+        qos_command_id = 'c4725936-04c9-4279-8336-d3a929d9d15b'
+        qos_now = int(time.time()*1000)
+        qos_state = {'revision':1,'uplink':2,'downlink':1,'commandId':qos_command_id,
+                     'requestedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(qos_now/1000)), 'status':'published'}
+        qos_key = f'mqtt-qos:wrover:{qos_device_id}'
+        sql("insert into system_settings(key,value) values ('"+qos_key+"','"+json.dumps(qos_state)+"'::jsonb),"
+            "('mqtt-qos:gateway:gateway:01','1'::jsonb)", 'smart_factory_trusted_e2e')
+        qos_ack = {'action':'configure_mqtt_qos','deviceId':'sensor.temp:01','gatewayDeviceId':'gateway:01',
+                   'commandId':qos_command_id,'status':'applied','timestamp':qos_now,'revision':1,
+                   'requestedRevision':1,'uplinkQos':2,'downlinkQos':1}
+        qos_topic = encoded_topic('site:01','line.01','gateway:01','commands')+'/ack'
+        publish(qos_ack,qos_topic)
+        if LEGACY:
+            time.sleep(1)
+            assert sql("select value->>'status' from system_settings where key='"+qos_key+"'",'smart_factory_trusted_e2e')=='published'
+            passed('historical MQTT 3.1.1 cannot assert a QoS acknowledgement')
+        else:
+            eventually(lambda:sql("select value->>'status' from system_settings where key='"+qos_key+"'",'smart_factory_trusted_e2e')=='applied','scoped QoS acknowledgement')
+            passed('scoped QoS acknowledgement crosses broker, telemetry worker and authenticated dashboard bridge')
         first=snapshot();assert len(first['readings'])==5,first
         if LEGACY:assert first['incidents']==[],first['incidents']
         else:assert len(first['incidents'])==1 and first['incidents'][0]['occurrences']==1,first['incidents']
