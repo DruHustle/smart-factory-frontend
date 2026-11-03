@@ -29,6 +29,7 @@ async function workspaceFixture(
     floor: "normal" | "empty" | "error";
     telemetry?: "unverified" | "verified";
     buttonCount?: number;
+    wroverHealthy?: boolean;
     summary?: "populated" | "error";
     attention?: boolean;
     olderApi?: boolean;
@@ -267,8 +268,8 @@ async function workspaceFixture(
             deviceId: Number(input.id) === 6 ? "pi-edge-01" : "esp32-wrover-01",
             name: Number(input.id) === 6 ? "Pi gateway" : "WROVER sensor",
             type: Number(input.id) === 6 ? "gateway" : "edge_device",
-            status: "offline",
-            observedStatus: "unknown",
+            status: control.wroverHealthy ? "online" : "offline",
+            observedStatus: control.wroverHealthy ? "live" : "unknown",
             isDemo: demo,
             metadata: { gatewayId: "pi-edge-01" },
             lastSeen: null,
@@ -295,7 +296,13 @@ async function workspaceFixture(
           break;
         case "readings.getLatest":
           value =
-            !demo && input.scope === "unknown" && control.telemetry
+            !demo && control.wroverHealthy && input.scope === undefined
+              ? {
+                  deviceId: 13, timestamp: Date.now(), createdAt: new Date(),
+                  assetSignals: { buttonPressed: 0, buttonPressCount: 31 },
+                  integration: { mode: "live", acquisition: { sensorStatus: "ok" } },
+                }
+            : !demo && input.scope === "unknown" && control.telemetry
               ? {
                   deviceId: 13,
                   timestamp: Date.now(),
@@ -318,6 +325,9 @@ async function workspaceFixture(
                   },
                 }
               : null;
+          break;
+        case "devices.pulseIndicator":
+          value = { published: true, commandId: "test-command", physicalStateConfirmed: false };
           break;
         case "system.infrastructure":
           value = demoInfrastructure();
@@ -1844,6 +1854,17 @@ test("WROVER button count updates from unverified diagnostics without enabling c
   await expect(
     page.getByText("Button signal · unverified source · 32 presses"),
   ).toBeVisible({ timeout: 10000 });
+});
+
+test("commissioned WROVER control sends the bounded output request without claiming confirmation", async ({ page }) => {
+  const requests = await workspaceFixture(page, false, { floor: "normal", wroverHealthy: true });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  const pulse = page.getByRole("button", { name: "Pulse GPIO18" });
+  await expect(pulse).toBeEnabled();
+  await pulse.click();
+  await expect(page.getByText("GPIO18 command sent")).toBeVisible();
+  await expect(page.getByText("The broker accepted the command; the device has not confirmed the output state.")).toBeVisible();
+  expect(requests.filter((request) => request.procedure === "devices.pulseIndicator").map((request) => request.input)).toEqual([{ id: 13 }]);
 });
 
 test("Overview prioritizes connectivity, review, incidents and unread notifications", async ({
