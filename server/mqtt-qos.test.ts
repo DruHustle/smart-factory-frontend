@@ -26,6 +26,7 @@ describe("MQTT delivery evidence", () => {
   });
   it("rejects invalid levels and unknown fields", () => {
     expect(mqttQosDesiredSchema.safeParse({ revision: 1, uplink: 3, downlink: 1 }).success).toBe(false);
+    expect(mqttQosDesiredSchema.safeParse({ revision: 0x100000000, uplink: 1, downlink: 1 }).success).toBe(false);
     expect(mqttQosDesiredSchema.safeParse({ revision: 1, uplink: 0, downlink: 1, unknown: true }).success).toBe(false);
   });
 });

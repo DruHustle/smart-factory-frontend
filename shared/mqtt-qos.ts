@@ -12,7 +12,7 @@ export type MqttQosPath = (typeof mqttQosPaths)[number];
 export type MqttQosLevel = z.infer<typeof mqttQosLevel>;
 
 export const mqttQosDesiredSchema = z.object({
-  revision: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+  revision: z.number().int().min(1).max(0xffffffff),
   uplink: mqttQosLevel,
   downlink: mqttQosLevel,
 }).strict();
@@ -20,7 +20,7 @@ export type MqttQosDesired = z.infer<typeof mqttQosDesiredSchema>;
 
 /** Reports must come from the respective participant and refer to this revision. */
 export const mqttQosReportSchema = z.object({
-  revision: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+  revision: z.number().int().min(1).max(0xffffffff),
   level: mqttQosLevel,
   observedAt: z.iso.datetime(),
 }).strict();
