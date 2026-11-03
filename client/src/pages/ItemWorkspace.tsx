@@ -29,6 +29,7 @@ import { AssetConnectivity } from "@/components/connectivity/AssetConnectivity";
 import { Bot, Cable } from "lucide-react";
 import { OperationsWorkspace } from "@/components/operations/OperationsWorkspace";
 import { ObservationValidity } from "@/components/workspace/ObservationValidity";
+import { ExportButton } from "@/components/ExportButton";
 const Aas = lazy(() => import("./AssetAdministrationShell"));
 const Device = lazy(() => import("./DeviceDetail"));
 const loadEquipment = () => import("./EquipmentView");
@@ -71,6 +72,7 @@ export default function ItemWorkspace() {
     { enabled: ref.startsWith("asset:") && canViewEngineering(user?.role) },
   );
   const security = trpc.security.availability.useQuery();
+  const deviceReport = trpc.export.deviceReport.useMutation();
   const utils = trpc.useUtils();
   const inspectionRequested = params.section === "3d";
   useEffect(() => {
@@ -200,6 +202,23 @@ export default function ItemWorkspace() {
                 </Link>
               </Button>
             )}
+            {i.kind === "device" &&
+              !i.isDemo &&
+              !user?.access?.demoOnly &&
+              user?.access?.workspaceView !== "demo" && (
+                <ExportButton
+                  label="Export operational 24h"
+                  onExportHtml={() => {
+                    const endTime = Date.now();
+                    return deviceReport.mutateAsync({
+                      deviceId: Number(i.id),
+                      startTime: endTime - 24 * 60 * 60 * 1000,
+                      endTime,
+                      scope: "operational",
+                    });
+                  }}
+                />
+              )}
             {i.kind === "device" && !i.isDemo && (
               <DeviceActions id={Number(i.id)} name={i.name} />
             )}

@@ -275,6 +275,7 @@ export function generateDeviceReportHtml(data: DeviceReportData): string {
     <div class="subtitle">
       Generated on ${format(new Date(), "MMMM d, yyyy 'at' HH:mm")} | 
       Data from ${format(dateRange.start, "MMM d, yyyy")} to ${format(dateRange.end, "MMM d, yyyy")}
+      <br>UTC window: ${escapeHtml(dateRange.start.toISOString())} to ${escapeHtml(dateRange.end.toISOString())}
     </div>
   </div>
 
@@ -290,8 +291,12 @@ export function generateDeviceReportHtml(data: DeviceReportData): string {
         <div class="value">${escapeHtml(device.type)}</div>
       </div>
       <div class="info-item">
-        <div class="label">Status</div>
+        <div class="label">Observed source status at report generation</div>
         <div class="value"><span class="status-badge status-${escapeHtml(device.status)}">${escapeHtml(device.status)}</span></div>
+      </div>
+      <div class="info-item">
+        <div class="label">Last seen (UTC)</div>
+        <div class="value">${device.lastSeen ? escapeHtml(device.lastSeen.toISOString()) : "Unavailable"}</div>
       </div>
       <div class="info-item">
         <div class="label">Firmware</div>
@@ -511,6 +516,7 @@ export function generateAssetAnalyticsReportHtml(
     <div class="muted">
       Generated on ${format(new Date(), "MMMM d, yyyy 'at' HH:mm")} | 
       Data from ${format(dateRange.start, "MMM d, yyyy")} to ${format(dateRange.end, "MMM d, yyyy")}
+      <br>UTC window: ${escapeHtml(dateRange.start.toISOString())} to ${escapeHtml(dateRange.end.toISOString())}
     </div>
   </header>
   <div class="grid">
@@ -519,6 +525,7 @@ export function generateAssetAnalyticsReportHtml(
     <div class="card"><div class="label">Average power (W)</div><div class="value">${display(avgPower, 0)}</div></div>
     <div class="card"><div class="label">Average temperature (°C)</div><div class="value">${display(avgTemperature)}</div></div>
   </div>
+  <p>${data.metadata ? `Scope: ${escapeHtml(data.metadata.scope)}. Effective interval: ${data.metadata.intervalMs} ms. Full-range statistics cover ${data.metadata.total} stored observations. ${escapeHtml(data.metadata.unitPolicy)}` : "Legacy report scope and completeness were not attested."}</p>
   <section><h2>Assets in scope</h2>
     <table><thead><tr><th>Asset</th><th>Type</th><th>Zone</th><th>Samples</th></tr></thead><tbody>
       ${assets.map((asset) => `<tr><td>${escapeHtml(asset.name)}</td><td>${escapeHtml(asset.assetType)}</td><td>${escapeHtml(asset.zone ?? "—")}</td><td>${asset.sampleCount}</td></tr>`).join("") || '<tr><td colspan="4">No assets matched this selection.</td></tr>'}
@@ -528,7 +535,7 @@ export function generateAssetAnalyticsReportHtml(
     timeline.length > 0
       ? `
   <section>
-    <h2>Telemetry averages by interval</h2><p>Complete displayed bucket series: ${timeline.length} buckets. ${data.metadata ? `Scope: ${escapeHtml(data.metadata.scope)}. Effective interval: ${data.metadata.intervalMs} ms. Full-range statistics cover ${data.metadata.total} stored observations. ${escapeHtml(data.metadata.unitPolicy)}` : "Legacy report scope and completeness were not attested."} UTC window: ${escapeHtml(dateRange.start.toISOString())} to ${escapeHtml(dateRange.end.toISOString())}.</p>
+    <h2>Telemetry averages by interval</h2><p>Complete displayed bucket series: ${timeline.length} buckets.</p>
     <table>
       <thead>
         <tr>
@@ -703,6 +710,7 @@ export function generateAlertHistoryReportHtml(
     <div class="subtitle">
       Generated on ${format(new Date(), "MMMM d, yyyy 'at' HH:mm")} | 
       Data from ${format(dateRange.start, "MMM d, yyyy")} to ${format(dateRange.end, "MMM d, yyyy")}
+      <br>UTC window: ${escapeHtml(dateRange.start.toISOString())} to ${escapeHtml(dateRange.end.toISOString())}
     </div>
   </div>
 
