@@ -87,6 +87,13 @@ def main():
             subscribe(worker, 'factory/+/+/+/commands/ack', 1)
             delivered.clear(); publish(gateway, ack_topic, 'synthetic-qos-ack', 1)
             assert delivered.wait(10) and received[-1] == ('synthetic-qos-ack', 1), 'Scoped QoS receipt not delivered'
+            denied = threading.Event(); denied_reasons = []
+            def on_denied(_client, _userdata, _mid, reason_code, _properties):
+                denied_reasons.append(reason_code); denied.set()
+            gateway.on_publish = on_denied
+            gateway.publish('factory/factory-a/line-1/other-gateway/commands/ack', 'synthetic-denied', qos=1)
+            assert denied.wait(10) and denied_reasons[-1].is_failure, 'Gateway could publish another gateway receipt'
+            gateway.on_publish = None
             # The production MQTT 5 worker depends on retain-as-published to
             # distinguish retained evidence from current live measurements.
             retain_topic = 'factory/factory-a/line-1/synthetic-broker-validation/heartbeat'
