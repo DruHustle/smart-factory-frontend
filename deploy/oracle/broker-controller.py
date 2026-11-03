@@ -40,6 +40,7 @@ def broker_identity(container, service):
 controller.PROJECT = "smart-factory-mqtt"
 controller.SERVICES = ("broker",)
 controller.EXEC_USERS = {"broker": "1883:1883"}
+controller.DESCRIPTION = __doc__ + " Dry-run by default."
 controller.STATE_DIR = Path("/var/lib/smart-factory-mqtt-controller")
 controller.identity = broker_identity
 

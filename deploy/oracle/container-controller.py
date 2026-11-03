@@ -15,6 +15,7 @@ import time
 PROJECT = "smart-factory-backend"
 SERVICES = ("api", "worker")
 EXEC_USERS = {"api": "app", "worker": "app"}
+DESCRIPTION = __doc__
 WAIT_SECONDS = 180
 MAX_OBSERVATION_GAP = 90
 COOLDOWN_SECONDS = 900
@@ -173,7 +174,7 @@ def run(apply):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument("--apply", action="store_true", help="signal eligible containers; default is dry-run")
     args = parser.parse_args()
     try:
