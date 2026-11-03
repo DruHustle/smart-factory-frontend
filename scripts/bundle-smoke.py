@@ -8,7 +8,7 @@ import hashlib, json, os, re, secrets, subprocess, tempfile, time, urllib.reques
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ['docker', 'compose', '--env-file', '/dev/null', '-p', 'smart-factory-bundle-test', '-f', str(ROOT / 'docker-compose.bundle-test.yml')]
 BASE = 'http://127.0.0.1:3110'
-OT_EXPANDED_CAPABILITIES = {'ot-alarm-conditions-v1', 'ot-operations-v1', 'ot-investigation-context-v1'}
+OT_EXPANDED_CAPABILITIES = {'ot-alarm-conditions-v1', 'ot-operations-v1', 'ot-investigation-context-v1', 'ot-site-timezone-v1'}
 ADDITIVE_FALLBACK_CAPABILITIES = OT_EXPANDED_CAPABILITIES | {
     'assistant-provider-selection-v1', 'ot-incident-review-v1', 'ot-follow-up-actions-v1',
 }
@@ -60,6 +60,8 @@ def ot_rollback_fingerprint(fixture):
         FROM alerts WHERE id IN ({alert_ids})),
       'conditionActivity',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM incident_activity a WHERE id IN ({activity_ids})),
       'configuration',(SELECT to_jsonb(c) FROM ot_operations_configuration c WHERE scope='installation'),
+      'provisionalTimezone',(SELECT to_jsonb(s) FROM system_settings s WHERE key='ot-timezone:{fixture['timezoneFactoryId']}'),
+      'timezoneAudit',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM ot_operations_activity a WHERE scope='{fixture['timezoneFactoryId']}'),
       'production',(SELECT to_jsonb(p) FROM ot_production_periods p WHERE id={int(fixture['periodId'])}),
       'handover',(SELECT to_jsonb(h) FROM ot_shift_handover h WHERE id={int(fixture['handoverId'])}),
       'audit',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM ot_operations_activity a WHERE id IN ({audit_ids}))
@@ -78,6 +80,8 @@ def verify_ot_rollback(fixture, viewer, candidate):
             history=trpc(viewer,'alerts.history',{'id':alarm['id']},query=True)
             assert any(int(item['id'])==alarm['activityId'] and item['kind']==alarm['kind'] for item in history['items'])
     if candidate:
+        timezone=trpc(viewer,'operations.summary',{'factoryId':fixture['timezoneFactoryId']},query=True)
+        assert timezone['configuration']['timeZone']=='Europe/Berlin' and timezone['configured'] is False, 'The candidate lost the uncommissioned factory timezone.'
         commissioning=trpc(viewer,'devices.getById',{'id':fixture['deviceId']},query=True)['metadata']['commissioning']
         assert commissioning['acquisitionMode']=='on_change' and commissioning['valueValiditySeconds']==600
         summary=trpc(viewer,'operations.summary',{'at':fixture['endTime'],'startTime':fixture['startTime'],'endTime':fixture['endTime']},query=True)
@@ -143,7 +147,11 @@ def prepare_ot_rollback(engineer, viewer, device):
     handover=trpc(engineer,'operations.addHandover',{'expectedVersion':1,'at':end_time,'text':note,'nextStep':next_step,'assetRefs':refs,'incidentIds':[alarms[0]['id']]})
     audit_ids=json.loads(sql("SELECT jsonb_agg(id ORDER BY id)::text FROM ot_operations_activity WHERE scope='installation'"))
     assert len(audit_ids)==3, 'Configuration, production and handover must each retain an actor audit.'
+    timezone_factory_id='7d39bc46-5c16-4ee7-a25a-bd231a52e53a'
+    sql(f"INSERT INTO factories(id,name,width,depth) VALUES('{timezone_factory_id}'::uuid,'Synthetic timezone rollback factory',20,20)")
+    trpc(engineer,'operations.setTimeZone',{'factoryId':timezone_factory_id,'expectedVersion':0,'expectedTimeZone':'UTC','timeZone':'Europe/Berlin'})
     fixture={'deviceId':device['id'],'alarms':alarms,'configuration':configuration,'startTime':start_time,'endTime':end_time,'periodId':saved['id'],
+             'timezoneFactoryId':timezone_factory_id,
              'handoverId':handover['id'],'auditIds':audit_ids,'assetRefs':refs,'note':note,'nextStep':next_step}
     fixture['fingerprint']=ot_rollback_fingerprint(fixture)
     verify_ot_rollback(fixture,viewer,True)

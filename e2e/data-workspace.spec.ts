@@ -724,6 +724,15 @@ test("engineers can change the shared factory timezone without commissioning shi
   await expect(chart.getByRole("columnheader", { name: "Time (Europe/Berlin)" })).toBeVisible();
   expect(requests.filter((request) => request.procedure === "operations.setTimeZone")).toHaveLength(1);
   expect(requests.find((request) => request.procedure === "operations.setTimeZone")?.input).toMatchObject({ expectedVersion: 0, expectedTimeZone: "UTC", timeZone: "Europe/Berlin" });
+  await page.setViewportSize({ width: 320, height: 900 });
+  await panel.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" }).click();
+  await dialog.getByLabel("Site timezone").fill("America/Argentina/Buenos_Aires");
+  await dialog.getByRole("button", { name: "Save timezone" }).click();
+  const longZone = panel.getByRole("button", { name: "Change factory timezone, current America/Argentina/Buenos_Aires" });
+  await expect(longZone).toBeVisible();
+  const box = await longZone.boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("Data workspace stays consistent across two open tabs in both directions", async ({

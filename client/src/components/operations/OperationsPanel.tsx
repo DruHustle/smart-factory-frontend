@@ -1080,11 +1080,12 @@ export function OperationsPanel({
             <Button
               variant="outline"
               size="sm"
-              className="min-h-11"
+              className="min-h-11 max-w-48 sm:max-w-64"
               onClick={() => setTimezoneOpen(true)}
               aria-label={`Change factory timezone, current ${data.shift.timeZone}`}
             >
-              <Clock3 className="mr-1 size-4" /> {data.shift.timeZone}
+              <Clock3 className="mr-1 size-4 shrink-0" />
+              <span className="truncate">{data.shift.timeZone}</span>
             </Button>
           )}
           <Button
