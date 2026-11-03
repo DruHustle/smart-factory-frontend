@@ -61,7 +61,9 @@ def main():
         (directory/'ca.crt').write_bytes((directory/'server.crt').read_bytes())
         (directory/'health-password').write_text(PASSWORD)
         for i,user in enumerate(['sf-gateway','sf-worker','sf-control','sf-health']):
-            args=['docker','run','--rm','-v',f'{directory}:/work','--entrypoint','mosquitto_passwd',IMAGE]
+            # Use the invoking user so Linux bind mounts do not leave a root-
+            # owned synthetic password file that the runner cannot manage.
+            args=['docker','run','--rm','--user',f'{os.getuid()}:{os.getgid()}','-v',f'{directory}:/work','--entrypoint','mosquitto_passwd',IMAGE]
             if i == 0: args.append('-c')
             run(args+['-b','/work/passwords',user,PASSWORD],quiet=True)
         for path in directory.iterdir(): path.chmod(0o644)
