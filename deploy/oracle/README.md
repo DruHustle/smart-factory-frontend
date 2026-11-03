@@ -56,7 +56,7 @@ After approved promotion, inspect `/release.json`, `/api/runtime/contract`, logi
 
 The qualified rollback sources are pinned in [rollback-sources.json](../rollback-sources.json).
 The pinned fallback uses the reviewed connectivity-aware sources
-`b5e148b3f14c92ab3bde48ea05c6bcfb025d2eda`,
+`0ce83ff28a52e0920526bf6da5950ea0420ac349`,
 `e5634a58276dfacbc1e117db2f5a72b44b2228be` and
 `1deb53c43e25c08e7bedbb9f51583844e1a051b0`.
 Its frontend repository source identifies the API bundle, not the separate

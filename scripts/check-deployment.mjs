@@ -19,6 +19,8 @@ const promotion=workflow.indexOf('vercel@62.2.0 deploy --prebuilt'),beforePromot
 if(!(build>=0&&lastContract>build&&lastHead>lastContract&&promotion>lastHead))failures.push('Compatibility and current-main checks must immediately precede artifact promotion after build');
 requireText(workflow,/RELEASE_SHA.*==.*current/,'Final head check must refuse an obsolete main artifact');
 requireText(verifier,/promotionCompatibility\(contract,[\s\S]*schemaDigest: expected\.digest/,'Promotion must verify the exact qualified API, worker, migrations and companion sources');
+requireText(workflow,/EXPECTED_API_SOURCE: \$\{\{ steps\.source\.outputs\.sha \}\}/,'Production promotion must bind the API source to the selected frontend SHA');
+requireText(verifier,/source: process\.env\.EXPECTED_API_SOURCE/,'The runtime verifier must enforce the expected API source');
 requireText(verifier,/deploy\/qualification-sources\.json/,'Promotion must load the qualified immutable companion sources');
 requireText(workflow,/deploy --prebuilt[\s\S]*scripts\/verify-release\.mts/,'The deployed frontend must attest the approved revision after promotion');
 requireText(workflow,/API_ORIGIN=https:\/\/smart-factory-iot-app\.vercel\.app.*scripts\/verify-runtime\.mts/,'The promoted UI origin must proxy the qualified API');

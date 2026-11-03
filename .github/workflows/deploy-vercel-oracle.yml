@@ -82,6 +82,7 @@ jobs:
           VITE_API_URL: /api
           VITE_ENABLE_DEMO_ACCOUNTS: "true"
           RELEASE_SHA: ${{ steps.source.outputs.sha }}
+          EXPECTED_API_SOURCE: ${{ steps.source.outputs.sha }}
           GH_TOKEN: ${{ github.token }}
           RUNTIME_EVIDENCE_FILE: ${{ runner.temp }}/qualified-api-runtime.json
         run: |

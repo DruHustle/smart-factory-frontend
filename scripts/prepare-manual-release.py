@@ -43,7 +43,7 @@ REPOSITORIES = {
     for name in ("frontend", "backend", "edge")
 }
 FALLBACK = {
-    "frontend": "b5e148b3f14c92ab3bde48ea05c6bcfb025d2eda",
+    "frontend": "0ce83ff28a52e0920526bf6da5950ea0420ac349",
     "backend": "e5634a58276dfacbc1e117db2f5a72b44b2228be",
     "edge": "1deb53c43e25c08e7bedbb9f51583844e1a051b0",
 }

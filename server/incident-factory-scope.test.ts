@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import { alerts } from "../drizzle/schema";
-import { createUser, getAlertPage, getAlerts, getDb } from "./db";
+import { createUser, getAlertPage, getAlerts, getAlertStats, getDb } from "./db";
 import { registerDevice } from "./deviceRegistration";
 import { incidentActionQueue } from "./incidentActions";
 import { appRouter } from "./routers";
@@ -90,6 +90,19 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         ])
         .returning();
       const expected = [events[0].id, events[1].id, events[2].id].sort();
+      // A newer unrelated incident must not consume the limit before the
+      // selected source is applied, and source filters cannot widen a factory.
+      expect(
+        (await getAlerts({ factoryId: firstFactory, deviceIds: [devices[0].id], limit: 1 }))
+          .map((row) => row.id),
+      ).toEqual([events[0].id]);
+      expect(
+        await getAlerts({ factoryId: firstFactory, deviceIds: [devices[2].id], limit: 1 }),
+      ).toEqual([]);
+      expect(
+        (await getAlerts({ deviceIds: [devices[1].id], assetIds: [assets[0].assetId] }))
+          .map((row) => row.id).sort(),
+      ).toEqual([events[1].id, events[2].id].sort());
       expect(
         (await getAlerts({ factoryId: firstFactory, openOnly: true }))
           .map((row) => row.id)
@@ -110,6 +123,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         returned: 2,
         hasMore: true,
         summary: { total: 3, warning: 3 },
+      });
+      expect(await getAlertStats(undefined, firstFactory)).toMatchObject({
+        open: 3,
+        warning: 3,
       });
       const remainder = await getAlertPage(
         { factoryId: firstFactory, openOnly: true },

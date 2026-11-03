@@ -73,6 +73,7 @@ const expected = {
   backend: "b".repeat(40),
   edge: "c".repeat(40),
   schemaDigest: "d".repeat(64),
+  source,
 };
 const runtime = (): RuntimeContract => ({
   source,
@@ -111,6 +112,7 @@ describe("coordinated production promotion", () => {
     { edgeSource: "e".repeat(40) },
     { source: null },
     { source: "main" },
+    { source: "e".repeat(40) },
     { deployment: "standalone" },
     { worker: null },
     { worker: { fresh: false, compatible: true } },
@@ -125,6 +127,17 @@ describe("coordinated production promotion", () => {
       ).toBeTruthy();
     },
   );
+});
+
+it("binds both workflow runtime checks to the exact frontend release source", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/deploy-vercel-oracle.yml", import.meta.url),
+    "utf8",
+  );
+  expect(workflow).toContain("EXPECTED_API_SOURCE: ${{ steps.source.outputs.sha }}");
+  const promotion = workflow.indexOf("vercel@62.2.0 deploy --prebuilt");
+  const before = workflow.slice(0, promotion);
+  expect(before.match(/node --import tsx scripts\/verify-runtime\.mts/g)).toHaveLength(2);
 });
 
 const release = () => ({

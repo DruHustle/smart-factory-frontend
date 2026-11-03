@@ -71,13 +71,16 @@ export function runtimeCompatibility(
 /** Promotion must attest the exact reviewed companion sources, not just readiness. */
 export function promotionCompatibility(
   value: unknown,
-  expected: { schemaDigest: string; backend: string; edge: string },
+  expected: { schemaDigest: string; backend: string; edge: string; source?: string },
 ): string | null {
   const error = runtimeCompatibility(value, true);
   if (error) return error;
   const contract = value as RuntimeContract;
   if (!contract.source || !/^[a-f0-9]{40}$/.test(contract.source))
     return "The API has no valid immutable source revision.";
+  if (expected.source !== undefined &&
+      (!/^[a-f0-9]{40}$/.test(expected.source) || contract.source !== expected.source))
+    return "The API source differs from the frontend release revision.";
   if (
     contract.deployment !== "bundle" ||
     contract.worker?.fresh !== true ||

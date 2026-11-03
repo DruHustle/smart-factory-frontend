@@ -2240,6 +2240,8 @@ export function visibleAlertEntitiesCondition() {
 
 export async function getAlerts(filters?: {
   deviceId?: number;
+  deviceIds?: number[];
+  assetIds?: string[];
   factoryId?: string;
   status?: Alert["status"];
   sourceCondition?: Alert["sourceCondition"];
@@ -2270,6 +2272,16 @@ export async function getAlerts(filters?: {
 
     if (filters?.deviceId)
       conditions.push(eq(alerts.deviceId, filters.deviceId));
+    if (filters?.deviceIds?.length || filters?.assetIds?.length) {
+      const scoped = [];
+      if (filters.deviceIds?.length) scoped.push(
+        filters.assetIds?.length
+          ? and(sql`${alerts.assetId} is null`, inArray(alerts.deviceId, filters.deviceIds))!
+          : inArray(alerts.deviceId, filters.deviceIds),
+      );
+      if (filters.assetIds?.length) scoped.push(inArray(alerts.assetId, filters.assetIds));
+      conditions.push(or(...scoped)!);
+    }
     if (filters?.status) conditions.push(eq(alerts.status, filters.status));
     if (filters?.sourceCondition)
       conditions.push(eq(alerts.sourceCondition, filters.sourceCondition));
@@ -2450,8 +2462,9 @@ export async function updateAlert(
   });
 }
 
-export async function getAlertStats(deviceIds?: number[]) {
+export async function getAlertStats(deviceIds?: number[], factoryId?: string) {
   return withDb(async (db) => {
+    await validateIncidentFactoryScope(db, factoryId);
     const [stats] = await db
       .select({
         total: sql<number>`count(*)::int`,
@@ -2475,6 +2488,7 @@ export async function getAlertStats(deviceIds?: number[]) {
       .where(
         and(
           visibleAlertEntitiesCondition(),
+          incidentFactoryCondition(factoryId),
           deviceIds === undefined
             ? undefined
             : deviceIds.length > 0

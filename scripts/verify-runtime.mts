@@ -32,6 +32,7 @@ if (
 const error = promotionCompatibility(contract, {
   schemaDigest: expected.digest,
   ...sources,
+  source: process.env.EXPECTED_API_SOURCE,
 });
 if (error) throw Error(error);
 if (process.env.RUNTIME_EVIDENCE_FILE)

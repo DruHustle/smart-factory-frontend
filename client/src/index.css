@@ -662,6 +662,11 @@ summary:focus-visible {
   [data-slot="dropdown-menu-item"] {
     min-height: 40px;
   }
+  /* Overview actions must remain usable even when the small button variant
+     and the general mobile button rule both set smaller dimensions. */
+  .factory-overview [data-slot="button"] {
+    min-height: 2.75rem;
+  }
 }
 
 input[type="range"],

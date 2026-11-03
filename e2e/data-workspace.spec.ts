@@ -34,6 +34,7 @@ async function workspaceFixture(
     viewer?: boolean;
     actions?: boolean;
     actionsError?: boolean;
+    incidentPage?: boolean;
   } = { floor: "normal" },
 ) {
   let signedIn = true;
@@ -383,6 +384,19 @@ async function workspaceFixture(
               info: 0,
               activeDowntime: 0,
             },
+          };
+          break;
+        case "alerts.page":
+          value = {
+            items: control.incidentPage ? [{
+              id: 1, message: "First-page incident", severity: "warning",
+              status: "active", currentCondition: "unknown", acknowledged: false,
+              createdAt: new Date("2026-10-31T12:00:00Z"), deviceName: "Fixture source",
+            }] : [],
+            total: control.incidentPage ? 26 : 0,
+            returned: control.incidentPage ? 1 : 0,
+            hasMore: !!control.incidentPage,
+            summary: { total: control.incidentPage ? 26 : 0, critical: 0, warning: 1, info: 0, resolved: 0 },
           };
           break;
         case "alerts.list":
@@ -1455,7 +1469,7 @@ for (const width of [390, 1440]) {
   });
 }
 
-for (const width of [320, 375, 390, 430, 768, 1440]) {
+for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
   test(`Overview keeps compact controls and complete KPI rows at ${width}px`, async ({
     page,
   }) => {
@@ -1778,6 +1792,16 @@ test("WROVER connectivity does not call unknown status offline", async ({
   );
 });
 
+test("an incident selected outside the current page never opens the first row", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const requests = await workspaceFixture(page, false, { floor: "normal", incidentPage: true });
+  await page.goto("/#/alerts?selected=999");
+  await expect(page.getByText("First-page incident")).toBeVisible();
+  await expect(page.getByText("Selected incident is not on this page")).toBeVisible();
+  await expect(page.getByLabel("Incident investigation")).toHaveCount(0);
+  expect(requests.filter((request) => request.procedure === "alerts.getById")).toEqual([]);
+});
+
 test("WROVER telemetry shows unverified source values outside verified trends", async ({
   page,
 }) => {
@@ -1791,7 +1815,7 @@ test("WROVER telemetry shows unverified source values outside verified trends", 
     .filter({ hasText: "Unverified reading · not used for live status" });
   await expect(sample).toContainText("20.7");
   await expect(sample).toContainText("unit unverified");
-  await expect(sample).toContainText("Historical");
+  await expect(sample).toContainText("Sample reported");
   await page.getByLabel("Evidence scope").selectOption("simulated");
   await expect(sample).toHaveCount(0);
   await page.getByLabel("Evidence scope").selectOption("unknown");

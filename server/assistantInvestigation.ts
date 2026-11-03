@@ -16,6 +16,34 @@ import { observationTrend } from "./trends";
 import { operationsSummary } from "./operations/store";
 import { inventoryItemsByRefs } from "./inventory";
 import { observationHref } from "../shared/inventory";
+import { alarmConditionReasonLabel } from "../shared/alarm-condition";
+
+/** Separate current condition from the last verified observation and review. */
+export function incidentSourceSummary(incident: {
+  currentCondition?: string;
+  sourceCondition?: string;
+  acknowledged?: boolean;
+  conditionReason?: string | null;
+  conditionValidUntil?: Date | string | null;
+  conditionEvidence?: { occurredAt: number; value: number; unit: string } | null;
+}) {
+  const parts = [
+    `Current source condition: ${incident.currentCondition ?? "unknown"}`,
+    `acknowledgement: ${incident.acknowledged ? "acknowledged" : "unacknowledged"}`,
+  ];
+  const reason = alarmConditionReasonLabel(incident.conditionReason);
+  if (reason) parts.push(reason);
+  const proof = incident.conditionEvidence;
+  const observedAt = proof ? new Date(proof.occurredAt) : null;
+  if (proof && observedAt && Number.isFinite(observedAt.getTime()) && Number.isFinite(proof.value)) {
+    parts.push(`Last verified source evidence: ${proof.value} ${proof.unit} at ${observedAt.toISOString()} (${incident.sourceCondition ?? "unknown"})`);
+  } else parts.push("No verified source observation is recorded");
+  if (incident.conditionValidUntil) {
+    const time = new Date(incident.conditionValidUntil);
+    if (Number.isFinite(time.getTime())) parts.push(`Evidence validity ends ${time.toISOString()}`);
+  }
+  return parts.join(". ") + ".";
+}
 
 export type InvestigationEvidence = {
   request: InvestigationContext;
@@ -315,7 +343,8 @@ export async function loadInvestigationEvidence(
         incident.severity +
         "; review: " +
         incident.status +
-        ". Review and action status do not prove physical clearance. The trend window is evidence for investigation, not a confirmed causal diagnosis.",
+        ". " + incidentSourceSummary(incident) +
+        " Review and action status do not prove physical clearance. The trend window is evidence for investigation, not a confirmed causal diagnosis.",
       kind: "live-data",
     });
   return {

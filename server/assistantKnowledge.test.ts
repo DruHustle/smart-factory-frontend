@@ -164,6 +164,18 @@ describe("Smart Factory documentation assistant", () => {
     );
   });
 
+  it("requests incident evidence for the selected sources before the database limit", async () => {
+    await answerFactoryQuestion("Troubleshoot a critical temperature incident on Compressor 01", {
+      selectedAssetId: "urn:factory:compressor:01",
+      selection: { provider: "local" },
+    });
+    expect(database.getAlerts).toHaveBeenCalledWith(expect.objectContaining({
+      openOnly: true,
+      deviceIds: [8],
+      assetIds: ["urn:factory:compressor:01"],
+    }));
+  });
+
   it.each([
     "Review the source observation.",
     "What is the latest temperature on Compressor 01?",

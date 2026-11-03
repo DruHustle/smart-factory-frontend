@@ -105,9 +105,10 @@ export default function Alerts() {
     ),
     exportHistory = trpc.export.alertHistoryReport.useMutation(),
     context = `/alerts${params.size ? `?${params}` : ""}`,
-    selected =
-      queue.data?.items.find((e) => e.id === Number(params.get("selected"))) ??
-      queue.data?.items[0];
+    selectedParam = params.get("selected"),
+    selected = selectedParam === null
+      ? queue.data?.items[0]
+      : queue.data?.items.find((e) => e.id === Number(selectedParam));
   const requested = params.get("return"),
     back =
       requested?.startsWith("/alerts?") ||
@@ -460,6 +461,12 @@ export default function Alerts() {
                 id={selected.id}
                 returnTo={context}
                 compact
+              />
+            )}
+            {wide && selectedParam !== null && !selected && (
+              <EmptyState
+                title="Selected incident is not on this page"
+                description="Use the page controls or adjust the filters to locate the requested incident."
               />
             )}
           </div>

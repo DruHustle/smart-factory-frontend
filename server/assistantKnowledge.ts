@@ -365,10 +365,9 @@ async function buildLiveContext(
 
   const capturedAt = new Date().toISOString();
   try {
-    const [allAssets, allDevices, allAlerts] = await Promise.all([
+    const [allAssets, allDevices] = await Promise.all([
       db.getAssets(),
       db.getDevices(),
-      db.getAlerts({ limit: 100, openOnly: true }),
     ]);
     const factory =
       factoryId && !demoOnlyRead()
@@ -447,8 +446,9 @@ async function buildLiveContext(
       db.getLatestAssetReadings(relevantAssets.map((asset) => asset.assetId)),
       db.getAlertStats(
         factory
-          ? [...new Set([...visibleDevices.map((d) => d.id), ...deviceIds])]
+          ? undefined
           : [...visibleDeviceByPk.keys()],
+        factory ? factoryId : undefined,
       ),
     ]);
     const readingsByAsset = new Map(
@@ -458,11 +458,23 @@ async function buildLiveContext(
     const relevantAssetIds = new Set(
       relevantAssets.map((asset) => asset.assetId),
     );
+    // Apply the selected sources and validated factory scope in SQL before
+    // limiting results; unrelated newer incidents must not hide this evidence.
+    const allAlerts = relevantDeviceIds.size || relevantAssetIds.size
+      ? await db.getAlerts({
+          limit: MAX_ALERTS_IN_CONTEXT,
+          openOnly: true,
+          factoryId: factory ? factoryId : undefined,
+          deviceIds: [...relevantDeviceIds],
+          assetIds: [...relevantAssetIds],
+        })
+      : [];
     const selectedAlerts = allAlerts
       .filter(
         (alert) =>
-          relevantDeviceIds.has(alert.deviceId) ||
-          (alert.assetId && relevantAssetIds.has(alert.assetId)),
+          alert.assetId
+            ? relevantAssetIds.has(alert.assetId)
+            : relevantDeviceIds.has(alert.deviceId),
       )
       .slice(0, MAX_ALERTS_IN_CONTEXT);
 

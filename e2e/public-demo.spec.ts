@@ -88,6 +88,20 @@ for (const role of ["Admin", "Engineer", "Operator", "Viewer"]) {
       },
     });
     expect(raw.status()).toBe(403);
+    // The forged Live cookie above tests server-side isolation. Restore the
+    // real demo scope and replace the document before testing UI navigation:
+    // the workspace guard deliberately cancels and reloads a changed scope.
+    await page.context().addCookies([
+      {
+        name: "smart_factory_data_workspace",
+        value: "demo",
+        url: new URL(page.url()).origin,
+      },
+    ]);
+    await page.reload();
+    await expect(
+      page.getByRole("combobox", { name: "Data workspace", exact: true }),
+    ).toHaveValue("demo");
     await page.goto("/#/inventory");
     await expect(
       page.getByRole("button", { name: "Add item", exact: true }),
