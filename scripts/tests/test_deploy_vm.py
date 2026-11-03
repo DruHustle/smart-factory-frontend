@@ -8,6 +8,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shlex
 import stat
 import subprocess
 import sys
@@ -23,6 +24,9 @@ spec = importlib.util.spec_from_file_location("manual_vm_test_subject", SOURCE)
 vm = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = vm
 spec.loader.exec_module(vm)
+env_spec = importlib.util.spec_from_file_location("oracle_env_test_subject", SOURCE.with_name("prepare-oracle-env.py"))
+oracle_env = importlib.util.module_from_spec(env_spec)
+env_spec.loader.exec_module(oracle_env)
 
 CAPABILITIES = ["password-reset-v1", "account-requests-v1", "account-role-approval-v1",
                 "industrial-connectivity-v1", "published-passports-v1"]
@@ -237,6 +241,42 @@ class BundleTests(unittest.TestCase):
 
 
 class ConfigurationTests(unittest.TestCase):
+    def setUp(self):
+        vm.configure_origins()
+        self.addCleanup(vm.configure_origins)
+
+    def test_custom_origins_are_validated_and_do_not_inherit_the_legacy_alias(self):
+        vm.configure_origins("https://api.onesa.eu/", "https://factory.onesa.eu/")
+        self.assertEqual(vm.deployment_origins(), {"api": "https://api.onesa.eu", "ui": "https://factory.onesa.eu"})
+        self.assertEqual(vm.UI_CANONICAL_ALIAS, "")
+        source = vm.UI_ORIGIN + "/release.json"
+        opener = Mock()
+        opener.open.side_effect = vm.urllib.error.HTTPError(source, 307, "redirect",
+            {"Location": vm.DEFAULT_UI_CANONICAL_ALIAS + "/release.json"}, io.BytesIO())
+        with patch.object(vm.urllib.request, "build_opener", return_value=opener):
+            self.assertIsNone(vm._runtime_http(source, True))
+        self.assertEqual(opener.open.call_count, 1)
+
+    def test_invalid_origins_stop_before_manifest_loading_or_remote_work(self):
+        for value in ("http://factory.onesa.eu", "https://user:secret@factory.onesa.eu", "https://factory.onesa.eu/path",
+                      "https://@factory.onesa.eu", "https://factory.onesa.eu:",
+                      "https://factory.onesa.eu/#", "https://factory.onesa.eu?", "https://factory.onesa.eu,https://other.example",
+                      "https://factory.onesa.eu:0", "https://factory.onesa.eu:70000", "https://factory.invalid", "https://factory.onesa.eu\n"):
+            with self.subTest(value=value), patch.object(vm, "validate_manifest") as manifest, \
+                 patch.object(vm, "run_client") as run, contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(vm.main(["--api-origin", value]), 1)
+                manifest.assert_not_called()
+                run.assert_not_called()
+
+    def test_receipts_bind_origins_and_legacy_receipts_keep_the_old_target(self):
+        vm.assert_receipt_origins({})
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        with self.assertRaisesRegex(RuntimeError, "different origins"):
+            vm.assert_receipt_origins({})
+        vm.assert_receipt_origins({"origins": vm.deployment_origins()})
+        with self.assertRaisesRegex(RuntimeError, "different origins"):
+            vm.assert_receipt_origins({"origins": {"api": vm.API_ORIGIN, "ui": vm.DEFAULT_UI_ORIGIN}})
+
     def test_public_snapshot_accepts_only_the_verified_alias_without_chains(self):
         source = vm.UI_ORIGIN + "/release.json"
         target = vm.UI_CANONICAL_ALIAS + "/release.json"
@@ -328,6 +368,44 @@ class ConfigurationTests(unittest.TestCase):
         api, worker = self.mail()
         worker.pop("SMTP_ALLOWED_RECIPIENTS")
         self.assertEqual(vm.mail_configuration_plan(api, worker)[0]["EMAIL_DELIVERY_CONFIGURED"], "false")
+
+    def test_cutover_allowlist_requires_one_explicit_reset_origin_on_both_processes(self):
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        api, worker = self.mail()
+        api["ALLOWED_ORIGIN"] = vm.DEFAULT_UI_ORIGIN + "," + vm.UI_ORIGIN
+        with self.assertRaisesRegex(RuntimeError, "explicit PASSWORD_RESET_ORIGIN"):
+            vm.mail_configuration_plan(api, worker)
+        api["PASSWORD_RESET_ORIGIN"] = vm.UI_ORIGIN
+        with self.assertRaisesRegex(RuntimeError, "both API and worker"):
+            vm.mail_configuration_plan(api, worker)
+        worker["PASSWORD_RESET_ORIGIN"] = vm.UI_ORIGIN
+        updates, worker_updates, summary = vm.mail_configuration_plan(api, worker)
+        self.assertEqual(updates, {"EMAIL_DELIVERY_CONFIGURED": "true"})
+        self.assertEqual(worker_updates, {})
+        self.assertEqual(summary["expectedResetPolicy"], "email")
+        api["ALLOWED_ORIGIN"] = vm.DEFAULT_UI_ORIGIN
+        with self.assertRaisesRegex(RuntimeError, "selected UI origin"):
+            vm.mail_configuration_plan(api, worker)
+
+    def test_resend_configuration_stays_on_worker_and_requires_a_recipient_policy(self):
+        api, worker = self.mail()
+        api["EMAIL_PROVIDER"] = "resend"
+        worker = {"DASHBOARD_SERVICE_TOKEN": "s" * 40, "EMAIL_PROVIDER": "resend",
+                  "RESEND_API_KEY": "re_synthetic", "RESEND_FROM": "Factory <factory@onesa.eu>",
+                  "RESEND_ALLOWED_RECIPIENT_DOMAINS": "onesa.eu"}
+        updates, _, summary = vm.mail_configuration_plan(api, worker)
+        self.assertEqual(updates["EMAIL_DELIVERY_CONFIGURED"], "true")
+        self.assertNotIn("RESEND_API_KEY", updates)
+        self.assertFalse(summary["mailDeliveryTested"])
+        worker.pop("RESEND_ALLOWED_RECIPIENT_DOMAINS")
+        self.assertEqual(vm.mail_configuration_plan(api, worker)[0]["EMAIL_DELIVERY_CONFIGURED"], "false")
+
+    def test_reset_origin_path_or_list_is_not_silently_normalized(self):
+        for value in (vm.UI_ORIGIN + "/#/reset-password", vm.UI_ORIGIN + ",https://factory.onesa.eu"):
+            api, worker = self.mail()
+            worker["PASSWORD_RESET_ORIGIN"] = value
+            with self.assertRaisesRegex(RuntimeError, "plain HTTPS origin"):
+                vm.mail_configuration_plan(api, worker)
 
     def test_reset_origin_provider_or_service_token_drift_requires_review(self):
         for change in ({"PASSWORD_RESET_ORIGIN": "https://different.example"}, {"EMAIL_PROVIDER": "resend"}, {"DASHBOARD_SERVICE_TOKEN": "t" * 40}):
@@ -461,8 +539,84 @@ class LifecycleTests(unittest.TestCase):
             self.assertEqual(command.call_count, 1)
 
 
+class EnvironmentPreparationTests(unittest.TestCase):
+    def snapshot(self):
+        shared = {"DATABASE_URL": "postgres://synthetic@db.example/factory", "INGESTION_API_TOKEN": "synthetic-ingest",
+                  "DASHBOARD_SERVICE_TOKEN": "s" * 40, "EMAIL_PROVIDER": "resend"}
+        api = {**shared, "ALLOWED_ORIGIN": vm.DEFAULT_UI_ORIGIN, "DATABASE_CA_CERT": "first-line\nsecond-line"}
+        worker = {**shared, "MqttClientId": "existing-singleton", "RESEND_API_KEY": "re_literal$#\\secret",
+                  "RESEND_FROM": "Factory <factory@onesa.eu>", "RESEND_ALLOWED_RECIPIENT_DOMAINS": "onesa.eu"}
+        return {role: {"variables": [{"key": key, "value": value} for key, value in values.items()]}
+                for role, values in (("api", api), ("worker", worker))}
+
+    def test_default_preparation_retains_credentials_and_existing_origin_policy(self):
+        snapshot = self.snapshot()
+        original = copy.deepcopy(snapshot)
+        result = oracle_env.prepare_environments(snapshot)
+        self.assertEqual(snapshot, original)
+        self.assertEqual(result["worker"]["DASHBOARD_API_ORIGIN"], vm.DEFAULT_API_ORIGIN)
+        self.assertNotIn("PASSWORD_RESET_ORIGIN", result["api"])
+        self.assertEqual(result["api"]["ALLOWED_ORIGIN"], vm.DEFAULT_UI_ORIGIN)
+        self.assertEqual(result["worker"]["RESEND_API_KEY"], "re_literal$#\\secret")
+        self.assertNotIn("RESEND_API_KEY", result["api"])
+
+    def test_explicit_cutover_sets_both_reset_origins_and_retains_the_old_allowed_frontend(self):
+        result = oracle_env.prepare_environments(self.snapshot(), "https://api.onesa.eu", "https://factory.onesa.eu")
+        self.assertEqual(result["worker"]["DASHBOARD_API_ORIGIN"], "https://api.onesa.eu")
+        self.assertEqual(result["api"]["ALLOWED_ORIGIN"], vm.DEFAULT_UI_ORIGIN + ",https://factory.onesa.eu")
+        for role in ("api", "worker"):
+            self.assertEqual(result[role]["PASSWORD_RESET_ORIGIN"], "https://factory.onesa.eu")
+            self.assertEqual(result[role]["DASHBOARD_SERVICE_TOKEN"], "s" * 40)
+        self.assertEqual(result["worker"]["MqttClientId"], "existing-singleton")
+
+    def test_multiple_origins_need_an_explicit_reset_target(self):
+        snapshot = self.snapshot()
+        snapshot["api"]["variables"].append({"key": "ALLOWED_ORIGIN", "value": vm.DEFAULT_UI_ORIGIN + ",https://factory.onesa.eu"})
+        with self.assertRaisesRegex(ValueError, "Multiple ALLOWED_ORIGIN"):
+            oracle_env.prepare_environments(snapshot)
+
+    def test_prepared_files_remain_private_without_printing_credential_values(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            snapshot = root / "snapshot.json"
+            snapshot.write_text(json.dumps(self.snapshot()))
+            target = root / "prepared"
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                oracle_env.main([str(snapshot), str(target), "--api-origin", "https://api.onesa.eu", "--ui-origin", "https://factory.onesa.eu"])
+            self.assertNotIn("re_literal", output.getvalue())
+            for role in ("api", "worker"):
+                self.assertEqual(stat.S_IMODE((target / (".env." + role)).stat().st_mode), 0o600)
+            self.assertIn(b"RESEND_API_KEY=re_literal$#\\secret\n", (target / ".env.worker").read_bytes())
+            self.assertIn(b"DATABASE_CA_CERT=first-line\\nsecond-line\n", (target / ".env.api").read_bytes())
+
+    def test_invalid_second_role_or_symlink_does_not_partially_overwrite_outputs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            snapshot = root / "snapshot.json"
+            target = root / "prepared"
+            target.mkdir()
+            (target / ".env.api").write_text("retained-api")
+            values = self.snapshot()
+            values["worker"]["variables"].append({"key": "RESEND_API_KEY", "value": "invalid\nsecret"})
+            snapshot.write_text(json.dumps(values))
+            with self.assertRaisesRegex(ValueError, "Unexpected multiline"):
+                oracle_env.main([str(snapshot), str(target)])
+            self.assertEqual((target / ".env.api").read_text(), "retained-api")
+            snapshot.write_text(json.dumps(self.snapshot()))
+            protected = root / "protected"
+            protected.write_text("retained-target")
+            (target / ".env.worker").symlink_to(protected)
+            with self.assertRaisesRegex(ValueError, "regular environment output"):
+                oracle_env.main([str(snapshot), str(target)])
+            self.assertEqual((target / ".env.api").read_text(), "retained-api")
+            self.assertEqual(protected.read_text(), "retained-target")
+
+
 class DetachedAndTransportTests(unittest.TestCase):
     def setUp(self):
+        vm.configure_origins()
+        self.addCleanup(vm.configure_origins)
         self.temporary = tempfile.TemporaryDirectory()
         self.directory = Path(self.temporary.name) / "release"
         self.directory.mkdir(mode=0o700)
@@ -473,6 +627,7 @@ class DetachedAndTransportTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def test_detached_start_is_idempotent_and_keeps_private_records(self):
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
         helper = self.directory / "deploy-vm.py"
         helper.write_text("# synthetic helper")
         vm.write_json_private(self.directory / "release-manifest.json", vm.M)
@@ -485,6 +640,8 @@ class DetachedAndTransportTests(unittest.TestCase):
         self.assertTrue(popen.call_args.kwargs["start_new_session"])
         self.assertTrue(popen.call_args.kwargs["close_fds"])
         self.assertEqual(popen.call_args.kwargs["stdin"], subprocess.DEVNULL)
+        self.assertEqual(popen.call_args.args[0][-4:], vm.origin_arguments())
+        self.assertEqual(vm.read_private_json(self.directory / "request.json")["origins"], vm.deployment_origins())
         self.assertEqual(stat.S_IMODE((self.directory / "request.json").stat().st_mode), 0o600)
         self.assertEqual(stat.S_IMODE((self.directory / "private-output.log").stat().st_mode), 0o600)
 
@@ -494,6 +651,24 @@ class DetachedAndTransportTests(unittest.TestCase):
         vm.write_json_private(self.directory / "process.json", {"pid": 12345, "startIdentity": "old"})
         with patch.object(vm, "process_start_identity", return_value="new"):
             self.assertEqual(vm.remote_status(self.directory)["status"], "NEEDS_REVIEW")
+
+    def test_ssh_passes_both_validated_origins_to_the_remote_helper(self):
+        vm.configure_origins("https://api.onesa.eu", "https://factory.onesa.eu")
+        with patch.object(vm, "ssh_options", return_value=[]), \
+             patch.object(vm, "run_command", return_value=subprocess.CompletedProcess([], 0, '{}', '')) as run:
+            vm.remote_call("check")
+        arguments = shlex.split(run.call_args.args[0][-1])
+        self.assertEqual(arguments[-4:], vm.origin_arguments())
+
+    def test_origin_drift_prevents_detached_execution_and_reconnect(self):
+        vm.write_json_private(self.directory / "request.json", {"manifestSha256": vm.manifest_digest(),
+                              "origins": {"api": "https://api.onesa.eu", "ui": "https://factory.onesa.eu"}})
+        with patch.object(vm, "execute_deployment") as execute:
+            with self.assertRaisesRegex(RuntimeError, "different origins"):
+                vm.remote_run(self.directory)
+            with self.assertRaisesRegex(RuntimeError, "different origins"):
+                vm.remote_status(self.directory)
+            execute.assert_not_called()
 
     def test_strict_ssh_never_accepts_new_host_keys_or_password_prompt(self):
         home = self.directory / "home"

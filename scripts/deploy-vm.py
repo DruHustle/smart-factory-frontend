@@ -31,6 +31,7 @@ import tarfile
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 import zipfile
@@ -40,9 +41,12 @@ RELEASE_MANIFEST = None
 M = None
 HOST = "ubuntu@152.70.22.84"
 DEPLOY = Path("/opt/smart-factory-backend")
-API_ORIGIN = "https://api.152-70-22-84.sslip.io"
-UI_ORIGIN = "https://smart-factory-iot-app.vercel.app"
-UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
+DEFAULT_API_ORIGIN = "https://api.152-70-22-84.sslip.io"
+DEFAULT_UI_ORIGIN = "https://smart-factory-iot-app.vercel.app"
+DEFAULT_UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
+API_ORIGIN = DEFAULT_API_ORIGIN
+UI_ORIGIN = DEFAULT_UI_ORIGIN
+UI_CANONICAL_ALIAS = DEFAULT_UI_CANONICAL_ALIAS
 PROJECT = "smart-factory-backend"
 FILE_NAMES = ("compose.yaml", ".env", ".env.api", ".env.worker")
 MEMBERS = {"candidate.tar.gz", "rollback.tar.gz", "archive.sha256", "image.json",
@@ -65,6 +69,47 @@ TERMINAL_STATUSES = {"BACKEND_DEPLOYED", "ROLLED_BACK", "STOPPED_BEFORE_CHANGES"
 def require(ok, message):
     if not ok:
         raise RuntimeError(message)
+
+
+def https_origin(value, label):
+    """Accept one HTTPS DNS origin; never silently discard a path or credentials."""
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        host, port = parsed.hostname or "", parsed.port
+        origin = "https://" + host + (":" + str(port) if port not in (None, 443) else "")
+        valid = (parsed.scheme == "https" and parsed.username is None and parsed.password is None
+                 and value in (origin, origin + "/")
+                 and len(host) <= 253 and not host.endswith(".invalid")
+                 and all(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", part) for part in host.split("."))
+                 and (port is None or 1 <= port <= 65535))
+    except (TypeError, ValueError):
+        valid = False
+    require(valid, label + " must be a plain HTTPS origin without credentials, path, query or fragment.")
+    return origin
+
+
+def configure_origins(api=DEFAULT_API_ORIGIN, ui=DEFAULT_UI_ORIGIN):
+    global API_ORIGIN, UI_ORIGIN, UI_CANONICAL_ALIAS
+    api = https_origin(api, "API origin")
+    ui = https_origin(ui, "UI origin")
+    API_ORIGIN, UI_ORIGIN = api, ui
+    # The verified legacy redirect must never become an alias for a new domain.
+    UI_CANONICAL_ALIAS = DEFAULT_UI_CANONICAL_ALIAS if ui == DEFAULT_UI_ORIGIN else ""
+
+
+def deployment_origins():
+    return {"api": API_ORIGIN, "ui": UI_ORIGIN}
+
+
+def origin_arguments():
+    return ["--api-origin", API_ORIGIN, "--ui-origin", UI_ORIGIN]
+
+
+def assert_receipt_origins(receipt):
+    # Receipts written before origins were configurable belong to the live defaults.
+    recorded = receipt.get("origins", {"api": DEFAULT_API_ORIGIN, "ui": DEFAULT_UI_ORIGIN})
+    require(recorded == deployment_origins(),
+            "The retained job targets different origins; reconnect with its original API and UI origins.")
 
 
 def digest_stream(stream):
@@ -326,7 +371,7 @@ def _runtime_http(url, want_json=False):
         except urllib.error.HTTPError as error:
             # Only the verified Vercel alias for the public release snapshot
             # may redirect; do not follow arbitrary or chained redirects.
-            target = UI_CANONICAL_ALIAS + "/release.json" if url == UI_ORIGIN + "/release.json" else None
+            target = UI_CANONICAL_ALIAS + "/release.json" if UI_CANONICAL_ALIAS and url == UI_ORIGIN + "/release.json" else None
             if error.code != 307 or target is None or error.headers.get("Location") != target:
                 raise
             error.close()
@@ -729,9 +774,17 @@ def mail_configuration_plan(api, worker):
         configured = all(summary.get(key) is True for key in ("apiKeyPresent", "apiKeyPrefixValid", "senderPresent")) and policy
     else:
         configured = summary.get("enabled") is True and summary.get("senderPresent") is True and policy
+    multiple_origins = any(csv_count(environment.get("ALLOWED_ORIGIN")) > 1 for environment in (api, worker))
+    if multiple_origins:
+        require(all(environment.get("PASSWORD_RESET_ORIGIN") for environment in (api, worker)),
+                "Multiple ALLOWED_ORIGIN values require an explicit PASSWORD_RESET_ORIGIN on both API and worker.")
     for environment in (api, worker):
-        require(not environment.get("PASSWORD_RESET_ORIGIN") or environment["PASSWORD_RESET_ORIGIN"] == UI_ORIGIN,
+        reset_origin = environment.get("PASSWORD_RESET_ORIGIN")
+        require(not reset_origin or https_origin(reset_origin, "PASSWORD_RESET_ORIGIN") == UI_ORIGIN,
                 "An existing password-reset origin differs; review it before deployment.")
+    if api.get("ALLOWED_ORIGIN"):
+        allowed = [https_origin(value.strip(), "ALLOWED_ORIGIN entry") for value in api["ALLOWED_ORIGIN"].split(",")]
+        require(UI_ORIGIN in allowed, "The selected UI origin must be present in the API's ALLOWED_ORIGIN.")
     api_updates = {"EMAIL_DELIVERY_CONFIGURED": "true" if configured else "false"}
     worker_updates = {}
     if not api.get("PASSWORD_RESET_ORIGIN"):
@@ -794,7 +847,7 @@ def safe_snapshot(snapshot):
 
 def remote_check():
     snapshot = snapshot_current()
-    return {"status": "PREFLIGHT_PASSED", "manifestSha256": manifest_digest(),
+    return {"status": "PREFLIGHT_PASSED", "manifestSha256": manifest_digest(), "origins": deployment_origins(),
             "baselineSources": M["baseline"]["sources"], "candidateSources": M["candidate"]["sources"],
             "fallbackSources": M["rollback"]["sources"], "frontendSource": snapshot["frontendBefore"]["source"],
             "mailConfigurationPresence": snapshot["mail"], "changed": False,
@@ -1194,7 +1247,7 @@ class Deployment:
 
     def result(self, status, evidence, image_id):
         return {"status": status, "completedAt": now_iso(), "serverDirectory": str(self.directory),
-                "manifestSha256": manifest_digest(), "activeImageId": image_id,
+                "manifestSha256": manifest_digest(), "origins": deployment_origins(), "activeImageId": image_id,
                 "candidateImageId": self.state["candidateImageId"], "rollbackImageId": self.state["rollbackImageId"],
                 "preservedImageId": self.state["currentImageId"], "runtime": evidence["runtime"],
                 "workerReceipt": evidence["receipt"], "containers": evidence["containers"],
@@ -1248,7 +1301,7 @@ def remote_allocate():
     name = M["candidate"]["sources"]["frontend"][:7] + "-" + datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     directory = parent / name
     directory.mkdir(mode=0o700)
-    return {"status": "STAGED", "directory": str(directory), "manifestSha256": manifest_digest()}
+    return {"status": "STAGED", "directory": str(directory), "manifestSha256": manifest_digest(), "origins": deployment_origins()}
 
 
 def process_start_identity(pid):
@@ -1266,6 +1319,7 @@ def remote_status(directory):
                 "detail": "Files may be uploaded; no deployment job has been requested."}
     request = read_private_json(directory / "request.json")
     require(request.get("manifestSha256") == manifest_digest(), "The retained job belongs to a different release manifest.")
+    assert_receipt_origins(request)
     if (directory / "result.json").exists():
         return read_private_json(directory / "result.json")
     progress = read_private_json(directory / "progress.json")
@@ -1292,13 +1346,14 @@ def remote_start(directory, helper_sha):
                 "The staged deployment helper differs from the requested file.")
         staged = validate_manifest(read_private_json(directory / "release-manifest.json"))
         require(staged == M, "The staged manifest differs from the requested release.")
-        write_json_private(directory / "request.json", {"createdAt": now_iso(), "manifestSha256": manifest_digest(), "helperSha256": helper_sha})
+        write_json_private(directory / "request.json", {"createdAt": now_iso(), "manifestSha256": manifest_digest(),
+                           "helperSha256": helper_sha, "origins": deployment_origins()})
         update_progress(directory, "STARTING", "Starting the detached deployment; service changes follow full validation.")
         try:
             descriptor = os.open(str(directory / "private-output.log"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(descriptor, "wb") as output:
                 process = subprocess.Popen([sys.executable, str(directory / "deploy-vm.py"), "--manifest",
-                    str(directory / "release-manifest.json"), "--remote-mode", "run", "--directory", str(directory)],
+                    str(directory / "release-manifest.json"), "--remote-mode", "run", "--directory", str(directory), *origin_arguments()],
                     stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, cwd=directory,
                     close_fds=True, start_new_session=True)
             write_json_private(directory / "process.json", {"pid": process.pid, "startIdentity": process_start_identity(process.pid), "startedAt": now_iso()})
@@ -1312,9 +1367,10 @@ def remote_start(directory, helper_sha):
 def remote_run(directory):
     os.umask(0o077)
     with release_lock(directory, blocking=True):
+        request = read_private_json(directory / "request.json")
+        assert_receipt_origins(request)
         if (directory / "result.json").exists():
             return read_private_json(directory / "result.json")
-        request = read_private_json(directory / "request.json")
         require(request.get("manifestSha256") == manifest_digest()
                 and request.get("helperSha256") == digest_file(Path(__file__).resolve()),
                 "The helper or manifest changed after the deployment request.")
@@ -1337,7 +1393,7 @@ def ssh_options():
 
 
 def remote_call(mode, directory=None, helper_sha=None):
-    arguments = ["python3", "-", "--remote-mode", mode]
+    arguments = ["python3", "-", "--remote-mode", mode, *origin_arguments()]
     if directory is not None:
         arguments += ["--directory", directory]
     if helper_sha is not None:
@@ -1392,6 +1448,7 @@ def run_client(args):
         require(state_path.exists(), "No local deployment receipt exists; supply --state for an existing run.")
         receipt = read_private_json(state_path)
         require(receipt.get("manifestSha256") == manifest_digest(), "The local receipt belongs to a different release.")
+        assert_receipt_origins(receipt)
         return monitor(receipt["directory"], follow=not args.once)
     print("Verifying exact ARM64 candidate, fallback, tests, archive checksums and vulnerability audit...", flush=True)
     bundle = find_bundle(args.bundle)
@@ -1403,6 +1460,7 @@ def run_client(args):
     receipt = read_private_json(state_path) if state_path.exists() else None
     if receipt:
         require(receipt.get("manifestSha256") == manifest_digest(), "The local receipt belongs to a different release.")
+        assert_receipt_origins(receipt)
         current = remote_call("status", receipt["directory"])
         if current.get("status") != "STAGED":
             return monitor(receipt["directory"], current)
@@ -1410,11 +1468,13 @@ def run_client(args):
         # This is still read-only and catches host/configuration drift before uploading images.
         remote_call("check")
         receipt = remote_call("allocate")
+        assert_receipt_origins(receipt)
         require(receipt.get("manifestSha256") == manifest_digest()
                 and re.fullmatch(r"/home/ubuntu/smart-factory-releases/[a-f0-9]{7}-\d{8}T\d{6}Z-[a-f0-9]{8}", str(receipt.get("directory", ""))),
                 "The server returned an unexpected release directory.")
         state_path.parent.mkdir(parents=True, exist_ok=True)
-        write_json_private(state_path, {"directory": receipt["directory"], "manifestSha256": manifest_digest(), "createdAt": now_iso()})
+        write_json_private(state_path, {"directory": receipt["directory"], "manifestSha256": manifest_digest(),
+                           "origins": deployment_origins(), "createdAt": now_iso()})
     directory = receipt["directory"]
     print("Uploading the verified images and deployment helper. Receipt: " + str(state_path), flush=True)
     with tempfile.TemporaryDirectory(prefix="smart-factory-manifest-") as temporary:
@@ -1437,12 +1497,17 @@ def main(argv=None):
     parser.add_argument("--bundle", help="Exact qualified ARM64 ZIP from the completed qualification.")
     parser.add_argument("--manifest", help="Reviewed release manifest, if it is not embedded in this file.")
     parser.add_argument("--state", help="Private local receipt path for reconnecting to the same release.")
+    parser.add_argument("--api-origin", default=os.environ.get("SMART_FACTORY_API_ORIGIN", DEFAULT_API_ORIGIN),
+                        help="Canonical public HTTPS API origin; preserved in the deployment receipt.")
+    parser.add_argument("--ui-origin", default=os.environ.get("SMART_FACTORY_UI_ORIGIN", DEFAULT_UI_ORIGIN),
+                        help="Canonical HTTPS frontend and password-reset origin; preserved in the deployment receipt.")
     parser.add_argument("--remote-mode", choices=("check", "allocate", "start", "run", "status"), help=argparse.SUPPRESS)
     parser.add_argument("--directory", help=argparse.SUPPRESS)
     parser.add_argument("--helper-sha", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     try:
         require(sys.version_info >= (3, 9), "Python 3.9 or newer is required.")
+        configure_origins(args.api_origin, args.ui_origin)
         if args.manifest:
             path = Path(args.manifest).expanduser()
             require(path.is_file() and not path.is_symlink() and path.stat().st_size < 1024 * 1024,

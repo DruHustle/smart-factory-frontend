@@ -18,6 +18,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -31,9 +32,11 @@ if ROOT is None:
 HERE = ROOT / "local-tools/manual deployment"
 EVIDENCE = ROOT / "local-tools/deployment-evidence"
 REPOSITORY = "DruHustle/smart-factory-frontend"
-API = "https://api.152-70-22-84.sslip.io"
-UI = "https://smart-factory-iot-app.vercel.app"
-UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
+DEFAULT_API = "https://api.152-70-22-84.sslip.io"
+DEFAULT_UI = "https://smart-factory-iot-app.vercel.app"
+DEFAULT_UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
+API, UI = DEFAULT_API, DEFAULT_UI
+UI_CANONICAL_ALIAS = DEFAULT_UI_CANONICAL_ALIAS
 COMPONENTS = ("frontend", "backend", "edge")
 SHA = re.compile(r"[a-f0-9]{40}\Z")
 
@@ -45,6 +48,35 @@ class ReleaseError(RuntimeError):
 def require(value, message):
     if not value:
         raise ReleaseError(message)
+
+
+def https_origin(value, label):
+    # Keep offline plans independent of importing the deployment engine.
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        host, port = parsed.hostname or "", parsed.port
+        origin = "https://" + host + (":" + str(port) if port not in (None, 443) else "")
+        valid = (parsed.scheme == "https" and parsed.username is None and parsed.password is None
+                 and value in (origin, origin + "/")
+                 and len(host) <= 253 and not host.endswith(".invalid")
+                 and all(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", part) for part in host.split("."))
+                 and (port is None or 1 <= port <= 65535))
+    except (TypeError, ValueError):
+        valid = False
+    require(valid, label + " must be a plain HTTPS origin without credentials, path, query or fragment.")
+    return origin
+
+
+def configure_origins(api=DEFAULT_API, ui=DEFAULT_UI):
+    global API, UI, UI_CANONICAL_ALIAS
+    api = https_origin(api, "API origin")
+    ui = https_origin(ui, "UI origin")
+    API, UI = api, ui
+    UI_CANONICAL_ALIAS = DEFAULT_UI_CANONICAL_ALIAS if ui == DEFAULT_UI else ""
+
+
+def origin_arguments():
+    return ["--api-origin", API, "--ui-origin", UI]
 
 
 def within(path, boundary):
@@ -141,7 +173,7 @@ def get_json(url):
         # Vercel's existing production domain redirects these public GETs
         # to its verified alias. Never follow arbitrary or chained redirects.
         paths = ("/api/runtime/contract", "/release.json", "/health/ready")
-        target = next((UI_CANONICAL_ALIAS + path for path in paths if url == UI + path), None)
+        target = next((UI_CANONICAL_ALIAS + path for path in paths if UI_CANONICAL_ALIAS and url == UI + path), None)
         if error.code != 307 or target is None or error.headers.get("Location") != target:
             error.close()
             raise
@@ -274,7 +306,7 @@ class Session:
         if self.args.manifest:
             self.manifest()
             self.run([sys.executable, self.repo / "scripts/deploy-vm.py", "--manifest", Path(self.args.manifest).resolve(),
-                      "--state", self.release / "vm-deployment.json", "--status", "--once"], "vm-status")
+                      "--state", self.release / "vm-deployment.json", "--status", "--once", *origin_arguments()], "vm-status")
             return
         observed = {"checkedAt": dt.datetime.now(dt.timezone.utc).isoformat(), "api": get_json(API + "/api/runtime/contract"),
                     "proxiedApi": get_json(UI + "/api/runtime/contract"), "frontend": get_json(UI + "/release.json")}
@@ -356,7 +388,7 @@ class Session:
     def backend(self):
         self.manifest(verify_bundle=True)
         self.run([sys.executable, self.repo / "scripts/deploy-vm.py", "--manifest", Path(self.args.manifest).resolve(),
-                  "--bundle", Path(self.args.bundle).resolve(), "--state", self.release / "vm-deployment.json", "--deploy"], "deploy-api-worker")
+                  "--bundle", Path(self.args.bundle).resolve(), "--state", self.release / "vm-deployment.json", "--deploy", *origin_arguments()], "deploy-api-worker")
 
     def frontend_source_gate(self):
         require(self.args.sha and SHA.fullmatch(self.args.sha), "Supply --sha with the qualified current main revision.")
@@ -381,9 +413,11 @@ class Session:
         self.run(["node", "--import", "tsx", "scripts/verify-runtime.mts"], "frontend-api-preflight",
                  env={"API_ORIGIN": API, "RUNTIME_EVIDENCE_FILE": str(self.output / "pre-promotion-api.json")})
         request_id = uuid.uuid4().hex
-        save(self.output / "frontend-dispatch-request.json", {"sha": self.args.sha, "requestId": request_id})
+        save(self.output / "frontend-dispatch-request.json", {"sha": self.args.sha, "requestId": request_id,
+             "origins": {"api": API, "ui": UI}})
         self.run(["gh", "workflow", "run", "deploy-vercel-oracle.yml", "--repo", REPOSITORY, "--ref", "main",
-                  "--field", "expected_sha=" + self.args.sha, "--field", "request_id=" + request_id], "dispatch-frontend")
+                  "--field", "expected_sha=" + self.args.sha, "--field", "request_id=" + request_id,
+                  "--field", "expected_api_origin=" + API, "--field", "expected_ui_origin=" + UI], "dispatch-frontend")
         # Ambiguous concurrent dispatches are never silently attributed to this invocation.
         deadline = time.monotonic() + 180
         run_id = None
@@ -476,6 +510,10 @@ def parser():
     modes.add_argument("--execute", action="store_true", help="Perform the requested action; backend/frontend/all require release authorization for this exact candidate.")
     p.add_argument("--source-root", help="Workspace-contained parent of the three component checkouts; see config.json.")
     p.add_argument("--release-dir", help="Persistent release directory under local-tools/deployment-evidence; reuse for status/recovery.")
+    p.add_argument("--api-origin", default=os.environ.get("SMART_FACTORY_API_ORIGIN", DEFAULT_API),
+                   help="Canonical HTTPS API origin; must match the production workflow configuration.")
+    p.add_argument("--ui-origin", default=os.environ.get("SMART_FACTORY_UI_ORIGIN", DEFAULT_UI),
+                   help="Canonical HTTPS frontend origin; must match the production workflow configuration.")
     p.add_argument("--manifest")
     p.add_argument("--bundle")
     p.add_argument("--baseline")
@@ -492,6 +530,7 @@ def main(argv=None):
     session = None
     try:
         require(sys.version_info >= (3, 9), "Python 3.9 or newer is required.")
+        configure_origins(args.api_origin, args.ui_origin)
         sources = repositories(source_root(args.source_root))
         session = Session(args, sources)
         plan = {"mode": "execute" if args.execute else "validate" if args.validate else "offline-plan",

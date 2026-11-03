@@ -17,6 +17,16 @@ on:
         required: false
         default: ""
         type: string
+      expected_api_origin:
+        description: Optional expected API origin; must match the production SMART_FACTORY_API_ORIGIN variable
+        required: false
+        default: ""
+        type: string
+      expected_ui_origin:
+        description: Optional expected frontend origin; must match the production SMART_FACTORY_UI_ORIGIN variable
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -75,7 +85,10 @@ jobs:
         id: release
         if: steps.source.outputs.deploy == 'true'
         env:
-          API_ORIGIN: https://api.152-70-22-84.sslip.io
+          API_ORIGIN: ${{ vars.SMART_FACTORY_API_ORIGIN || 'https://api.152-70-22-84.sslip.io' }}
+          RELEASE_ORIGIN: ${{ vars.SMART_FACTORY_UI_ORIGIN || 'https://smart-factory-iot-app.vercel.app' }}
+          EXPECTED_API_ORIGIN: ${{ inputs.expected_api_origin }}
+          EXPECTED_UI_ORIGIN: ${{ inputs.expected_ui_origin }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -89,10 +102,13 @@ jobs:
           for key in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
             [[ -n "${!key}" ]] || { echo "Missing release configuration: $key"; exit 1; }
           done
-          curl --fail --silent --show-error --retry 3 --retry-delay 5 "$API_ORIGIN/health/ready"
+          [[ -z "$EXPECTED_API_ORIGIN" || "$EXPECTED_API_ORIGIN" == "$API_ORIGIN" ]] || { echo 'Configured API origin differs from the manual release request.'; exit 1; }
+          [[ -z "$EXPECTED_UI_ORIGIN" || "$EXPECTED_UI_ORIGIN" == "$RELEASE_ORIGIN" ]] || { echo 'Configured frontend origin differs from the manual release request.'; exit 1; }
           pnpm install --frozen-lockfile
-          node --import tsx scripts/verify-runtime.mts
+          # Validate both origins and generate the matching proxy before any target request.
           pnpm vercel:configure
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 "$API_ORIGIN/health/ready"
+          node --import tsx scripts/verify-runtime.mts
           pnpm dlx vercel@62.2.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
           pnpm dlx vercel@62.2.0 build --prod --token="$VERCEL_TOKEN"
           # Recheck both dependencies and current main after the potentially long build.
@@ -107,8 +123,8 @@ jobs:
           echo "Production deployment: $deployment_url" >> "$GITHUB_STEP_SUMMARY"
           echo "Source revision: $RELEASE_SHA" >> "$GITHUB_STEP_SUMMARY"
           node --import tsx scripts/check-frontend-http.mts
-          RELEASE_ORIGIN=https://smart-factory-iot-app.vercel.app node --import tsx scripts/verify-release.mts
-          API_ORIGIN=https://smart-factory-iot-app.vercel.app RUNTIME_EVIDENCE_FILE="$RUNNER_TEMP/deployed-api-runtime.json" node --import tsx scripts/verify-runtime.mts
+          node --import tsx scripts/verify-release.mts
+          API_ORIGIN="$RELEASE_ORIGIN" RUNTIME_EVIDENCE_FILE="$RUNNER_TEMP/deployed-api-runtime.json" node --import tsx scripts/verify-runtime.mts
       - name: Retain the API contract used for promotion
         if: steps.source.outputs.deploy == 'true' && always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -25,6 +25,16 @@ GitHub CLI authentication for frontend dispatch; Vercel credentials stay in the
 existing GitHub production environment. Do not put secrets in CLI arguments.
 No new environment file is sourced by these launchers.
 
+The maintained tools accept `--api-origin` and `--ui-origin`, with optional
+`SMART_FACTORY_API_ORIGIN` and `SMART_FACTORY_UI_ORIGIN` environment defaults.
+Without overrides, they retain the existing Oracle API and Vercel UI targets.
+Use the same selected origins for backend deployment, status and recovery;
+the VM receipts reject a changed target. Frontend dispatch binds these origins
+to the GitHub production variables of the same names before any promotion.
+For the `factory.onesa.eu` transition, follow the domain and mail preparation
+in [the Oracle runbook](../../deploy/oracle/README.md). Supplying an origin
+does not create its DNS, certificate or provider configuration.
+
 ```bash
 SF_ROOT='/Users/andrewgotora/Software Development/GitHub/smart-factory'
 MANUAL="$SF_ROOT/local-tools/manual deployment"
