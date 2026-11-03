@@ -516,11 +516,17 @@ function DashboardLayoutContent({
             <Button asChild variant="ghost" size="icon">
               <Link
                 href="/notifications"
+                className="relative"
                 aria-label={`Notifications and history${inbox.data ? `, ${inbox.data.unread} unread` : inbox.error ? ", unread count unavailable" : ""}`}
               >
                 <Bell className="h-5 w-5" />
                 {inbox.data && inbox.data.unread > 0 && (
-                  <span className="sr-only">{inbox.data.unread} unread</span>
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-primary-foreground"
+                  >
+                    {inbox.data.unread > 99 ? "99+" : inbox.data.unread}
+                  </span>
                 )}
               </Link>
             </Button>
