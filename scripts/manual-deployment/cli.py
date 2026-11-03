@@ -32,6 +32,8 @@ if ROOT is None:
 HERE = ROOT / "local-tools/manual deployment"
 EVIDENCE = ROOT / "local-tools/deployment-evidence"
 REPOSITORY = "DruHustle/smart-factory-frontend"
+DEFAULT_SSH_TARGET = "ubuntu@152.70.22.84"
+SSH_TARGET = DEFAULT_SSH_TARGET
 DEFAULT_API = "https://api.152-70-22-84.sslip.io"
 DEFAULT_UI = "https://smart-factory-iot-app.vercel.app"
 DEFAULT_UI_CANONICAL_ALIAS = "https://smart-factory-ui.vercel.app"
@@ -75,8 +77,24 @@ def configure_origins(api=DEFAULT_API, ui=DEFAULT_UI):
     UI_CANONICAL_ALIAS = DEFAULT_UI_CANONICAL_ALIAS if ui == DEFAULT_UI else ""
 
 
+def configure_ssh_target(value=DEFAULT_SSH_TARGET):
+    global SSH_TARGET
+    require(isinstance(value, str) and re.fullmatch(
+        r"(?:[A-Za-z_][A-Za-z0-9_.-]{0,63}@)?[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,251}[A-Za-z0-9])?", value),
+        "SSH target must be one user@host or an explicit SSH alias, without a URL, port, whitespace or options.")
+    SSH_TARGET = value
+
+
+def deployment_target():
+    return {"api": API, "frontend": UI, "vm": SSH_TARGET}
+
+
 def origin_arguments():
     return ["--api-origin", API, "--ui-origin", UI]
+
+
+def deployment_arguments():
+    return ["--ssh-target", SSH_TARGET, *origin_arguments()]
 
 
 def within(path, boundary):
@@ -241,14 +259,14 @@ class Session:
         self.output = self.release / ("invocation-" + self.args.operation + "-" + uuid.uuid4().hex[:8])
         self.output.mkdir(parents=True, mode=0o700)
         save(self.output / "request.json", {"operation": self.args.operation, "sources": self.sources,
-             "target": {"api": API, "frontend": UI, "vm": "ubuntu@152.70.22.84"},
+             "target": deployment_target(),
              "startedAt": dt.datetime.now(dt.timezone.utc).isoformat()})
         print("Evidence: " + str(self.output), flush=True)
 
     def finish(self, status, message=None):
         if self.output:
             save(self.output / "result.json", {"status": status, "message": message,
-                 "steps": self.steps, "finishedAt": dt.datetime.now(dt.timezone.utc).isoformat()})
+                 "target": deployment_target(), "steps": self.steps, "finishedAt": dt.datetime.now(dt.timezone.utc).isoformat()})
 
     def run(self, command, label, env=None, cwd=None):
         require(shutil.which(str(command[0])) or Path(command[0]).is_file(), "Install prerequisite: " + str(command[0]))
@@ -306,7 +324,7 @@ class Session:
         if self.args.manifest:
             self.manifest()
             self.run([sys.executable, self.repo / "scripts/deploy-vm.py", "--manifest", Path(self.args.manifest).resolve(),
-                      "--state", self.release / "vm-deployment.json", "--status", "--once", *origin_arguments()], "vm-status")
+                      "--state", self.release / "vm-deployment.json", "--status", "--once", *deployment_arguments()], "vm-status")
             return
         observed = {"checkedAt": dt.datetime.now(dt.timezone.utc).isoformat(), "api": get_json(API + "/api/runtime/contract"),
                     "proxiedApi": get_json(UI + "/api/runtime/contract"), "frontend": get_json(UI + "/release.json")}
@@ -388,7 +406,7 @@ class Session:
     def backend(self):
         self.manifest(verify_bundle=True)
         self.run([sys.executable, self.repo / "scripts/deploy-vm.py", "--manifest", Path(self.args.manifest).resolve(),
-                  "--bundle", Path(self.args.bundle).resolve(), "--state", self.release / "vm-deployment.json", "--deploy", *origin_arguments()], "deploy-api-worker")
+                  "--bundle", Path(self.args.bundle).resolve(), "--state", self.release / "vm-deployment.json", "--deploy", *deployment_arguments()], "deploy-api-worker")
 
     def frontend_source_gate(self):
         require(self.args.sha and SHA.fullmatch(self.args.sha), "Supply --sha with the qualified current main revision.")
@@ -510,6 +528,8 @@ def parser():
     modes.add_argument("--execute", action="store_true", help="Perform the requested action; backend/frontend/all require release authorization for this exact candidate.")
     p.add_argument("--source-root", help="Workspace-contained parent of the three component checkouts; see config.json.")
     p.add_argument("--release-dir", help="Persistent release directory under local-tools/deployment-evidence; reuse for status/recovery.")
+    p.add_argument("--ssh-target", default=os.environ.get("SMART_FACTORY_SSH_TARGET", DEFAULT_SSH_TARGET),
+                   help="Explicit user@host or owner-configured SSH alias for backend deployment and reconnect.")
     p.add_argument("--api-origin", default=os.environ.get("SMART_FACTORY_API_ORIGIN", DEFAULT_API),
                    help="Canonical HTTPS API origin; must match the production workflow configuration.")
     p.add_argument("--ui-origin", default=os.environ.get("SMART_FACTORY_UI_ORIGIN", DEFAULT_UI),
@@ -530,12 +550,13 @@ def main(argv=None):
     session = None
     try:
         require(sys.version_info >= (3, 9), "Python 3.9 or newer is required.")
+        configure_ssh_target(args.ssh_target)
         configure_origins(args.api_origin, args.ui_origin)
         sources = repositories(source_root(args.source_root))
         session = Session(args, sources)
         plan = {"mode": "execute" if args.execute else "validate" if args.validate else "offline-plan",
                 "operation": args.operation, "repositories": sources, "releaseDirectory": str(session.release),
-                "target": {"environment": "production", "api": API, "frontend": UI, "vm": "ubuntu@152.70.22.84"},
+                "target": {"environment": "production", **deployment_target()},
                 "order": ["qualified API with additive migrations", "one qualified worker", "runtime verification", "gated Vercel UI", "release verification"],
                 "artifacts": {key: str(Path(value).expanduser().resolve()) if value else None
                               for key, value in (("manifest", args.manifest), ("bundle", args.bundle), ("sourcePackage", args.source_package))},
