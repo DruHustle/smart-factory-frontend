@@ -8,6 +8,7 @@ root = Path(sys.argv[1])
 checks = {
     "device.pdf": ["Workspace direct sensor", "23.0", "operational", "Observed source status", "Last seen", "UTC window"],
     "device-unknown.pdf": ["Workspace never configured", "unknown", "Unavailable"],
+    "device-stale.pdf": ["Workspace observed offline", "stale", "Last seen"],
     "analytics.pdf": ["Asset Telemetry Report", "Scope: operational", "UTC window"],
     "alerts.pdf": ["Alert History Report", "Alert Details", "UTC window"],
 }

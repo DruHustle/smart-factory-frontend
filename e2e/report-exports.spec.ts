@@ -59,7 +59,13 @@ test("operational reports print their scoped fixture data", async ({
   );
   await expect(device.locator("body")).toContainText("Last seen (UTC)");
   await expect(device.locator("body")).toContainText("UTC window:");
-  await expect(device.locator("body")).toContainText("live");
+  const observedStatus = (
+    await device.locator(".status-badge").first().innerText()
+  ).trim();
+  expect(["live", "stale"]).toContain(observedStatus);
+  await expect(
+    page.getByText("Source status", { exact: false }).first(),
+  ).toContainText(observedStatus === "live" ? "Receiving" : observedStatus);
   await device.close();
 
   await page.goto("/#/inventory?search=Workspace%20never%20configured");
@@ -75,6 +81,22 @@ test("operational reports print their scoped fixture data", async ({
   await expect(unknown.locator("body")).toContainText("unknown");
   await expect(unknown.locator("body")).toContainText("Unavailable");
   await unknown.close();
+
+  await page.goto("/#/inventory?search=Workspace%20observed%20offline");
+  await page
+    .getByRole("link", { name: "Workspace observed offline", exact: true })
+    .first()
+    .click();
+  const stale = await report(
+    "Export operational 24h",
+    "Device Report: Workspace observed offline",
+    "device-stale.pdf",
+  );
+  await expect(stale.locator(".status-badge").first()).toHaveText("stale");
+  await expect(
+    page.getByText("Source status", { exact: false }).first(),
+  ).toContainText("stale");
+  await stale.close();
 
   await page.goto("/#/analytics");
   const analytics = await report(
