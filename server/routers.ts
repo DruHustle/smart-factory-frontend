@@ -1933,7 +1933,7 @@ export const appRouter = router({
         };
         return {
           html: pdf.generateDeviceReportHtml({
-            device,
+            device: { ...device, status: device.observedStatus },
             readings: [],
             summary,
             metadata,

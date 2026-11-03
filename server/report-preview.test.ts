@@ -5,16 +5,20 @@ afterEach(() => vi.unstubAllGlobals());
 function fixture() {
   const order: string[] = [];
   const button = { style: {}, onclick: undefined as undefined | (() => void) };
+  const style = { textContent: "" };
   const preview = {
     opener: {},
     closed: false,
     document: {
       title: "",
+      head: { appendChild: vi.fn() },
       body: { textContent: "", appendChild: vi.fn() },
       open: vi.fn(),
       write: vi.fn(() => order.push("write")),
       close: vi.fn(),
-      createElement: vi.fn(() => button),
+      createElement: vi.fn((name: string) =>
+        name === "style" ? style : button,
+      ),
     },
     close: vi.fn(),
     print: vi.fn(),
@@ -24,11 +28,11 @@ function fixture() {
     return preview;
   });
   vi.stubGlobal("window", { open });
-  return { order, preview, open, button };
+  return { order, preview, open, button, style };
 }
 
 it("opens during user activation before asynchronous report generation and isolates the opener", async () => {
-  const { order, preview, button } = fixture();
+  const { order, preview, button, style } = fixture();
   await openReportPreview(async () => {
     order.push("generate");
     await Promise.resolve();
@@ -37,6 +41,9 @@ it("opens during user activation before asynchronous report generation and isola
   expect(order).toEqual(["open", "generate", "write"]);
   expect(preview.opener).toBeNull();
   expect(preview.document.write).toHaveBeenCalledWith("<h1>Report</h1>");
+  expect(style.textContent).toContain("@media print");
+  expect(style.textContent).toContain(".no-print");
+  expect(preview.document.head.appendChild).toHaveBeenCalledWith(style);
   button.onclick!();
   expect(preview.print).toHaveBeenCalledOnce();
 });

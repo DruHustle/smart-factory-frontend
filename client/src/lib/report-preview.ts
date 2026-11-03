@@ -17,6 +17,10 @@ export async function openReportPreview(
     preview.document.open();
     preview.document.write(html);
     preview.document.close();
+    const printStyle = preview.document.createElement("style");
+    printStyle.textContent =
+      "@media print { .no-print { display: none !important; } }";
+    preview.document.head.appendChild(printStyle);
     const printButton = preview.document.createElement("button");
     printButton.type = "button";
     printButton.textContent = "Print / save as PDF";

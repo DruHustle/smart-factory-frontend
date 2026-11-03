@@ -326,6 +326,12 @@ async function workspaceFixture(
                 }
               : null;
           break;
+        case "export.deviceReport":
+          value = {
+            html: "<!doctype html><html><body><h1>Device report fixture</h1><p>Operational observations</p></body></html>",
+            filename: "device-report.html",
+          };
+          break;
         case "devices.pulseIndicator":
           value = { published: true, commandId: "test-command", physicalStateConfirmed: false };
           break;
@@ -1854,6 +1860,33 @@ test("WROVER button count updates from unverified diagnostics without enabling c
   await expect(
     page.getByText("Button signal · unverified source · 32 presses"),
   ).toBeVisible({ timeout: 10000 });
+});
+
+test("device workspace opens its operational report for the last 24 hours", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page, false, {
+    floor: "normal",
+    telemetry: "unverified",
+  });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  await page.getByRole("button", { name: "Export operational 24h" }).click();
+  const popupPromise = page.waitForEvent("popup");
+  await page.getByRole("menuitem", { name: "Export as PDF" }).click();
+  const popup = await popupPromise;
+  await expect(
+    popup.getByRole("heading", { name: "Device report fixture" }),
+  ).toBeVisible();
+  await expect(
+    popup.getByRole("button", { name: "Print / save as PDF" }),
+  ).toBeVisible();
+  const report = requests.find(
+    (request) => request.procedure === "export.deviceReport",
+  );
+  expect(report?.input).toMatchObject({ deviceId: 13, scope: "operational" });
+  expect(report.input.endTime - report.input.startTime).toBe(
+    24 * 60 * 60 * 1000,
+  );
 });
 
 test("commissioned WROVER control sends the bounded output request without claiming confirmation", async ({ page }) => {

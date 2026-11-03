@@ -1067,7 +1067,7 @@ export default function DemoSandbox() {
               }}
             />
           )}
-          <style>{`@media print {body:has(#demo-passport-print) *:not(:has(#demo-passport-print)):not(#demo-passport-print):not(#demo-passport-print *){display:none!important}body:has(#demo-passport-print) :has(#demo-passport-print){display:contents!important}#demo-passport-print{position:static;width:100%;margin:0;border:0;padding:20pt;background:white!important;color:black!important}#demo-passport-print *{color:black!important}#demo-passport-print .print\\:hidden{display:none!important}}`}</style>
+          <style>{`@media print {body:has(#demo-passport-print) *:not(:has(#demo-passport-print)):not(#demo-passport-print):not(#demo-passport-print *){display:none!important}body:has(#demo-passport-print) :has(#demo-passport-print){display:contents!important}#demo-passport-print{position:static;width:100%;margin:0;border:0;padding:0;background:white!important;color:black!important}#demo-passport-print *{color:black!important}#demo-passport-print .print\\:hidden{display:none!important}}`}</style>
         </section>
       )}
     </div>

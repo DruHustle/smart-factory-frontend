@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import superjson from "superjson";
 import {
@@ -247,6 +249,13 @@ test("mobile passport QR remains scannable and print output excludes controls", 
     page.getByRole("button", { name: "Print demo passport", exact: true }),
   ).toBeHidden();
   await expect(page.getByTestId("passport-qr")).toBeVisible();
+  if (process.env.PASSPORT_PDF_DIR) {
+    mkdirSync(process.env.PASSPORT_PDF_DIR, { recursive: true, mode: 0o700 });
+    await page.pdf({
+      path: join(process.env.PASSPORT_PDF_DIR, "demo-passport.pdf"),
+      printBackground: true,
+    });
+  }
   await page.screenshot({
     path: testInfo.outputPath("passport-print.png"),
     fullPage: true,
@@ -314,6 +323,18 @@ test("editable demo passport updates the QR without serializing other workspace 
     page.getByRole("button", { name: "Download AAS JSON", exact: true }),
   ).toBeHidden();
   await expect(page.getByTestId("passport-qr")).toBeVisible();
+  expect(
+    await page
+      .locator("#demo-passport-print")
+      .evaluate((node) => getComputedStyle(node).padding),
+  ).toBe("0px");
+  if (process.env.PASSPORT_PDF_DIR) {
+    mkdirSync(process.env.PASSPORT_PDF_DIR, { recursive: true, mode: 0o700 });
+    await page.pdf({
+      path: join(process.env.PASSPORT_PDF_DIR, "sandbox-passport.pdf"),
+      printBackground: true,
+    });
+  }
 });
 
 test("private preview never adds a QR or unchecked fields, published snapshot stays allowlisted", async ({
@@ -339,6 +360,13 @@ test("private preview never adds a QR or unchecked fields, published snapshot st
   await expect(
     page.getByRole("heading", { name: "Reviewed public pump", exact: true }),
   ).toBeVisible();
+  if (process.env.PASSPORT_PDF_DIR) {
+    mkdirSync(process.env.PASSPORT_PDF_DIR, { recursive: true, mode: 0o700 });
+    await page.pdf({
+      path: join(process.env.PASSPORT_PDF_DIR, "published-passport.pdf"),
+      printBackground: true,
+    });
+  }
   expect(
     new URL(await decodeRenderedQr(page, testInfo, "published")).hash,
   ).toBe("#/passport/published/00000000-0000-4000-8000-000000000001");

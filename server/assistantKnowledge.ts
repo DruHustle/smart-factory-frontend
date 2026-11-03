@@ -620,6 +620,7 @@ async function buildLiveContext(
       factoryName: factory?.name ?? null,
       demoDataEnabled: demoEnabled,
       visibleAssetCount: visibleAssets.length,
+      visibleDeviceCount: visibleDevices.length,
       visibleGatewayCount: visibleDevices.filter(
         (device) => device.type === "gateway",
       ).length,
@@ -669,7 +670,7 @@ function buildSources(
     const assetNames = selected
       .map((asset) => `${asset.name}${asset.demoData ? " (simulated)" : ""}`)
       .join(", ");
-    const summary = `${runtime.payload.visibleAssetCount} visible assets and ${runtime.payload.visibleGatewayCount} gateways; ${runtime.payload.gatewaysOnline} gateways currently online; ${runtime.payload.activeAlertStats.activeCritical} active critical alerts, ${runtime.payload.activeAlertStats.activeWarning} active warnings, and ${runtime.payload.activeAlertStats.activeDowntime} active downtime incidents. Context assets: ${assetNames || "none"}. Snapshot time: ${runtime.capturedAt}.`;
+    const summary = `${runtime.payload.visibleAssetCount} visible assets and ${runtime.payload.visibleDeviceCount} visible devices, including ${runtime.payload.visibleGatewayCount} gateways; ${runtime.payload.gatewaysOnline} gateways currently online; ${runtime.payload.activeAlertStats.activeCritical} active critical alerts, ${runtime.payload.activeAlertStats.activeWarning} active warnings, and ${runtime.payload.activeAlertStats.activeDowntime} active downtime incidents. Context assets: ${assetNames || "none"}. Snapshot time: ${runtime.capturedAt}.`;
     sources.push({
       title: "Authorized factory evidence snapshot",
       section: `Current state · ${runtime.capturedAt}`,
@@ -856,7 +857,7 @@ function localGroundedAnswer(
       );
     else
       paragraphs.push(
-        `${runtime.payload.visibleAssetCount} visible assets; ${runtime.payload.visibleGatewayCount} gateways, ${runtime.payload.gatewaysOnline} online; ${runtime.payload.activeAlertStats.activeCritical} open critical incidents; ${runtime.payload.activeAlertStats.activeWarning} open warnings; ${runtime.payload.activeAlertStats.activeDowntime} confirmed downtime incidents.`,
+        `${runtime.payload.visibleAssetCount} visible assets; ${runtime.payload.visibleDeviceCount} visible ${runtime.payload.visibleDeviceCount === 1 ? "device" : "devices"}, including ${runtime.payload.visibleGatewayCount} gateways (${runtime.payload.gatewaysOnline} online); ${runtime.payload.activeAlertStats.activeCritical} open critical incidents; ${runtime.payload.activeAlertStats.activeWarning} open warnings; ${runtime.payload.activeAlertStats.activeDowntime} confirmed downtime incidents.`,
       );
     const latest = runtime.payload.assets.slice(0, 4).map((asset) => {
       const device = asset.connectedDevices[0];

@@ -139,6 +139,16 @@ afterEach(() => {
 });
 
 describe("Assistant and Monitoring share observation validity", () => {
+  it("answers device count questions with the count of visible devices", async () => {
+    const answer = await answerFactoryQuestion(
+      "How many devices are visible?",
+      {
+        selection: { provider: "local" },
+      },
+    );
+    expect(answer.answer).toContain("1 visible device");
+    expect(answer.answer).toContain("0 gateways");
+  });
   it.each([
     ["cyclic", "current"],
     ["held", "held"],
