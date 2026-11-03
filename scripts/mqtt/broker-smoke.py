@@ -121,7 +121,25 @@ def main():
             restored=connect(port,directory/'ca.crt','sf-worker','smoke-persistent',persistent=True,on_message=on_restored); clients.append(restored)
             subscribe(restored,TOPIC,2)
             assert restore_event.wait(10) and ('queued-through-restart',2) in restored_messages, 'Persistent QoS 2 message did not survive restart'
-            print('PASS: TLS, role ACLs, MQTT 3.1.1/5, retain-as-published, QoS 0/1/2 and broker restart persistence')
+            # Terminate the broker process from inside the container rather
+            # than issuing an operator stop. Docker must bring it back.
+            container = PROJECT + '-broker-1'
+            def inspect():
+                import json
+                output = subprocess.check_output(['docker', 'inspect', container], text=True)
+                return json.loads(output)[0]
+            before = inspect()['RestartCount']
+            subprocess.run(['docker','exec','--user','1883:1883',container,'/bin/sh','-c','kill -TERM 1'],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=10)
+            deadline = time.monotonic() + 45
+            while time.monotonic() < deadline:
+                current = inspect()
+                if current['RestartCount'] > before and current['State']['Health']['Status'] == 'healthy':
+                    break
+                time.sleep(1)
+            else:
+                raise AssertionError('Docker did not recover the terminated broker process')
+            print('PASS: TLS, role ACLs, MQTT 3.1.1/5, retain-as-published, QoS 0/1/2, persistence and process recovery')
         finally:
             for client in clients:
                 client.disconnect(); client.loop_stop()
