@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { importAasxPackage, provisionAas, publishAda031Control, publishEdgeConfiguration, publishWroverIndicator } from "./aasProvisioningClient";
+import { importAasxPackage, provisionAas, publishAda031Control, publishEdgeConfiguration, publishWroverIndicator, publishWroverQos } from "./aasProvisioningClient";
 
 const asset = {
   assetId: "urn:test:asset:01",
@@ -59,6 +59,17 @@ describe("AAS provisioning client", () => {
       value: 1,
       holdMs: 2000,
     });
+  });
+  it("publishes an engineer QoS request without claiming application", async () => {
+    vi.stubEnv("AAS_PROVISIONING_API_URL", "http://device-service:8080/api/assets");
+    vi.stubEnv("AAS_PROVISIONING_TOKEN", "fixture-provisioning-token-at-least-32-bytes");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ published: true, commandId: "qos-command-1", applied: false }), { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const request = { gatewayDeviceId: "pi-edge-01", targetDeviceId: "wrover", revision: 7, uplinkQos: 2 as const, downlinkQos: 0 as const, commandId: "qos-command-1", expiresAt: Date.now() + 10000 };
+    expect(await publishWroverQos(request, "signed-engineer-session-token-long-enough")).toEqual({ published: true, commandId: request.commandId, applied: false });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
+    expect(url.pathname).toBe("/api/assets/mqtt-qos");
+    expect(JSON.parse(String(init.body))).toMatchObject({ schemaVersion: 1, ...request });
   });
   it("keeps local development usable when the private provisioner is not configured", async () => {
     vi.stubEnv("NODE_ENV", "development");
