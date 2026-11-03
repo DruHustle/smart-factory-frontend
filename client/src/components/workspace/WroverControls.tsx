@@ -33,13 +33,29 @@ export function WroverControls({ deviceId }: { deviceId: number }) {
     },
   );
   const pulse = trpc.devices.pulseIndicator.useMutation({
-    onSuccess: () =>
+    onSuccess: (result) =>
       toast.success("GPIO18 command sent", {
-        description:
-          "The broker accepted the command; the device has not confirmed the output state.",
+        description: result.qos === 0
+          ? "Sent at QoS 0; delivery and the output state are unconfirmed."
+          : "The broker accepted the command; the device has not confirmed the output state.",
       }),
     onError: (error) =>
       toast.error("GPIO18 command failed", { description: error.message }),
+  });
+  const canEngineer = enabled && !!user?.access?.canEngineer;
+  const utils = trpc.useUtils();
+  const qos = trpc.devices.wroverQos.useQuery({ id: deviceId }, { enabled: canEngineer, refetchInterval: active ? 5000 : false, refetchIntervalInBackground: false });
+  const [uplinkQos, setUplinkQos] = useState<0 | 1 | 2>(1);
+  const [downlinkQos, setDownlinkQos] = useState<0 | 1 | 2>(1);
+  useEffect(() => {
+    if (qos.data) { setUplinkQos(qos.data.uplink); setDownlinkQos(qos.data.downlink); }
+  }, [qos.data?.revision]);
+  const requestQos = trpc.devices.requestWroverQos.useMutation({
+    onSuccess: async () => {
+      await utils.devices.wroverQos.invalidate({ id: deviceId });
+      toast.success("QoS request sent", { description: "Waiting for the WROVER to confirm the setting." });
+    },
+    onError: (error) => toast.error("QoS request failed", { description: error.message }),
   });
   const reading =
     unverified.data &&
@@ -101,6 +117,25 @@ export function WroverControls({ deviceId }: { deviceId: number }) {
           </Button>
         )}
       </div>
+      {canEngineer && (
+        <div className="flex flex-wrap items-end gap-3" aria-label="WROVER MQTT quality of service">
+          <div className="text-sm font-semibold">WROVER MQTT QoS</div>
+          {([ ["Uplink", uplinkQos, setUplinkQos], ["Downlink", downlinkQos, setDownlinkQos] ] as const).map(([label, value, setValue]) => (
+            <label key={label} className="flex flex-col gap-1 text-xs text-muted-foreground">
+              {label}
+              <select aria-label={`WROVER ${label.toLowerCase()} QoS`} value={value} onChange={(event) => setValue(Number(event.target.value) as 0 | 1 | 2)} className="h-9 rounded border bg-background px-2 text-sm text-foreground">
+                <option value={0}>QoS 0</option><option value={1}>QoS 1</option><option value={2}>QoS 2</option>
+              </select>
+            </label>
+          ))}
+          <Button size="sm" disabled={!healthy || qos.isLoading || qos.isError || requestQos.isPending} onClick={() => requestQos.mutate({ id: deviceId, expectedRevision: qos.data?.revision ?? 0, uplink: uplinkQos, downlink: downlinkQos })}>
+            {requestQos.isPending ? "Sending…" : "Send QoS"}
+          </Button>
+          <p className="w-full text-xs text-muted-foreground" role="status">
+            {qos.isError ? "QoS settings unavailable." : qos.data && !qos.data.gatewayPolicyCurrent ? "Gateway setting changed; review QoS." : qos.data?.status === "failed" ? "Last request failed; device state is unconfirmed." : qos.data?.status === "rejected" ? "The gateway or WROVER rejected the request." : qos.data?.status === "applied" ? (qos.data.cloudUplink === "ready" ? "WROVER confirmed · cloud subscription ready." : "WROVER confirmed · cloud subscription unconfirmed.") : qos.data ? "Requested setting; device confirmation is pending." : "Device QoS has not been confirmed."}
+          </p>
+        </div>
+      )}
       {typeof count === "number" && (
         <div className="flex items-center gap-3" aria-live="polite">
           <MousePointerClick

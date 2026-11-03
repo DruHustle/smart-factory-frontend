@@ -15,6 +15,7 @@ export const workerReceipt = z
     contractVersion: z.literal(2),
     migrationsDigest: z.string().regex(/^[a-f0-9]{64}$/),
     mqttSubscribed: z.boolean(),
+    mqttMaxQos: z.union([z.literal(0), z.literal(1), z.literal(2)]).nullable().optional(),
     observedAt: z.string().datetime(),
     pending: count,
     quarantined: count,

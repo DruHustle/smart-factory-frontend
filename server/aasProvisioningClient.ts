@@ -259,6 +259,7 @@ export async function publishWroverIndicator(input: {
   targetDeviceId: string;
   commandId: string;
   expiresAt: number;
+  qos?: 0 | 1 | 2;
 }, userToken: string) {
   const baseUrl = getProvisioningUrl();
   if (!baseUrl) throw new Error("WROVER indicator control requires the private .NET DeviceService");
@@ -268,7 +269,7 @@ export async function publishWroverIndicator(input: {
     headers: { "content-type": "application/json", accept: "application/json", authorization: `Bearer ${userToken}` },
     body: JSON.stringify({ schemaVersion: 1, gatewayDeviceId: input.gatewayDeviceId,
       targetDeviceId: input.targetDeviceId, pin: 18, value: 1, holdMs: 2_000,
-      commandId: input.commandId, expiresAt: input.expiresAt }),
+      commandId: input.commandId, expiresAt: input.expiresAt, qos: input.qos ?? 1 }),
     redirect: "error",
     signal: AbortSignal.timeout(10_000),
   });
@@ -278,5 +279,35 @@ export async function publishWroverIndicator(input: {
   if (!result || typeof result !== "object" || !("published" in result) || result.published !== true) {
     throw new Error("DeviceService returned an invalid WROVER indicator acknowledgement");
   }
-  return { published: true as const, commandId: input.commandId, physicalStateConfirmed: false as const };
+  return { published: true as const, commandId: input.commandId, qos: input.qos ?? 1, physicalStateConfirmed: false as const };
+}
+
+/** Publish a time-limited device QoS request; publication alone is not application. */
+export async function publishWroverQos(input: {
+  gatewayDeviceId: string;
+  targetDeviceId: string;
+  revision: number;
+  uplinkQos: 0 | 1 | 2;
+  downlinkQos: 0 | 1 | 2;
+  commandId: string;
+  expiresAt: number;
+}, userToken: string) {
+  const baseUrl = getProvisioningUrl();
+  if (!baseUrl) throw new Error("MQTT QoS control requires the private DeviceService");
+  if (!userToken || Buffer.byteLength(userToken, "utf8") < 32) throw new Error("Authorized user token is missing");
+  const response = await fetch(new URL("mqtt-qos", baseUrl), {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json", authorization: `Bearer ${userToken}` },
+    body: JSON.stringify({ schemaVersion: 1, ...input }),
+    redirect: "error",
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (response.status === 401 || response.status === 403) throw new Error("DeviceService rejected engineer authorization");
+  if (!response.ok) throw new Error(`QoS request publication failed (HTTP ${response.status})`);
+  const value: unknown = await response.json();
+  if (!value || typeof value !== "object" || !("published" in value) || value.published !== true ||
+      !("commandId" in value) || value.commandId !== input.commandId || !("applied" in value) || value.applied !== false) {
+    throw new Error("DeviceService returned an invalid QoS publication receipt");
+  }
+  return { published: true as const, commandId: input.commandId, applied: false as const };
 }

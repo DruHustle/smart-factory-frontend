@@ -1,3 +1,4 @@
+import { installMqttQosAckRoute } from "../mqttQosHttp";
 import { installRequestMetrics } from "../infrastructure/metrics";
 import { installNetworkDiagnostics } from "../network-diagnostics/http";
 import { installRecoveryEvidence, startInfrastructureMonitoring } from "../infrastructure/store";
@@ -315,6 +316,8 @@ async function startServer() {
         .json({ error: "Telemetry could not be persisted" });
     }
   });
+
+  installMqttQosAckRoute(app);
 
   app.post("/api/internal/heartbeat", async (req, res) => {
     const expectedToken = process.env.INGESTION_API_TOKEN;

@@ -30,6 +30,8 @@ async function workspaceFixture(
     telemetry?: "unverified" | "verified";
     buttonCount?: number;
     wroverHealthy?: boolean;
+    qosApplied?: boolean;
+    qosSuperseded?: boolean;
     summary?: "populated" | "error";
     notificationsError?: boolean;
     notificationUnread?: number;
@@ -44,6 +46,7 @@ async function workspaceFixture(
 ) {
   let signedIn = true;
   let siteTimezone = "UTC";
+  let requestedQos: any = control.qosApplied ? { revision: 1, uplink: 2, downlink: 0, commandId: "4ce07676-9ed8-4c70-b679-7fea17a82a16", requestedAt: new Date().toISOString(), acknowledgedAt: new Date().toISOString(), status: "applied", cloudUplink: "ready", gatewayPolicyCurrent: !control.qosSuperseded } : null;
   const requests: { procedure: string; input: any }[] = [];
   await page.route("**/api/runtime/contract", (route) =>
     route.fulfill({
@@ -373,10 +376,19 @@ async function workspaceFixture(
             filename: "device-report.html",
           };
           break;
+        case "devices.wroverQos":
+          value = requestedQos;
+          break;
+        case "devices.requestWroverQos":
+          requestedQos = { revision: input.expectedRevision + 1, uplink: input.uplink, downlink: input.downlink,
+            commandId: "4ce07676-9ed8-4c70-b679-7fea17a82a16", requestedAt: new Date().toISOString(), status: "published", gatewayPolicyCurrent: true };
+          value = { ...requestedQos, applied: false };
+          break;
         case "devices.pulseIndicator":
           value = {
             published: true,
             commandId: "test-command",
+            qos: requestedQos?.status === "applied" && requestedQos.gatewayPolicyCurrent ? requestedQos.downlink : 1,
             physicalStateConfirmed: false,
           };
           break;
@@ -2138,6 +2150,39 @@ test("device workspace opens its operational report for the last 24 hours", asyn
   expect(report.input.endTime - report.input.startTime).toBe(
     24 * 60 * 60 * 1000,
   );
+});
+
+test("viewers cannot see WROVER QoS controls", async ({ page }) => {
+  await workspaceFixture(page, false, { floor: "normal", wroverHealthy: true, viewer: true });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  await expect(page.getByLabel("WROVER uplink QoS")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send QoS" })).toHaveCount(0);
+});
+
+test("WROVER QoS zero control does not claim broker acknowledgement", async ({ page }) => {
+  await workspaceFixture(page, false, { floor: "normal", wroverHealthy: true, qosApplied: true });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  await expect(page.getByText("WROVER confirmed · cloud subscription ready.")).toBeVisible();
+  await page.getByRole("button", { name: "Pulse GPIO18" }).click();
+  await expect(page.getByText("Sent at QoS 0; delivery and the output state are unconfirmed.")).toBeVisible();
+});
+
+test("WROVER QoS warns when another request changed its gateway", async ({ page }) => {
+  await workspaceFixture(page, false, { floor: "normal", wroverHealthy: true, qosApplied: true, qosSuperseded: true });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  await expect(page.getByText("Gateway setting changed; review QoS.")).toBeVisible();
+  await expect(page.getByText("WROVER confirmed · cloud subscription ready.")).toHaveCount(0);
+});
+
+test("engineer requests WROVER uplink and downlink QoS without claiming application", async ({ page }) => {
+  const requests = await workspaceFixture(page, false, { floor: "normal", wroverHealthy: true });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  await page.getByLabel("WROVER uplink QoS").selectOption("2");
+  await page.getByLabel("WROVER downlink QoS").selectOption("0");
+  await page.getByRole("button", { name: "Send QoS" }).click();
+  await expect(page.getByText("QoS request sent")).toBeVisible();
+  await expect(page.getByText("Requested setting; device confirmation is pending.")).toBeVisible();
+  expect(requests.filter((request) => request.procedure === "devices.requestWroverQos").map((request) => request.input)).toEqual([{ id: 13, expectedRevision: 0, uplink: 2, downlink: 0 }]);
 });
 
 test("commissioned WROVER control sends the bounded output request without claiming confirmation", async ({ page }) => {
