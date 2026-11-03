@@ -888,6 +888,11 @@ test("engineers can change the shared factory timezone without commissioning shi
   await expect(chart.getByRole("columnheader", { name: "Time (Europe/Berlin)" })).toBeVisible();
   expect(requests.filter((request) => request.procedure === "operations.setTimeZone")).toHaveLength(1);
   expect(requests.find((request) => request.procedure === "operations.setTimeZone")?.input).toMatchObject({ expectedVersion: 0, expectedTimeZone: "UTC", timeZone: "Europe/Berlin" });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  const telemetry = page.getByRole("region", { name: "WROVER sensor observations" });
+  await telemetry.getByText("Accessible bucket table").click();
+  await expect(telemetry.getByRole("columnheader", { name: "Time (Europe/Berlin)" })).toBeVisible();
+  await page.goto("/#/");
   await page.setViewportSize({ width: 320, height: 900 });
   await page.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" }).click();
   await dialog.getByLabel("Site timezone").fill("America/Argentina/Buenos_Aires");

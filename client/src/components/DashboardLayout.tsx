@@ -1,5 +1,6 @@
 import { primaryDestinations, navigationGroups } from "@/lib/navigation";
 import { NavigationLabel } from "./workspace/NavigationLabel";
+import { DashboardTimeZoneProvider } from "./workspace/DashboardTimeZone";
 import { DataWorkspaceSwitch } from "./DataWorkspaceSwitch";
 import { trpc } from "@/lib/trpc";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
@@ -114,7 +115,7 @@ export default function DashboardLayout({
         sidebarWidth={sidebarWidth}
         setSidebarWidth={setSidebarWidth}
       >
-        {children}
+        <DashboardTimeZoneProvider>{children}</DashboardTimeZoneProvider>
       </DashboardLayoutContent>
     </SidebarProvider>
   );

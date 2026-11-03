@@ -1,22 +1,10 @@
 import { z } from "zod";
-
-export const operationScenarios = [
-  "healthy",
-  "pump-warning",
-  "utility-loss",
-  "gateway-outage",
-  "maintenance",
-  "recovery",
-] as const;
-export type OperationScenario = (typeof operationScenarios)[number];
-export const operationScenarioLabels: Record<OperationScenario, string> = {
-  healthy: "Healthy operation",
-  "pump-warning": "Pump condition warning",
-  "utility-loss": "Utility loss and slowdown",
-  "gateway-outage": "Gateway outage",
-  maintenance: "Planned maintenance",
-  recovery: "Recovery and handover",
-};
+import type { OperationScenario } from "./operation-scenarios";
+export {
+  operationScenarios,
+  operationScenarioLabels,
+} from "./operation-scenarios";
+export type { OperationScenario } from "./operation-scenarios";
 export const operationScope = z
   .object({ factoryId: z.uuid().optional() })
   .strict();
