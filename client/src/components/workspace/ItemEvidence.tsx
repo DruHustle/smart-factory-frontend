@@ -1,3 +1,4 @@
+import { WroverControls } from "./WroverControls";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ObservationTrend, type TrendScope } from "./ObservationTrend";
@@ -121,6 +122,9 @@ export function ItemTelemetry({ item }: { item: InventoryItem }) {
   const attribution = item.kind === "device" ? params.get("asset") : null;
   return (
     <div className="space-y-3">
+      {item.kind === "device" &&
+        item.identifier === "esp32-wrover-01" &&
+        !item.isDemo && <WroverControls deviceId={Number(item.id)} />}
       {item.sampleAt &&
         item.evidence?.eligible === false &&
         user?.access?.workspaceView === "live" &&

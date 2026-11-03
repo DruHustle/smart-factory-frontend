@@ -204,6 +204,33 @@ describe("role based access control", () => {
     );
   });
 
+  it.each([
+    { status: "unknown", timestamp: Date.now(), sensorStatus: "ok" },
+    { status: "live", timestamp: Date.now() - 121_000, sensorStatus: "ok" },
+    { status: "live", timestamp: Date.now(), sensorStatus: "read_error" },
+  ])(
+    "refuses GPIO control without healthy commissioned telemetry: %s",
+    async (sample) => {
+      vi.spyOn(db, "getDeviceById").mockResolvedValue({
+        deviceId: "esp32-wrover-01",
+        type: "edge_device",
+        isDemo: false,
+        metadata: { gatewayId: "pi-edge-01" },
+        observedStatus: sample.status,
+      } as unknown as Awaited<ReturnType<typeof db.getDeviceById>>);
+      vi.spyOn(db, "getLatestReading").mockResolvedValue({
+        timestamp: sample.timestamp,
+        integration: { acquisition: { sensorStatus: sample.sensorStatus } },
+      } as unknown as Awaited<ReturnType<typeof db.getLatestReading>>);
+      const operator = appRouter.createCaller(contextFor("operator"));
+      await expect(
+        operator.devices.pulseIndicator({ id: 1 }),
+      ).rejects.toMatchObject({
+        code: "PRECONDITION_FAILED",
+      });
+    },
+  );
+
   it("reserves user and notification administration for admins", async () => {
     const engineer = appRouter.createCaller(contextFor("engineer"));
     await expect(engineer.users.list()).rejects.toMatchObject({

@@ -475,7 +475,11 @@ const assistantAskProcedure = viewerProcedure
       }
     }
     const investigationEvidence = input.investigation
-      ? await loadInvestigationEvidence(input.investigation, input.selectedAssetId, demoOnlyRead() ? undefined : input.factoryId)
+      ? await loadInvestigationEvidence(
+          input.investigation,
+          input.selectedAssetId,
+          demoOnlyRead() ? undefined : input.factoryId,
+        )
       : undefined;
     const {
       provider: _provider,
@@ -815,6 +819,25 @@ export const appRouter = router({
           throw new Error(
             "A live gateway-connected WROVER edge device is required",
           );
+        }
+        const latest = await db.getLatestReading(input.id);
+        const age = latest ? Date.now() - latest.timestamp : Number.NaN;
+        const acquisition = latest?.integration?.acquisition as
+          | { sensorStatus?: string }
+          | undefined;
+        if (
+          device.observedStatus !== "live" ||
+          !Number.isFinite(age) ||
+          age < 0 ||
+          age > 120_000 ||
+          acquisition?.sensorStatus === "read_error" ||
+          latest?.integration?.sourceQuality === "bad"
+        ) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "WROVER control requires a commissioned, healthy device with current operational telemetry",
+          });
         }
         const commandId = randomUUID();
         const userToken = await sdk.createSessionToken(ctx.user, {
@@ -1682,7 +1705,9 @@ export const appRouter = router({
             deviceId: z.number().int().positive().optional(),
             status: z.enum(["active", "acknowledged", "resolved"]).optional(),
             factoryId: z.string().uuid().optional(),
-            sourceCondition: z.enum(["unknown", "active", "cleared"]).optional(),
+            sourceCondition: z
+              .enum(["unknown", "active", "cleared"])
+              .optional(),
             acknowledged: z.boolean().optional(),
             openOnly: z.boolean().optional(),
             severity: alertSeverityEnum.optional(),
@@ -1969,7 +1994,9 @@ export const appRouter = router({
             status: z.enum(["active", "acknowledged", "resolved"]).optional(),
             deviceId: z.number().int().positive().optional(),
             factoryId: z.string().uuid().optional(),
-            sourceCondition: z.enum(["unknown", "active", "cleared"]).optional(),
+            sourceCondition: z
+              .enum(["unknown", "active", "cleared"])
+              .optional(),
             acknowledged: z.boolean().optional(),
             openOnly: z.boolean().optional(),
             search: z.string().trim().max(100).optional(),

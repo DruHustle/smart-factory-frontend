@@ -1,3 +1,4 @@
+import { WroverControls } from "@/components/workspace/WroverControls";
 import { ObservationValues } from "@/components/workspace/ObservationValues";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import SecuritySummary from "@/components/SecuritySummary";
@@ -24,8 +25,6 @@ import {
   Droplets,
   Activity,
   Zap,
-  Lightbulb,
-  MousePointerClick,
   CalendarIcon,
   RefreshCw,
   Settings,
@@ -36,7 +35,7 @@ import {
   AlertTriangle,
   WifiOff,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { format } from "date-fns";
 import {
@@ -51,7 +50,6 @@ import {
 } from "recharts";
 import ThresholdConfigDialog from "@/components/ThresholdConfigDialog";
 import { ExportButton } from "@/components/ExportButton";
-import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { canViewEngineering, hasMinimumRole } from "@/lib/access";
 import { getConnectivityRecordId } from "@/lib/device-display";
@@ -194,7 +192,7 @@ export default function DeviceDetail({
       enabled:
         !!device &&
         (!embedded || ["telemetry", "diagnostics"].includes(section)),
-      refetchInterval: documentActive ? 30000 : false,
+      refetchInterval: documentActive ? (isWrover ? 3000 : 30000) : false,
       refetchIntervalInBackground: false,
     },
   );
@@ -237,36 +235,6 @@ export default function DeviceDetail({
       refetchIntervalInBackground: false,
     },
   );
-  const pulseIndicator = trpc.devices.pulseIndicator.useMutation({
-    onSuccess: () =>
-      toast.success("LED command published", {
-        description:
-          "GPIO18 will light for up to two seconds. Broker acceptance is not physical-state feedback.",
-      }),
-    onError: (error) =>
-      toast.error("LED command failed", { description: error.message }),
-  });
-  const signals = latestReading?.assetSignals as
-    | Record<string, number>
-    | null
-    | undefined;
-  const buttonPressed = signals?.buttonPressed === 1;
-  const buttonPressCount = signals?.buttonPressCount;
-  const [recentButtonPress, setRecentButtonPress] = useState(false);
-  const observedButtonPressCount = useRef<number | null>(null);
-  useEffect(() => {
-    if (typeof buttonPressCount !== "number") return;
-    const previous = observedButtonPressCount.current;
-    observedButtonPressCount.current = buttonPressCount;
-    if (previous === null || buttonPressCount <= previous) return;
-    setRecentButtonPress(true);
-    const releaseIndicator = window.setTimeout(
-      () => setRecentButtonPress(false),
-      1500,
-    );
-    return () => window.clearTimeout(releaseIndicator);
-  }, [buttonPressCount]);
-  const displayedButtonPressed = buttonPressed || recentButtonPress;
   const wroverGatewayId =
     typeof device?.metadata?.gatewayId === "string"
       ? device.metadata.gatewayId
@@ -715,60 +683,9 @@ export default function DeviceDetail({
 
       {device.type !== "gateway" && (!embedded || section === "telemetry") && (
         <>
+          {isWrover && <WroverControls deviceId={deviceId} />}
           {/* Current Readings */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {isWrover && (
-              <Card>
-                <CardContent className="pt-6 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-amber-500/10">
-                      <Lightbulb className="h-5 w-5 text-amber-500" />
-                    </div>
-                    <div>
-                      <p className="font-semibold">Indicator LED</p>
-                      <p className="text-xs text-muted-foreground">
-                        GPIO18 · two-second pulse
-                      </p>
-                    </div>
-                  </div>
-                  {user?.access?.canOperate && !device?.isDemo && (
-                    <Button
-                      size="sm"
-                      disabled={
-                        pulseIndicator.isPending || wroverHealth !== "healthy"
-                      }
-                      onClick={() => pulseIndicator.mutate({ id: deviceId })}
-                    >
-                      {pulseIndicator.isPending ? "Sending…" : "Pulse GPIO18"}
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-            {isWrover && buttonPressCount !== undefined && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`rounded-lg p-2 transition-colors duration-150 ${displayedButtonPressed ? "bg-primary" : "bg-primary/10"}`}
-                    >
-                      <MousePointerClick
-                        className={`h-5 w-5 transition-colors duration-150 ${displayedButtonPressed ? "text-primary-foreground" : "text-primary"}`}
-                      />
-                    </div>
-                    <div aria-live="polite">
-                      <p className="text-2xl font-bold">
-                        {displayedButtonPressed ? "Pressed" : "Released"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Physical button · {buttonPressCount} press
-                        {buttonPressCount === 1 ? "" : "es"}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
             {latestReading?.temperature !== null &&
               latestReading?.temperature !== undefined && (
                 <Card>

@@ -28,6 +28,7 @@ async function workspaceFixture(
   control: {
     floor: "normal" | "empty" | "error";
     telemetry?: "unverified" | "verified";
+    buttonCount?: number;
     summary?: "populated" | "error";
     attention?: boolean;
     olderApi?: boolean;
@@ -300,6 +301,7 @@ async function workspaceFixture(
                   timestamp: Date.now(),
                   createdAt: new Date(),
                   temperature: 20.7,
+                  assetSignals: control.buttonCount === undefined ? undefined : { buttonPressed: 0, buttonPressCount: control.buttonCount },
                   measurements: {
                     temperature: {
                       sourceValue: 20.7,
@@ -1820,6 +1822,28 @@ test("WROVER telemetry shows unverified source values outside verified trends", 
   await expect(sample).toHaveCount(0);
   await page.getByLabel("Evidence scope").selectOption("unknown");
   await expect(sample).toContainText("20.7");
+});
+
+test("WROVER button count updates from unverified diagnostics without enabling control", async ({
+  page,
+}) => {
+  const fixture = {
+    floor: "normal" as const,
+    telemetry: "unverified" as const,
+    buttonCount: 31,
+  };
+  await workspaceFixture(page, false, fixture);
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  await expect(
+    page.getByText("Button signal · unverified source · 31 presses"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Pulse GPIO18" }),
+  ).toBeDisabled();
+  fixture.buttonCount = 32;
+  await expect(
+    page.getByText("Button signal · unverified source · 32 presses"),
+  ).toBeVisible({ timeout: 10000 });
 });
 
 test("Overview prioritizes connectivity, review, incidents and unread notifications", async ({
