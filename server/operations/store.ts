@@ -10,6 +10,7 @@ import {
   operationsConfiguration,
   productionPeriod,
   resolveShift,
+  siteTimeZone,
   type HandoverNote,
   type OperationScenario,
   type OperationsConfiguration,
@@ -25,6 +26,7 @@ type Queryable = { execute: (...args: any[]) => Promise<any> };
 const actorName = (actor: Actor) =>
   (actor.name?.trim() || `Account ${actor.id}`).slice(0, 320);
 const scopeKey = (input: Scope) => input.factoryId ?? "installation";
+const timezoneKey = (scope: string) => `ot-timezone:${scope}`;
 async function database() {
   const db = await getDb();
   if (!db)
@@ -66,6 +68,14 @@ async function configuration(db: Queryable, scope: string) {
       }
     : null;
 }
+async function provisionalTimeZone(db: Queryable, scope: string) {
+  const [row] = await db.execute(
+    sql`select value from system_settings where key=${timezoneKey(scope)}`,
+  );
+  return row
+    ? siteTimeZone.parse(row.value)
+    : defaultOperationsConfiguration.timeZone;
+}
 async function audit(
   db: Queryable,
   scope: string,
@@ -103,6 +113,7 @@ export async function operationsSummary(
     saved = await configuration(db, scope);
   const config = saved?.configuration ?? {
     ...defaultOperationsConfiguration,
+    timeZone: await provisionalTimeZone(db, scope),
     boundaryLabel: label,
   };
   const at = input.at ?? Date.now(),
@@ -164,6 +175,7 @@ export async function operationsSummary(
 export async function configureOperations(
   input: Scope & {
     expectedVersion: number;
+    expectedTimeZone?: string;
     configuration: OperationsConfiguration;
   },
   actor: Actor,
@@ -183,6 +195,16 @@ export async function configureOperations(
         code: "CONFLICT",
         message: "Shift settings changed. Refresh before saving your changes.",
       });
+    if (
+      !current &&
+      input.expectedTimeZone !== undefined &&
+      (await provisionalTimeZone(tx, scope)) !== input.expectedTimeZone
+    )
+      throw new TRPCError({
+        code: "CONFLICT",
+        message:
+          "The site timezone changed. Refresh before saving your changes.",
+      });
     const [row] = await tx.execute(
       sql`insert into ot_operations_configuration(scope,configuration,updated_by) values(${scope},${JSON.stringify(config)}::jsonb,${actor.id}) on conflict(scope) do update set configuration=excluded.configuration,version=ot_operations_configuration.version+1,updated_by=excluded.updated_by,updated_at=now() returning version`,
     );
@@ -198,6 +220,63 @@ export async function configureOperations(
       actor,
     );
     return { version: Number(row.version) };
+  });
+}
+
+/** Update the shared timezone without treating provisional shifts as commissioned. */
+export async function setOperationsTimeZone(
+  input: Scope & {
+    expectedVersion: number;
+    expectedTimeZone: string;
+    timeZone: string;
+  },
+  actor: Actor,
+) {
+  requireOperationalWrite();
+  const timeZone = siteTimeZone.parse(input.timeZone),
+    db = await database(),
+    scope = scopeKey(input);
+  return db.transaction(async (tx) => {
+    await validateScope(tx, input);
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`ot-operations:${scope}`}))`,
+    );
+    const current = await configuration(tx, scope);
+    const before =
+      current?.configuration.timeZone ?? (await provisionalTimeZone(tx, scope));
+    if (
+      (current?.version ?? 0) !== input.expectedVersion ||
+      before !== input.expectedTimeZone
+    )
+      throw new TRPCError({
+        code: "CONFLICT",
+        message:
+          "Shift settings changed. Refresh before changing the timezone.",
+      });
+    if (before === timeZone) return { version: current?.version ?? 0 };
+    let version = current?.version ?? 0;
+    if (current) {
+      const config = operationsConfiguration.parse({
+        ...current.configuration,
+        timeZone,
+      });
+      const [row] = await tx.execute(
+        sql`update ot_operations_configuration set configuration=${JSON.stringify(config)}::jsonb,version=version+1,updated_by=${actor.id},updated_at=now() where scope=${scope} returning version`,
+      );
+      version = Number(row.version);
+    } else {
+      await tx.execute(
+        sql`insert into system_settings(key,value,"updatedBy") values(${timezoneKey(scope)},${JSON.stringify(timeZone)}::jsonb,${actor.id}) on conflict(key) do update set value=excluded.value,"updatedBy"=excluded."updatedBy","updatedAt"=now()`,
+      );
+    }
+    await audit(
+      tx,
+      scope,
+      "timezone",
+      { before, after: timeZone, version },
+      actor,
+    );
+    return { version };
   });
 }
 

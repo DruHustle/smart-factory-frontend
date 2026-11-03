@@ -25,10 +25,20 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useRuntimeCapability } from "@/components/RuntimeBoundary";
 import { itemHref } from "@shared/inventory";
 import { assistantInvestigationHref } from "@shared/assistant-investigation";
 import {
   operationsConfiguration,
+  siteTimeZone,
   operationScenarios,
   operationScenarioLabels,
   productionPeriod,
@@ -234,12 +244,20 @@ function SettingsForm({
   factoryId?: string;
   onSaved: () => Promise<unknown>;
 }) {
+  const timezoneSupported = useRuntimeCapability("ot-site-timezone-v1");
   const [draft, setDraft] = useState<OperationsConfiguration>(
     data.configuration,
   );
+  const [base, setBase] = useState({
+    version: data.version,
+    timeZone: data.configuration.timeZone,
+  });
+  const utils = trpc.useUtils();
   const save = trpc.operations.configure.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      setBase({ version: result.version, timeZone: draft.timeZone });
       toast.success("Shift and production settings saved");
+      await utils.operations.summary.invalidate();
       await onSaved();
     },
     onError: (error) => toast.error(error.message),
@@ -256,7 +274,8 @@ function SettingsForm({
         }
         save.mutate({
           factoryId,
-          expectedVersion: data.version,
+          expectedVersion: base.version,
+          ...(timezoneSupported ? { expectedTimeZone: base.timeZone } : {}),
           configuration: parsed.data,
         });
       }}
@@ -434,6 +453,121 @@ function SettingsForm({
         {save.isPending ? "Saving…" : "Save operations settings"}
       </Button>
     </form>
+  );
+}
+
+function TimeZoneDialog({
+  data,
+  factoryId,
+  onClose,
+  onSaved,
+}: {
+  data: OperationsSummary;
+  factoryId?: string;
+  onClose: () => void;
+  onSaved: () => Promise<unknown>;
+}) {
+  const [value, setValue] = useState(data.configuration.timeZone);
+  const [base] = useState({
+    version: data.version,
+    timeZone: data.configuration.timeZone,
+  });
+  const [error, setError] = useState("");
+  const utils = trpc.useUtils();
+  const save = trpc.operations.setTimeZone.useMutation({
+    onSuccess: async () => {
+      await utils.operations.summary.invalidate();
+      await onSaved();
+      toast.success("Factory timezone updated");
+      onClose();
+    },
+    onError: (e) => setError(e.message),
+  });
+  const zones =
+    typeof Intl.supportedValuesOf === "function"
+      ? Intl.supportedValuesOf("timeZone")
+      : ["Africa/Harare", "America/New_York", "Europe/Berlin", "Europe/London"];
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !save.isPending) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Factory timezone</DialogTitle>
+          <DialogDescription>
+            This shared setting changes shift boundaries and production
+            summaries for this factory. Recorded timestamps are preserved.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const parsed = siteTimeZone.safeParse(value.trim());
+            if (!parsed.success) {
+              setError(parsed.error.issues[0].message);
+              return;
+            }
+            setError("");
+            save.mutate({
+              factoryId,
+              expectedVersion: base.version,
+              expectedTimeZone: base.timeZone,
+              timeZone: parsed.data,
+            });
+          }}
+        >
+          <label className="grid gap-1 text-sm">
+            Site timezone
+            <input
+              className="workspace-control"
+              list="site-timezones"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              required
+              maxLength={80}
+              autoComplete="off"
+            />
+          </label>
+          <datalist id="site-timezones">
+            <option value="UTC" />
+            {zones.map((zone) => (
+              <option key={zone} value={zone} />
+            ))}
+          </datalist>
+          <p className="text-xs text-muted-foreground">
+            Choose an IANA timezone, such as Europe/Berlin. Daylight saving
+            changes are applied automatically.
+          </p>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={save.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={
+                save.isPending || value.trim() === base.timeZone
+              }
+            >
+              {save.isPending ? "Saving…" : "Save timezone"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -839,9 +973,11 @@ export function OperationsPanel({
 }) {
   const { user } = useAuth(),
     active = useDocumentActive();
+  const timezoneSupported = useRuntimeCapability("ot-site-timezone-v1");
   const [localScenario, setLocalScenario] =
       useState<OperationScenario>("healthy"),
     [at, setAt] = useState<number | undefined>(),
+    [timezoneOpen, setTimezoneOpen] = useState(false),
     [tab, setTab] = useState<"summary" | "records" | "handover" | "settings">(
       "summary",
     );
@@ -934,22 +1070,45 @@ export function OperationsPanel({
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {data.scope.label} ·{" "}
-            {data.demo ? "Simulated" : "Manual production evidence"} ·{" "}
-            {data.shift.timeZone}
+            {data.demo ? "Simulated" : "Manual production evidence"}
+            {(!canEngineer || !timezoneSupported) &&
+              ` · ${data.shift.timeZone}`}
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => void refresh()}
-          disabled={query.isFetching}
-          aria-label="Refresh operations"
-        >
-          <RefreshCw
-            className={`size-4 ${query.isFetching ? "animate-spin" : ""}`}
-          />
-        </Button>
+        <div className="flex items-center gap-1">
+          {canEngineer && timezoneSupported && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-11 max-w-48 sm:max-w-64"
+              onClick={() => setTimezoneOpen(true)}
+              aria-label={`Change factory timezone, current ${data.shift.timeZone}`}
+            >
+              <Clock3 className="mr-1 size-4 shrink-0" />
+              <span className="truncate">{data.shift.timeZone}</span>
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void refresh()}
+            disabled={query.isFetching}
+            aria-label="Refresh operations"
+          >
+            <RefreshCw
+              className={`size-4 ${query.isFetching ? "animate-spin" : ""}`}
+            />
+          </Button>
+        </div>
       </header>
+      {timezoneOpen && (
+        <TimeZoneDialog
+          data={data}
+          factoryId={factoryId}
+          onClose={() => setTimezoneOpen(false)}
+          onSaved={refresh}
+        />
+      )}
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <Clock3 className="size-4" />
         <span>
@@ -1024,13 +1183,13 @@ export function OperationsPanel({
             </summary>
             <p className="pb-1 text-muted-foreground">
               Set the site timezone, shift starts and measurement boundary
-              before recording production or handover. UTC defaults are
+              before recording production or handover. Shift defaults are
               provisional.
             </p>
           </details>
           <p className="mt-1 hidden text-muted-foreground sm:block">
             Set the site timezone, shift starts and measurement boundary before
-            recording production or handover. UTC defaults are provisional.
+            recording production or handover. Shift defaults are provisional.
           </p>
           {canEngineer && (
             <Button

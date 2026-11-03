@@ -11,12 +11,14 @@ import {
   operationScenarios,
   operationsConfiguration,
   productionPeriod,
+  siteTimeZone,
 } from "../../shared/operations";
 import {
   operationsSummary,
   configureOperations,
   recordProduction,
   addHandover,
+  setOperationsTimeZone,
 } from "./store";
 
 export const operationsSummaryInput = operationScope
@@ -59,11 +61,23 @@ export const operationsRouter = router({
       operationScope
         .extend({
           expectedVersion: version,
+          expectedTimeZone: siteTimeZone.optional(),
           configuration: operationsConfiguration,
         })
         .strict(),
     )
     .mutation(({ input, ctx }) => configureOperations(input, ctx.user)),
+  setTimeZone: engineerProcedure
+    .input(
+      operationScope
+        .extend({
+          expectedVersion: version,
+          expectedTimeZone: siteTimeZone,
+          timeZone: siteTimeZone,
+        })
+        .strict(),
+    )
+    .mutation(({ input, ctx }) => setOperationsTimeZone(input, ctx.user)),
   recordProduction: engineerProcedure
     .input(
       operationScope

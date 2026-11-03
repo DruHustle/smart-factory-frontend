@@ -21,20 +21,21 @@ export const operationScope = z
   .object({ factoryId: z.uuid().optional() })
   .strict();
 const minute = z.number().int().min(0).max(1439);
+export const siteTimeZone = z
+  .string()
+  .min(1)
+  .max(80)
+  .refine((value) => {
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: value }).format();
+      return true;
+    } catch {
+      return false;
+    }
+  }, "Choose a valid IANA timezone, for example Africa/Harare or Europe/Berlin.");
 export const operationsConfiguration = z
   .object({
-    timeZone: z
-      .string()
-      .min(1)
-      .max(80)
-      .refine((value) => {
-        try {
-          new Intl.DateTimeFormat("en", { timeZone: value }).format();
-          return true;
-        } catch {
-          return false;
-        }
-      }, "Choose a valid IANA timezone, for example Africa/Harare or Europe/Berlin."),
+    timeZone: siteTimeZone,
     shifts: z
       .array(
         z

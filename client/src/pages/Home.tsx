@@ -35,13 +35,35 @@ import { SystemItemTypes } from "@/components/workspace/SystemInventoryOverview"
 import { metrics, type Metric } from "@shared/measurements";
 import type { FloorLink } from "@shared/factory-floor";
 import { OperationsWorkspace } from "@/components/operations/OperationsWorkspace";
+import { DashboardTimeZone } from "@/components/workspace/DashboardTimeZone";
+import { operationScenarios, type OperationScenario } from "@shared/operations";
 
 export default function Home() {
   const { id } = useFactorySelection();
+  const { user } = useAuth();
+  const supported = useRuntimeCapability("ot-operations-v1");
+  const [location] = useWorkspaceLocation();
+  const requested = new URLSearchParams(location.split("?")[1] ?? "").get(
+    "otScenario",
+  );
+  const scenario = operationScenarios.includes(requested as OperationScenario)
+    ? (requested as OperationScenario)
+    : "healthy";
+  const operations = trpc.operations.summary.useQuery(
+    {
+      factoryId: user?.access?.demoOnly ? undefined : (id ?? undefined),
+      scenario,
+    },
+    { enabled: supported, staleTime: 15000, retry: false },
+  );
   return id ? (
-    <FactoryWorkspace key={id} id={id} mode="overview" />
+    <DashboardTimeZone.Provider value={operations.data?.configuration.timeZone}>
+      <FactoryWorkspace key={id} id={id} mode="overview" />
+    </DashboardTimeZone.Provider>
   ) : (
-    <LegacyHome />
+    <DashboardTimeZone.Provider value={operations.data?.configuration.timeZone}>
+      <LegacyHome />
+    </DashboardTimeZone.Provider>
   );
 }
 function LegacyHome() {
