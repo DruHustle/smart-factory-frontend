@@ -13,7 +13,8 @@ const stateSchema = z.object({
   downlink: mqttQosLevel,
   commandId: z.uuid(),
   requestedAt: z.iso.datetime(),
-  status: z.enum(["publishing", "published", "failed"]),
+  status: z.enum(["publishing", "published", "failed", "applied", "rejected"]),
+  acknowledgedAt: z.iso.datetime().optional(),
 }).strict();
 type State = z.infer<typeof stateSchema>;
 const keyFor = (id: number) => `mqtt-qos:wrover:${id}`;
@@ -64,9 +65,47 @@ export async function requestWroverQos(input: {
     await publishWroverQos({ gatewayDeviceId: gatewayId, targetDeviceId: device.deviceId, revision: state.revision,
       uplinkQos: state.uplink, downlinkQos: state.downlink, commandId: state.commandId, expiresAt: Date.now() + 10_000 }, userToken);
   } catch (error) {
-    await db.execute(sql`update system_settings set value=jsonb_set(value,'{status}', '"failed"'::jsonb),"updatedAt"=now() where key=${keyFor(input.id)} and value->>'commandId'=${state.commandId}`);
+    await db.execute(sql`update system_settings set value=jsonb_set(value,'{status}', '"failed"'::jsonb),"updatedAt"=now() where key=${keyFor(input.id)} and value->>'commandId'=${state.commandId} and value->>'status'='publishing'`);
     throw error;
   }
-  await db.execute(sql`update system_settings set value=jsonb_set(value,'{status}', '"published"'::jsonb),"updatedAt"=now() where key=${keyFor(input.id)} and value->>'commandId'=${state.commandId}`);
+  await db.execute(sql`update system_settings set value=jsonb_set(value,'{status}', '"published"'::jsonb),"updatedAt"=now() where key=${keyFor(input.id)} and value->>'commandId'=${state.commandId} and value->>'status'='publishing'`);
   return { ...state, status: "published" as const, applied: false as const };
+}
+
+const safeId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/);
+export const wroverQosAckSchema = z.object({
+  action: z.literal("configure_mqtt_qos"),
+  deviceId: safeId,
+  gatewayDeviceId: safeId,
+  commandId: z.uuid(),
+  status: z.enum(["applied", "rejected"]),
+  timestamp: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  revision: z.number().int().min(0).max(0xffffffff),
+  uplinkQos: mqttQosLevel,
+  downlinkQos: mqttQosLevel,
+  reason: z.string().max(128).optional(),
+  transportRetained: z.literal(false),
+  transportRetainVerified: z.literal(true),
+}).strict();
+
+/** Accept only a fresh, commissioned route's matching response to a pending request. */
+export async function ingestWroverQosAck(value: unknown, now = Date.now()) {
+  const ack = wroverQosAckSchema.parse(value);
+  if (ack.timestamp > now + 5000 || ack.timestamp < now - 120_000) return false;
+  const db = await database();
+  return db.transaction(async tx => {
+    const [device] = await tx.execute<{ id: number }>(sql`select id from devices where "deviceId"=${ack.deviceId} and "isDemo"=false and metadata->>'gatewayId'=${ack.gatewayDeviceId}`);
+    if (!device) return false;
+    const key = keyFor(device.id);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${key}))`);
+    const [row] = await tx.execute<{ value: unknown }>(sql`select value from system_settings where key=${key}`);
+    if (!row) return false;
+    const current = stateSchema.parse(row.value);
+    if (current.commandId !== ack.commandId || ack.timestamp < Date.parse(current.requestedAt) - 5000) return false;
+    if (ack.status === "applied" && (current.revision !== ack.revision || current.uplink !== ack.uplinkQos || current.downlink !== ack.downlinkQos)) return false;
+    if (["applied", "rejected"].includes(current.status)) return current.status === ack.status;
+    const next: State = { ...current, status: ack.status, acknowledgedAt: new Date(ack.timestamp).toISOString() };
+    await tx.execute(sql`update system_settings set value=${JSON.stringify(next)}::jsonb,"updatedAt"=now() where key=${key}`);
+    return true;
+  });
 }

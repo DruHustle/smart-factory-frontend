@@ -82,6 +82,11 @@ def main():
             for level in (0,1,2):
                 delivered.clear(); publish(gateway,TOPIC,f'synthetic-{level}',level)
                 assert delivered.wait(10) and received[-1]==(f'synthetic-{level}',level), f'QoS {level} did not match'
+            # Only the commissioned gateway's QoS receipts are visible to the worker.
+            ack_topic = 'factory/factory-a/line-1/pi-edge-01/commands/ack'
+            subscribe(worker, 'factory/+/+/+/commands/ack', 1)
+            delivered.clear(); publish(gateway, ack_topic, 'synthetic-qos-ack', 1)
+            assert delivered.wait(10) and received[-1] == ('synthetic-qos-ack', 1), 'Scoped QoS receipt not delivered'
             # The production MQTT 5 worker depends on retain-as-published to
             # distinguish retained evidence from current live measurements.
             retain_topic = 'factory/factory-a/line-1/synthetic-broker-validation/heartbeat'

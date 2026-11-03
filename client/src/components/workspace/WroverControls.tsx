@@ -43,7 +43,7 @@ export function WroverControls({ deviceId }: { deviceId: number }) {
   });
   const canEngineer = enabled && !!user?.access?.canEngineer;
   const utils = trpc.useUtils();
-  const qos = trpc.devices.wroverQos.useQuery({ id: deviceId }, { enabled: canEngineer });
+  const qos = trpc.devices.wroverQos.useQuery({ id: deviceId }, { enabled: canEngineer, refetchInterval: active ? 5000 : false, refetchIntervalInBackground: false });
   const [uplinkQos, setUplinkQos] = useState<0 | 1 | 2>(1);
   const [downlinkQos, setDownlinkQos] = useState<0 | 1 | 2>(1);
   useEffect(() => {
@@ -131,7 +131,7 @@ export function WroverControls({ deviceId }: { deviceId: number }) {
             {requestQos.isPending ? "Sending…" : "Send QoS"}
           </Button>
           <p className="w-full text-xs text-muted-foreground" role="status">
-            {qos.isError ? "QoS settings unavailable." : qos.data?.status === "failed" ? "Last request failed; device state is unconfirmed." : qos.data ? "Requested setting; device confirmation is pending." : "Device QoS has not been confirmed."}
+            {qos.isError ? "QoS settings unavailable." : qos.data?.status === "failed" ? "Last request failed; device state is unconfirmed." : qos.data?.status === "rejected" ? "The WROVER rejected the request." : qos.data?.status === "applied" ? "WROVER confirmed the requested settings." : qos.data ? "Requested setting; device confirmation is pending." : "Device QoS has not been confirmed."}
           </p>
         </div>
       )}

@@ -9,7 +9,7 @@ vi.mock("./db", () => ({
 }));
 vi.mock("./demoData", () => ({ demoOnlyRead: mock.demo }));
 vi.mock("./aasProvisioningClient", () => ({ publishWroverQos: mock.publish }));
-import { requestWroverQos } from "./mqttQosStore";
+import { ingestWroverQosAck, requestWroverQos } from "./mqttQosStore";
 
 const input = { id: 7, expectedRevision: 0, uplink: 2 as const, downlink: 0 as const };
 
@@ -44,5 +44,33 @@ describe("WROVER QoS requests", () => {
     mock.publish.mockRejectedValueOnce(new Error("offline"));
     await expect(requestWroverQos(input, 42, "engineer-token")).rejects.toThrow("offline");
     expect(mock.execute).toHaveBeenCalledTimes(4);
+  });
+});
+
+
+describe("WROVER QoS acknowledgement", () => {
+  const now = Date.parse("2026-11-03T20:00:30.000Z");
+  const state = { revision: 7, uplink: 2, downlink: 0, commandId: "d7f2cd47-3410-4574-9705-8aa94ec673ad", requestedAt: "2026-11-03T20:00:00.000Z", status: "published" };
+  const ack = { action: "configure_mqtt_qos", deviceId: "wrover", gatewayDeviceId: "pi", commandId: state.commandId,
+    status: "applied", timestamp: now, revision: 7, uplinkQos: 2, downlinkQos: 0,
+    transportRetained: false, transportRetainVerified: true };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mock.execute.mockResolvedValueOnce([{ id: 7 }]).mockResolvedValueOnce([]).mockResolvedValueOnce([{ value: state }]).mockResolvedValue([]);
+    mock.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn({ execute: mock.execute }));
+  });
+  it("accepts a fresh matching receipt for the commissioned route", async () => {
+    expect(await ingestWroverQosAck(ack, now)).toBe(true);
+    expect(mock.execute).toHaveBeenCalledTimes(4);
+  });
+  it("does not mark a mismatched revision or QoS as applied", async () => {
+    expect(await ingestWroverQosAck({ ...ack, uplinkQos: 1 }, now)).toBe(false);
+    expect(mock.execute).toHaveBeenCalledTimes(3);
+  });
+  it("rejects stale and unverified receipts", async () => {
+    expect(await ingestWroverQosAck({ ...ack, timestamp: now - 121_000 }, now)).toBe(false);
+    await expect(ingestWroverQosAck({ ...ack, transportRetained: true }, now)).rejects.toThrow();
+    await expect(ingestWroverQosAck({ ...ack, transportRetainVerified: false }, now)).rejects.toThrow();
+    expect(mock.execute).not.toHaveBeenCalled();
   });
 });
