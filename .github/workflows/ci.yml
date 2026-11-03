@@ -75,7 +75,7 @@ jobs:
         run: |
           python -m unittest discover -s scripts/tests -p 'test_smart_factory_migration.py' -v
           python -m unittest discover -s scripts/tests -p 'test_oracle_image_cleanup.py' -v
-          python -m unittest discover -s deploy/oracle -p 'test_container_controller.py' -v
+          python -m unittest discover -s deploy/oracle -p 'test_*controller.py' -v
           python -m unittest discover -s scripts/tests -p 'test_deploy_vm.py' -v
           python -m unittest discover -s scripts/tests -p 'test_prepare_manual_release.py' -v
           python -m unittest discover -s scripts/tests -p 'test_manual_installer.py' -v

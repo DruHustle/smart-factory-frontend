@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh the Smart Factory MQTT TLS certificate
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/smart-factory-mqtt/sync-certificate.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/smart-factory-mqtt/secrets

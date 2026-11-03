@@ -1,0 +1,16 @@
+[Unit]
+Description=Smart Factory MQTT bounded container health recovery
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+StateDirectory=smart-factory-mqtt-controller
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 /usr/local/lib/smart-factory-mqtt/broker-controller.py --apply
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/smart-factory-mqtt-controller

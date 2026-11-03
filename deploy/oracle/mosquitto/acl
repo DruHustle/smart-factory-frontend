@@ -1,0 +1,19 @@
+# MQTT topic levels use mqtt-topic-v1 encoding. Only the commissioned Pi can
+# publish measurements; the cloud worker reads measurements and heartbeats.
+user sf-gateway
+topic write factory/factory-a/line-1/+/telemetry
+topic write factory/factory-a/line-1/+/heartbeat
+topic write factory/factory-a/line-1/pi-edge-01/commands/ack
+topic read factory/factory-a/line-1/pi-edge-01/commands
+topic read factory/factory-a/line-1/pi-edge-01/commands/connectivity
+
+user sf-worker
+topic read factory/+/+/+/telemetry
+topic read factory/+/+/+/heartbeat
+
+user sf-control
+topic write factory/factory-a/line-1/+/commands
+topic write factory/factory-a/line-1/+/commands/connectivity
+
+user sf-health
+topic write smart-factory/health

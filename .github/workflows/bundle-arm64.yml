@@ -10,6 +10,7 @@ on:
         "drizzle/**",
         "deploy/**",
         "scripts/bundle-smoke.py",
+        "scripts/mqtt/**",
         "scripts/tests/smtp-capture.py",
         "scripts/tests/test_smtp_capture.py",
         "docker-compose.bundle-test.yml",
@@ -26,6 +27,7 @@ on:
         "drizzle/**",
         "deploy/**",
         "scripts/bundle-smoke.py",
+        "scripts/mqtt/**",
         "scripts/tests/smtp-capture.py",
         "scripts/tests/test_smtp_capture.py",
         "docker-compose.bundle-test.yml",
@@ -55,6 +57,12 @@ jobs:
       - name: Verify isolated SMTP capture fixture
         working-directory: candidate
         run: python3 -m unittest discover -s scripts/tests -p test_smtp_capture.py -v
+      - name: Verify staged MQTT broker on native ARM64
+        working-directory: candidate
+        run: |
+          python3 -m venv "$RUNNER_TEMP/mqtt-proof"
+          "$RUNNER_TEMP/mqtt-proof/bin/pip" install --require-hashes -r scripts/mqtt/requirements.txt
+          "$RUNNER_TEMP/mqtt-proof/bin/python" scripts/mqtt/broker-smoke.py
       - name: Read immutable companion identities
         id: sources
         working-directory: candidate

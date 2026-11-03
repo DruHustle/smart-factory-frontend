@@ -14,6 +14,8 @@ import time
 
 PROJECT = "smart-factory-backend"
 SERVICES = ("api", "worker")
+EXEC_USERS = {"api": "app", "worker": "app"}
+DESCRIPTION = __doc__
 WAIT_SECONDS = 180
 MAX_OBSERVATION_GAP = 90
 COOLDOWN_SECONDS = 900
@@ -164,7 +166,7 @@ def run(apply):
                 state[service].pop("unhealthy_since", None)
                 state[service].pop("marker", None)
                 save_state(STATE_DIR, state)
-                result = subprocess.run(["docker", "exec", "--user", "app", current["Id"], "/bin/sh", "-c", "kill -TERM 1"], capture_output=True, timeout=20)
+                result = subprocess.run(["docker", "exec", "--user", EXEC_USERS[service], current["Id"], "/bin/sh", "-c", "kill -TERM 1"], capture_output=True, timeout=20)
                 if result.returncode:
                     log("recovery-failed", service=service)
                     raise RuntimeError("Recovery signal failed; inspect the container and journal")
@@ -172,7 +174,7 @@ def run(apply):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument("--apply", action="store_true", help="signal eligible containers; default is dry-run")
     args = parser.parse_args()
     try:

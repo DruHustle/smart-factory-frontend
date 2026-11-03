@@ -1,0 +1,30 @@
+name: smart-factory-mqtt
+services:
+  broker:
+    image: eclipse-mosquitto:2.1.2-alpine@sha256:860aeb5d63ce509508f6dcfb2bc8a1c1dd2bc60555b562b45ce90e52d8dabb0f
+    platform: linux/arm64
+    restart: unless-stopped
+    user: "1883:1883"
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    pids_limit: 100
+    mem_limit: 256m
+    ports:
+      - "${MQTT_BIND_ADDRESS:-127.0.0.1}:${MQTT_PORT:-8883}:8883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./acl:/mosquitto/config/acl:ro
+      - ${MQTT_SECRET_DIR:?Set MQTT_SECRET_DIR to the protected broker configuration}:/run/mqtt-secrets:ro
+      - broker-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 8883 --cafile /run/mqtt-secrets/ca.crt --insecure -u sf-health -P \"$$(cat /run/mqtt-secrets/health-password)\" -t smart-factory/health -n -V 5 >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+volumes:
+  broker-data:

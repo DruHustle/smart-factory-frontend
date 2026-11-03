@@ -4,6 +4,8 @@ Current maintained target: Vercel serves the React application and proxies the A
 
 The API role starts Node, Device, Identity and Analytics. The worker role starts Telemetry and Notification. Compatibility variables retain the historical names `RENDER_SERVICE_ROLE` and `BACKEND_DEPLOYMENT_MODE=render-bundle`; these do not imply Render hosting. API ports remain loopback-bound behind Caddy. Exactly one MQTT worker may use the commissioned consumer identity.
 
+The Compose services resolve `api.152-70-22-84.sslip.io` to Docker's host gateway. This lets them use the same certificate-validated hostname for the local Caddy HTTPS endpoint and a locally hosted MQTT listener without relying on Oracle public-IP hairpin routing. Before promotion, verify both endpoints from the service network with certificate and hostname validation; preserve that validation during recovery. The [Mosquitto staging guide](mosquitto/README.md) describes broker prerequisites and does not by itself switch production clients.
+
 The [16 October manifest](release-manifest.json) is historical evidence. It does not describe the latest hosted image. Read `/api/runtime/contract` for the running candidate's source revisions, migration digest, capability version and recent worker receipt. See [operating evidence and recovery](../../docs/operations.md). Existing deployments predating contract version 2 cannot attest these capabilities and must be qualified API-first before this UI is promoted.
 
 ## Prepare a candidate
