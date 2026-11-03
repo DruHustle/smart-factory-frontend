@@ -210,6 +210,16 @@ def main():
         passed('retained, delayed, bad quality and mixed modes never assert new current incidents or rewrite topology',currentIncidents=len(first['incidents']),storedHistorical=9,quarantined=2)
         publish(live);eventually(lambda:pending()==0,'duplicate retry drain');assert len(snapshot()['readings'])==9
         passed('duplicate redelivery after restart preserves one reading and one current effect')
+        if BROKER == 'mosquitto' and not LEGACY:
+            # Each distinct sample must reach the dashboard through the actual
+            # .NET subscriber, not merely be accepted by the broker.
+            expected_times = {now + 100 + level for level in (0, 1, 2)}
+            for level in (0, 1, 2):
+                result = client.publish(topic, json.dumps(sample(100 + level, power=.5)), qos=level, retain=False)
+                result.wait_for_publish(timeout=5)
+                assert result.is_published()
+            eventually(lambda: expected_times.issubset({int(row['timestamp']) for row in snapshot()['readings']}), 'QoS 0/1/2 dashboard intake')
+            passed('QoS 0, 1 and 2 samples cross Mosquitto and the telemetry worker into dashboard storage')
         # Backup only owned disposable storage, restore into new names, compare evidence.
         stop(worker);worker=None;stop(node);node=None
         restores=[]
