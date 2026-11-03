@@ -326,7 +326,7 @@ test("live factory settings and complete manual periods persist; operator handov
   await expect(panel(page)).toContainText(
     "Production boundary and shifts are not configured.",
   );
-  await panel(page).getByRole("button", { name: "Change factory timezone, current UTC" }).click();
+  await page.getByRole("button", { name: "Change factory timezone, current UTC" }).click();
   const timezone = page.getByRole("dialog", { name: "Factory timezone" });
   await timezone.getByLabel("Site timezone").fill("Europe/Berlin");
   await timezone.getByRole("button", { name: "Save timezone" }).click();
@@ -334,7 +334,7 @@ test("live factory settings and complete manual periods persist; operator handov
   await expect(panel(page)).toContainText("Production boundary and shifts are not configured.");
   expect((await summary(page, { factoryId })).configuration.timeZone).toBe("Europe/Berlin");
   await page.reload();
-  await expect(panel(page).getByRole("button", { name: "Change factory timezone, current Europe/Berlin" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" })).toBeVisible();
   await panel(page)
     .getByRole("button", { name: "Settings", exact: true })
     .click();

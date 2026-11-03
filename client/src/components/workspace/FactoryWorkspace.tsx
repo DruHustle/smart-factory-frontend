@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import {
   Plus,
@@ -140,9 +140,11 @@ function SizeFields({
 export function FactoryWorkspace({
   id,
   mode = "overview",
+  overviewAction,
 }: {
   id: string;
   mode?: "overview" | "inventory";
+  overviewAction?: ReactNode;
 }) {
   const c = useNamedFactory(id),
     { login } = useAuth();
@@ -258,6 +260,7 @@ export function FactoryWorkspace({
         action={
           <>
             <FactorySelector />
+            {overviewAction}
             <Button asChild variant="outline">
               <Link href="/connectivity">
                 <Cable className="mr-2 size-4" />

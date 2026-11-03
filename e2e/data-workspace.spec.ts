@@ -706,7 +706,8 @@ test("engineers can change the shared factory timezone without commissioning shi
   const requests = await workspaceFixture(page);
   await page.goto("/#/");
   const panel = page.getByTestId("ot-operations");
-  await panel.getByRole("button", { name: "Change factory timezone, current UTC" }).click();
+  await expect(page.locator(".workspace-page-header").getByRole("button", { name: "Change factory timezone, current UTC" })).toContainText("Timezone: UTC");
+  await page.getByRole("button", { name: "Change factory timezone, current UTC" }).click();
   const dialog = page.getByRole("dialog", { name: "Factory timezone" });
   await expect(dialog).toContainText("changes shift boundaries");
   const field = dialog.getByLabel("Site timezone");
@@ -716,7 +717,7 @@ test("engineers can change the shared factory timezone without commissioning shi
   await field.fill("Europe/Berlin");
   await dialog.getByRole("button", { name: "Save timezone" }).click();
   await expect(dialog).toBeHidden();
-  await expect(panel.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" })).toBeVisible();
   await expect(panel).toContainText("Production boundary and shifts are not configured.");
   const chart = page.getByRole("region", { name: "Factory observations" });
   await expect(chart.locator(".overview-trend-plot")).toContainText("Europe/Berlin");
@@ -725,10 +726,10 @@ test("engineers can change the shared factory timezone without commissioning shi
   expect(requests.filter((request) => request.procedure === "operations.setTimeZone")).toHaveLength(1);
   expect(requests.find((request) => request.procedure === "operations.setTimeZone")?.input).toMatchObject({ expectedVersion: 0, expectedTimeZone: "UTC", timeZone: "Europe/Berlin" });
   await page.setViewportSize({ width: 320, height: 900 });
-  await panel.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" }).click();
+  await page.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" }).click();
   await dialog.getByLabel("Site timezone").fill("America/Argentina/Buenos_Aires");
   await dialog.getByRole("button", { name: "Save timezone" }).click();
-  const longZone = panel.getByRole("button", { name: "Change factory timezone, current America/Argentina/Buenos_Aires" });
+  const longZone = page.getByRole("button", { name: "Change factory timezone, current America/Argentina/Buenos_Aires" });
   await expect(longZone).toBeVisible();
   const box = await longZone.boundingBox();
   expect(box!.x + box!.width).toBeLessThanOrEqual(320);
@@ -1593,7 +1594,7 @@ for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
           .boundingBox())!.height,
       ).toBeGreaterThanOrEqual(44);
       const operations = page.getByTestId("ot-operations");
-      const timezoneButton = operations.getByRole("button", { name: "Change factory timezone, current UTC" });
+      const timezoneButton = page.getByRole("button", { name: "Change factory timezone, current UTC" });
       const timezoneBox = await timezoneButton.boundingBox();
       expect(timezoneBox).toBeTruthy();
       expect(timezoneBox!.height).toBeGreaterThanOrEqual(44);

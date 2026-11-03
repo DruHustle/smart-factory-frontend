@@ -262,7 +262,7 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
     page.getByRole("heading", { name: "E2E service review due", exact: true }),
   ).toBeVisible();
   await page
-    .getByLabel("Assign technician")
+    .getByLabel("Assign technician or engineer")
     .selectOption({ label: "Local security engineer" });
   await expect(
     page.getByText("Assignment updated", { exact: true }),
@@ -325,7 +325,7 @@ test("engineers assign incidents, explicitly confirm downtime, record notes and 
       .getByRole("button", { name: "Save update", exact: true })
       .click();
     await expect(page.getByLabel("Record investigation update")).toBeDisabled();
-    await expect(page.getByLabel("Assign technician")).toBeDisabled();
+    await expect(page.getByLabel("Assign technician or engineer")).toBeDisabled();
     await expect(
       page.getByRole("button", { name: "Record downtime", exact: true }),
     ).toBeDisabled();
@@ -507,7 +507,7 @@ test("viewer opens an investigation by keyboard with a read-only decision bounda
     }),
   ).toBeVisible();
   await expect(page.getByText(/Read-only evidence review/)).toBeVisible();
-  await expect(page.getByLabel("Assign technician")).toHaveCount(0);
+  await expect(page.getByLabel("Assign technician or engineer")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Resolve", exact: true }),
   ).toHaveCount(0);

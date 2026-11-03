@@ -3,6 +3,7 @@ export default defineConfig({
   testDir: "e2e",
   testMatch: [
     "workspace.spec.ts",
+    "incident-assignment.spec.ts",
     "infrastructure-private.spec.ts",
     "factory-layouts-private.spec.ts",
     "assistant-selection.spec.ts",

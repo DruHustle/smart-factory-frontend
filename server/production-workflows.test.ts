@@ -189,6 +189,67 @@ suite("telemetry attribution, incident ownership and retry integrity", () => {
     await db.resolveAlert(incident.id, technician.id, false);
   });
 
+  it("lists only eligible technicians and rejects assignment across the live/demo boundary", async () => {
+    const { withVisibility } = await import("./demoData");
+    const database = (await db.getDb())!;
+    const demo = (await db.createUser({
+      openId: `demo-assignment-${suffix}`,
+      email: `demo-assignment-${suffix}@test.local`,
+      role: "engineer",
+      name: "Shared demo engineer",
+    }))!;
+    const source = await registerDevice({
+      deviceId: `demo-assignment-source-${suffix}`,
+      name: "Demo assignment source",
+      type: "sensor",
+      route: "direct",
+      freshnessSeconds: 120,
+    });
+    await database
+      .update(schema.devices)
+      .set({ isDemo: true })
+      .where(eq(schema.devices.id, source.id));
+    const incident = await db.createAlert({
+      deviceId: source.id,
+      type: "system_error",
+      severity: "warning",
+      message: "Demo assignment isolation",
+    });
+    try {
+      await database
+        .update(schema.users)
+        .set({ disabledAt: new Date() })
+        .where(eq(schema.users.id, otherTechnician.id));
+      const list = await db.getAlertAssignees();
+      expect(list.some((u) => u.id === technician.id)).toBe(true);
+      expect(
+        list.some((u) => u.id === otherTechnician.id || u.id === demo.id),
+      ).toBe(false);
+      await expect(
+        withVisibility({ demoOnly: false, includeDemo: false }, () =>
+          db.assignAlert(incident.id, technician.id),
+        ),
+      ).resolves.toBeUndefined();
+      await expect(
+        withVisibility({ demoOnly: true, includeDemo: true }, () =>
+          db.assignAlert(incident.id, demo.id),
+        ),
+      ).rejects.toThrow("active engineer/technician");
+    } finally {
+      await database
+        .update(schema.users)
+        .set({ disabledAt: null })
+        .where(eq(schema.users.id, otherTechnician.id));
+      await database
+        .delete(schema.alerts)
+        .where(eq(schema.alerts.id, incident.id));
+      await database
+        .delete(schema.devices)
+        .where(eq(schema.devices.id, source.id));
+      await database.delete(schema.users).where(eq(schema.users.id, demo.id));
+    }
+  });
+
   it("notifies a critical escalation once without duplicating routine incident updates", async () => {
     const { listNotifications } = await import("./notifications");
     const incident = await db.createAlert({

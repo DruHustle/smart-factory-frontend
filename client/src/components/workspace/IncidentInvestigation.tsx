@@ -61,7 +61,8 @@ export function IncidentInvestigation({
     ),
     history = trpc.alerts.history.useQuery({ id, after: cursor }),
     assignees = trpc.alerts.assignees.useQuery(undefined, {
-      enabled: !!user?.access?.canEngineer,
+      enabled:
+        !!user?.access?.canOperate && user?.access?.workspaceView !== "demo",
     });
   const refresh = async () => {
       await Promise.all([
@@ -117,7 +118,8 @@ export function IncidentInvestigation({
   const e = event.data,
     evidence = e.latestEvidenceSnapshot ?? e.evidenceSnapshot,
     owned = e.assignedToId === user?.id || user?.role === "admin",
-    canRespond = !!user?.access?.canOperate,
+    canRespond =
+      !!user?.access?.canOperate && user?.access?.workspaceView !== "demo",
     canManage = !!user?.access?.canEngineer,
     busy =
       ack.isPending ||
@@ -171,6 +173,62 @@ export function IncidentInvestigation({
             ? alarmConditionReasonLabel(e.conditionReason)
             : "Review status does not establish the current physical condition. Check source evidence."}
         </p>
+        {canRespond && (
+          <label className="block space-y-1 text-sm">
+            Assign to technician or engineer
+            <select
+              aria-label="Assign technician or engineer"
+              className="h-10 w-full rounded-md border border-input bg-card px-2"
+              disabled={
+                busy ||
+                e.status === "resolved" ||
+                assignees.isLoading ||
+                !!assignees.error
+              }
+              value={e.assignedToId ?? ""}
+              onChange={(ev) =>
+                assign.mutate({
+                  id,
+                  assignedToId: ev.target.value
+                    ? Number(ev.target.value)
+                    : null,
+                })
+              }
+            >
+              <option value="">Unassigned</option>
+              {e.assignedToId &&
+                assignees.data &&
+                !assignees.data.some((a) => a.id === e.assignedToId) && (
+                  <option value={e.assignedToId}>
+                    {e.assignedToName ?? `Account ${e.assignedToId}`}{" "}
+                    (unavailable)
+                  </option>
+                )}
+              {assignees.data?.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name ?? a.email ?? `Account ${a.id}`}
+                </option>
+              ))}
+            </select>
+            {assignees.error && (
+              <span role="alert">
+                Technician list unavailable.{" "}
+                <button
+                  className="underline"
+                  type="button"
+                  onClick={() => void assignees.refetch()}
+                >
+                  Retry
+                </button>
+              </span>
+            )}
+            {assignees.data?.length === 0 && (
+              <span className="block text-muted-foreground">
+                No active technician or engineer accounts available.
+              </span>
+            )}
+          </label>
+        )}
         {conditionSupported && e.conditionEvidence?.occurredAt && (
           <p className="text-xs text-muted-foreground">
             Last verified source state: {e.sourceCondition} ·{" "}
@@ -440,32 +498,6 @@ export function IncidentInvestigation({
                 Older activity
               </Button>
             </div>
-          )}
-          {canManage && (
-            <label className="block space-y-1 text-sm">
-              Assigned technician
-              <select
-                aria-label="Assign technician"
-                className="h-10 w-full rounded-md border border-input bg-card px-2"
-                disabled={busy || e.status === "resolved"}
-                value={e.assignedToId ?? ""}
-                onChange={(ev) =>
-                  assign.mutate({
-                    id,
-                    assignedToId: ev.target.value
-                      ? Number(ev.target.value)
-                      : null,
-                  })
-                }
-              >
-                <option value="">Unassigned</option>
-                {assignees.data?.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name ?? a.email ?? `Account ${a.id}`}
-                  </option>
-                ))}
-              </select>
-            </label>
           )}
           <div className="flex flex-wrap gap-2">
             {canRespond &&
