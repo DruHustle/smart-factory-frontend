@@ -456,7 +456,7 @@ function SettingsForm({
   );
 }
 
-function TimeZoneDialog({
+export function TimeZoneDialog({
   data,
   factoryId,
   onClose,
@@ -558,9 +558,7 @@ function TimeZoneDialog({
             </Button>
             <Button
               type="submit"
-              disabled={
-                save.isPending || value.trim() === base.timeZone
-              }
+              disabled={save.isPending || value.trim() === base.timeZone}
             >
               {save.isPending ? "Saving…" : "Save timezone"}
             </Button>
@@ -973,11 +971,9 @@ export function OperationsPanel({
 }) {
   const { user } = useAuth(),
     active = useDocumentActive();
-  const timezoneSupported = useRuntimeCapability("ot-site-timezone-v1");
   const [localScenario, setLocalScenario] =
       useState<OperationScenario>("healthy"),
     [at, setAt] = useState<number | undefined>(),
-    [timezoneOpen, setTimezoneOpen] = useState(false),
     [tab, setTab] = useState<"summary" | "records" | "handover" | "settings">(
       "summary",
     );
@@ -1070,24 +1066,11 @@ export function OperationsPanel({
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {data.scope.label} ·{" "}
-            {data.demo ? "Simulated" : "Manual production evidence"}
-            {(!canEngineer || !timezoneSupported) &&
-              ` · ${data.shift.timeZone}`}
+            {data.demo ? "Simulated" : "Manual production evidence"} ·{" "}
+            {data.shift.timeZone}
           </p>
         </div>
         <div className="flex items-center gap-1">
-          {canEngineer && timezoneSupported && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="min-h-11 max-w-48 sm:max-w-64"
-              onClick={() => setTimezoneOpen(true)}
-              aria-label={`Change factory timezone, current ${data.shift.timeZone}`}
-            >
-              <Clock3 className="mr-1 size-4 shrink-0" />
-              <span className="truncate">{data.shift.timeZone}</span>
-            </Button>
-          )}
           <Button
             variant="ghost"
             size="sm"
@@ -1101,14 +1084,6 @@ export function OperationsPanel({
           </Button>
         </div>
       </header>
-      {timezoneOpen && (
-        <TimeZoneDialog
-          data={data}
-          factoryId={factoryId}
-          onClose={() => setTimezoneOpen(false)}
-          onSaved={refresh}
-        />
-      )}
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <Clock3 className="size-4" />
         <span>

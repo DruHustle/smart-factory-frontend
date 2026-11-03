@@ -1741,8 +1741,8 @@ export const appRouter = router({
       .mutation(({ input, ctx }) =>
         runIncidentMutation(() => db.acknowledgeAlert(input.id, ctx.user.id)),
       ),
-    assignees: engineerProcedure.query(() => db.getAlertAssignees()),
-    assign: engineerProcedure
+    assignees: operatorProcedure.query(() => db.getAlertAssignees()),
+    assign: operatorProcedure
       .input(
         z.object({
           id: z.number(),

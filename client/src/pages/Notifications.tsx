@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { AssignIncidentDialog } from "@/components/workspace/AssignIncidentDialog";
 const labels: Record<string, string> = {
   demo_only: "Simulation · email not requested",
   inbox_only: "Inbox only · email not requested",
@@ -28,6 +29,7 @@ const labels: Record<string, string> = {
   no_recipient: "Email recipient not authorized",
 };
 export default function Notifications() {
+  const [assignIncident, setAssignIncident] = useState<number | null>(null);
   const { user } = useAuth(),
     active = useDocumentActive(),
     utils = trpc.useUtils(),
@@ -75,6 +77,12 @@ export default function Notifications() {
   };
   return (
     <div className="space-y-4">
+      {assignIncident !== null && (
+        <AssignIncidentDialog
+          id={assignIncident}
+          onClose={() => setAssignIncident(null)}
+        />
+      )}
       <PageHeader
         title="Notifications"
         description="Your incident assignments and delivery status."
@@ -171,7 +179,13 @@ export default function Notifications() {
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {n.infrastructureEventId ? (
-                        <Button variant="outline" asChild><Link href={`/infrastructure/service-health/history?event=${n.infrastructureEventId}`}>Open infrastructure event</Link></Button>
+                        <Button variant="outline" asChild>
+                          <Link
+                            href={`/infrastructure/service-health/history?event=${n.infrastructureEventId}`}
+                          >
+                            Open infrastructure event
+                          </Link>
+                        </Button>
                       ) : n.securityFindingId ? (
                         <Button variant="outline" asChild>
                           <Link
@@ -187,6 +201,16 @@ export default function Notifications() {
                           </Link>
                         </Button>
                       ) : null}
+                      {n.alertId &&
+                        user?.access?.canOperate &&
+                        user?.access?.workspaceView !== "demo" && (
+                          <Button
+                            variant="outline"
+                            onClick={() => setAssignIncident(n.alertId!)}
+                          >
+                            Assign technician or engineer
+                          </Button>
+                        )}
                       {!user?.access?.demoOnly && !n.readAt && (
                         <Button
                           variant="outline"

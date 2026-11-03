@@ -2,7 +2,7 @@ import { FactorySelector } from "@/components/workspace/FactorySelector";
 import { useRuntimeCapability } from "@/components/RuntimeBoundary";
 import { FactoryWorkspace } from "@/components/workspace/FactoryWorkspace";
 import { useFactorySelection } from "@/lib/factory-selection";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import {
   ArrowRight,
@@ -35,6 +35,7 @@ import { SystemItemTypes } from "@/components/workspace/SystemInventoryOverview"
 import { metrics, type Metric } from "@shared/measurements";
 import type { FloorLink } from "@shared/factory-floor";
 import { OperationsWorkspace } from "@/components/operations/OperationsWorkspace";
+import { TimeZoneDialog } from "@/components/operations/OperationsPanel";
 import { DashboardTimeZone } from "@/components/workspace/DashboardTimeZone";
 import { operationScenarios, type OperationScenario } from "@shared/operations";
 
@@ -42,6 +43,8 @@ export default function Home() {
   const { id } = useFactorySelection();
   const { user } = useAuth();
   const supported = useRuntimeCapability("ot-operations-v1");
+  const timezoneSupported = useRuntimeCapability("ot-site-timezone-v1");
+  const [timezoneOpen, setTimezoneOpen] = useState(false);
   const [location] = useWorkspaceLocation();
   const requested = new URLSearchParams(location.split("?")[1] ?? "").get(
     "otScenario",
@@ -56,17 +59,49 @@ export default function Home() {
     },
     { enabled: supported, staleTime: 15000, retry: false },
   );
+  const timezoneAction =
+    user?.access?.canEngineer &&
+    timezoneSupported &&
+    operations.data &&
+    !operations.data.demo ? (
+      <>
+        <Button
+          variant="outline"
+          className="min-h-11 max-w-64"
+          aria-label={`Change factory timezone, current ${operations.data.configuration.timeZone}`}
+          onClick={() => setTimezoneOpen(true)}
+        >
+          <Clock3 className="mr-1 size-4 shrink-0" />
+          <span className="truncate">
+            Timezone: {operations.data.configuration.timeZone}
+          </span>
+        </Button>
+        {timezoneOpen && (
+          <TimeZoneDialog
+            data={operations.data}
+            factoryId={id ?? undefined}
+            onClose={() => setTimezoneOpen(false)}
+            onSaved={() => operations.refetch()}
+          />
+        )}
+      </>
+    ) : null;
   return id ? (
     <DashboardTimeZone.Provider value={operations.data?.configuration.timeZone}>
-      <FactoryWorkspace key={id} id={id} mode="overview" />
+      <FactoryWorkspace
+        key={id}
+        id={id}
+        mode="overview"
+        overviewAction={timezoneAction}
+      />
     </DashboardTimeZone.Provider>
   ) : (
     <DashboardTimeZone.Provider value={operations.data?.configuration.timeZone}>
-      <LegacyHome />
+      <LegacyHome timezoneAction={timezoneAction} />
     </DashboardTimeZone.Provider>
   );
 }
-function LegacyHome() {
+function LegacyHome({ timezoneAction }: { timezoneAction?: ReactNode }) {
   const active = useDocumentActive(),
     { user } = useAuth();
   const [location, navigate] = useWorkspaceLocation(),
@@ -234,30 +269,33 @@ function LegacyHome() {
       <PageHeader
         title="Overview"
         action={
-          <div className="overview-controls flex flex-wrap items-center gap-2">
-            <FactorySelector compact />
-            <select
-              aria-label="Overview time range"
-              value={rangeMs === 86400000 ? "24h" : "1h"}
-              onChange={(e) => update({ range: e.target.value })}
-              className="overview-range workspace-control h-9 w-auto text-xs"
-            >
-              <option value="1h">Last 60 min</option>
-              <option value="24h">Last 24 hours</option>
-            </select>
-            <Button
-              variant="outline"
-              size="icon"
-              className="overview-refresh size-9"
-              aria-label="Refresh overview"
-              onClick={refresh}
-              disabled={busy}
-            >
-              <RefreshCw
-                className={`size-4 ${busy ? "motion-safe:animate-spin" : ""}`}
-              />
-            </Button>
-          </div>
+          <>
+            <div className="overview-controls flex flex-wrap items-center gap-2">
+              <FactorySelector compact />
+              <select
+                aria-label="Overview time range"
+                value={rangeMs === 86400000 ? "24h" : "1h"}
+                onChange={(e) => update({ range: e.target.value })}
+                className="overview-range workspace-control h-9 w-auto text-xs"
+              >
+                <option value="1h">Last 60 min</option>
+                <option value="24h">Last 24 hours</option>
+              </select>
+              <Button
+                variant="outline"
+                size="icon"
+                className="overview-refresh size-9"
+                aria-label="Refresh overview"
+                onClick={refresh}
+                disabled={busy}
+              >
+                <RefreshCw
+                  className={`size-4 ${busy ? "motion-safe:animate-spin" : ""}`}
+                />
+              </Button>
+            </div>
+            {timezoneAction}
+          </>
         }
       />
       <div className="overview-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">

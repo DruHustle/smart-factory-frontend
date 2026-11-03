@@ -53,6 +53,7 @@ import {
   visibleRecordSql,
   visibleWhenDemoDataEnabled,
 } from "./demoData";
+import { individualSecurityUser } from "./security/users";
 
 const {
   users,
@@ -2061,7 +2062,14 @@ export async function getAlertAssignees() {
         role: users.role,
       })
       .from(users)
-      .where(eq(users.role, "engineer"))
+      .where(
+        and(
+          eq(users.role, "engineer"),
+          isNull(users.disabledAt),
+          eq(users.passwordChangeRequired, false),
+          individualSecurityUser(),
+        ),
+      )
       .orderBy(asc(users.name)),
   );
 }
@@ -2076,7 +2084,7 @@ export async function assignAlert(
       const [current] = await tx
         .select()
         .from(alerts)
-        .where(eq(alerts.id, id))
+        .where(and(eq(alerts.id, id), visibleAlertEntitiesCondition()))
         .limit(1)
         .for("update");
       if (!current) return undefined;
@@ -2093,6 +2101,7 @@ export async function assignAlert(
               eq(users.role, "engineer"),
               isNull(users.disabledAt),
               eq(users.passwordChangeRequired, false),
+              individualSecurityUser(),
             ),
           )
           .limit(1);
@@ -2274,12 +2283,17 @@ export async function getAlerts(filters?: {
       conditions.push(eq(alerts.deviceId, filters.deviceId));
     if (filters?.deviceIds?.length || filters?.assetIds?.length) {
       const scoped = [];
-      if (filters.deviceIds?.length) scoped.push(
-        filters.assetIds?.length
-          ? and(sql`${alerts.assetId} is null`, inArray(alerts.deviceId, filters.deviceIds))!
-          : inArray(alerts.deviceId, filters.deviceIds),
-      );
-      if (filters.assetIds?.length) scoped.push(inArray(alerts.assetId, filters.assetIds));
+      if (filters.deviceIds?.length)
+        scoped.push(
+          filters.assetIds?.length
+            ? and(
+                sql`${alerts.assetId} is null`,
+                inArray(alerts.deviceId, filters.deviceIds),
+              )!
+            : inArray(alerts.deviceId, filters.deviceIds),
+        );
+      if (filters.assetIds?.length)
+        scoped.push(inArray(alerts.assetId, filters.assetIds));
       conditions.push(or(...scoped)!);
     }
     if (filters?.status) conditions.push(eq(alerts.status, filters.status));

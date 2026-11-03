@@ -274,6 +274,13 @@
       "when": 1793053000010,
       "tag": "0038_ot_operations",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793053000011,
+      "tag": "0039_operator_alert_inbox",
+      "breakpoints": true
     }
   ]
 }

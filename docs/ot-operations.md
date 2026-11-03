@@ -48,7 +48,7 @@ Transport and source-quality evidence are still required. Configuring an acquisi
 
 ## Configured operations and production evidence
 
-Operations can be configured for the installation or a named live factory. Engineer/admin users can select the shared IANA timezone directly from **Overview → Operations and handover**; the change applies to shift boundaries and dashboard chart times, including daylight saving. It does not configure the production boundary or approve the provisional shift schedule. Complete those settings, including shift starts, output unit, ideal cycle and meter boundary, before recording production. Existing timestamps remain unchanged; CSV exports and explicitly labelled UTC entry fields continue to use UTC.
+Operations can be configured for the installation or a named live factory. Engineer/admin users can select the shared IANA timezone using **Timezone** at the top of **Overview**; the change applies to shift boundaries and dashboard chart times, including daylight saving. It does not configure the production boundary or approve the provisional shift schedule. Complete those settings, including shift starts, output unit, ideal cycle and meter boundary, before recording production. Existing timestamps remain unchanged; CSV exports and explicitly labelled UTC entry fields continue to use UTC.
 
 Production periods are explicitly **manual production evidence**. They are separate from automatic process telemetry and its provenance controls. Enter the observed period, product, total/good output, ideal cycle, meter counter values, boundary and evidence description. Record planned and unplanned downtime with start, end and reason. The application does not claim an automatic MES or utility-meter integration.
 
