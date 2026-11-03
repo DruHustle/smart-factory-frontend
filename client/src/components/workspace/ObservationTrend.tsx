@@ -1,10 +1,10 @@
 import type { AssistantTrendSnapshot } from "@shared/assistant";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, MessageSquareText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
 import { useDocumentActive } from "@/hooks/useDocumentActive";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   CartesianGrid,
   Line,
@@ -45,6 +45,8 @@ export function ObservationTrend({
   compact = false,
   threshold,
   dashboard = false,
+  sourceControl,
+  sourceLabel,
 }: {
   deviceId?: number;
   assetIds?: string[];
@@ -59,11 +61,13 @@ export function ObservationTrend({
   snapshot?: AssistantTrendSnapshot;
   compact?: boolean;
   dashboard?: boolean;
+  sourceControl?: ReactNode;
+  sourceLabel?: string;
   threshold?: { value: number; unit: string; label: string };
 }) {
   const { user } = useAuth();
   const dashboardTimeZone = useDashboardTimeZone();
-  const timeZone = dashboard ? (dashboardTimeZone ?? "UTC") : "UTC";
+  const timeZone = dashboardTimeZone ?? "UTC";
   const investigationSupported = useRuntimeCapability(
     "ot-investigation-context-v1",
   );
@@ -161,8 +165,14 @@ export function ObservationTrend({
       aria-label={title}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-        <h2 className="font-semibold">{title}</h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="min-w-0">
+          <h2 className="font-semibold">{title}</h2>
+          {sourceLabel && (
+            <p className="mt-1 text-xs text-muted-foreground">{sourceLabel}</p>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-wrap gap-2">
+          {sourceControl}
           {investigationSupported &&
             !snapshot &&
             (deviceId || assetIds?.length === 1) &&
@@ -184,7 +194,12 @@ export function ObservationTrend({
                     factoryId,
                   )}
                 >
-                  Ask about this window
+                  {dashboard && (
+                    <MessageSquareText className="size-4" aria-hidden />
+                  )}
+                  <span className={dashboard ? "sr-only" : undefined}>
+                    Ask about this window
+                  </span>
                 </Link>
               </Button>
             )}

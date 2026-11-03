@@ -2,17 +2,15 @@ import { FactorySelector } from "@/components/workspace/FactorySelector";
 import { useRuntimeCapability } from "@/components/RuntimeBoundary";
 import { FactoryWorkspace } from "@/components/workspace/FactoryWorkspace";
 import { useFactorySelection } from "@/lib/factory-selection";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import {
   ArrowRight,
   RefreshCw,
   Boxes,
   Radio,
-  AlertTriangle,
   WifiOff,
   CircleHelp,
-  Bell,
   Clock3,
   ChevronRight,
 } from "lucide-react";
@@ -38,6 +36,10 @@ import { OperationsWorkspace } from "@/components/operations/OperationsWorkspace
 import { TimeZoneDialog } from "@/components/operations/OperationsPanel";
 import { DashboardTimeZone } from "@/components/workspace/DashboardTimeZone";
 import { operationScenarios, type OperationScenario } from "@shared/operations";
+import {
+  ALL_ASSET_OBSERVATIONS,
+  selectOverviewObservationSource,
+} from "@/lib/overview-observations";
 
 export default function Home() {
   const { id } = useFactorySelection();
@@ -121,10 +123,6 @@ function LegacyHome({ timezoneAction }: { timezoneAction?: ReactNode }) {
   };
   const floor = trpc.factory.floor.useQuery({ zone: "" }, options);
   const overview = trpc.analytics.getOverview.useQuery(undefined, options);
-  const notifications = trpc.notifications.summary.useQuery(undefined, {
-    ...options,
-    enabled: !!user,
-  });
   const incidentPrioritySupported = useRuntimeCapability(
     "ot-incident-review-v1",
   );
@@ -164,8 +162,18 @@ function LegacyHome({ timezoneAction }: { timezoneAction?: ReactNode }) {
       : demo && showcase.data
         ? Date.parse(showcase.data.anchor)
         : anchor;
-  const assets = items.filter((i) => i.kind !== "device"),
-    assetIds = [...new Set(assets.map((i) => i.identifier))];
+  const observations = selectOverviewObservationSource(
+    items,
+    metric,
+    params.get("observationSource"),
+  );
+  const pinnedWindow = params.has("at") && at > 0 && at <= Date.now() + 300000;
+  useEffect(() => {
+    if (!active || demo || pinnedWindow) return;
+    setAnchor(Date.now());
+    const timer = window.setInterval(() => setAnchor(Date.now()), 60000);
+    return () => window.clearInterval(timer);
+  }, [active, demo, pinnedWindow]);
   const snapshots = network.data?.snapshots ?? [],
     components = snapshots.flatMap((s) => s.components),
     connections = snapshots.flatMap((s) => s.connections),
@@ -195,14 +203,12 @@ function LegacyHome({ timezoneAction }: { timezoneAction?: ReactNode }) {
     }),
   );
   const coverage = network.data?.coverage;
-  const busy =
-    floor.isFetching || overview.isFetching || notifications.isFetching;
+  const busy = floor.isFetching || overview.isFetching;
   const refresh = () => {
     setAnchor(Date.now());
     void Promise.all([
       floor.refetch(),
       overview.refetch(),
-      notifications.refetch(),
       ...(incidentPrioritySupported ? [incidents.refetch()] : []),
       ...(actionsSupported ? [actions.refetch()] : []),
       network.refetch(),
@@ -211,24 +217,28 @@ function LegacyHome({ timezoneAction }: { timezoneAction?: ReactNode }) {
   const kpis = [
     {
       title: "Registered items",
+      shortTitle: "Items",
       value: floor.error ? "Unavailable" : (floor.data?.total ?? "…"),
       icon: Boxes,
       href: "/inventory",
     },
     {
       title: "Online",
+      shortTitle: "Online",
       value: overview.error ? "Unavailable" : (stats?.devices.online ?? "…"),
       icon: Radio,
       href: "/monitoring?status=live",
     },
     {
       title: "Offline",
+      shortTitle: "Offline",
       value: overview.error ? "Unavailable" : (stats?.devices.offline ?? "…"),
       icon: WifiOff,
       href: "/monitoring?status=offline",
     },
     {
       title: "Needs review",
+      shortTitle: "Review",
       value: overview.error
         ? "Unavailable"
         : stats
@@ -241,26 +251,23 @@ function LegacyHome({ timezoneAction }: { timezoneAction?: ReactNode }) {
       href: "/monitoring",
       description: "Unknown, stale, maintenance or error status",
     },
-    {
-      title: "Open incidents",
-      value: overview.error ? "Unavailable" : (stats?.alerts.open ?? "…"),
-      icon: AlertTriangle,
-      href: "/alerts?status=open",
-    },
-    {
-      title: "Unread notifications",
-      value: notifications.error
-        ? "Unavailable"
-        : (notifications.data?.unread ?? "…"),
-      icon: Bell,
-      href: "/notifications?view=unread",
-    },
   ];
   const attentionEmpty =
     incidentPrioritySupported &&
     !incidents.isLoading &&
     !incidents.error &&
+    !overview.error &&
+    stats?.alerts.open === 0 &&
     incidents.data?.length === 0;
+  const showAttentionPanel =
+    !attentionEmpty ||
+    !!(
+      actionsSupported &&
+      (actions.data?.items.length || actionPage > 0 || actions.error)
+    );
+  const incidentCount = overview.error
+    ? "Unavailable"
+    : (stats?.alerts.open ?? "…");
   return (
     <div
       className="factory-overview space-y-3"
@@ -298,208 +305,239 @@ function LegacyHome({ timezoneAction }: { timezoneAction?: ReactNode }) {
           </>
         }
       />
-      <div className="overview-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        {kpis.map((kpi) => (
+      <section className="overview-summary" aria-label="Factory summary">
+        <div className="overview-kpis">
+          {kpis.map((kpi) => (
+            <Link
+              key={kpi.title}
+              href={kpi.href}
+              title={kpi.description}
+              aria-label={`${kpi.title} ${kpi.value}`}
+              className="overview-kpi transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <kpi.icon
+                className="overview-kpi-icon size-4 shrink-0 text-info"
+                strokeWidth={1.5}
+                aria-hidden
+              />
+              <span className="min-w-0">
+                <span className="overview-kpi-label block text-xs text-muted-foreground">
+                  <span className="hidden sm:inline">{kpi.title}</span>
+                  <span className="sm:hidden">{kpi.shortTitle}</span>
+                </span>
+                <strong
+                  className={`overview-kpi-value block font-semibold tabular-nums ${String(kpi.value).length > 8 ? "overview-kpi-text" : ""}`}
+                >
+                  {kpi.value}
+                </strong>
+              </span>
+            </Link>
+          ))}
+        </div>
+        <div className="overview-incident-summary">
           <Link
-            key={kpi.title}
-            href={kpi.href}
-            title={kpi.description}
-            className="overview-kpi flex min-w-0 items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
+            href="/alerts?status=open"
+            className="overview-incident-count inline-flex items-center gap-2 text-xs focus-visible:outline-2 focus-visible:outline-ring"
           >
-            <kpi.icon
-              className="overview-kpi-icon size-7 shrink-0 text-info"
-              strokeWidth={1.5}
+            <span
+              className={`size-2 shrink-0 rounded-full ${overview.error ? "bg-muted-foreground" : stats?.alerts.critical ? "bg-destructive" : stats?.alerts.open ? "bg-warning" : "bg-info"}`}
               aria-hidden
             />
-            <span className="min-w-0">
-              <span className="overview-kpi-label block text-[11px] text-muted-foreground">
-                {kpi.title}
-              </span>
-              <strong
-                className={`overview-kpi-value mt-1 block font-semibold tabular-nums ${String(kpi.value).length > 8 ? "overview-kpi-text text-sm" : "text-2xl"}`}
-              >
-                {kpi.value}
-              </strong>
+            <span>
+              Open incidents{" "}
+              <strong className="tabular-nums">{incidentCount}</strong>
             </span>
+            <ArrowRight className="size-3" aria-hidden />
           </Link>
-        ))}
-      </div>
-      <div className="overview-main-grid grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.35fr)]">
-        <aside
-          aria-label="Factory status"
-          className="overview-status order-1 min-w-0 xl:order-2"
-        >
-          <Card
-            className={`overview-panel min-w-0 ${attentionEmpty ? "overview-attention-empty" : ""}`}
+          {attentionEmpty && (
+            <p className="text-xs text-muted-foreground">
+              No open process incidents.
+            </p>
+          )}
+        </div>
+      </section>
+      <div
+        className={`overview-main-grid grid min-w-0 items-start gap-3 ${showAttentionPanel ? "xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.35fr)]" : ""}`}
+      >
+        {showAttentionPanel && (
+          <aside
+            aria-label="Factory status"
+            className="overview-status order-1 min-w-0 xl:order-2"
           >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock3 className="size-4 text-info" aria-hidden />
-                Needs attention
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-1 flex-col">
-              {!incidentPrioritySupported ? (
-                <p className="text-xs text-muted-foreground">
-                  Priority view unavailable. Open alerts to review incidents.
-                </p>
-              ) : incidents.error ? (
-                <EmptyState error title="Incidents unavailable" />
-              ) : incidents.isLoading ? (
-                <p className="text-xs text-muted-foreground" role="status">
-                  Loading incidents…
-                </p>
-              ) : !incidents.data?.length ? (
-                <p className="overview-attention-message py-3 text-xs text-muted-foreground">
-                  No open process incidents.
-                </p>
-              ) : (
-                <ul
-                  className="space-y-2"
-                  aria-label="Incidents needing attention"
-                >
-                  {incidents.data.map((incident) => (
-                    <li key={incident.id}>
-                      <Link
-                        href={`/alerts/${incident.id}?return=${encodeURIComponent(location)}`}
-                        className="flex min-h-16 items-start gap-2 rounded-lg border p-2.5 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
-                      >
-                        <span
-                          className={`mt-1 size-2.5 shrink-0 rounded-full ${incident.severity === "critical" ? "bg-destructive" : incident.severity === "warning" ? "bg-warning" : "bg-info"}`}
-                          aria-hidden
-                        />
-                        <span className="min-w-0 flex-1">
-                          <strong className="line-clamp-2 block text-xs font-semibold">
-                            {incident.message}
-                          </strong>
-                          <span className="mt-1 block text-xs text-muted-foreground">
-                            {incident.deviceName ?? "Equipment unavailable"}
-                          </span>
-                          <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                            <span className="capitalize">
-                              {incident.severity}
-                            </span>{" "}
-                            ·{" "}
-                            <SampleTime
-                              value={incident.createdAt.toISOString()}
-                              historical
-                            />
-                          </span>
-                          <span className="mt-1 block text-[10px] text-muted-foreground">
-                            {incident.assignedToName ??
-                              (incident.assignedToId
-                                ? "Owner unavailable"
-                                : "Unassigned")}{" "}
-                            · Review {incident.status}
-                          </span>
-                        </span>
-                        <ChevronRight
-                          className="mt-0.5 size-3 shrink-0"
-                          aria-hidden
-                        />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <Link
-                href="/alerts?status=open"
-                className="overview-alerts-link mt-auto inline-flex min-h-8 items-center justify-end gap-1 pt-2 text-xs underline"
-              >
-                View alerts <ArrowRight className="size-3" aria-hidden />
-              </Link>
-            </CardContent>
-          </Card>
-          {actionsSupported &&
-          (actions.data?.items.length || actionPage > 0) ? (
-            <details className="mt-3 rounded-lg border bg-card p-3 text-xs">
-              <summary className="cursor-pointer font-medium">
-                Follow-up ·{" "}
-                {actionPage
-                  ? `page ${actionPage + 1}`
-                  : `${actions.data?.items.length ?? 0}${actions.data?.hasMore ? "+" : ""}`}
-              </summary>
-              {actions.isPlaceholderData ? (
-                <p role="status" className="mt-2 text-muted-foreground">
-                  Loading actions…
-                </p>
-              ) : (
-                !actions.error && (
+            <Card
+              className={`overview-panel min-w-0 ${attentionEmpty ? "overview-attention-empty" : ""}`}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock3 className="size-4 text-info" aria-hidden />
+                  Needs attention
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col">
+                {!incidentPrioritySupported ? (
+                  <p className="text-xs text-muted-foreground">
+                    Priority view unavailable. Open alerts to review incidents.
+                  </p>
+                ) : incidents.error ? (
+                  <EmptyState error title="Incidents unavailable" />
+                ) : incidents.isLoading ? (
+                  <p className="text-xs text-muted-foreground" role="status">
+                    Loading incidents…
+                  </p>
+                ) : !incidents.data?.length ? (
+                  <p className="overview-attention-message py-3 text-xs text-muted-foreground">
+                    {attentionEmpty
+                      ? "No open process incidents."
+                      : "No incident details in this response. Open alerts for the current queue."}
+                  </p>
+                ) : (
                   <ul
-                    className="mt-2 space-y-2"
-                    aria-label="Outstanding follow-up actions"
+                    className="space-y-2"
+                    aria-label="Incidents needing attention"
                   >
-                    {actions.data?.items.map((action) => (
-                      <li key={action.id}>
+                    {incidents.data.map((incident) => (
+                      <li key={incident.id}>
                         <Link
-                          href={`/alerts/${action.incidentId}?return=${encodeURIComponent(location)}`}
-                          className="block rounded-md border p-2 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
+                          href={`/alerts/${incident.id}?return=${encodeURIComponent(location)}`}
+                          className="flex min-h-16 items-start gap-2 rounded-lg border p-2.5 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
                         >
-                          <strong className="block">{action.title}</strong>
-                          <span className="mt-1 block text-muted-foreground">
-                            {action.deviceName ?? "Source unavailable"} ·{" "}
-                            {action.ownerName ?? "Owner unavailable"}
-                            {action.dueDate ? ` · Due ${action.dueDate}` : ""}
+                          <span
+                            className={`mt-1 size-2.5 shrink-0 rounded-full ${incident.severity === "critical" ? "bg-destructive" : incident.severity === "warning" ? "bg-warning" : "bg-info"}`}
+                            aria-hidden
+                          />
+                          <span className="min-w-0 flex-1">
+                            <strong className="line-clamp-2 block text-xs font-semibold">
+                              {incident.message}
+                            </strong>
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {incident.deviceName ?? "Equipment unavailable"}
+                            </span>
+                            <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                              <span className="capitalize">
+                                {incident.severity}
+                              </span>{" "}
+                              ·{" "}
+                              <SampleTime
+                                value={incident.createdAt.toISOString()}
+                                historical
+                              />
+                            </span>
+                            <span className="mt-1 block text-[10px] text-muted-foreground">
+                              {incident.assignedToName ??
+                                (incident.assignedToId
+                                  ? "Owner unavailable"
+                                  : "Unassigned")}{" "}
+                              · Review {incident.status}
+                            </span>
                           </span>
+                          <ChevronRight
+                            className="mt-0.5 size-3 shrink-0"
+                            aria-hidden
+                          />
                         </Link>
                       </li>
                     ))}
                   </ul>
-                )
-              )}
-              {actions.error && (
-                <p role="alert" className="mt-2">
-                  Actions unavailable.{" "}
-                  <button
-                    className="underline"
-                    onClick={() => void actions.refetch()}
-                  >
-                    Retry
-                  </button>
-                </p>
-              )}
-              {!actions.isFetching && !actions.data?.items.length && (
-                <p className="mt-2 text-muted-foreground">
-                  No actions on this page.
-                </p>
-              )}
-              {(actionPage > 0 || actions.data?.hasMore) && (
-                <div className="mt-2 flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={actions.isFetching || actionPage === 0}
-                    onClick={() => setActionPage((page) => page - 1)}
-                  >
-                    Previous actions
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={
-                      actions.isFetching ||
-                      !actions.data?.hasMore ||
-                      actionPage >= 100000
-                    }
-                    onClick={() => setActionPage((page) => page + 1)}
-                  >
-                    Next actions
-                  </Button>
-                </div>
-              )}
-            </details>
-          ) : actionsSupported && actions.error ? (
-            <p role="status" className="mt-3 text-xs text-muted-foreground">
-              Follow-up actions unavailable.{" "}
-              <button
-                className="underline"
-                onClick={() => void actions.refetch()}
-              >
-                Retry
-              </button>
-            </p>
-          ) : null}
-        </aside>
+                )}
+                <Link
+                  href="/alerts?status=open"
+                  className="overview-alerts-link mt-auto inline-flex min-h-8 items-center justify-end gap-1 pt-2 text-xs underline"
+                >
+                  View alerts <ArrowRight className="size-3" aria-hidden />
+                </Link>
+              </CardContent>
+            </Card>
+            {actionsSupported &&
+            (actions.data?.items.length || actionPage > 0) ? (
+              <details className="mt-3 rounded-lg border bg-card p-3 text-xs">
+                <summary className="cursor-pointer font-medium">
+                  Follow-up ·{" "}
+                  {actionPage
+                    ? `page ${actionPage + 1}`
+                    : `${actions.data?.items.length ?? 0}${actions.data?.hasMore ? "+" : ""}`}
+                </summary>
+                {actions.isPlaceholderData ? (
+                  <p role="status" className="mt-2 text-muted-foreground">
+                    Loading actions…
+                  </p>
+                ) : (
+                  !actions.error && (
+                    <ul
+                      className="mt-2 space-y-2"
+                      aria-label="Outstanding follow-up actions"
+                    >
+                      {actions.data?.items.map((action) => (
+                        <li key={action.id}>
+                          <Link
+                            href={`/alerts/${action.incidentId}?return=${encodeURIComponent(location)}`}
+                            className="block rounded-md border p-2 hover:border-info focus-visible:outline-2 focus-visible:outline-ring"
+                          >
+                            <strong className="block">{action.title}</strong>
+                            <span className="mt-1 block text-muted-foreground">
+                              {action.deviceName ?? "Source unavailable"} ·{" "}
+                              {action.ownerName ?? "Owner unavailable"}
+                              {action.dueDate ? ` · Due ${action.dueDate}` : ""}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                )}
+                {actions.error && (
+                  <p role="alert" className="mt-2">
+                    Actions unavailable.{" "}
+                    <button
+                      className="underline"
+                      onClick={() => void actions.refetch()}
+                    >
+                      Retry
+                    </button>
+                  </p>
+                )}
+                {!actions.isFetching && !actions.data?.items.length && (
+                  <p className="mt-2 text-muted-foreground">
+                    No actions on this page.
+                  </p>
+                )}
+                {(actionPage > 0 || actions.data?.hasMore) && (
+                  <div className="mt-2 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={actions.isFetching || actionPage === 0}
+                      onClick={() => setActionPage((page) => page - 1)}
+                    >
+                      Previous actions
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        actions.isFetching ||
+                        !actions.data?.hasMore ||
+                        actionPage >= 100000
+                      }
+                      onClick={() => setActionPage((page) => page + 1)}
+                    >
+                      Next actions
+                    </Button>
+                  </div>
+                )}
+              </details>
+            ) : actionsSupported && actions.error ? (
+              <p role="status" className="mt-3 text-xs text-muted-foreground">
+                Follow-up actions unavailable.{" "}
+                <button
+                  className="underline"
+                  onClick={() => void actions.refetch()}
+                >
+                  Retry
+                </button>
+              </p>
+            ) : null}
+          </aside>
+        )}
         <div className="order-2 min-w-0 xl:order-1">
           {floor.isLoading ? (
             <div className="flex h-[28rem] items-center justify-center rounded-lg border bg-card">
@@ -541,11 +579,37 @@ function LegacyHome({ timezoneAction }: { timezoneAction?: ReactNode }) {
       <OperationsWorkspace compact />
       <div className="overview-bottom-grid grid min-w-0 items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,2.15fr)_minmax(14rem,1fr)_minmax(13rem,.9fr)]">
         <div className="overview-telemetry min-w-0 lg:col-span-2 xl:col-span-1">
-          {assetIds.length > 0 && assetIds.length <= 1000 ? (
+          {observations.value ? (
             <ObservationTrend
               dashboard
               title="Factory observations"
-              assetIds={assetIds}
+              {...observations.input}
+              sourceLabel={`Source: ${observations.label}${observations.source ? "" : " · asset observations only"}`}
+              sourceControl={
+                <label className="overview-observation-source flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                  <span className="shrink-0">Source</span>
+                  <select
+                    aria-label="Overview observation source"
+                    className="workspace-control min-w-0 w-full"
+                    value={observations.selection}
+                    onChange={(event) =>
+                      update({ observationSource: event.target.value })
+                    }
+                  >
+                    <option value="auto">Choose automatically</option>
+                    {observations.aggregateAvailable && (
+                      <option value={ALL_ASSET_OBSERVATIONS}>
+                        All registered assets
+                      </option>
+                    )}
+                    {observations.sources.map((source) => (
+                      <option key={source.ref} value={source.ref}>
+                        {source.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              }
               metric={metric}
               onMetricChange={(value) => update({ metric: value })}
               scope={demo ? "simulated" : "operational"}
@@ -562,7 +626,7 @@ function LegacyHome({ timezoneAction }: { timezoneAction?: ReactNode }) {
               <CardContent>
                 <EmptyState
                   title={
-                    assetIds.length > 1000
+                    observations.assetIds.length > 1000
                       ? "Select a zone in Analytics for detailed comparisons"
                       : "No factory observations yet"
                   }

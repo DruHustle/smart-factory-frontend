@@ -20,6 +20,24 @@ export function FactoryAttention({ factoryId }: { factoryId: string }) {
     },
   );
   if (!supported) return null;
+  if (query.data?.length === 0 && !query.error) {
+    return (
+      <aside
+        className="factory-attention-empty rounded-lg border bg-card px-3 py-2 text-xs"
+        aria-label="Factory needs attention"
+      >
+        <p className="text-muted-foreground">
+          No open incidents recorded for this factory.
+        </p>
+        <Link
+          className="inline-flex min-h-11 items-center gap-1 text-primary underline"
+          href={`/alerts?status=open&factory=${encodeURIComponent(factoryId)}`}
+        >
+          View incidents <ArrowRight className="size-3" aria-hidden />
+        </Link>
+      </aside>
+    );
+  }
   return (
     <aside
       className="min-w-0 space-y-3 rounded-lg border bg-card p-4"

@@ -31,12 +31,15 @@ async function workspaceFixture(
     buttonCount?: number;
     wroverHealthy?: boolean;
     summary?: "populated" | "error";
+    notificationsError?: boolean;
+    notificationUnread?: number;
     attention?: boolean;
     olderApi?: boolean;
     viewer?: boolean;
     actions?: boolean;
     actionsError?: boolean;
     incidentPage?: boolean;
+    directDeviceObservation?: boolean;
   } = { floor: "normal" },
 ) {
   let signedIn = true;
@@ -110,6 +113,25 @@ async function workspaceFixture(
         firmware: null,
       };
     });
+    if (control.directDeviceObservation) {
+      items[12] = {
+        ...items[12],
+        name: "Direct WROVER temperature sensor",
+        status: "live",
+        sampleAt: Date.now() - 1000,
+        values: { temperature: 21.5 },
+        measurements: {
+          temperature: {
+            sourceValue: 21.5,
+            sourceUnit: "°C",
+            canonicalValue: 21.5,
+            canonicalUnit: "°C",
+            conversionVersion: "sf-units-v1",
+            quality: "good",
+          },
+        },
+      };
+    }
     const groups = [
       { kind: "asset", itemType: "pump", equipment: true, count: 2 },
       { kind: "asset", itemType: "pump", equipment: false, count: 3 },
@@ -138,8 +160,11 @@ async function workspaceFixture(
           }),
         };
       if (
-        control.summary === "error" &&
-        ["analytics.getOverview", "notifications.summary"].includes(procedure)
+        (control.summary === "error" &&
+          ["analytics.getOverview", "notifications.summary"].includes(
+            procedure,
+          )) ||
+        (control.notificationsError && procedure === "notifications.summary")
       )
         return {
           error: superjson.serialize({
@@ -196,7 +221,11 @@ async function workspaceFixture(
           value = { enabled: true, requiresApproval: true };
           break;
         case "notifications.summary":
-          value = { unread: control.summary === "populated" ? 3 : 0 };
+          value = {
+            unread:
+              control.notificationUnread ??
+              (control.summary === "populated" ? 3 : 0),
+          };
           break;
         case "notifications.page":
           value = {
@@ -299,33 +328,44 @@ async function workspaceFixture(
           value =
             !demo && control.wroverHealthy && input.scope === undefined
               ? {
-                  deviceId: 13, timestamp: Date.now(), createdAt: new Date(),
-                  assetSignals: { buttonPressed: 0, buttonPressCount: 31 },
-                  integration: { mode: "live", acquisition: { sensorStatus: "ok" } },
-                }
-            : !demo && input.scope === "unknown" && control.telemetry
-              ? {
                   deviceId: 13,
                   timestamp: Date.now(),
                   createdAt: new Date(),
-                  temperature: 20.7,
-                  assetSignals: control.buttonCount === undefined ? undefined : { buttonPressed: 0, buttonPressCount: control.buttonCount },
-                  measurements: {
-                    temperature: {
-                      sourceValue: 20.7,
-                      sourceUnit: null,
-                      canonicalValue: null,
-                      canonicalUnit: null,
-                      conversionVersion: null,
-                      quality: "unknown",
-                    },
-                  },
+                  assetSignals: { buttonPressed: 0, buttonPressCount: 31 },
                   integration: {
-                    mode: "unknown",
-                    evidence: { eligible: false, reason: "not_commissioned" },
+                    mode: "live",
+                    acquisition: { sensorStatus: "ok" },
                   },
                 }
-              : null;
+              : !demo && input.scope === "unknown" && control.telemetry
+                ? {
+                    deviceId: 13,
+                    timestamp: Date.now(),
+                    createdAt: new Date(),
+                    temperature: 20.7,
+                    assetSignals:
+                      control.buttonCount === undefined
+                        ? undefined
+                        : {
+                            buttonPressed: 0,
+                            buttonPressCount: control.buttonCount,
+                          },
+                    measurements: {
+                      temperature: {
+                        sourceValue: 20.7,
+                        sourceUnit: null,
+                        canonicalValue: null,
+                        canonicalUnit: null,
+                        conversionVersion: null,
+                        quality: "unknown",
+                      },
+                    },
+                    integration: {
+                      mode: "unknown",
+                      evidence: { eligible: false, reason: "not_commissioned" },
+                    },
+                  }
+                : null;
           break;
         case "export.deviceReport":
           value = {
@@ -334,7 +374,11 @@ async function workspaceFixture(
           };
           break;
         case "devices.pulseIndicator":
-          value = { published: true, commandId: "test-command", physicalStateConfirmed: false };
+          value = {
+            published: true,
+            commandId: "test-command",
+            physicalStateConfirmed: false,
+          };
           break;
         case "system.infrastructure":
           value = demoInfrastructure();
@@ -412,15 +456,30 @@ async function workspaceFixture(
           break;
         case "alerts.page":
           value = {
-            items: control.incidentPage ? [{
-              id: 1, message: "First-page incident", severity: "warning",
-              status: "active", currentCondition: "unknown", acknowledged: false,
-              createdAt: new Date("2026-10-31T12:00:00Z"), deviceName: "Fixture source",
-            }] : [],
+            items: control.incidentPage
+              ? [
+                  {
+                    id: 1,
+                    message: "First-page incident",
+                    severity: "warning",
+                    status: "active",
+                    currentCondition: "unknown",
+                    acknowledged: false,
+                    createdAt: new Date("2026-10-31T12:00:00Z"),
+                    deviceName: "Fixture source",
+                  },
+                ]
+              : [],
             total: control.incidentPage ? 26 : 0,
             returned: control.incidentPage ? 1 : 0,
             hasMore: !!control.incidentPage,
-            summary: { total: control.incidentPage ? 26 : 0, critical: 0, warning: 1, info: 0, resolved: 0 },
+            summary: {
+              total: control.incidentPage ? 26 : 0,
+              critical: 0,
+              warning: 1,
+              info: 0,
+              resolved: 0,
+            },
           };
           break;
         case "alerts.list":
@@ -702,6 +761,110 @@ async function workspaceFixture(
   return requests;
 }
 
+test("Overview selects direct device observations and keeps the assistant on the same source", async ({
+  page,
+}) => {
+  const requests = await workspaceFixture(page, false, {
+    floor: "normal",
+    directDeviceObservation: true,
+  });
+  await page.goto("/#/");
+  const source = page.getByLabel("Overview observation source", {
+    exact: true,
+  });
+  await expect(source).toHaveValue("auto");
+  const chart = page.getByRole("region", {
+    name: "Factory observations",
+    exact: true,
+  });
+  await expect(chart).toContainText("Source: Direct WROVER temperature sensor");
+  await expect
+    .poll(
+      () =>
+        requests.filter((r) => r.procedure === "readings.trend").at(-1)?.input
+          .deviceId,
+    )
+    .toBe(13);
+  const input = requests
+    .filter((r) => r.procedure === "readings.trend")
+    .at(-1)!.input;
+  // SuperJSON's wire placeholder for an absent optional field can be null.
+  expect(input.assetIds ?? null).toBeNull();
+  expect(input.scope).toBe("operational");
+  await expect(
+    chart.getByRole("link", { name: "Ask about this window", exact: true }),
+  ).toHaveAttribute("href", /device=13&metric=temperature/);
+  await source.selectOption("asset:1");
+  await expect(source).toHaveValue("asset:1");
+  await expect
+    .poll(
+      () =>
+        requests.filter((r) => r.procedure === "readings.trend").at(-1)?.input
+          .assetIds,
+    )
+    .toEqual(["live-source-1"]);
+  expect(
+    requests.filter((r) => r.procedure === "readings.trend").at(-1)?.input
+      .deviceId ?? null,
+  ).toBeNull();
+  await expect(
+    chart.getByRole("link", { name: "Ask about this window", exact: true }),
+  ).toHaveAttribute("href", /asset=live-source-1&metric=temperature/);
+  await page.reload();
+  await expect(source).toHaveValue("asset:1");
+});
+
+test("Overview advances live observation windows but preserves an explicitly pinned window", async ({
+  page,
+}) => {
+  const now = new Date("2026-11-03T12:00:00Z");
+  await page.clock.install({ time: now });
+  const requests = await workspaceFixture(page, false, {
+    floor: "normal",
+    directDeviceObservation: true,
+  });
+  await page.goto("/#/");
+  await expect(page.getByLabel("Overview observation source")).toHaveValue(
+    "auto",
+  );
+  await expect
+    .poll(() => requests.filter((r) => r.procedure === "readings.trend").length)
+    .toBeGreaterThan(0);
+  const before = requests
+    .filter((r) => r.procedure === "readings.trend")
+    .at(-1)!.input.endTime;
+  await page.clock.fastForward(60001);
+  await expect
+    .poll(
+      () =>
+        requests.filter((r) => r.procedure === "readings.trend").at(-1)?.input
+          .endTime,
+    )
+    .toBeGreaterThan(before);
+  await page.goto(`/#/?at=${now.getTime()}`);
+  await expect(page.getByLabel("Overview observation source")).toHaveValue(
+    "auto",
+  );
+  await expect
+    .poll(
+      () =>
+        requests.filter((r) => r.procedure === "readings.trend").at(-1)?.input
+          .endTime,
+    )
+    .toBe(now.getTime());
+  const pinnedRequests = requests.filter(
+    (r) => r.procedure === "readings.trend",
+  ).length;
+  await page.clock.fastForward(60001);
+  await expect(page.getByLabel("Factory summary")).toBeVisible();
+  expect(
+    requests
+      .filter((r) => r.procedure === "readings.trend")
+      .slice(pinnedRequests)
+      .every((r) => r.input.endTime === now.getTime()),
+  ).toBe(true);
+});
+
 test("engineers can change the shared factory timezone without commissioning shifts", async ({ page }) => {
   const requests = await workspaceFixture(page);
   await page.goto("/#/");
@@ -725,6 +888,11 @@ test("engineers can change the shared factory timezone without commissioning shi
   await expect(chart.getByRole("columnheader", { name: "Time (Europe/Berlin)" })).toBeVisible();
   expect(requests.filter((request) => request.procedure === "operations.setTimeZone")).toHaveLength(1);
   expect(requests.find((request) => request.procedure === "operations.setTimeZone")?.input).toMatchObject({ expectedVersion: 0, expectedTimeZone: "UTC", timeZone: "Europe/Berlin" });
+  await page.goto("/#/inventory/device%3A13/telemetry");
+  const telemetry = page.getByRole("region", { name: "WROVER sensor observations" });
+  await telemetry.getByText("Accessible bucket table").click();
+  await expect(telemetry.getByRole("columnheader", { name: "Time (Europe/Berlin)" })).toBeVisible();
+  await page.goto("/#/");
   await page.setViewportSize({ width: 320, height: 900 });
   await page.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" }).click();
   await dialog.getByLabel("Site timezone").fill("America/Argentina/Buenos_Aires");
@@ -936,14 +1104,30 @@ for (const width of [390, 1440]) {
       )?.value,
     ).toBe("live");
     await expect
-      .poll(
-        () => requests.filter((r) => r.procedure === "readings.trend").length,
+      .poll(() =>
+        [
+          ...new Set(
+            requests
+              .filter((r) => r.procedure === "readings.trend")
+              .map((r) => r.input.scope),
+          ),
+        ].sort(),
       )
-      .toBeGreaterThan(0);
+      .toEqual(["operational", "simulated"]);
     for (const request of requests.filter(
       (r) => r.procedure === "readings.trend",
-    ))
-      expect(request.input.assetIds).toHaveLength(6);
+    )) {
+      const prefix = request.input.scope === "simulated" ? "demo" : "live";
+      // This fixture has five assets and one static, unobserved 3D model.
+      expect(request.input.assetIds).toEqual([
+        `${prefix}-source-1`,
+        `${prefix}-source-2`,
+        `${prefix}-source-3`,
+        `${prefix}-source-4`,
+        `${prefix}-source-5`,
+      ]);
+      expect(request.input.deviceId ?? null).toBeNull();
+    }
     expect(
       requests.filter((r) => /equipment\.(get|workspace)/.test(r.procedure)),
     ).toEqual([]);
@@ -1306,7 +1490,7 @@ for (const width of [390, 1440])
       });
     });
 
-test("Overview design keeps factory, status and summaries in the desktop composition and restricts live infrastructure", async ({
+test("Overview gives the floor full width when no attention is needed and restricts live infrastructure", async ({
   page,
 }) => {
   const requests = await workspaceFixture(page);
@@ -1318,21 +1502,16 @@ test("Overview design keeps factory, status and summaries in the desktop composi
     exact: true,
   });
   await expect(floor).toHaveAttribute("data-visible-items", "57");
-  await expect(
-    status.getByRole("heading", { name: "Needs attention", exact: true }),
-  ).toBeVisible();
-  const floorBounds = await floor.boundingBox(),
-    floorPanelBounds = await page
-      .locator(".overview-main-grid > div")
-      .boundingBox(),
-    statusBounds = await status.boundingBox();
-  expect(floorBounds).not.toBeNull();
-  expect(floorPanelBounds).not.toBeNull();
-  expect(floorBounds!.width).toBeGreaterThan(700);
-  expect(statusBounds!.x).toBeGreaterThanOrEqual(
-    floorBounds!.x + floorBounds!.width,
+  await expect(status).toHaveCount(0);
+  await expect(page.getByLabel("Factory summary")).toContainText(
+    "No open process incidents.",
   );
-  expect(Math.abs(statusBounds!.y - floorPanelBounds!.y)).toBeLessThan(2);
+  const floorBounds = await floor.boundingBox(),
+    mainBounds = await page.locator(".overview-main-grid").boundingBox();
+  expect(floorBounds).not.toBeNull();
+  expect(mainBounds).not.toBeNull();
+  // The viewport fills its floor card inside the two one-pixel side borders.
+  expect(Math.abs(floorBounds!.width - mainBounds!.width)).toBeLessThanOrEqual(2);
   await expect(
     page.locator(".overview-kpis").getByRole("link", { name: /Needs review/ }),
   ).toBeVisible();
@@ -1528,14 +1707,14 @@ for (const width of [390, 1440]) {
 }
 
 for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
-  test(`Overview keeps compact controls and complete KPI rows at ${width}px`, async ({
+  test(`Overview keeps one equipment strip and compact controls at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 960 });
     await workspaceFixture(page);
     await page.goto("/#/");
     const cards = page.locator(".overview-kpi");
-    await expect(cards).toHaveCount(6);
+    await expect(cards).toHaveCount(4);
     const grid = await page.locator(".overview-kpis").boundingBox();
     const last = await cards.last().boundingBox();
     expect(grid).toBeTruthy();
@@ -1552,9 +1731,8 @@ for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
         ),
       ),
     ]);
-    expect(cardRows).toHaveLength(width < 360 ? 3 : width < 1280 ? 2 : 1);
-    if (width >= 360 && width < 768)
-      expect(grid!.height).toBeLessThanOrEqual(184);
+    expect(cardRows).toHaveLength(1);
+    if (width < 768) expect(grid!.height).toBeLessThanOrEqual(64);
     expect(
       await cards.evaluateAll((elements) =>
         elements.every((element) => element.scrollWidth <= element.clientWidth),
@@ -1583,18 +1761,23 @@ for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
           ),
         ).toBe("16px");
       }
-      const emptyAttention = page.locator(".overview-attention-empty");
-      await expect(emptyAttention).toContainText("No open process incidents.");
-      expect((await emptyAttention.boundingBox())!.height).toBeLessThanOrEqual(
-        100,
-      );
+      const incidentSummary = page.locator(".overview-incident-summary");
+      await expect(incidentSummary).toContainText("No open process incidents.");
       expect(
-        (await emptyAttention
-          .getByRole("link", { name: "View alerts" })
+        (await page.getByLabel("Factory summary").boundingBox())!.height,
+      ).toBeLessThanOrEqual(140);
+      expect(
+        (await incidentSummary
+          .getByRole("link", { name: /Open incidents/ })
           .boundingBox())!.height,
       ).toBeGreaterThanOrEqual(44);
+      await expect(
+        page.getByLabel("Factory status", { exact: true }),
+      ).toHaveCount(0);
       const operations = page.getByTestId("ot-operations");
-      const timezoneButton = page.getByRole("button", { name: "Change factory timezone, current UTC" });
+      const timezoneButton = page.getByRole("button", {
+        name: "Change factory timezone, current UTC",
+      });
       const timezoneBox = await timezoneButton.boundingBox();
       expect(timezoneBox).toBeTruthy();
       expect(timezoneBox!.height).toBeGreaterThanOrEqual(44);
@@ -1619,7 +1802,9 @@ for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
       await expect(setupDetails).not.toHaveAttribute("open");
       await setupDetails.locator("summary").focus();
       await setupDetails.locator("summary").press("Enter");
-      await expect(setupDetails).toContainText("Shift defaults are provisional.");
+      await expect(setupDetails).toContainText(
+        "Shift defaults are provisional.",
+      );
       await expect(setupDetails).toHaveAttribute("open", "");
       const configure = operations.getByRole("button", {
         name: "Configure operations",
@@ -1946,7 +2131,7 @@ test("commissioned WROVER control sends the bounded output request without claim
   expect(requests.filter((request) => request.procedure === "devices.pulseIndicator").map((request) => request.input)).toEqual([{ id: 13 }]);
 });
 
-test("Overview prioritizes connectivity, review, incidents and unread notifications", async ({
+test("Overview groups connectivity and review, with incidents in the strip and unread notifications in the header", async ({
   page,
 }) => {
   const requests = await workspaceFixture(page, false, {
@@ -1959,9 +2144,12 @@ test("Overview prioritizes connectivity, review, incidents and unread notificati
   const online = cards.getByRole("link", { name: /^Online\s+7$/ });
   const offline = cards.getByRole("link", { name: /^Offline\s+4$/ });
   const review = cards.getByRole("link", { name: /^Needs review\s+40$/ });
-  const incidents = cards.getByRole("link", { name: /^Open incidents\s+5$/ });
-  const notices = cards.getByRole("link", {
-    name: /^Unread notifications\s+3$/,
+  const incidents = page
+    .getByLabel("Factory summary")
+    .getByRole("link", { name: /^Open incidents\s+5$/ });
+  const notices = page.getByRole("link", {
+    name: "Notifications and history, 3 unread",
+    exact: true,
   });
   await expect(online).toHaveAttribute("href", "#/monitoring?status=live");
   await expect(offline).toHaveAttribute("href", "#/monitoring?status=offline");
@@ -1970,7 +2158,7 @@ test("Overview prioritizes connectivity, review, incidents and unread notificati
     "Unknown, stale, maintenance or error status",
   );
   await expect(incidents).toHaveAttribute("href", "#/alerts?status=open");
-  await expect(notices).toHaveAttribute("href", "#/notifications?view=unread");
+  await expect(notices).toHaveAttribute("href", "#/notifications");
   await online.click();
   await expect
     .poll(() =>
@@ -1994,17 +2182,62 @@ test("Overview prioritizes connectivity, review, incidents and unread notificati
     .toBe(true);
   await page.goto("/#/");
   await page
-    .locator(".overview-kpis")
-    .getByRole("link", { name: /^Unread notifications\s+3$/ })
+    .getByRole("link", {
+      name: "Notifications and history, 3 unread",
+      exact: true,
+    })
     .click();
   await expect
     .poll(() =>
       requests.some(
         (r) =>
-          r.procedure === "notifications.page" && r.input.view === "unread",
+          r.procedure === "notifications.page" && r.input.view === "all",
       ),
     )
     .toBe(true);
+});
+
+test("The notification badge reports a failed cached refetch and recovers the current unread count", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const control: NonNullable<Parameters<typeof workspaceFixture>[2]> = {
+    floor: "normal",
+    summary: "populated",
+  };
+  await workspaceFixture(page, false, control);
+  await page.goto("/#/");
+  const bell = page.locator("header").getByRole("link", {
+    name: /Notifications and history/,
+  });
+  await expect(bell).toHaveAttribute(
+    "aria-label",
+    "Notifications and history, 3 unread",
+  );
+  await expect(bell.getByText("3", { exact: true })).toBeVisible();
+
+  control.notificationsError = true;
+  await page.clock.fastForward(30001);
+  // Advance retry backoff as well as the polling interval; the prior successful
+  // result stays cached, which a first-load error cannot exercise.
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(1000);
+      return bell.getAttribute("aria-label");
+    })
+    .toBe("Notifications and history, unread count unavailable");
+  await expect(bell.getByText("3", { exact: true })).toHaveCount(0);
+  await expect(bell.getByText("?", { exact: true })).toBeVisible();
+
+  control.notificationsError = false;
+  control.notificationUnread = 120;
+  await page.clock.fastForward(30001);
+  await expect(bell).toHaveAttribute(
+    "aria-label",
+    "Notifications and history, 120 unread",
+  );
+  await expect(bell.getByText("99+", { exact: true })).toBeVisible();
+  await expect(bell.getByText("?", { exact: true })).toHaveCount(0);
 });
 
 test("Overview requests severity priority and puts attention before the floor on mobile", async ({
@@ -2055,7 +2288,10 @@ test("Overview reports unavailable summaries instead of false zero counts", asyn
     cards.getByRole("link", { name: /^Offline\s+Unavailable$/ }),
   ).toBeVisible();
   await expect(
-    cards.getByRole("link", { name: /^Unread notifications\s+Unavailable$/ }),
+    page.getByRole("link", {
+      name: "Notifications and history, unread count unavailable",
+      exact: true,
+    }),
   ).toBeVisible();
   expect(
     await cards
