@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useRuntimeCapability } from "@/components/RuntimeBoundary";
 import { assistantInvestigationHref } from "@shared/assistant-investigation";
 import { useFactorySelection } from "@/lib/factory-selection";
+import { useDashboardTimeZone } from "./DashboardTimeZone";
 export type TrendScope =
   | "operational"
   | "live"
@@ -61,6 +62,8 @@ export function ObservationTrend({
   threshold?: { value: number; unit: string; label: string };
 }) {
   const { user } = useAuth();
+  const dashboardTimeZone = useDashboardTimeZone();
+  const timeZone = dashboard ? (dashboardTimeZone ?? "UTC") : "UTC";
   const investigationSupported = useRuntimeCapability(
     "ot-investigation-context-v1",
   );
@@ -110,7 +113,7 @@ export function ObservationTrend({
     new Date(at).toLocaleTimeString(undefined, {
       hour: "2-digit",
       minute: "2-digit",
-      timeZone: "UTC",
+      timeZone,
     });
   const exportCsv = () => {
     if (!data) return;
@@ -263,8 +266,8 @@ export function ObservationTrend({
       {recordedEnd && !endTime && (
         <p className="text-xs text-muted-foreground">
           Recorded simulation window ending{" "}
-          {new Date(recordedEnd).toLocaleString()}. Current physical
-          connectivity is not inferred.
+          {new Date(recordedEnd).toLocaleString(undefined, { timeZone })}.
+          Current physical connectivity is not inferred.
         </p>
       )}
       {!snapshot && query.isLoading ? (
@@ -296,20 +299,20 @@ export function ObservationTrend({
               {compact ? (
                 <>
                   {new Date(input.startTime).toLocaleDateString(undefined, {
-                    timeZone: "UTC",
+                    timeZone,
                   })}{" "}
-                  · {time(input.startTime)}–{time(input.endTime)} UTC
+                  · {time(input.startTime)}–{time(input.endTime)} {timeZone}
                 </>
               ) : (
                 <>
                   {new Date(input.startTime).toLocaleString(undefined, {
-                    timeZone: "UTC",
+                    timeZone,
                   })}{" "}
                   –{" "}
                   {new Date(input.endTime).toLocaleString(undefined, {
-                    timeZone: "UTC",
+                    timeZone,
                   })}{" "}
-                  UTC
+                  {timeZone}
                 </>
               )}{" "}
               · {scope} · {Math.round(data.intervalMs / 1000)} second averages ·{" "}
@@ -367,8 +370,8 @@ export function ObservationTrend({
                   <Tooltip
                     labelFormatter={(v) =>
                       new Date(Number(v)).toLocaleString(undefined, {
-                        timeZone: "UTC",
-                      }) + " UTC"
+                        timeZone,
+                      }) + ` ${timeZone}`
                     }
                     formatter={(v) => [
                       `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${data.unit}`,
@@ -457,12 +460,12 @@ export function ObservationTrend({
             <div className="mt-3 max-h-72 overflow-auto">
               <table className="w-full text-left text-sm">
                 <caption className="sr-only">
-                  All displayed buckets, in UTC; missing values remain
+                  All displayed buckets, in {timeZone}; missing values remain
                   unavailable.
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col">Time (UTC)</th>
+                    <th scope="col">Time ({timeZone})</th>
                     <th scope="col">Average ({data.unit})</th>
                     <th scope="col">Verified samples</th>
                   </tr>
@@ -471,7 +474,11 @@ export function ObservationTrend({
                   {data.buckets.map((b) => (
                     <tr className="border-t" key={b.timestamp}>
                       <td className="py-2">
-                        {new Date(b.timestamp).toISOString()}
+                        {dashboard
+                          ? new Date(b.timestamp).toLocaleString(undefined, {
+                              timeZone,
+                            })
+                          : new Date(b.timestamp).toISOString()}
                       </td>
                       <td>
                         {b.value == null

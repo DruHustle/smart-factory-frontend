@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useDashboardTimeZone } from "./DashboardTimeZone";
 export function PageHeader({
   title,
   description,
@@ -137,6 +138,7 @@ export function SampleTime({
   value?: string | number | null;
   historical?: boolean;
 }) {
+  const timeZone = useDashboardTimeZone();
   if (value == null)
     return <span className="text-muted-foreground">No observations</span>;
   const d = new Date(value);
@@ -150,7 +152,7 @@ export function SampleTime({
         : age < 86400000
           ? `${Math.floor(age / 3600000)} hr ago`
           : `${Math.floor(age / 86400000)} days ago`;
-  const full = d.toLocaleString(undefined, { timeZoneName: "long" });
+  const full = d.toLocaleString(undefined, { timeZone, timeZoneName: "long" });
   return (
     <time
       dateTime={d.toISOString()}

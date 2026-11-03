@@ -40,6 +40,7 @@ async function workspaceFixture(
   } = { floor: "normal" },
 ) {
   let signedIn = true;
+  let siteTimezone = "UTC";
   const requests: { procedure: string; input: any }[] = [];
   await page.route("**/api/runtime/contract", (route) =>
     route.fulfill({
@@ -356,6 +357,7 @@ async function workspaceFixture(
           const configuration = {
             ...defaultOperationsConfiguration,
             boundaryLabel: "Synthetic fixture installation",
+            timeZone: siteTimezone,
           };
           const shift = resolveShift(configuration, input.at ?? fixtureAt);
           const startTime = input.startTime ?? shift.startTime;
@@ -384,6 +386,10 @@ async function workspaceFixture(
           } satisfies OperationsSummary;
           break;
         }
+        case "operations.setTimeZone":
+          siteTimezone = input.timeZone;
+          value = { version: 0 };
+          break;
         case "analytics.getOverview":
           value = {
             devices: {
@@ -695,6 +701,30 @@ async function workspaceFixture(
   });
   return requests;
 }
+
+test("engineers can change the shared factory timezone without commissioning shifts", async ({ page }) => {
+  const requests = await workspaceFixture(page);
+  await page.goto("/#/");
+  const panel = page.getByTestId("ot-operations");
+  await panel.getByRole("button", { name: "Change factory timezone, current UTC" }).click();
+  const dialog = page.getByRole("dialog", { name: "Factory timezone" });
+  await expect(dialog).toContainText("changes shift boundaries");
+  const field = dialog.getByLabel("Site timezone");
+  await field.fill("Not/A_Timezone");
+  await dialog.getByRole("button", { name: "Save timezone" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("valid IANA timezone");
+  await field.fill("Europe/Berlin");
+  await dialog.getByRole("button", { name: "Save timezone" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(panel.getByRole("button", { name: "Change factory timezone, current Europe/Berlin" })).toBeVisible();
+  await expect(panel).toContainText("Production boundary and shifts are not configured.");
+  const chart = page.getByRole("region", { name: "Factory observations" });
+  await expect(chart.locator(".overview-trend-plot")).toContainText("Europe/Berlin");
+  await chart.getByText("Accessible bucket table").click();
+  await expect(chart.getByRole("columnheader", { name: "Time (Europe/Berlin)" })).toBeVisible();
+  expect(requests.filter((request) => request.procedure === "operations.setTimeZone")).toHaveLength(1);
+  expect(requests.find((request) => request.procedure === "operations.setTimeZone")?.input).toMatchObject({ expectedVersion: 0, expectedTimeZone: "UTC", timeZone: "Europe/Berlin" });
+});
 
 test("Data workspace stays consistent across two open tabs in both directions", async ({
   page,
@@ -1554,6 +1584,12 @@ for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
           .boundingBox())!.height,
       ).toBeGreaterThanOrEqual(44);
       const operations = page.getByTestId("ot-operations");
+      const timezoneButton = operations.getByRole("button", { name: "Change factory timezone, current UTC" });
+      const timezoneBox = await timezoneButton.boundingBox();
+      expect(timezoneBox).toBeTruthy();
+      expect(timezoneBox!.height).toBeGreaterThanOrEqual(44);
+      expect(timezoneBox!.width).toBeGreaterThanOrEqual(44);
+      expect(timezoneBox!.x + timezoneBox!.width).toBeLessThanOrEqual(width);
       const metrics = operations.locator(".operations-metrics > button");
       await expect(metrics).toHaveCount(4);
       const metricRows = await metrics.evaluateAll((elements) => [
@@ -1573,7 +1609,7 @@ for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
       await expect(setupDetails).not.toHaveAttribute("open");
       await setupDetails.locator("summary").focus();
       await setupDetails.locator("summary").press("Enter");
-      await expect(setupDetails).toContainText("UTC defaults are provisional.");
+      await expect(setupDetails).toContainText("Shift defaults are provisional.");
       await expect(setupDetails).toHaveAttribute("open", "");
       const configure = operations.getByRole("button", {
         name: "Configure operations",

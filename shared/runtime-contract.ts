@@ -36,6 +36,7 @@ export const optionalCapabilities = [
   "ot-follow-up-actions-v1",
   "ot-alarm-conditions-v1",
   "ot-operations-v1",
+  "ot-site-timezone-v1",
   "ot-investigation-context-v1",
 ] as const;
 export type RuntimeContract = {

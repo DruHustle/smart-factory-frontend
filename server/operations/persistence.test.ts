@@ -54,6 +54,7 @@ describe("operations access boundaries", () => {
       includeDemo: false,
     });
     vi.spyOn(store, "configureOperations").mockResolvedValue({ version: 1 });
+    vi.spyOn(store, "setOperationsTimeZone").mockResolvedValue({ version: 0 });
     vi.spyOn(store, "addHandover").mockResolvedValue({
       id: 1,
       shiftKey: "day:2026-11-02T04:00:00Z",
@@ -61,6 +62,18 @@ describe("operations access boundaries", () => {
   });
   afterEach(() => vi.restoreAllMocks());
   it("limits configuration to engineers and handover to operators", async () => {
+    const timezone = {
+      expectedVersion: 0,
+      expectedTimeZone: "UTC",
+      timeZone: "Europe/Berlin",
+    };
+    await expect(
+      caller("viewer").operations.setTimeZone(timezone),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      caller("operator").operations.setTimeZone(timezone),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await caller("engineer").operations.setTimeZone(timezone);
     await expect(
       caller("viewer").operations.configure({
         expectedVersion: 0,
@@ -92,6 +105,14 @@ describe("operations access boundaries", () => {
     expect(store.addHandover).toHaveBeenCalledTimes(1);
   });
   it("blocks all shared-demo writes even for an administrator identity", async () => {
+    await expect(
+      caller("admin", true).operations.setTimeZone({
+        expectedVersion: 0,
+        expectedTimeZone: "UTC",
+        timeZone: "Europe/Berlin",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(store.setOperationsTimeZone).not.toHaveBeenCalled();
     await expect(
       caller("admin", true).operations.configure({
         expectedVersion: 0,
@@ -127,6 +148,124 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
   "persisted operations evidence",
   () => {
     disposableDatabase("ot_operations");
+    it("changes the shared timezone without commissioning provisional shifts, and protects configured changes", async () => {
+      const actor = (await createUser({
+        openId: "timezone-engineer",
+        name: "Timezone engineer",
+        role: "engineer",
+        email: "timezone@example.test",
+      }))!;
+      const db = (await getDb())!;
+      const factoryId = "5c4220e3-bf04-43c2-af67-a30c7803f562";
+      await db.execute(
+        sql`insert into factories(id,name,width,depth) values(${factoryId}::uuid,'Timezone line',20,20)`,
+      );
+      const at = Date.parse("2026-03-29T10:00:00Z");
+      const before = await live(() =>
+        store.operationsSummary({ factoryId, at }),
+      );
+      expect(before.configured).toBe(false);
+      expect(before.configuration.timeZone).toBe("UTC");
+      await live(() =>
+        store.setOperationsTimeZone(
+          {
+            factoryId,
+            expectedVersion: 0,
+            expectedTimeZone: "UTC",
+            timeZone: "Europe/Berlin",
+          },
+          actor,
+        ),
+      );
+      const provisional = await live(() =>
+        store.operationsSummary({ factoryId, at }),
+      );
+      expect(provisional.configured).toBe(false);
+      expect(provisional.version).toBe(0);
+      expect(provisional.shift.timeZone).toBe("Europe/Berlin");
+      expect(provisional.shift.startTime).not.toBe(before.shift.startTime);
+      expect(new Date(provisional.shift.startTime).toISOString()).toBe("2026-03-29T04:00:00.000Z");
+      expect(new Date(resolveShift(provisional.configuration, Date.parse("2026-10-25T10:00:00Z")).startTime).toISOString()).toBe("2026-10-25T05:00:00.000Z");
+      await expect(
+        live(() =>
+          store.setOperationsTimeZone(
+            {
+              factoryId,
+              expectedVersion: 0,
+              expectedTimeZone: "UTC",
+              timeZone: "Africa/Harare",
+            },
+            actor,
+          ),
+        ),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+      await expect(
+        live(() =>
+          store.configureOperations(
+            {
+              factoryId,
+              expectedVersion: 0,
+              expectedTimeZone: "UTC",
+              configuration: config,
+            },
+            actor,
+          ),
+        ),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+      await live(() =>
+        store.configureOperations(
+          {
+            factoryId,
+            expectedVersion: 0,
+            expectedTimeZone: "Europe/Berlin",
+            configuration: { ...config, timeZone: "Europe/Berlin" },
+          },
+          actor,
+        ),
+      );
+      await live(() =>
+        store.setOperationsTimeZone(
+          {
+            factoryId,
+            expectedVersion: 1,
+            expectedTimeZone: "Europe/Berlin",
+            timeZone: "Africa/Harare",
+          },
+          actor,
+        ),
+      );
+      const configured = await live(() =>
+        store.operationsSummary({ factoryId, at }),
+      );
+      expect(configured.configured).toBe(true);
+      expect(configured.version).toBe(2);
+      expect(configured.configuration).toMatchObject({
+        timeZone: "Africa/Harare",
+        boundaryLabel: config.boundaryLabel,
+        shifts: config.shifts,
+      });
+      const audit = await db.execute(
+        sql`select kind,detail from ot_operations_activity where scope=${factoryId} order by id`,
+      );
+      expect(audit.map((row: any) => row.kind)).toEqual([
+        "timezone",
+        "configuration",
+        "timezone",
+      ]);
+      await expect(
+        live(() =>
+          store.setOperationsTimeZone(
+            {
+              factoryId,
+              expectedVersion: 1,
+              expectedTimeZone: "Europe/Berlin",
+              timeZone: "UTC",
+            },
+            actor,
+          ),
+        ),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+    });
     it("persists scoped settings, input periods, handover and actor audit with version/overlap protection", async () => {
       const actor = (await createUser({
         openId: "operations-engineer",
